@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Lecteur mobile — paramètres</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Literata:ital,wght@0,400;1,400&display=swap">
+<style>
+body{margin:0;background:#081721;color:#dfe9ec;font-family:"IBM Plex Sans Condensed","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#7ba7ad;text-decoration:none}a:hover{color:#a9cbd0}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#7ba7ad;font-weight:500}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:4px;border:1px solid #647d8d;color:#fff;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer}
+.btn.pri{background:#7ba7ad;color:#0a2f40;border-color:#7ba7ad}
+.ico{width:40px;height:40px;border-radius:50%;border:1px solid #647d8d;background:transparent;color:#dfe9ec;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.reader{font-family:Literata,Georgia,serif;font-size:17px;line-height:1.6;text-align:justify;hyphens:auto;color:#dfe9ec}
+.reader p{margin:0 0 .7em}
+.slider{position:relative;height:4px;border-radius:2px;background:#3e505b}
+.slider i{position:absolute;left:0;top:0;height:100%;background:#7ba7ad;border-radius:2px}
+.slider b{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #7ba7ad;transform:translate(-50%,-50%);box-sizing:border-box}
+.font{height:40px;border:1px solid #647d8d;border-radius:4px;display:flex;align-items:center;padding:0 10px;color:#fff;font-size:13px}
+.font.on{background:#7ba7ad;color:#0a2f40;border-color:#7ba7ad;font-weight:600}
+.muted{color:#90a5b2}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #081721; position: relative; overflow: hidden">
+  <header style="height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: #0e2c3f; border-bottom: 1px solid #3e505b; flex-shrink: 0">
+    <a href="Oeuvre.dc.html" class="ico" aria-label="Retour" style="width: 36px; height: 36px; border: 0">‹</a>
+    <div style="display: flex; flex-direction: column; line-height: 1.15; overflow: hidden"><span style="color: #ffffff; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Grimgar · T.7 · Chapitre 1</span><span class="muted" style="font-size: 11px">La Crête Brumeuse · 41 %</span></div>
+    <button type="button" class="ico" aria-label="Paramètres" style="margin-left: auto; width: 40px; height: 40px; background: #133449; border-color: #647d8d"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button>
+    <button type="button" class="ico" aria-label="Thème" style="width: 40px; height: 40px; background: #e5a94f; color: #0a2f40; border: 0"><svg width="18" height="18" viewBox="0 0 24 24" fill="#0a2f40"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg></button>
+  </header>
+  <div style="height: 3px; background: #0e2c3f"><div style="height: 100%; width: 41%; background: #7ba7ad"></div></div>
+  <div class="reader" style="padding: 20px 20px 0; opacity: .35">
+    <p>Haruhiro regarda Ranta, Kuzaku, Yume, Shihoru et Merry encore et encore, s'assurant qu'ils étaient toujours là.</p>
+    <p style="padding-left: 1.4em; text-indent: -1.4em">— On est proche de la sortie, leur dit Lala dans un murmure.</p>
+  </div>
+
+  <section style="position: absolute; left: 0; right: 0; bottom: 0; background: #0e2c3f; border-top: 1px solid #3e505b; border-radius: 16px 16px 0 0; padding: 20px 16px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start">
+      <div><div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 18px; color: #ffffff">PARAMÈTRES</div><span class="lbl">Lecture personnalisée</span></div>
+      <button type="button" class="ico" aria-label="Fermer" style="width: 36px; height: 36px; border: 0">✕</button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="color: #ffffff; font-weight: 600">Taille :</div>
+      <div style="display: flex; align-items: center; gap: 12px"><button type="button" class="ico" aria-label="Réduire" style="width: 30px; height: 30px">−</button><div class="slider" style="flex-grow: 1"><i style="width: 30%"></i><b style="left: 30%"></b></div><button type="button" class="ico" aria-label="Agrandir" style="width: 30px; height: 30px">+</button></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="color: #ffffff; font-weight: 600">Interligne</div>
+      <div class="slider"><i style="width: 40%"></i><b style="left: 40%"></b></div>
+      <div style="display: flex; justify-content: space-between" class="lbl"><span>Compact</span><span>Large</span></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="color: #ffffff; font-weight: 600">Opacité du fond (93 %)</div>
+      <div class="slider"><i style="width: 90%"></i><b style="left: 90%"></b></div>
+      <div style="display: flex; justify-content: space-between" class="lbl"><span>Transparent</span><span>Opaque</span></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="color: #ffffff; font-weight: 600">Police d'écriture</div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+        <span class="font on">Avenir Roman</span><span class="font" style="font-family: Merriweather, serif">Merriweather</span>
+        <span class="font" style="font-family: Arial, sans-serif">Arial</span><span class="font" style="font-family: Roboto, sans-serif">Roboto</span>
+        <span class="font" style="font-family: Calibri, sans-serif">Calibri</span><span class="font" style="font-family: 'Times New Roman', serif">Times New Roman</span>
+        <span class="font" style="font-family: Verdana, sans-serif">Verdana</span><span class="font" style="font-family: Georgia, serif">Georgia</span>
+        <span class="font" style="font-family: Garamond, serif">Garamond</span><span class="font" style="font-family: 'Trebuchet MS', sans-serif">Trebuchet MS</span>
+        <span class="font" style="font-family: 'Courier New', monospace">Courier New</span><span class="font" style="font-family: Literata, serif">Literata</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 16px; align-items: center"><button type="button" class="btn pri">VALIDER</button><a href="LecteurMobile.dc.html" class="lbl" style="font-size: 11px">↻ Réinitialiser par défaut</a></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

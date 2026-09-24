@@ -1,0 +1,220 @@
+<title>Plan Yume Novel v2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{
+  --fond:#ffffff;--bande:#f5f7f8;--carte:#ffffff;--filet:#d2dade;--bordure:#3b5364;
+  --fort:#0a2f40;--texte:#0a2f40;--faible:#3b5364;--surtitre:#3b5364;--accent:#0a2f40;--accent-texte:#ffffff;
+  --selection:#e8eff0;--ok:#2f7d5e;--warn:#8f5a1b;--err:#a63328;--teal:#7ba7ad;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --fond:#081721;--bande:#0e2c3f;--carte:#133449;--filet:#3e505b;--bordure:#647d8d;
+    --fort:#ffffff;--texte:#dfe9ec;--faible:#90a5b2;--surtitre:#7ba7ad;--accent:#7ba7ad;--accent-texte:#0a2f40;
+    --selection:#1a3f56;--ok:#7fca8d;--warn:#e5a94f;--err:#f4796a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --fond:#081721;--bande:#0e2c3f;--carte:#133449;--filet:#3e505b;--bordure:#647d8d;
+  --fort:#ffffff;--texte:#dfe9ec;--faible:#90a5b2;--surtitre:#7ba7ad;--accent:#7ba7ad;--accent-texte:#0a2f40;
+  --selection:#1a3f56;--ok:#7fca8d;--warn:#e5a94f;--err:#f4796a;
+}
+body{background:var(--fond);color:var(--texte);font-family:"IBM Plex Sans Condensed","Segoe UI",sans-serif;font-size:16px;line-height:1.55;margin:0}
+.wrap{max-width:1080px;margin-inline:auto;padding-inline:16px;padding-block:0 64px}
+h1,h2,h3{font-family:"Bricolage Grotesque",sans-serif;color:var(--fort);line-height:1.1;margin:0;text-wrap:balance}
+h1{font-size:clamp(34px,5vw,52px)}
+h2{font-size:clamp(24px,3vw,32px);margin-top:56px;padding-top:24px;border-top:1px solid var(--filet)}
+h3{font-size:18px;margin-top:8px}
+p{max-width:70ch;margin:12px 0}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--surtitre);font-weight:500}
+header.top{background:var(--bande);border-bottom:1px solid var(--filet);padding-block:40px;margin-bottom:8px}
+header.top .wrap{padding-block:0}
+.lead{font-size:18px;color:var(--faible);max-width:62ch}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0 0}
+.kpi{background:var(--carte);border:1px solid var(--filet);border-radius:8px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
+.kpi b{font-family:"Bricolage Grotesque",sans-serif;font-size:26px;color:var(--fort);font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--faible)}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:16px 0}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--filet);vertical-align:top}
+th{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--surtitre);font-weight:500}
+.tbl{overflow-x:auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px}
+.card{background:var(--carte);border:1px solid var(--filet);border-radius:8px;padding:18px 20px;display:flex;flex-direction:column;gap:8px}
+.card p{margin:0;font-size:15px;max-width:none}
+.card ul{margin:0;padding-left:18px;font-size:15px}
+.card li{margin:3px 0}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid currentColor;white-space:nowrap}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}.info{color:var(--faible)}
+.reco{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.steps{counter-reset:s;display:flex;flex-direction:column;gap:10px;margin:16px 0;padding:0;list-style:none}
+.steps li{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;background:var(--carte);border:1px solid var(--filet);border-radius:8px;padding:12px 14px}
+.steps li::before{counter-increment:s;content:counter(s);font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px;color:var(--surtitre);line-height:1}
+.timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:16px}
+.ph{background:var(--carte);border:1px solid var(--filet);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;min-height:150px}
+.ph b{color:var(--fort);font-size:15px}
+.ph .w{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--surtitre)}
+.ph small{font-size:13px;color:var(--faible)}
+.ph .bar{height:6px;border-radius:3px;background:var(--selection);overflow:hidden;margin-top:auto}
+.ph .bar i{display:block;height:100%;background:var(--accent)}
+pre.mermaid{background:var(--carte);border:1px solid var(--filet);border-radius:8px;padding:16px;overflow-x:auto;margin:16px 0;color:var(--texte)}
+a{color:var(--accent)}
+.links{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.btn{display:inline-flex;align-items:center;height:40px;padding:0 16px;border-radius:4px;border:1px solid var(--bordure);color:var(--fort);font-weight:600;text-decoration:none}
+.btn.pri{background:var(--accent);color:var(--accent-texte);border-color:var(--accent)}
+code{font-family:"IBM Plex Mono",monospace;font-size:.9em;background:var(--selection);padding:1px 5px;border-radius:3px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <span class="lbl">Yume Novel · refonte · 24 septembre 2026</span>
+    <h1>Yume Novel v2 : bibliothèque, lecteur, planning, équipe</h1>
+    <p class="lead">Audit du site actuel, décision d'hébergement, architecture, fonctionnalités, pipeline GitHub → WordPress et procédure de bascule en une opération. Les maquettes sont sur le canvas <em>Yume Novel v2</em>, la documentation complète dans le dépôt <code>GNAlexandre/Yume-WordPress</code>.</p>
+    <div class="kpis">
+      <div class="kpi"><b>96</b><span>pages, toutes à plat</span></div>
+      <div class="kpi"><b>180</b><span>articles, 0 tag</span></div>
+      <div class="kpi"><b>63</b><span>chapitres lisibles en ligne (Silent Witch)</span></div>
+      <div class="kpi"><b>~1 200</b><span>vues par mois</span></div>
+      <div class="kpi"><b>4</b><span>administrateurs, aucun autre rôle</span></div>
+      <div class="kpi"><b>0</b><span>plugin possible (hébergement « Simple »)</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h2 id="constat">1 · Le constat</h2>
+<p>Le site est un WordPress.com « Simple » (plan Personal, quota 6 Go) sous Twenty Twenty-Four. Tout le contenu est saisi à la main : les hubs « Yume LN / Yume Manga » sont des colonnes d'images, chaque fiche œuvre répète un bloc <em>media-text</em> par tome avec deux boutons ClicTune, chaque chapitre de Silent Witch est une page avec des images « précédent / suivant ». Une sortie de tome demande trois à quatre éditions manuelles, d'où des slugs incohérents, des articles « Non classé » et des liens internes qui pointent encore vers <code>yumenovel.wordpress.com</code>.</p>
+<div class="cards">
+  <div class="card"><span class="lbl">Plateforme</span><p>Aucun plugin, aucun PHP, aucun accès fichiers. Le planning, le formulaire, le lecteur et les comptes sont impossibles sans changer d'hébergement.</p></div>
+  <div class="card"><span class="lbl">Modèle de contenu</span><p>Pas de type « œuvre », « tome » ou « chapitre ». Rien n'est structuré, donc rien n'est automatisable.</p></div>
+  <div class="card"><span class="lbl">Expérience de lecture</span><p>Ni progression, ni réglages, ni mode sombre. Les modèles mélangent français et anglais (« Comments », « by », « Previous »).</p></div>
+  <div class="card"><span class="lbl">Document Word de référence</span><p>La mise en page tient en quatre styles (Titre1, Titre2, liste « — » pour les dialogues, « Pensée » en italique). La conversion automatique vers des chapitres HTML est fiable.</p></div>
+</div>
+
+<h2 id="plateforme">2 · La décision préalable : WordPress.com Business</h2>
+<p>Aucun module premium n'est nécessaire. Ce qu'il faut, c'est le <strong>plan Business</strong> : il déclenche le transfert vers l'hébergement managé « Atomic » (plugins, PHP, SSH, WP-CLI), et il apporte les deux briques du pipeline : <strong>GitHub Deployments</strong> et le <strong>site de staging</strong>. Le transfert est automatique, sans changement d'URL ni interruption.</p>
+<div class="cards">
+  <div class="card"><span class="lbl">Personal (actuel)</span><h3>48 €/an</h3><p>Site « Simple ». <span class="chip err">Plugins impossibles</span></p></div>
+  <div class="card"><span class="lbl">Premium</span><h3>96 €/an</h3><p>Plugins après transfert, mais ni SSH ni Git ni staging. Déploiement manuel par zip.</p></div>
+  <div class="card reco"><span class="lbl">Business · recommandé</span><h3>300 €/an</h3><p>Plugins, PHP, SFTP/SSH, WP-CLI, GitHub Deployments, staging, Jetpack Backup, 50 Go. <span class="chip ok">Tout le cahier des charges</span></p></div>
+  <div class="card"><span class="lbl">Auto-hébergement</span><h3>60–100 €/an + temps</h3><p>Possible, mais on perd les sauvegardes, le CDN, la sécurité managée et le transfert sans friction.</p></div>
+</div>
+<p><strong>À ne pas installer</strong> : constructeurs de pages, plugins « manga/novel », membership, ACF, plugins de mode sombre ou de progression. Ils dupliqueraient l'architecture ci-dessous. Plugins retenus : Jetpack (inclus), Akismet (inclus), Redirection, Rank Math, et nos deux composants <code>yume-core</code> et thème <code>yume</code>.</p>
+
+<h2 id="architecture">3 · Architecture</h2>
+<pre class="mermaid">
+flowchart LR
+  subgraph GH[GitHub · GNAlexandre/Yume-WordPress]
+    A[wp-content/plugins/yume-core] --> CI[Actions : lint · tests · build]
+    B[wp-content/themes/yume] --> CI
+  end
+  CI -->|branche develop| S[Staging WordPress.com]
+  CI -->|branche main| P[Production yumenovel.fr]
+  subgraph WP[Site WordPress.com Business]
+    P --- DB[(Base de contenu : œuvres · tomes · chapitres · comptes)]
+    P --- M[Médiathèque : couvertures · illustrations]
+  end
+  T[Yume-Trad / Angelith] -->|POST /yume/v1/publications| P
+  D[Bot Discord] -->|GET /yume/v1/planning| P
+  P -->|webhook| DC[Discord #sorties]
+  P -->|wp_mail| L[Lecteurs abonnés]
+</pre>
+<div class="cards">
+  <div class="card"><span class="lbl">Thème « yume »</span><ul><li>Thème bloc (FSE) avec <code>theme.json</code> : palettes Nocturne / Papier, Bricolage Grotesque + IBM Plex.</li><li>Modèles : accueil, bibliothèque, œuvre, tome, chapitre (lecteur), planning, équipe, compte.</li><li>Textes 100 % français, mode sombre natif.</li></ul></div>
+  <div class="card"><span class="lbl">Plugin « yume-core »</span><ul><li>Types de contenu <code>yume_oeuvre</code>, <code>yume_tome</code>, <code>yume_chapitre</code> + taxonomies type / statut / genre.</li><li>Rôles équipe et lecteur, API REST <code>yume/v1</code>.</li><li>Import DOCX/EPUB, planning et rappels, notifications, favoris, notes, marque-pages, migration.</li></ul></div>
+  <div class="card"><span class="lbl">Ce qui n'est jamais dans Git</span><ul><li>Le contenu (œuvres, chapitres, articles, comptes) vit en base.</li><li>Les secrets (webhook Discord, jetons) sont saisis dans <em>Réglages → Yume</em>.</li><li>Les PDF/EPUB restent sur ClicTune : le site ne stocke que des liens.</li></ul></div>
+</div>
+
+<h2 id="fonctions">4 · Les fonctionnalités</h2>
+<div class="cards">
+  <div class="card"><span class="lbl">F1 · Planning public</span><p>Page <code>/planning/</code> générée : par tome, les étapes traduction → relecture → édition, le responsable, la date cible, l'état (à l'heure, en retard, bloqué). Prochaines sorties, filtres, flux JSON pour le bot Discord, journal des mises à jour.</p></div>
+  <div class="card"><span class="lbl">F2 · Espace équipe + rappels</span><p>Rôles dédiés, connexion WordPress avec SSO/2FA, tableau de bord « Mes tâches » avec curseur d'avancement. Rappels automatiques : date dépassée, aucune mise à jour depuis 14 jours, digest hebdomadaire aux gérants. E-mail + Discord.</p></div>
+  <div class="card"><span class="lbl">F3 · Publier en un formulaire</span><p>Œuvre, numéro, titre, couverture, liens ClicTune PDF/EPUB, dépôt du DOCX ou de l'EPUB. Le plugin crée le tome, les chapitres, l'article d'annonce, met le planning à « Publié » et notifie. Même API pour Yume-Trad.</p></div>
+  <div class="card"><span class="lbl">F4 · Lecture en ligne</span><p>Conversion DOCX/EPUB fidèle (titres, dialogues « — », pensées, illustrations), une page par chapitre, sommaire, navigation, panneau de paramètres (taille, interligne, opacité, police, thème), marque-page automatique.</p></div>
+  <div class="card"><span class="lbl">F5 · Comptes lecteurs</span><p>Inscription sécurisée, favoris, notes 1–5, commentaires modérés, reprise de lecture, réglages synchronisés, alertes e-mail à chaque sortie d'une œuvre favorite, suppression de compte.</p></div>
+  <div class="card"><span class="lbl">F6 · Refonte graphique</span><p>Direction « Nocturne » (Angelith) + thème « Papier ». Menu : Bibliothèque, Planning, Actualités, L'équipe, Soutenir, recherche, bascule de thème, compte. Bibliothèque filtrable, fiches structurées (schema.org).</p></div>
+  <div class="card"><span class="lbl">F7 · Migration</span><p>Commande <code>wp yume migrate</code> idempotente : fiches → œuvres et tomes (liens ClicTune conservés), pages ARC et chapitres → tomes et chapitres, articles nettoyés, redirections 301, rapport CSV.</p></div>
+  <div class="card"><span class="lbl">F8 · SEO, perfs, RGPD</span><p>Rank Math, sitemap, schema Book/BookSeries, Jetpack Boost, WebP, mentions légales, export et suppression des données, contrastes mesurés.</p></div>
+</div>
+
+<h2 id="publication">5 · Le flux d'une publication</h2>
+<pre class="mermaid">
+sequenceDiagram
+  participant E as Membre de l'équipe
+  participant F as Formulaire /equipe/publier
+  participant C as yume-core
+  participant M as Médiathèque
+  participant N as Notifications
+  E->>F: Œuvre, n°, titre, couverture, liens ClicTune, DOCX/EPUB
+  F->>C: POST /yume/v1/publications (multipart)
+  C->>C: Découpe en chapitres (Titre1), styles → classes
+  C->>M: Illustrations importées (WebP)
+  C-->>F: Aperçu : 19 chapitres + postface, avertissements
+  E->>F: Publier
+  C->>C: Tome + chapitres publiés, planning → Publié, article d'annonce
+  C->>N: Discord #sorties · e-mail aux favoris · newsletter
+</pre>
+
+<h2 id="donnees">6 · Le modèle de données</h2>
+<pre class="mermaid">
+erDiagram
+  OEUVRE ||--o{ TOME : contient
+  TOME ||--o{ CHAPITRE : contient
+  LECTEUR }o--o{ OEUVRE : "favoris, notes"
+  LECTEUR ||--o{ PROGRESSION : "marque-page"
+  PROGRESSION }o--|| CHAPITRE : pointe
+  TOME ||--o{ JOURNAL_PLANNING : trace
+  OEUVRE { string titre string auteur string editeur_vo string type string statut }
+  TOME { int numero url lien_pdf url lien_epub string etape json avancement date date_cible }
+  CHAPITRE { int numero string sous_titre html contenu json credits }
+  PROGRESSION { int paragraphe int pourcentage datetime maj }
+</pre>
+<p>Rôles : <code>lecteur</code>, <code>yume_traducteur</code>, <code>yume_relecteur</code>, <code>yume_graphiste</code>, <code>yume_editeur</code> (publie), <code>yume_gerant</code>. Les quatre administrateurs actuels deviennent un ou deux comptes techniques.</p>
+
+<h2 id="phases">7 · Phasage : dix semaines</h2>
+<div class="timeline">
+  <div class="ph"><span class="w">S1</span><b>0 · Fondations</b><small>Plan Business, Atomic, staging, GitHub Deployments, squelettes, CI</small><div class="bar"><i style="width:10%"></i></div></div>
+  <div class="ph"><span class="w">S2–S3</span><b>1 · Modèle</b><small>CPT, rôles, API, migration en mode simulation</small><div class="bar"><i style="width:30%"></i></div></div>
+  <div class="ph"><span class="w">S4–S5</span><b>2 · Lecteur</b><small>Convertisseurs, page chapitre, réglages, marque-page</small><div class="bar"><i style="width:50%"></i></div></div>
+  <div class="ph"><span class="w">S6</span><b>3 · Planning + équipe</b><small>Planning public, tableau de bord, rappels</small><div class="bar"><i style="width:60%"></i></div></div>
+  <div class="ph"><span class="w">S7</span><b>4 · Publication</b><small>Formulaire, annonce auto, notifications, API Yume-Trad</small><div class="bar"><i style="width:70%"></i></div></div>
+  <div class="ph"><span class="w">S8</span><b>5 · Lecteurs</b><small>Comptes, favoris, notes, commentaires, alertes</small><div class="bar"><i style="width:80%"></i></div></div>
+  <div class="ph"><span class="w">S9</span><b>6 · Finitions</b><small>SEO, redirections, perfs, recette, doc équipe</small><div class="bar"><i style="width:90%"></i></div></div>
+  <div class="ph"><span class="w">S10</span><b>7 · Bascule</b><small>Jour J, surveillance 7 jours</small><div class="bar"><i style="width:100%"></i></div></div>
+</div>
+
+<h2 id="jourj">8 · Le jour J, en une opération</h2>
+<ol class="steps">
+  <li><div><b>J-2</b> · Gel des publications annoncé sur Discord. Dernière migration simulée sur le staging avec un export frais. Rapport validé par l'équipe.</div></li>
+  <li><div><b>J-1</b> · Point de restauration Jetpack Backup nommé <code>avant-v2</code>.</div></li>
+  <li><div><b>H0</b> · Mode maintenance (« Yume fait peau neuve »). Fenêtre prévue : une heure.</div></li>
+  <li><div><b>H0+5</b> · Fusion <code>develop → main</code> : GitHub Deployments installe le thème et le plugin en production.</div></li>
+  <li><div><b>H0+10</b> · <code>wp yume migrate</code> en production, activation du thème, menus générés, redirections importées.</div></li>
+  <li><div><b>H0+30</b> · Recette : accueil, trois fiches, un chapitre, planning, connexion équipe, inscription lecteur, dix anciennes URL redirigées.</div></li>
+  <li><div><b>H0+45</b> · Fin de maintenance, annonce Discord et X, article « Un nouveau site pour Yume ». Retour arrière possible en un clic depuis <code>avant-v2</code>.</div></li>
+</ol>
+
+<h2 id="decisions">9 · Décisions à prendre</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Sujet</th><th>Question</th><th>Recommandation</th></tr></thead>
+  <tbody>
+    <tr><td>Plan WordPress.com</td><td>Passer à Business ?</td><td><span class="chip ok">Oui</span> prérequis de tout le reste</td></tr>
+    <tr><td>Source de la lecture en ligne</td><td>DOCX, EPUB ou les deux ?</td><td>Les deux, EPUB en priorité. Le PDF reste un lien ClicTune.</td></tr>
+    <tr><td>ClicTune</td><td>Conserver la monétisation des téléchargements ?</td><td>Oui ; la lecture en ligne est gratuite et sans raccourcisseur.</td></tr>
+    <tr><td>Manga</td><td>Lecteur d'images dès la v2 ?</td><td>Non : fiches + liens MangaDex, lecteur manga en v2.1.</td></tr>
+    <tr><td>Commentaires</td><td>Natifs ou Discord ?</td><td>Natifs (comptes, SEO) avec lien vers le fil Discord.</td></tr>
+    <tr><td>Connexion Discord</td><td>OAuth dès la v2 ?</td><td>v2.1 ; e-mail + mot de passe au lancement.</td></tr>
+    <tr><td>Notifications push</td><td>Dès la v2 ?</td><td>v2.1 ; e-mail suffisant au lancement.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="liens">10 · Pour aller plus loin</h2>
+<div class="links">
+  <a class="btn pri" href="https://github.com/GNAlexandre/Yume-WordPress/tree/claude/busy-babbage-4qnb27/docs">Documentation complète (dépôt)</a>
+  <a class="btn" href="https://claude.ai/artifact/4yxUdr1GiyWa83vcAfNXgB">Maquettes : canvas Yume Novel v2</a>
+  <a class="btn" href="https://wordpress.com/plans/yumenovel.fr">Plans WordPress.com pour yumenovel.fr</a>
+</div>
+<p class="lead" style="margin-top:32px;font-size:15px">Fichiers du dépôt : <code>docs/01-audit-existant.md</code>, <code>02-plan-refonte.md</code>, <code>03-modele-de-donnees.md</code>, <code>04-import-docx-epub-lecteur.md</code>, <code>05-pipeline-github-wordpress.md</code>, <code>design/README.md</code>, <code>design/maquettes/</code>.</p>
+</div>

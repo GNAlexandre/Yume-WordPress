@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Compte lecteur</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#081721;color:#dfe9ec;font-family:"IBM Plex Sans Condensed","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#7ba7ad;text-decoration:none}a:hover{color:#a9cbd0}
+h1,h2,h3{font-family:"Bricolage Grotesque",sans-serif;color:#fff;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7ba7ad;font-weight:500}
+.card{background:#133449;border:1px solid #3e505b;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:4px;border:1px solid #647d8d;color:#fff;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer}
+.btn.pri{background:#7ba7ad;color:#0a2f40;border-color:#7ba7ad}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap}
+.ok{color:#7fca8d;border-color:#7fca8d}.warn{color:#e5a94f;border-color:#e5a94f}.info{color:#90a5b2;border-color:#647d8d}
+.bar{height:6px;border-radius:3px;background:#0e2c3f;overflow:hidden}.bar i{display:block;height:100%;background:#7ba7ad}
+.cover{border-radius:6px;background:linear-gradient(160deg,#1a3f56,#0e2c3f);display:flex;align-items:flex-end;padding:8px;color:#dfe9ec;font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:11px;line-height:1.15;border:1px solid #3e505b;box-sizing:border-box}
+.muted{color:#90a5b2}
+nav a{color:#dfe9ec;font-weight:500}
+.side a{display:flex;align-items:center;height:40px;padding:0 14px;border-radius:4px;color:#dfe9ec;font-weight:500}
+.side a.on{background:#1a3f56;color:#fff;border-left:3px solid #7ba7ad}
+.sw{width:40px;height:22px;border-radius:11px;background:#3e505b;position:relative;display:inline-block}
+.sw.on{background:#7ba7ad}
+.sw i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.sw.on i{left:20px}
+select{background:#0e2c3f;border:1px solid #647d8d;border-radius:4px;color:#dfe9ec;height:32px;padding:0 8px;font-family:inherit;font-size:13px}
+.row{display:grid;grid-template-columns:56px 1fr 200px 160px 120px;gap:16px;align-items:center;padding:12px 20px;border-bottom:1px solid #3e505b}
+</style>
+</helmet>
+<div style="width: 1440px; height: 980px; box-sizing: border-box; display: flex; flex-direction: column; background: #081721">
+
+<header style="background: #0e2c3f; border-bottom: 1px solid #3e505b; height: 64px; display: flex; align-items: center; gap: 32px; padding: 0 48px; flex-shrink: 0">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; color: #ffffff; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 20px"><span style="width: 28px; height: 28px; border-radius: 50%; background: #7ba7ad; display: inline-block"></span>Yume Novel</a>
+  <nav style="display: flex; gap: 24px"><a href="Main.dc.html">Bibliothèque ▾</a><a href="Planning.dc.html">Planning</a><a href="Main.dc.html">Actualités</a><a href="Main.dc.html">L'équipe</a><a href="Main.dc.html">Soutenir</a></nav>
+  <div style="margin-left: auto; display: flex; gap: 10px; align-items: center"><span style="color: #ffffff; font-weight: 600">Kaede</span><span style="width: 36px; height: 36px; border-radius: 50%; background: #1a3f56; display: inline-block"></span></div>
+</header>
+
+<div style="display: flex; flex-grow: 1">
+  <aside class="side" style="width: 260px; padding: 32px 16px; border-right: 1px solid #3e505b; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box; flex-shrink: 0">
+    <div style="padding: 0 14px 16px"><h1 style="font-size: 24px">Mon compte</h1><span class="muted" style="font-size: 13px">membre depuis mars 2026</span></div>
+    <a href="Compte.dc.html" class="on">Lecture en cours</a><a href="Compte.dc.html">Favoris (6)</a><a href="Compte.dc.html">Mes notes et commentaires</a><a href="Compte.dc.html">Réglages de lecture</a><a href="Compte.dc.html">Alertes</a><a href="Compte.dc.html">Profil et sécurité</a><a href="Compte.dc.html">Données et suppression</a>
+  </aside>
+
+  <main style="flex-grow: 1; padding: 32px 40px; display: flex; flex-direction: column; gap: 28px">
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="font-size: 22px">Reprendre la lecture</h2><span class="muted" style="font-size: 13px">Position enregistrée automatiquement pendant la lecture</span></div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+        <div class="card" style="padding: 16px; display: flex; gap: 14px"><div class="cover" style="width: 64px; height: 90px">Grimgar T.7</div><div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1"><b style="color: #ffffff">Grimgar of Fantasy and Ash</b><span class="muted" style="font-size: 13px">Tome 7 · chapitre 3 · 41 %</span><div class="bar"><i style="width: 41%"></i></div><a href="Lecteur.dc.html" class="btn pri" style="align-self: flex-start; margin-top: 4px">Continuer</a></div></div>
+        <div class="card" style="padding: 16px; display: flex; gap: 14px"><div class="cover" style="width: 64px; height: 90px">Silent Witch Arc 7</div><div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1"><b style="color: #ffffff">Secrets of the Silent Witch</b><span class="muted" style="font-size: 13px">Arc 7 · chapitre 8 · 92 %</span><div class="bar"><i style="width: 92%"></i></div><a href="Lecteur.dc.html" class="btn pri" style="align-self: flex-start; margin-top: 4px">Continuer</a></div></div>
+        <div class="card" style="padding: 16px; display: flex; gap: 14px"><div class="cover" style="width: 64px; height: 90px">Raven T.5</div><div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1"><b style="color: #ffffff">Raven of the Inner Palace</b><span class="muted" style="font-size: 13px">Tome 5 · chapitre 11 · 8 %</span><div class="bar"><i style="width: 8%"></i></div><a href="Lecteur.dc.html" class="btn" style="align-self: flex-start; margin-top: 4px">Continuer</a></div></div>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="font-size: 22px">Favoris et alertes</h2><span class="muted" style="font-size: 13px">Vous recevez un e-mail à chaque sortie selon le réglage de chaque œuvre</span></div>
+      <div class="card" style="display: flex; flex-direction: column">
+        <div class="row lbl" style="padding: 10px 20px"><span></span><span>Œuvre</span><span>Où en est la traduction</span><span>Alerte</span><span>Ma note</span></div>
+        <div class="row"><div class="cover" style="width: 56px; height: 78px">G</div><div><b style="color: #ffffff">Grimgar of Fantasy and Ash</b><div class="muted" style="font-size: 13px">9 tomes · dernier le 20 sept.</div></div><div style="font-size: 13px">Tome 10 · relecture 62 % · <span class="chip ok">dim. 27</span></div><select><option>Immédiate</option><option>Hebdomadaire</option><option>Jamais</option></select><span style="color: #e5a94f">★★★★★</span></div>
+        <div class="row"><div class="cover" style="width: 56px; height: 78px">SW</div><div><b style="color: #ffffff">Secrets of the Silent Witch (WN)</b><div class="muted" style="font-size: 13px">Arc 7 · 8 / 15 chapitres</div></div><div style="font-size: 13px">Chapitre 9 · relecture 35 % · <span class="chip warn">en retard</span></div><select><option>Immédiate</option></select><span style="color: #e5a94f">★★★★☆</span></div>
+        <div class="row"><div class="cover" style="width: 56px; height: 78px">R</div><div><b style="color: #ffffff">Raven of the Inner Palace</b><div class="muted" style="font-size: 13px">6 tomes</div></div><div style="font-size: 13px">Tome 7 · traduction 48 %</div><select><option>Hebdomadaire</option></select><span class="muted">Noter</span></div>
+        <div class="row" style="border-bottom: 0"><div class="cover" style="width: 56px; height: 78px">SS</div><div><b style="color: #ffffff">SukaSuka</b><div class="muted" style="font-size: 13px">5 tomes + EX · terminée</div></div><div style="font-size: 13px"><span class="chip ok">Terminée</span></div><select><option>Jamais</option></select><span style="color: #e5a94f">★★★★★</span></div>
+      </div>
+    </section>
+
+    <section style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px">
+      <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px">
+        <span class="lbl">Réglages de lecture synchronisés</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 14px"><span class="muted">Police</span><span>Literata</span><span class="muted">Taille</span><span>18 px</span><span class="muted">Interligne</span><span>1,6</span><span class="muted">Thème</span><span>Nocturne (suit le site)</span><span class="muted">Opacité du fond</span><span>93 %</span></div>
+        <a href="Lecteur.dc.html" style="font-size: 13px">Modifier depuis le lecteur →</a>
+      </div>
+      <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px">
+        <span class="lbl">Alertes</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px"><span>E-mail à chaque sortie d'un favori</span><span class="sw on"><i></i></span></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px"><span>Récapitulatif hebdomadaire (dimanche)</span><span class="sw"><i></i></span></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px"><span>Réponses à mes commentaires</span><span class="sw on"><i></i></span></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px"><span>Notifications navigateur (bientôt)</span><span class="chip info">v2.1</span></div>
+      </div>
+    </section>
+  </main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
