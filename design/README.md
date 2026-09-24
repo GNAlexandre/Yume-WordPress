@@ -1,41 +1,49 @@
 # Design — Yume Novel v2
 
-## Direction : « Nocturne » + « Papier »
+## Direction : « Crépuscule sakura »
 
-La v2 reprend le système visuel **Angelith** (outillage de traduction Yume, dérivé de la charte
-Infitex « Nocturne ») pour que le site public et les outils internes partagent une même identité :
-bleu nuit, teal, titres Bricolage Grotesque. Le lecteur ajoute un thème **Papier** (clair) et **Sépia**.
+La v2 reprend l'identité déjà présente sur Yume Novel : le logo (livre ouvert sous un cercle de
+cerisier au coucher du soleil), la bannière « Un nouvel élan pour Yume » et les sommaires des tomes
+(fond blanc, typographie géométrique légère). Le site est **sombre par défaut** (nuit violette,
+pétales roses, touche pêche du soleil couchant) avec un thème de lecture **Papier** clair et un thème
+**Sépia**.
+
+La page d'accueil est une **bibliothèque** (inspiration J-Garden) : bannière des sorties, grille de
+couvertures « Dernières sorties » avec Lire / PDF / EPUB, bandeau reprise de lecture + planning, grille
+de toutes les œuvres filtrable, actualités en cartes illustrées.
 
 Maquettes (canvas Design Claude) : *Yume Novel v2* — accueil, fiche œuvre, lecteur (bureau + mobile
 avec panneau de paramètres), planning public, tableau de bord équipe, formulaire de publication,
-compte lecteur.
+compte lecteur. Sources dans `design/maquettes/`.
 
 ## Tokens (theme.json → `settings.color.palette`, `settings.typography.fontFamilies`)
 
-| Token | Nocturne (défaut) | Papier | Usage |
+| Token | Nuit (défaut) | Papier | Usage |
 | --- | --- | --- | --- |
-| `fond` | `#081721` | `#ffffff` | Fond de page |
-| `bande` | `#0e2c3f` | `#f5f7f8` | En-tête, barres, pied de page |
-| `fond-eleve` | `#133449` | `#ffffff` | Cartes, champs, panneaux (en nocturne : plus clair que la page) |
-| `filet` | `#3e505b` | `#d2dade` | Séparateurs (1,3:1) |
-| `bordure` | `#647d8d` | `#3b5364` | Bord d'un contrôle (3:1) |
-| `texte-fort` | `#ffffff` | `#0a2f40` | Titres, valeurs |
-| `texte` | `#dfe9ec` | `#0a2f40` | Courant |
-| `texte-faible` | `#90a5b2` | `#3b5364` | Métadonnées |
-| `surtitre` | `#7ba7ad` | `#3b5364` | Étiquettes mono en capitales |
-| `accent` | `#7ba7ad` | `#0a2f40` | Bouton primaire, onglet actif (jamais de blanc sur teal) |
-| `accent-texte` | `#0a2f40` | `#ffffff` | Texte sur l'accent |
-| `selection` | `#1a3f56` | `#e8eff0` | Lavis de survol / sélection |
-| `succes` / `avertissement` / `erreur` | `#7fca8d` / `#e5a94f` / `#f4796a` | `#2f7d5e` / `#8f5a1b` / `#a63328` | États du planning (à l'heure / en retard / bloqué) |
-| `sepia-papier` / `sepia-encre` | `#f3ead8` / `#3b2f24` | — | Thème de lecture Sépia |
+| `fond` | `#1b1231` | `#fdf8fa` | Fond de page |
+| `bande` | `#241740` | `#f6eef3` | En-tête, barres, pied de page |
+| `carte` | `#2d1f4f` | `#ffffff` | Cartes, champs, panneaux (plus clair que la page en nuit) |
+| `filet` | `#4a3b6e` | `#e8d9e2` | Séparateurs |
+| `bordure` | `#7f6aa8` | `#8a6f9e` | Bord d'un contrôle (3:1) |
+| `texte-fort` | `#fff8fb` | `#2a1240` | Titres, valeurs |
+| `texte` | `#ebe3f2` | `#2a1240` | Courant |
+| `texte-faible` | `#b7a9cc` | `#5e4a73` | Métadonnées |
+| `accent` (sakura) | `#f3a6c8` | `#c2437e` | Bouton primaire, badge « Nouveau », onglet actif |
+| `accent-texte` | `#2a1240` | `#ffffff` | Texte sur l'accent |
+| `accent-2` (pêche) | `#f7c59f` | `#b8642a` | Ko-fi, surtitres de la bannière, étoiles |
+| `selection` | `#3a2a63` | `#f3e6ee` | Lavis de survol / sélection |
+| `succes` / `avertissement` / `erreur` | `#8fd6a3` / `#f4c069` / `#ff8f7e` | `#2f7d5e` / `#8f5a1b` / `#a63328` | États du planning |
+| `sepia-papier` / `sepia-encre` | `#f6e7ec` / `#3a2233` | — | Thème de lecture Sépia |
+| Dégradé couverture de substitution | `160deg #5b3a7a → #2d1f4f → #c2437e` | — | En attendant la vraie couverture |
 
-Typographie : **Bricolage Grotesque** 700/800 (titres), **IBM Plex Sans Condensed** 400/500/600 (interface),
-**IBM Plex Mono** 500 (étiquettes), **Literata** (lecture par défaut, remplaçable par le lecteur).
-Espacements : 4 / 8 / 12 / 16 / 24 / 32 px. Rayons : 4 px (contrôles), 8 px (cartes), 12 px (couvertures).
+Typographie : **Outfit** 600/700/800 (titres, proche des sommaires des tomes), **Nunito Sans** 400/600/700
+(interface), **IBM Plex Mono** 500 (étiquettes), **Literata** (lecture par défaut, remplaçable par le lecteur).
+Espacements : 4 / 8 / 12 / 16 / 24 / 32 px. Rayons : 6 px (contrôles), 10 px (cartes et couvertures).
 
 ## Règles
 
-- Le contraste se mesure (4,5:1 texte, 3:1 gros texte et contrôles) sur les trois surfaces `fond`, `bande`, `fond-eleve`.
+- Contraste mesuré : 4,5:1 pour le texte, 3:1 pour les gros titres et les contrôles, sur les trois surfaces `fond`, `bande`, `carte`.
 - Un état ne se lit jamais à la seule couleur : pastille + libellé (« En retard ») + icône.
-- L'accent teal n'occupe jamais plus de 10 % d'un écran ; les aplats sont réservés aux couvertures.
-- Pas d'ombre au repos ; une carte se détache par son filet, une carte cliquable par un filet appuyé au survol.
+- Le rose sakura reste un accent (boutons, badges, barres) : jamais en aplat de fond ; les grandes surfaces colorées sont réservées aux couvertures et à la bannière.
+- Pas d'ombre au repos ; une carte se détache par son filet, une couverture cliquable s'éclaircit légèrement au survol.
+- Les illustrations (bannière, cartes d'actualité) sont assombries par un dégradé pour garder le texte lisible.

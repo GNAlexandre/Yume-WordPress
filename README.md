@@ -34,7 +34,7 @@ jamais hébergés sur le site ; la lecture en ligne est générée depuis le DOC
 
 ```
 wp-content/plugins/yume-core   plugin métier (types de contenu, planning, import DOCX/EPUB, API, comptes)
-wp-content/themes/yume         thème bloc « Nocturne / Papier »
+wp-content/themes/yume         thème bloc « Nuit sakura / Papier »
 tools/                         scripts de migration et fixtures
 docs/                          documentation
 design/                        tokens et maquettes

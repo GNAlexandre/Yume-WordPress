@@ -1,28 +1,28 @@
 <title>Plan Yume Novel v2</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 :root{
-  --fond:#ffffff;--bande:#f5f7f8;--carte:#ffffff;--filet:#d2dade;--bordure:#3b5364;
-  --fort:#0a2f40;--texte:#0a2f40;--faible:#3b5364;--surtitre:#3b5364;--accent:#0a2f40;--accent-texte:#ffffff;
-  --selection:#e8eff0;--ok:#2f7d5e;--warn:#8f5a1b;--err:#a63328;--teal:#7ba7ad;
+  --fond:#fdf8fa;--bande:#f6eef3;--carte:#ffffff;--filet:#e8d9e2;--bordure:#8a6f9e;
+  --fort:#2a1240;--texte:#2a1240;--faible:#5e4a73;--surtitre:#8a3c68;--accent:#c2437e;--accent-texte:#ffffff;
+  --selection:#e8eff0;--ok:#2f7d5e;--warn:#8f5a1b;--err:#a63328;--teal:#f3a6c8;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --fond:#081721;--bande:#0e2c3f;--carte:#133449;--filet:#3e505b;--bordure:#647d8d;
-    --fort:#ffffff;--texte:#dfe9ec;--faible:#90a5b2;--surtitre:#7ba7ad;--accent:#7ba7ad;--accent-texte:#0a2f40;
-    --selection:#1a3f56;--ok:#7fca8d;--warn:#e5a94f;--err:#f4796a;
+    --fond:#1b1231;--bande:#241740;--carte:#2d1f4f;--filet:#4a3b6e;--bordure:#7f6aa8;
+    --fort:#fff8fb;--texte:#ebe3f2;--faible:#b7a9cc;--surtitre:#f3a6c8;--accent:#f3a6c8;--accent-texte:#2a1240;
+    --selection:#3a2a63;--ok:#8fd6a3;--warn:#f4c069;--err:#ff8f7e;
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --fond:#081721;--bande:#0e2c3f;--carte:#133449;--filet:#3e505b;--bordure:#647d8d;
-  --fort:#ffffff;--texte:#dfe9ec;--faible:#90a5b2;--surtitre:#7ba7ad;--accent:#7ba7ad;--accent-texte:#0a2f40;
-  --selection:#1a3f56;--ok:#7fca8d;--warn:#e5a94f;--err:#f4796a;
+  --fond:#1b1231;--bande:#241740;--carte:#2d1f4f;--filet:#4a3b6e;--bordure:#7f6aa8;
+  --fort:#fff8fb;--texte:#ebe3f2;--faible:#b7a9cc;--surtitre:#f3a6c8;--accent:#f3a6c8;--accent-texte:#2a1240;
+  --selection:#3a2a63;--ok:#8fd6a3;--warn:#f4c069;--err:#ff8f7e;
 }
-body{background:var(--fond);color:var(--texte);font-family:"IBM Plex Sans Condensed","Segoe UI",sans-serif;font-size:16px;line-height:1.55;margin:0}
+body{background:var(--fond);color:var(--texte);font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:16px;line-height:1.55;margin:0}
 .wrap{max-width:1080px;margin-inline:auto;padding-inline:16px;padding-block:0 64px}
-h1,h2,h3{font-family:"Bricolage Grotesque",sans-serif;color:var(--fort);line-height:1.1;margin:0;text-wrap:balance}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:var(--fort);line-height:1.1;margin:0;text-wrap:balance}
 h1{font-size:clamp(34px,5vw,52px)}
 h2{font-size:clamp(24px,3vw,32px);margin-top:56px;padding-top:24px;border-top:1px solid var(--filet)}
 h3{font-size:18px;margin-top:8px}
@@ -33,7 +33,7 @@ header.top .wrap{padding-block:0}
 .lead{font-size:18px;color:var(--faible);max-width:62ch}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0 0}
 .kpi{background:var(--carte);border:1px solid var(--filet);border-radius:8px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
-.kpi b{font-family:"Bricolage Grotesque",sans-serif;font-size:26px;color:var(--fort);font-variant-numeric:tabular-nums}
+.kpi b{font-family:"Outfit",sans-serif;font-size:26px;color:var(--fort);font-variant-numeric:tabular-nums}
 .kpi span{font-size:13px;color:var(--faible)}
 table{border-collapse:collapse;width:100%;font-size:15px;margin:16px 0}
 th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--filet);vertical-align:top}
@@ -49,7 +49,7 @@ th{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;tex
 .reco{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .steps{counter-reset:s;display:flex;flex-direction:column;gap:10px;margin:16px 0;padding:0;list-style:none}
 .steps li{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;background:var(--carte);border:1px solid var(--filet);border-radius:8px;padding:12px 14px}
-.steps li::before{counter-increment:s;content:counter(s);font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px;color:var(--surtitre);line-height:1}
+.steps li::before{counter-increment:s;content:counter(s);font-family:"Outfit",sans-serif;font-weight:800;font-size:22px;color:var(--surtitre);line-height:1}
 .timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:16px}
 .ph{background:var(--carte);border:1px solid var(--filet);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;min-height:150px}
 .ph b{color:var(--fort);font-size:15px}
@@ -122,7 +122,7 @@ flowchart LR
   P -->|wp_mail| L[Lecteurs abonnés]
 </pre>
 <div class="cards">
-  <div class="card"><span class="lbl">Thème « yume »</span><ul><li>Thème bloc (FSE) avec <code>theme.json</code> : palettes Nocturne / Papier, Bricolage Grotesque + IBM Plex.</li><li>Modèles : accueil, bibliothèque, œuvre, tome, chapitre (lecteur), planning, équipe, compte.</li><li>Textes 100 % français, mode sombre natif.</li></ul></div>
+  <div class="card"><span class="lbl">Thème « yume »</span><ul><li>Thème bloc (FSE) avec <code>theme.json</code> : palettes Nuit sakura / Papier, Outfit + Nunito Sans.</li><li>Modèles : accueil, bibliothèque, œuvre, tome, chapitre (lecteur), planning, équipe, compte.</li><li>Textes 100 % français, mode sombre natif.</li></ul></div>
   <div class="card"><span class="lbl">Plugin « yume-core »</span><ul><li>Types de contenu <code>yume_oeuvre</code>, <code>yume_tome</code>, <code>yume_chapitre</code> + taxonomies type / statut / genre.</li><li>Rôles équipe et lecteur, API REST <code>yume/v1</code>.</li><li>Import DOCX/EPUB, planning et rappels, notifications, favoris, notes, marque-pages, migration.</li></ul></div>
   <div class="card"><span class="lbl">Ce qui n'est jamais dans Git</span><ul><li>Le contenu (œuvres, chapitres, articles, comptes) vit en base.</li><li>Les secrets (webhook Discord, jetons) sont saisis dans <em>Réglages → Yume</em>.</li><li>Les PDF/EPUB ne sont jamais hébergés : le site ne stocke que des liens de téléchargement.</li><li>Le DOCX déposé est converti puis supprimé du serveur.</li></ul></div>
 </div>
@@ -134,7 +134,7 @@ flowchart LR
   <div class="card"><span class="lbl">F3 · Publier en un formulaire</span><p>Œuvre, numéro, titre, couverture, liens de téléchargement PDF/EPUB (externes), dépôt du DOCX. Le plugin crée le tome, les chapitres, l'article d'annonce, met le planning à « Publié » et notifie. Même API pour Yume-Trad.</p></div>
   <div class="card"><span class="lbl">F4 · Lecture en ligne</span><p>Conversion du DOCX fidèle (titres, dialogues « — », pensées, illustrations), une page par chapitre, sommaire, navigation, panneau de paramètres (taille, interligne, opacité, police, thème), marque-page automatique.</p></div>
   <div class="card"><span class="lbl">F5 · Comptes lecteurs</span><p>Inscription sécurisée, favoris, notes 1–5, commentaires modérés, reprise de lecture, réglages synchronisés, alertes e-mail à chaque sortie d'une œuvre favorite, suppression de compte.</p></div>
-  <div class="card"><span class="lbl">F6 · Refonte graphique</span><p>Direction « Nocturne » (Angelith) + thème « Papier ». Menu : Bibliothèque, Planning, Actualités, L'équipe, Soutenir, recherche, bascule de thème, compte. Bibliothèque filtrable, fiches structurées (schema.org).</p></div>
+  <div class="card"><span class="lbl">F6 · Refonte graphique</span><p>Direction « Crépuscule sakura » reprise du logo et de la bannière Yume, thème « Papier » pour la lecture. Accueil = bibliothèque façon J-Garden : bannière des sorties, grille de couvertures, reprise de lecture, toutes les œuvres filtrables. Fiches structurées (schema.org).</p></div>
   <div class="card"><span class="lbl">F7 · Migration</span><p>Page d'administration <em>Yume → Migrer</em> (Simuler / Exécuter), idempotente : fiches → œuvres et tomes (liens ClicTune conservés), pages ARC et chapitres → tomes et chapitres, articles nettoyés, redirections 301, rapport CSV.</p></div>
   <div class="card"><span class="lbl">F8 · SEO, perfs, RGPD</span><p>Rank Math, sitemap, schema Book/BookSeries, Jetpack Boost, WebP, mentions légales, export et suppression des données, contrastes mesurés.</p></div>
 </div>

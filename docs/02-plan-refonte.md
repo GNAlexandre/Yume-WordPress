@@ -14,9 +14,10 @@ Yume Novel v2 est une **bibliothèque de light novels traduits**, pas un blog :
 - les **lecteurs** ont un compte (favoris, notes, commentaires, reprise de lecture, alertes) ;
 - le **code vit sur GitHub** et se déploie automatiquement sur WordPress.
 
-Direction visuelle : « **Nocturne** » (bleu nuit, teal, titres Bricolage Grotesque), dérivée du système
-visuel Angelith déjà utilisé par l'outillage de traduction Yume, avec un thème de lecture « Papier »
-en clair. Voir `design/README.md` et les maquettes.
+Direction visuelle : « **Crépuscule sakura** », reprise du logo et de la bannière Yume (nuit violette,
+pétales roses, touche pêche du soleil couchant, titres géométriques comme les sommaires des tomes), avec
+un thème de lecture « Papier » en clair. Accueil conçu comme une **bibliothèque** (inspiration J-Garden).
+Voir `design/README.md` et les maquettes.
 
 ## 2. Plateforme : on reste sur le plan actuel
 
@@ -42,7 +43,7 @@ l'architecture ci-dessous. Les add-ons « d'optimisation » utiles sont tous gra
 ```
 yumenovel.fr (WordPress.com Business / Atomic)
 ├── wp-content/themes/yume            ← thème bloc (FSE) « Yume », déployé depuis GitHub
-│   ├── theme.json                    ← tokens Nocturne / Papier, typographie, espacements
+│   ├── theme.json                    ← tokens Nuit sakura / Papier, typographie, espacements
 │   ├── templates/                    ← front-page, single-yume_oeuvre, single-yume_tome,
 │   │                                    single-yume_chapitre (lecteur), page-planning, page-equipe…
 │   ├── parts/                        ← header, footer, reader-toolbar, reader-settings
@@ -136,7 +137,7 @@ L'API `POST /yume/v1/publications` (jeton d'application) permet aussi à l'outil
   suivant, fil d'Ariane, barre de progression, temps de lecture estimé.
 - Panneau **Paramètres de lecture** (conforme à la capture fournie) : taille, interligne, opacité du
   fond, police (Avenir/Literata/Merriweather/Arial/Roboto/Calibri/Times/Verdana/Georgia/Garamond/
-  Trebuchet/Courier), thème (Nocturne / Papier / Sépia), largeur de colonne, « Valider » /
+  Trebuchet/Courier), thème (Nuit / Papier / Sépia), largeur de colonne, « Valider » /
   « Réinitialiser ». Sauvegardé en local pour les visiteurs, synchronisé sur le compte pour les
   membres.
 - Mise en page fidèle au Word : colonne ~68 caractères, texte justifié avec césure `hyphens: auto`
@@ -160,8 +161,9 @@ L'API `POST /yume/v1/publications` (jeton d'application) permet aussi à l'outil
 
 - Menu principal : **Bibliothèque** (LN · WN · Manga) · **Planning** · **Actualités** · **Lire**
   (reprendre) · **L'équipe** · **Soutenir** (Ko-fi) · recherche · bascule clair/sombre · compte.
-- Accueil : « Reprendre la lecture » (membres), dernières sorties (cartes tomes avec boutons Lire /
-  PDF / EPUB), planning en cours (3 lignes), œuvres à la une, actualités, partenaires, Ko-fi.
+- Accueil = bibliothèque : bannière des sorties (carrousel), grille de couvertures « Dernières
+  sorties » avec Lire / PDF / EPUB, bandeau reprise de lecture + prochaines sorties, grille de toutes
+  les œuvres filtrable (type, statut, A → Z), actualités en cartes illustrées, Discord, Ko-fi, partenaires.
 - Bibliothèque : grille de couvertures filtrable (type, statut, genre, alphabétique), tri par dernière
   sortie.
 - Fiche œuvre : bandeau couverture + métadonnées structurées (schema.org `BookSeries`), boutons
@@ -190,14 +192,14 @@ téléchargeable) :
 - Jetpack Boost (CSS critique, lazy-load), images WebP, cache WordPress.com.
 - Bannière cookies légère (pas de traceur tiers hors Jetpack Stats anonymisé), mentions légales,
   politique de confidentialité, export/suppression de compte.
-- Accessibilité : contrastes mesurés (règle Angelith 4,5:1), navigation clavier du lecteur, `lang="fr"`.
+- Accessibilité : contrastes mesurés (4,5:1), navigation clavier du lecteur, `lang="fr"`.
 
 ## 5. Extensions à installer (toutes gratuites)
 
 | Extension | Rôle | Quand |
 | --- | --- | --- |
 | **yume-core** (zip depuis ce dépôt) | Tout le métier, mises à jour automatiques depuis GitHub | Phase 0 |
-| **Thème yume** (zip depuis ce dépôt) | Design Nocturne / Papier | Phase 0 |
+| **Thème yume** (zip depuis ce dépôt) | Design Nuit sakura / Papier | Phase 0 |
 | **Jetpack** (déjà présent) | Stats, SSO/2FA de l'équipe, Newsletter (catégories = œuvres), Forms (contact) | Configurer en phase 0 |
 | **Jetpack Boost** | CSS critique, report du JS, lazy-load, cache de pages | Phase 6 |
 | **Akismet Anti-spam** | Commentaires et inscriptions (clé gratuite pour un site non commercial) | Phase 5 |

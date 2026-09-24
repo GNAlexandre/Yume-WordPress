@@ -1,18 +1,71 @@
 {
   "v": 3,
-  "createdOnFiles": { "v": 1, "at": "2026-09-24T19:05:00Z" },
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-09-24T19:05:00Z"
+  },
   "title": "Yume Novel v2",
-  "launch": { "view": "canvas" },
+  "launch": {
+    "view": "canvas"
+  },
   "pages": [],
   "boards": {
-    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 2080, "title": "Accueil" },
-    "Oeuvre.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 1760, "title": "Fiche œuvre" },
-    "Lecteur.dc.html": { "x": 0, "y": 2200, "w": 1440, "h": 1040, "title": "Lecteur + paramètres" },
-    "LecteurMobile.dc.html": { "x": 1520, "y": 2200, "w": 390, "h": 844, "title": "Lecteur mobile" },
-    "Planning.dc.html": { "x": 0, "y": 3360, "w": 1440, "h": 1180, "title": "Planning public" },
-    "Compte.dc.html": { "x": 1520, "y": 3360, "w": 1440, "h": 980, "title": "Compte lecteur" },
-    "TeamDashboard.dc.html": { "x": 0, "y": 4660, "w": 1440, "h": 1040, "title": "Équipe · tableau de bord" },
-    "TeamPublier.dc.html": { "x": 1520, "y": 4660, "w": 1440, "h": 1200, "title": "Équipe · publier un tome" }
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 2200,
+      "title": "Accueil"
+    },
+    "Oeuvre.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1760,
+      "title": "Fiche œuvre"
+    },
+    "Lecteur.dc.html": {
+      "x": 0,
+      "y": 2320,
+      "w": 1440,
+      "h": 1040,
+      "title": "Lecteur + paramètres"
+    },
+    "LecteurMobile.dc.html": {
+      "x": 1520,
+      "y": 2320,
+      "w": 390,
+      "h": 844,
+      "title": "Lecteur mobile"
+    },
+    "Planning.dc.html": {
+      "x": 0,
+      "y": 3480,
+      "w": 1440,
+      "h": 1180,
+      "title": "Planning public"
+    },
+    "Compte.dc.html": {
+      "x": 1520,
+      "y": 3480,
+      "w": 1440,
+      "h": 980,
+      "title": "Compte lecteur"
+    },
+    "TeamDashboard.dc.html": {
+      "x": 0,
+      "y": 4780,
+      "w": 1440,
+      "h": 1040,
+      "title": "Équipe · tableau de bord"
+    },
+    "TeamPublier.dc.html": {
+      "x": 1520,
+      "y": 4780,
+      "w": 1440,
+      "h": 1200,
+      "title": "Équipe · publier un tome"
+    }
   },
   "order": [
     "Main.dc.html",
@@ -25,20 +78,55 @@
     "TeamPublier.dc.html"
   ],
   "notes": {
-    "r1": { "x": 0, "y": -260, "text": "Visiteurs — accueil et fiche œuvre", "kind": "title1", "maxW": 2960 },
-    "r2": { "x": 0, "y": 1940, "text": "Lecture en ligne — lecteur bureau et mobile (paramètres)", "kind": "title1", "maxW": 2960 },
-    "r3": { "x": 0, "y": 3100, "text": "Planning public et compte lecteur", "kind": "title1", "maxW": 2960 },
-    "r4": { "x": 0, "y": 4400, "text": "Espace équipe — tableau de bord et publication en un formulaire", "kind": "title1", "maxW": 2960 },
-    "s1": { "x": 3040, "y": 0, "w": 360, "text": "Couvertures : aplats de substitution. Sur le site, ce sont les vraies couvertures de la médiathèque (Grimgar, Silent Witch, Raven…). Palette Nocturne du système Angelith : fond #081721, cartes #133449, teal #7ba7ad ; titres Bricolage Grotesque, interface IBM Plex Sans Condensed, lecture Literata.", "fill": "teal" },
-    "s2": { "x": 1990, "y": 2200, "w": 360, "text": "Le panneau mobile reprend la capture fournie (Taille, Interligne, Opacité du fond, Police, Valider, Réinitialiser) avec les couleurs de la charte : sélection teal sur texte bleu nuit au lieu du bleu vif.", "fill": "teal" }
-  },
-  "designSystems": [
-    {
-      "title": "Angelith — Système visuel v7",
-      "namespace": "angelith",
-      "artifact": "https://claude.ai/artifact/KgVQ4DTvEy3AxPYsPAiHjK",
-      "version": "1789930018-53ca",
-      "copiedAt": "2026-09-24T19:05:00Z"
+    "r1": {
+      "x": 0,
+      "y": -260,
+      "text": "Visiteurs — accueil et fiche œuvre",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "r2": {
+      "x": 0,
+      "y": 2060,
+      "text": "Lecture en ligne — lecteur bureau et mobile (paramètres)",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "r3": {
+      "x": 0,
+      "y": 3220,
+      "text": "Planning public et compte lecteur",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "r4": {
+      "x": 0,
+      "y": 4520,
+      "text": "Espace équipe — tableau de bord et publication en un formulaire",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "s1": {
+      "x": 3040,
+      "y": 0,
+      "w": 360,
+      "text": "Direction « Crépuscule sakura » reprise du logo et de la bannière Yume : nuit violette #1b1231, cartes #2d1f4f, accent rose sakura #f3a6c8, touche pêche #f7c59f ; titres Outfit (proche des sommaires des tomes), corps Nunito Sans, lecture Literata. Couvertures : aplats de substitution, remplacés par les vraies couvertures.",
+      "fill": "pink"
+    },
+    "s2": {
+      "x": 1990,
+      "y": 2200,
+      "w": 360,
+      "text": "Le panneau mobile reprend la capture fournie (Taille, Interligne, Opacité du fond, Police, Valider, Réinitialiser) aux couleurs Yume : sélection rose sakura sur texte nuit au lieu du bleu vif.",
+      "fill": "pink"
+    },
+    "s3": {
+      "x": 3040,
+      "y": 560,
+      "w": 360,
+      "text": "Accueil = bibliothèque (inspiration J-Garden) : bannière des sorties, grille de couvertures des dernières sorties avec Lire / PDF / EPUB, bandeau reprise + planning, grille de toutes les œuvres filtrable, actualités en cartes illustrées.",
+      "fill": "pink"
     }
-  ]
+  },
+  "designSystems": []
 }

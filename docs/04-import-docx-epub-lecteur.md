@@ -65,7 +65,7 @@ avertissements) et l'éditeur peut **prévisualiser chaque chapitre** avant de p
 ```
 [Barre : ◀ Tome · Œuvre › Tome 7 › Chapitre 1     Σ Sommaire  ⚙ Paramètres  ☾ Thème  🔖 ]
 [Barre de progression du chapitre]
-        Chapitre 1                          ← h1, centré, Bricolage Grotesque
+        Chapitre 1                          ← h1, centré, Outfit
         La Crête Brumeuse                   ← h2 sous-titre, filet inférieur
         Traduction – X · Relecture – Y      ← crédits (méta)
         Texte justifié, colonne 68 car., interligne 1,6 par défaut
@@ -104,7 +104,7 @@ Boutons « Valider » (applique et enregistre) et « Réinitialiser par défaut 
 
 ```css
 .yn-reader{max-width:var(--yn-width,68ch);margin-inline:auto;font:var(--yn-size,18px)/var(--yn-lh,1.6) var(--yn-font,Literata,Georgia,serif);text-align:justify;hyphens:auto;-webkit-hyphens:auto;text-wrap:pretty;color:var(--yn-ink);background:color-mix(in srgb,var(--yn-paper) calc(var(--yn-bg-alpha,.93)*100%),transparent)}
-.yn-reader h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;text-align:center;font-size:2.2em;margin:0}
+.yn-reader h1{font-family:"Outfit",sans-serif;font-weight:800;text-align:center;font-size:2.2em;margin:0}
 .yn-reader h2.yn-subtitle{text-align:center;font-weight:700;font-size:1.25em;border-bottom:1px solid var(--yn-rule);padding-bottom:.4em;margin:.4em 0 1.6em}
 .yn-reader p{margin:0 0 .8em}
 .yn-reader .yn-dialogue{padding-left:1.4em;text-indent:-1.4em}
