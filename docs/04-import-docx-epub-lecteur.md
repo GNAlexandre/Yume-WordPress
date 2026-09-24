@@ -6,13 +6,12 @@ du document de référence *Grimgar of Fantasy and Ash T.7* (`.docx`, 3 526 para
 ## 1. Pourquoi DOCX et EPUB, pas PDF
 
 Le PDF fige une mise en page A4 : on ne peut pas en extraire proprement des paragraphes, des styles
-ni un découpage en chapitres. Le DOCX et l'EPUB, eux, portent la **structure** (styles de paragraphe,
-titres, images). Le formulaire de publication accepte donc :
+ni un découpage en chapitres. Le DOCX, lui, porte la **structure** (styles de paragraphe, titres,
+images). Le formulaire de publication attend donc le **DOCX** du tome (source de référence) ; un EPUB
+est accepté en dépannage selon les règles du §3.
 
-- **DOCX** (le fichier de travail de l'équipe) ou
-- **EPUB** (déjà produit pour ClicTune ; recommandé car il embarque CSS et images optimisées).
-
-Le PDF et l'EPUB de téléchargement restent des **liens ClicTune** saisis dans le formulaire.
+Les PDF et EPUB **ne sont jamais hébergés sur le site** : ils restent des liens externes de
+téléchargement saisis dans le formulaire. Le DOCX déposé est analysé puis supprimé du serveur.
 
 ## 2. Conversion DOCX → chapitres
 

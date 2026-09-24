@@ -36,7 +36,7 @@ en-pause, licenciee, abandonnee) · `yume_genre` (fantasy, romance, tranche-de-v
 | `oeuvre_id` | int | parent |
 | `numero`, `titre`, `nature` | int, string, enum (`tome`, `arc`, `ex`, `bonus`) | |
 | `post_thumbnail` | image | Couverture du tome |
-| `lien_pdf`, `lien_epub` | url | **Liens ClicTune saisis par l'équipe** |
+| `lien_pdf`, `lien_epub` | url | **Liens externes de téléchargement saisis par l'équipe ; les fichiers ne sont jamais hébergés sur le site** |
 | `date_publication` | datetime | |
 | `equivalence` | string | ex. « cet arc équivaut au tome 3 du LN » |
 | `illustrations` | int[] | galerie (pages liminaires du DOCX) |

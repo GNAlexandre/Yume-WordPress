@@ -21,11 +21,14 @@ Le code (thème `yume`, plugin `yume-core`) sera ajouté à partir de la phase 0
 | [design/README.md](design/README.md) | Direction visuelle, tokens, liste des maquettes |
 | [docs/plan-refonte.html](docs/plan-refonte.html) | Version présentable du plan (page HTML autonome) |
 
-## Décision préalable
+## Plateforme
 
-Le site est hébergé sur **WordPress.com « Simple »** (plan Personal) : aucun plugin ni code n'y est
-possible. Le plan Business (hébergement Atomic, GitHub Deployments, staging, SSH) est le prérequis de
-tout le programme. Voir `docs/02-plan-refonte.md`, §2.
+Le site reste sur son **plan WordPress.com actuel**. Tous les plans payants permettent d'installer des
+extensions et de téléverser un plugin ou un thème maison (transfert automatique vers l'hébergement
+Atomic à la première installation). Sans GitHub Deployments ni SSH, le code se met à jour depuis les
+**releases GitHub** et la migration est une page d'administration du plugin. Les PDF et EPUB ne sont
+jamais hébergés sur le site ; la lecture en ligne est générée depuis le DOCX. Voir
+`docs/02-plan-refonte.md` §2 et `docs/05-pipeline-github-wordpress.md`.
 
 ## Arborescence cible
 
