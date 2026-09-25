@@ -8,9 +8,10 @@ cerisier au coucher du soleil), la bannière « Un nouvel élan pour Yume » et 
 pétales roses, touche pêche du soleil couchant) avec un thème de lecture **Papier** clair et un thème
 **Sépia**.
 
-La page d'accueil est une **bibliothèque** (inspiration J-Garden) : bannière des sorties, grille de
-couvertures « Dernières sorties » avec Lire / PDF / EPUB, bandeau reprise de lecture + planning, grille
-de toutes les œuvres filtrable, actualités en cartes illustrées.
+La page d'accueil reste **légère** (retour de l'équipe) : bannière actuelle du site conservée en haut,
+grille de couvertures « Dernières sorties » avec Lire / PDF / EPUB, deux cartes compactes (prochaines
+sorties, actualités), bandeau reprise de lecture. La bibliothèque complète vit dans un **menu déroulant**
+du header (LN, WN, Manga, en cours, terminées, licenciées, A → Z) et sur sa propre page.
 
 Maquettes (canvas Design Claude) : *Yume Novel v2* — accueil, fiche œuvre, lecteur (bureau + mobile
 avec panneau de paramètres), planning public, tableau de bord équipe, formulaire de publication,

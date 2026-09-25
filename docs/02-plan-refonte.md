@@ -161,9 +161,10 @@ L'API `POST /yume/v1/publications` (jeton d'application) permet aussi à l'outil
 
 - Menu principal : **Bibliothèque** (LN · WN · Manga) · **Planning** · **Actualités** · **Lire**
   (reprendre) · **L'équipe** · **Soutenir** (Ko-fi) · recherche · bascule clair/sombre · compte.
-- Accueil = bibliothèque : bannière des sorties (carrousel), grille de couvertures « Dernières
-  sorties » avec Lire / PDF / EPUB, bandeau reprise de lecture + prochaines sorties, grille de toutes
-  les œuvres filtrable (type, statut, A → Z), actualités en cartes illustrées, Discord, Ko-fi, partenaires.
+- Accueil volontairement léger (retour équipe) : bannière actuelle du site conservée, grille de
+  couvertures « Dernières sorties » avec Lire / PDF / EPUB, deux cartes compactes « Prochaines
+  sorties » et « Actualités », bandeau reprise de lecture. La bibliothèque complète (LN, WN, Manga,
+  en cours, terminées, licenciées, A → Z) est un **menu déroulant** du header et une page dédiée.
 - Bibliothèque : grille de couvertures filtrable (type, statut, genre, alphabétique), tri par dernière
   sortie.
 - Fiche œuvre : bandeau couverture + métadonnées structurées (schema.org `BookSeries`), boutons

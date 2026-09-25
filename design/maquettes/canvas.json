@@ -1,20 +1,12 @@
 {
   "v": 3,
-  "createdOnFiles": {
-    "v": 1,
-    "at": "2026-09-24T19:05:00Z"
-  },
-  "title": "Yume Novel v2",
-  "launch": {
-    "view": "canvas"
-  },
-  "pages": [],
+  "attachments": {},
   "boards": {
     "Main.dc.html": {
       "x": 0,
       "y": 0,
       "w": 1440,
-      "h": 2200,
+      "h": 1540,
       "title": "Accueil"
     },
     "Oeuvre.dc.html": {
@@ -67,44 +59,46 @@
       "title": "Équipe · publier un tome"
     }
   },
-  "order": [
-    "Main.dc.html",
-    "Oeuvre.dc.html",
-    "Lecteur.dc.html",
-    "LecteurMobile.dc.html",
-    "Planning.dc.html",
-    "Compte.dc.html",
-    "TeamDashboard.dc.html",
-    "TeamPublier.dc.html"
-  ],
+  "createdOnFiles": {
+    "at": "2026-09-24T19:05:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
   "notes": {
     "r1": {
       "x": 0,
       "y": -260,
       "text": "Visiteurs — accueil et fiche œuvre",
       "kind": "title1",
-      "maxW": 2960
+      "maxW": 2960,
+      "w": 240
     },
     "r2": {
       "x": 0,
       "y": 2060,
       "text": "Lecture en ligne — lecteur bureau et mobile (paramètres)",
       "kind": "title1",
-      "maxW": 2960
+      "maxW": 2960,
+      "w": 240
     },
     "r3": {
       "x": 0,
       "y": 3220,
       "text": "Planning public et compte lecteur",
       "kind": "title1",
-      "maxW": 2960
+      "maxW": 2960,
+      "w": 240
     },
     "r4": {
       "x": 0,
       "y": 4520,
       "text": "Espace équipe — tableau de bord et publication en un formulaire",
       "kind": "title1",
-      "maxW": 2960
+      "maxW": 2960,
+      "w": 240
     },
     "s1": {
       "x": 3040,
@@ -124,9 +118,20 @@
       "x": 3040,
       "y": 560,
       "w": 360,
-      "text": "Accueil = bibliothèque (inspiration J-Garden) : bannière des sorties, grille de couvertures des dernières sorties avec Lire / PDF / EPUB, bandeau reprise + planning, grille de toutes les œuvres filtrable, actualités en cartes illustrées.",
+      "text": "Accueil allégé (retours Mael7523m) : bibliothèque en menu déroulant (montré ouvert), bandeau = bannière actuelle du site (ici l'image « Un nouvel élan » en attendant), dernières sorties en couvertures, prochaines sorties + actualités en deux cartes compactes, reprise de lecture. Plus de grille de toutes les œuvres sur l'accueil.",
       "fill": "pink"
     }
   },
-  "designSystems": []
+  "order": [
+    "Main.dc.html",
+    "Oeuvre.dc.html",
+    "Lecteur.dc.html",
+    "LecteurMobile.dc.html",
+    "Planning.dc.html",
+    "Compte.dc.html",
+    "TeamDashboard.dc.html",
+    "TeamPublier.dc.html"
+  ],
+  "pages": [],
+  "title": "Yume Novel v2"
 }
