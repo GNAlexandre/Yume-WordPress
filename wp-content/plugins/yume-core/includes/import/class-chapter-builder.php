@@ -28,6 +28,40 @@ namespace Yume\Core\Import;
  */
 final class Chapter_Builder {
 
+	/**
+	 * Volume maximal du texte converti gardé en mémoire (octets de balisage, plus un coût fixe
+	 * par élément) : un tome réel en produit quelques Mo. Au-delà (document démesuré, bombe
+	 * de compression), la conversion s'arrête proprement au lieu d'épuiser la mémoire de PHP.
+	 */
+	public const VOLUME_MAX = 32 * 1024 * 1024;
+
+	/** Nombre maximal d'éléments (paragraphes, titres, notes…) : un tome réel en compte quelques milliers. */
+	public const ELEMENTS_MAX = 150000;
+
+	/** Coût mémoire fixe compté pour chaque élément (tableaux PHP). */
+	private const COUT_ELEMENT = 160;
+
+	/**
+	 * Volume maximal pour ce document (octets).
+	 *
+	 * @var int
+	 */
+	private int $volume_max;
+
+	/**
+	 * Volume déjà produit (octets).
+	 *
+	 * @var int
+	 */
+	private int $volume = 0;
+
+	/**
+	 * Nombre d'éléments déjà produits.
+	 *
+	 * @var int
+	 */
+	private int $elements = 0;
+
 	/** Compteurs statistiques d'un chapitre. */
 	public const COMPTEURS = array( 'paragraphes', 'dialogues', 'pensees', 'centres', 'separateurs', 'images', 'notes', 'listes', 'titres' );
 
@@ -79,11 +113,13 @@ final class Chapter_Builder {
 	/**
 	 * Constructeur.
 	 *
-	 * @param Result $resultat Résultat à remplir.
+	 * @param Result $resultat   Résultat à remplir.
+	 * @param int    $volume_max Volume maximal du texte converti (octets, défaut VOLUME_MAX).
 	 */
-	public function __construct( Result $resultat ) {
-		$this->resultat = $resultat;
-		$this->avant    = $this->nouveau( 'chapitre', null, '', '', false );
+	public function __construct( Result $resultat, int $volume_max = self::VOLUME_MAX ) {
+		$this->resultat   = $resultat;
+		$this->volume_max = $volume_max > 0 ? $volume_max : self::VOLUME_MAX;
+		$this->avant      = $this->nouveau( 'chapitre', null, '', '', false );
 	}
 
 	/**
@@ -170,12 +206,34 @@ final class Chapter_Builder {
 	}
 
 	/**
+	 * Compte le volume produit ; arrête la conversion au-delà des limites.
+	 *
+	 * @param int $octets Taille du balisage ajouté.
+	 * @throws Import_Exception Document trop volumineux.
+	 */
+	private function consommer( int $octets ): void {
+		$this->volume += $octets + self::COUT_ELEMENT;
+		++$this->elements;
+		if ( $this->volume > $this->volume_max || $this->elements > self::ELEMENTS_MAX ) {
+			throw new Import_Exception(
+				sprintf(
+					'Document refusé : son texte converti dépasse la taille maximale acceptée (%d Mo ou %s éléments). Découpez-le en plusieurs fichiers.',
+					(int) ceil( $this->volume_max / ( 1024 * 1024 ) ),
+					number_format( self::ELEMENTS_MAX, 0, ',', ' ' )
+				),
+				'document_trop_grand'
+			);
+		}
+	}
+
+	/**
 	 * Ouvre un chapitre à partir de l'analyse de son titre (Texte::analyser_titre()).
 	 *
 	 * @param array<string,mixed> $analyse Analyse du titre.
 	 * @param string              $brut    Texte brut du titre (pour les avertissements).
 	 */
 	public function ouvrir( array $analyse, string $brut ): void {
+		$this->consommer( 1024 + strlen( $brut ) ); // Chapitre : tableau, statistiques, titre.
 		$this->fermer();
 		$reconnu = 'inconnu' !== $analyse['motif'];
 		if ( $reconnu ) {
@@ -214,6 +272,8 @@ final class Chapter_Builder {
 	 */
 	private function ajouter( string $bloc, string $type ): void {
 		if ( 'liste' !== $type ) {
+			// Une liste est comptée élément par élément (element_liste()).
+			$this->consommer( strlen( $bloc ) );
 			$this->vider_liste();
 		}
 		$cible = null !== $this->courant ? 'courant' : 'avant';
@@ -328,6 +388,7 @@ final class Chapter_Builder {
 				$this->courant['attend_sous_titre'] = false;
 			}
 		}
+		$this->consommer( strlen( $html ) + 32 );
 		$this->liste['items'][] = $html;
 		$this->compter( 'listes' );
 	}
@@ -410,6 +471,7 @@ final class Chapter_Builder {
 		if ( null === $this->courant || '' === trim( $html ) ) {
 			return '';
 		}
+		$this->consommer( strlen( $html ) + 128 );
 		$n                               = count( $this->courant['notes'] ) + 1;
 		$this->courant['notes'][ $n ]    = $html;
 		$this->courant['stats']['notes'] = $n;

@@ -173,6 +173,9 @@ redirections[]     { source (chemin ancien), cible (nouvelle URL), code: 301,
                      type: oeuvre|tome|chapitre|hub|categorie, source_id, cle }
 
 medias             references[] { id, url, existe, usages[] } ; manquants[]
+                   (média absent sous son ID : url tirée du src de l'image ou de la couverture,
+                   avertissement « attention », non bloquant ; l'exécution le retrouve par son
+                   fichier — suffixe de _wp_attached_file, puis nom unique — sinon image vide)
 navigation         { remarque, liens[] { menu, libelle, url, cible, wpcom } }
 reglages           { banniere_id }  (image de l'en-tête actuel → réglage banniere_id)
 avertissements[]   { niveau: erreur|attention|info, categorie, message, source_id }
@@ -187,13 +190,23 @@ comptes            pages, articles, oeuvres, tomes, chapitres, liens, redirectio
 Automattic, droits et retrait sur demande, données personnelles, cookies et stockage du
 navigateur) et `accueil` (page d'accueil statique, le thème fournit `front-page.html`).
 
+Liens des tomes : un lien PDF / EPUB absent de la fiche n'est repris d'un article que si
+l'article annonce la sortie de ce tome (`type_sortie` tome ou tome_relie) — jamais le lien d'un
+chapitre —, jamais pour une œuvre licenciée ni pour un tome que la fiche ne propose qu'à l'achat
+(« ==> Acheter <== », champ `achat_fiche` du tome) : avertissement « attention » à la place.
+Les liens des noms d'auteur, d'illustrateur, de mangaka et d'éditeur (AniList, Nautiljon, site de
+l'éditeur) rejoignent `yume_liens` de l'œuvre (« Auteur : SUNSUNSUN (AniList) »). Le rapport et la
+page Migrer affichent les comptes en libellés français (Brouillon, Abandonnée, Light novel…).
+
 Une redirection ne vise jamais un contenu non publié : l'ancienne page d'un arc planifié (brouillon,
 ex. arc 8 de Silent Witch) est redirigée vers l'œuvre (information dans les avertissements).
 
 ## 5. Exécution (partie 2)
 
 Principe : migration **sur place**, sur le site existant. Les pièces jointes gardent leur ID ; les
-anciennes pages remplacées passent en **brouillon** (jamais supprimées) ; tout est **réversible**.
+anciennes pages remplacées passent en **brouillon** (jamais supprimées). Tout est **réversible tant
+que le site n'a pas été utilisé** ; après la mise en service, l'annulation conserve les œuvres
+utilisées (voir 3).
 
 1. **Simuler** (Yume → Migrer, ou `wp yume migrer --simuler`) : Site_Source lit l'ancien contenu
    dans la base, Migration_Planner calcule le plan, qui est enregistré (option `yume_migration_plan`,
@@ -209,30 +222,58 @@ anciennes pages remplacées passent en **brouillon** (jamais supprimées) ; tout
 
    | Étape | Effet |
    | --- | --- |
-   | préparation | sauvegarde des options (`show_on_front`, `page_on_front`, `page_for_posts`, `default_category`, `yume_pages`, `yume_reglages`, `yume_redirections`), des statuts des anciennes pages, des catégories et œuvres liées des articles, des catégories ; empreinte des contenus touchés ; correspondance des médias (par ID, puis par suffixe de `_wp_attached_file`, puis par nom de fichier unique) |
+   | préparation | sauvegarde des options (`show_on_front`, `page_on_front`, `page_for_posts`, `default_category`, `yume_pages`, `yume_reglages`, `yume_redirections`, `yume_redirections_ids`, `users_can_register`, `default_role`, `posts_per_page`), des statuts des anciennes pages, des catégories et œuvres liées des articles, des catégories ; empreinte des contenus touchés ; correspondance des médias (par ID, puis par suffixe de `_wp_attached_file`, puis par nom de fichier unique) |
    | œuvres, tomes, chapitres | création (ou mise à jour) avec les champs et slugs du plan ; `yume_oeuvre_id` sur les tomes, `yume_tome_id` sur les chapitres (le cœur dérive le reste : œuvre du chapitre, mots, caches, terme `yume_oeuvre_liee`) ; images mises en avant et bannières par ID de pièce jointe ; taxonomies type et statut |
    | catégories, articles | « Yume News » → « Sorties », description d'« Actualités », `default_category` → Actualités ; chaque article reçoit sa catégorie cible et le terme `yume_oeuvre_liee` de son œuvre (jamais créé à la main) ; brouillons d'essai ignorés |
    | pages | création des 9 pages (ou reprise d'une page existante à la même adresse), option `yume_pages` |
-   | anciennes pages | les 90 pages remplacées passent en brouillon (statut seul, contenu intact) |
+   | anciennes pages | les 90 pages remplacées passent en brouillon (statut seul, contenu intact) — **seulement si un contenu créé les remplace** : la page d'un élément ignoré ou en erreur reste en ligne, sans redirection |
+   | pages conservées | couleurs de fond et de texte en ligne retirées (illisibles dans les thèmes Nuit / Papier), texte alternatif ajouté aux liens dont le seul contenu est une image (« Rejoindre le serveur Discord de Yume Novel ») ; contenu d'origine gardé au journal pour l'annulation |
    | réglages | `show_on_front = page`, `page_on_front` = Accueil, `page_for_posts` = Actualités, `banniere_id` (réglage Yume) si vide |
-   | redirections | table 301 (option `yume_redirections`), cibles recalculées sur les contenus créés |
+   | redirections | table 301 (option `yume_redirections`), cibles recalculées sur les contenus créés ; adresses courtes `/?page_id=N` des pages remplacées (option `yume_redirections_ids`) |
    | nettoyage | suppression de « Non classé » (articles déjà reclassés) |
 
    Pendant chaque lot : `add_filter( 'yume_core_notifier', '__return_false' )`, `pre_wp_mail`
    court-circuité, appels HTTP vers Discord bloqués, filtrage kses suspendu (contenus du site
-   lui-même) ; aucun événement `yume_tome_publie` / `yume_chapitre_publie` n'est émis.
+   lui-même) ; aucun événement `yume_tome_publie` / `yume_chapitre_publie` n'est émis. En fin
+   d'exécution, chaque contenu créé reçoit une empreinte (méta `_yume_migration_empreinte` : texte,
+   statut, métadonnées écrites par la migration, taxonomies) qui permet de reconnaître plus tard
+   ceux que l'équipe a modifiés. Si des éléments ont été ignorés, l'état final est « Migré avec N
+   éléments ignorés » (avertissement, pas un succès) ; ignorer un tome ignore d'un coup ses
+   chapitres, ignorer une œuvre ses tomes.
 3. **Annuler la migration** (case à cocher + confirmation, ou `wp yume migrer --annuler`) : retire
    les redirections ajoutées, recrée « Non classé » sous son ID d'origine, rend aux catégories leurs
    noms et slugs, restaure catégories et œuvres liées des articles, les options, les statuts (et
-   dates de modification) des anciennes pages, supprime pages, chapitres, tomes et œuvres créés
-   (méta `_yume_migration_cle`), puis compare l'empreinte : la page affiche « contenus revenus à leur
-   état d'origine » ou la liste des différences.
+   dates de modification) des anciennes pages et le contenu des pages conservées, supprime pages,
+   chapitres, tomes et œuvres créés (méta `_yume_migration_cle`), puis compare l'empreinte : la page
+   affiche « contenus revenus à leur état d'origine » ou la liste des différences.
+
+   **Site utilisé depuis la migration** : avant de démarrer, l'annulation cherche ce qu'elle
+   détruirait — contenus ajoutés et rattachés à une œuvre ou un tome migré (chapitres importés,
+   tomes planifiés), favoris, notes et progressions des lecteurs, commentaires, contenus migrés
+   modifiés depuis (empreinte). S'il y en a, elle est **refusée** (liste affichée ; REST : 412) tant
+   que l'équipe ne confirme pas la conservation (case « Je comprends… », `conserver=true`,
+   `wp yume migrer --annuler --conserver`) : les œuvres concernées sont alors gardées avec tous
+   leurs tomes et chapitres (mêmes ID ; une nouvelle exécution les reprend sans doublon), le reste
+   est annulé.
+
+   **Journal perdu** (option `yume_migration_journal` effacée) : l'annulation est refusée, sauf
+   confirmation (case « Reconstruire la sauvegarde », `reconstruire=true`,
+   `wp yume migrer --annuler --forcer`) ; la sauvegarde est alors reconstruite depuis le plan
+   (anciennes pages remises en ligne, noms et slugs des catégories, « Non classé » et catégorie par
+   défaut, catégories des articles). Les réglages de lecture, d'inscription et les options Yume ne
+   sont pas connus : « Contrôle impossible » est affiché, à vérifier à la main.
 
 **Idempotence** : chaque contenu créé porte `_yume_migration_cle` (« oeuvre:grimgar-of-fantasy-and-ash »,
 « tome:…/tome-9 », « chapitre:…/arc-4/1 », « page:bibliotheque »), `_yume_source_id` (page ou article
 d'origine) et `_yume_migration_run` ; le journal (option `yume_migration_journal`) garde les
 correspondances source → cible. Une relance (`wp yume migrer --forcer`) met à jour sans doublon, même
-si le journal est perdu.
+si les correspondances du journal sont perdues (contenus retrouvés par leur méta). **Attention** :
+la relance réécrit d'après le plan les contenus créés restés tels quels ; ceux que l'équipe a
+modifiés depuis (chapitre traduit et publié, étape, lien) sont reconnus à leur empreinte et gardés
+tels quels (avertissement « modifié depuis la migration : conservé tel quel »), comme les articles
+reclassés, catégories renommées et réglages changés depuis. Si le journal entier est perdu
+(sauvegarde de l'ancien site absente), la relance est **refusée** : elle effacerait la dernière
+chance d'annuler.
 
 **Verrou** : une seule exécution à la fois (option `yume_migration_verrou`, insertion atomique ;
 repris après 3 minutes d'inactivité). **Erreur** : l'élément fautif est retenté à la reprise ; on
@@ -255,11 +296,13 @@ Migrer (table active) ou `redirections.csv` du plan.
   annulation, redirections actives. Sans JavaScript, chaque envoi du formulaire traite un lot (20 s).
 - **REST** (`manage_options`, nonce `wp_rest`) : `GET /yume/v1/migration` (état),
   `POST /yume/v1/migration/executer` (`confirmation=MIGRER` pour démarrer, `ignorer`),
-  `POST /yume/v1/migration/annuler` (`confirmation=ANNULER` pour démarrer, `ignorer`).
-- **WP-CLI** : `wp yume migrer [--simuler [--rapport=<f>] [--plan=<f>]] [--annuler] [--etat] [--forcer] [--ignorer] [--yes]`.
+  `POST /yume/v1/migration/annuler` (`confirmation=ANNULER` pour démarrer, `ignorer`, `conserver`,
+  `reconstruire` ; 412 si le site a été utilisé ou le journal perdu sans ces confirmations).
+- **WP-CLI** : `wp yume migrer [--simuler [--rapport=<f>] [--plan=<f>]] [--annuler [--conserver] [--forcer]] [--etat] [--forcer] [--ignorer] [--yes]`.
 - Filtres : `yume_migration_source_options` (options de Site_Source), `yume_migration_domaines`,
   `yume_migration_problemes` (problèmes bloquants), `yume_migration_budget` (secondes par lot),
-  `yume_redirections`. Actions : `yume_migration_terminee( $journal, $plan )`,
+  `yume_redirections`, `yume_migration_tables_dependantes` (tables de données des lecteurs vérifiées
+  avant l'annulation). Actions : `yume_migration_terminee( $journal, $plan )`,
   `yume_migration_annulee( $journal )`.
 
 ## 8. Source « base » (production) et source « export » (local)

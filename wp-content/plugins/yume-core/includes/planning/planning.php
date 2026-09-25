@@ -184,8 +184,75 @@ function lignes_planning( array $args = array() ): array {
 	if ( ! $ids ) {
 		return array();
 	}
-	_prime_post_caches( $ids, false, true );
+	amorcer_caches_planning( $ids );
+	try {
+		$lignes = lignes_depuis_ids( $ids, $oeuvre_id, $type, $etat_voulu, $a_venir, $seuil_pub, $responsable, $public );
+	} finally {
+		oublier_comptes_chapitres();
+	}
 
+	usort( $lignes, __NAMESPACE__ . '\\comparer_lignes' );
+	if ( $limite > 0 ) {
+		$lignes = array_slice( $lignes, 0, $limite );
+	}
+	/**
+	 * Filtre les lignes du planning.
+	 *
+	 * @param array $lignes Lignes.
+	 * @param array $args   Arguments de yume_get_planning().
+	 */
+	return (array) apply_filters( 'yume_planning_lignes', $lignes, $args );
+}
+
+/**
+ * Amorce en quelques requêtes ce que ligne_tome() lit pour chaque tome : tomes et leurs
+ * méta, œuvres et leurs termes (type, statut), responsables et auteurs de mise à jour,
+ * nombre de chapitres (constat RC-6 : plus de requête par ligne).
+ *
+ * @param int[] $ids Tomes.
+ */
+function amorcer_caches_planning( array $ids ): void {
+	_prime_post_caches( $ids, false, true );
+	$oeuvres = array();
+	$users   = array();
+	foreach ( $ids as $id ) {
+		$o = (int) get_post_meta( $id, 'yume_oeuvre_id', true );
+		if ( $o > 0 ) {
+			$oeuvres[ $o ] = $o;
+		}
+		foreach ( norm_responsables( get_post_meta( $id, 'yume_responsables', true ) ) as $uid ) {
+			if ( $uid > 0 ) {
+				$users[ $uid ] = $uid;
+			}
+		}
+		$maj = (int) get_post_meta( $id, 'yume_maj_par', true );
+		if ( $maj > 0 ) {
+			$users[ $maj ] = $maj;
+		}
+	}
+	if ( $oeuvres ) {
+		_prime_post_caches( array_values( $oeuvres ), true, false );
+	}
+	if ( $users ) {
+		cache_users( array_values( $users ) );
+	}
+	amorcer_comptes_chapitres( $ids );
+}
+
+/**
+ * Lignes retenues parmi les tomes candidats (voir lignes_planning()).
+ *
+ * @param int[]  $ids         Tomes candidats.
+ * @param int    $oeuvre_id   Œuvre (0 : toutes).
+ * @param string $type        Type d'œuvre ('' : tous).
+ * @param string $etat_voulu  État ('' : tous).
+ * @param bool   $a_venir     Seulement les tomes à paraître.
+ * @param int    $seuil_pub   Horodatage : publiés récents depuis (0 : aucun).
+ * @param int    $responsable Membre responsable (0 : tous).
+ * @param bool   $public      Vue publique.
+ * @return array<int,array<string,mixed>>
+ */
+function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $etat_voulu, bool $a_venir, int $seuil_pub, int $responsable, bool $public ): array {
 	$lignes = array();
 	foreach ( $ids as $id ) {
 		$o = yume_get_oeuvre_id( $id );
@@ -218,18 +285,7 @@ function lignes_planning( array $args = array() ): array {
 		}
 		$lignes[] = $ligne;
 	}
-
-	usort( $lignes, __NAMESPACE__ . '\\comparer_lignes' );
-	if ( $limite > 0 ) {
-		$lignes = array_slice( $lignes, 0, $limite );
-	}
-	/**
-	 * Filtre les lignes du planning.
-	 *
-	 * @param array $lignes Lignes.
-	 * @param array $args   Arguments de yume_get_planning().
-	 */
-	return (array) apply_filters( 'yume_planning_lignes', $lignes, $args );
+	return $lignes;
 }
 
 /**

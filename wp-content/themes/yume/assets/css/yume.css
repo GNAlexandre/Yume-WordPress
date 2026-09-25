@@ -78,6 +78,43 @@ html[data-yn-theme="sepia"] {
 	color-scheme: light;
 }
 
+/*
+ * Blocs à fond personnalisé sans couleur de texte (contenus migrés : groupes à fond clair
+ * écrit en ligne). inc/blocs.php leur donne yn-fond-clair ou yn-fond-sombre selon leur fond :
+ * sous le thème dont l'encre s'y lirait mal, ils prennent la palette Papier (fond clair) ou
+ * Nuit (fond sombre), titres et liens compris (couleurs d'éléments de theme.json).
+ */
+html[data-yn-theme="nuit"] .yn-fond-clair {
+	--wp--preset--color--texte-fort: #2a1240;
+	--wp--preset--color--texte: #2a1240;
+	--wp--preset--color--texte-faible: #5e4a73;
+	--wp--preset--color--filet: #e8d9e2;
+	--wp--preset--color--bordure: #8a6f9e;
+	--wp--preset--color--accent: #b23a71;
+	--wp--preset--color--accent-texte: #ffffff;
+	--wp--preset--color--accent-2: #9d5524;
+	--wp--preset--color--selection: #f3e6ee;
+	--yn-accent-survol: #8e2c5a;
+	color: var(--wp--preset--color--texte);
+	color-scheme: light;
+}
+
+html[data-yn-theme="papier"] .yn-fond-sombre,
+html[data-yn-theme="sepia"] .yn-fond-sombre {
+	--wp--preset--color--texte-fort: #fff8fb;
+	--wp--preset--color--texte: #ebe3f2;
+	--wp--preset--color--texte-faible: #b7a9cc;
+	--wp--preset--color--filet: #4a3b6e;
+	--wp--preset--color--bordure: #7f6aa8;
+	--wp--preset--color--accent: #f3a6c8;
+	--wp--preset--color--accent-texte: #2a1240;
+	--wp--preset--color--accent-2: #f7c59f;
+	--wp--preset--color--selection: #3a2a63;
+	--yn-accent-survol: #f8c4da;
+	color: var(--wp--preset--color--texte);
+	color-scheme: dark;
+}
+
 /* ==========================================================================
    2. Base
    ========================================================================== */

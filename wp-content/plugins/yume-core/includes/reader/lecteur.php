@@ -146,3 +146,34 @@ function script_initialisation(): void {
 	wp_print_inline_script_tag( $script, array( 'id' => 'yume-lecture-init' ) );
 }
 add_action( 'wp_head', __NAMESPACE__ . '\\script_initialisation', 1 );
+
+/**
+ * Hors chapitre, pour un membre : le thème choisi avec la bascule de l'en-tête (événement
+ * « yn:theme » du thème) est aussi enregistré sur le compte. Sinon, le thème du compte,
+ * imposé à l'ouverture d'un chapitre (script_initialisation), annulerait ce choix partout.
+ * Sur un chapitre, la barre de lecture s'en charge déjà. Un compte encore sans réglages reçoit
+ * le jeu complet de l'appareil (yn.reglages), pour que le serveur ne le complète pas avec les
+ * valeurs par défaut.
+ */
+function script_theme_membre(): void {
+	if ( ! is_user_logged_in() || is_admin() || is_singular( 'yume_chapitre' ) ) {
+		return;
+	}
+	$donnees = array(
+		'u' => esc_url_raw( rest_url( REST_NS . '/moi/reglages' ) ),
+		'n' => wp_create_nonce( 'wp_rest' ),
+		'r' => null !== reglages_enregistres( get_current_user_id() ),
+		't' => THEMES,
+		'b' => bornes_reglages(),
+		'p' => array_keys( polices() ),
+	);
+	$script  = '(function(c){var m=null,a=null;'
+		. 'function envoyer(k){var t=a;a=null;clearTimeout(m);m=null;if(!t||!window.fetch){return;}var d={theme:t};'
+		. 'if(!c.r){try{var l=JSON.parse(window.localStorage.getItem("yn.reglages")||"null");if(l&&typeof l==="object"){["size","lh","width","bgAlpha"].forEach(function(x){var v=parseFloat(l[x]);if(isFinite(v)&&c.b[x]){v=Math.min(c.b[x][1],Math.max(c.b[x][0],v));d[x]=(x==="size"||x==="width")?Math.round(v):Math.round(v*100)/100;}});if(c.p.indexOf(l.font)>-1){d.font=l.font;}}}catch(e){}}'
+		. 'window.fetch(c.u,{method:"PUT",credentials:"same-origin",keepalive:!!k,headers:{"Content-Type":"application/json",Accept:"application/json","X-WP-Nonce":c.n},body:JSON.stringify(d)}).then(function(r){if(r.ok){c.r=true;}},function(){});}'
+		. 'document.addEventListener("yn:theme",function(e){var t=e&&e.detail?e.detail.theme:null;if(c.t.indexOf(t)<0){return;}a=t;clearTimeout(m);m=setTimeout(function(){envoyer(false);},600);});'
+		. 'window.addEventListener("pagehide",function(){if(a){envoyer(true);}});'
+		. '}(' . wp_json_encode( $donnees ) . '));';
+	wp_print_inline_script_tag( $script, array( 'id' => 'yume-theme-membre' ) );
+}
+add_action( 'wp_footer', __NAMESPACE__ . '\\script_theme_membre', 20 );

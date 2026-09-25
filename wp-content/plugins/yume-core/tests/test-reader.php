@@ -536,3 +536,73 @@ yume_test(
 		yume_assert_contains( '.yn-reader{', $sortie );
 	}
 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Non-régression (revue)
+ * -----------------------------------------------------------------------------
+ */
+
+yume_test(
+	'UX-8 : barre unique — lien de compte dans la barre, en-tête du gabarit masqué',
+	function () {
+		$s        = yume_tr_serie( 2 );
+		$visiteur = yume_tr_sur( $s['chapitres'][0], static fn() => yume_render_block( 'yume/reader-tools' ) );
+		yume_assert_contains( 'yn-reader-tools__compte', $visiteur );
+		yume_assert_contains( '>Connexion</a>', $visiteur );
+		$u = yume_factory_user();
+		wp_update_user(
+			array(
+				'ID'           => $u,
+				'display_name' => 'Kaede',
+			)
+		);
+		wp_set_current_user( $u );
+		$membre = yume_tr_sur( $s['chapitres'][0], static fn() => yume_render_block( 'yume/reader-tools' ) );
+		wp_set_current_user( 0 );
+		yume_assert_contains( 'yn-reader-tools__compte--membre', $membre );
+		yume_assert_contains( 'aria-label="Mon compte (Kaede)"', $membre );
+		yume_assert_not_contains( '>Connexion</a>', $membre );
+		$css = (string) file_get_contents( YUME_CORE_DIR . 'includes/reader/blocks/reader-tools/style.css' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		yume_assert_contains( 'body:has(.yn-reader-tools__barre) .yn-site-header--lecture', $css );
+	}
+);
+
+yume_test(
+	'MET-11 : hors chapitre, la bascule de thème d’un membre est enregistrée sur le compte',
+	function () {
+		$s      = yume_tr_serie( 1 );
+		$sortie = static function ( int $post_id ): string {
+			return yume_tr_sur(
+				$post_id,
+				static function () {
+					ob_start();
+					\Yume\Core\Reader\script_theme_membre();
+					return (string) ob_get_clean();
+				}
+			);
+		};
+		yume_assert_same( '', $sortie( $s['oeuvre'] ), 'visiteur : rien' );
+		$u = yume_factory_user();
+		wp_set_current_user( $u );
+		$html = $sortie( $s['oeuvre'] );
+		yume_assert_contains( 'id="yume-theme-membre"', $html );
+		yume_assert_contains( 'yn:theme', $html );
+		yume_assert_contains( 'moi\/reglages', $html );
+		yume_assert_contains( '"r":false', $html, 'compte sans réglages : jeu complet de l’appareil envoyé' );
+		yume_assert_contains( 'yn.reglages', $html );
+		yume_assert_same( '', $sortie( $s['chapitres'][0] ), 'chapitre : la barre de lecture s’en charge' );
+		update_user_meta( $u, 'yume_reglages', array( 'theme' => 'sepia' ) );
+		yume_assert_contains( '"r":true', $sortie( $s['oeuvre'] ) );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_test(
+	'MET-7 / MET-8 : garde-fous du script de la barre (paragraphe à peine visible ignoré, thème avec jeu complet)',
+	function () {
+		$js = (string) file_get_contents( YUME_CORE_DIR . 'includes/reader/blocks/reader-tools/view.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		yume_assert_contains( 'getBoundingClientRect().bottom - limite >= SEUIL_VISIBLE', $js, 'MET-7' );
+		yume_assert_contains( "config.reglages ? { theme: theme } : Object.assign( copie( enVigueur ), { theme: theme } )", $js, 'MET-8' );
+	}
+);

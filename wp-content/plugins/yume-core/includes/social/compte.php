@@ -277,7 +277,7 @@ function section_lecture( int $user_id ): string {
 			if ( ! $position || $n >= 12 ) {
 				continue;
 			}
-			$detail  = implode( ' · ', array_filter( array( $position['tome'], mb_strtolower( $position['chapitre'] ), $position['pourcentage'] . ' %' ), 'strlen' ) );
+			$detail  = implode( ' · ', array_filter( array( $position['tome'], mb_strtolower( $position['chapitre'] ), libelle_part_chapitre( (int) $position['pourcentage'] ) ), 'strlen' ) );
 			$cartes .= '<article class="yn-card yn-account__carte">'
 				. mini_couverture( $position['chapitre_id'], $position['tome'] ? $position['oeuvre'] . ' ' . $position['tome'] : $position['oeuvre'] )
 				. '<div class="yn-account__carte-corps">'

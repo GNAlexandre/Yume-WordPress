@@ -38,7 +38,14 @@ final class Migration_Cli {
 	 * : Avec --simuler, écrit le plan JSON dans ce fichier.
 	 *
 	 * [--forcer]
-	 * : Exécute malgré les erreurs du plan, ou relance une migration terminée (mise à jour sans doublon).
+	 * : Exécute malgré les erreurs du plan, ou relance une migration terminée (mise à jour sans
+	 * doublon ; les contenus modifiés depuis la migration sont gardés tels quels, jamais réécrits).
+	 * Avec --annuler : annule malgré un journal perdu (sauvegarde reconstruite depuis le plan).
+	 *
+	 * [--conserver]
+	 * : Avec --annuler : annule malgré l'utilisation du site depuis la migration (chapitres
+	 * ajoutés, favoris, notes, progression, commentaires, contenus modifiés) en conservant les
+	 * œuvres concernées avec leurs tomes et chapitres.
 	 *
 	 * [--ignorer]
 	 * : Saute l'élément en erreur avant de reprendre.
@@ -106,7 +113,7 @@ final class Migration_Cli {
 		\WP_CLI::log( sprintf( 'Articles : %d · Redirections : %d · Pages : %s', $c['articles']['total'], $c['redirections'], wp_json_encode( $c['pages_plan'] ) ) );
 		\WP_CLI::log( sprintf( 'Avertissements : %s', wp_json_encode( $c['avertissements'] ) ) );
 		foreach ( Migration_Admin::statuts_a_valider( $plan ) as $ligne ) {
-			\WP_CLI::log( sprintf( '  Statut à valider — %s : %s (hub « %s », fiche « %s »)', $ligne['titre'], $ligne['statut'], $ligne['hub'], $ligne['fiche'] ) );
+			\WP_CLI::log( sprintf( '  Statut à valider — %s : %s (hub « %s », fiche « %s »)', $ligne['titre'], Plan_Report::libelle( 'statut', (string) $ligne['statut'] ), $ligne['hub'], $ligne['fiche'] ) );
 		}
 		foreach ( Migration_Executor::problemes( $plan ) as $probleme ) {
 			\WP_CLI::warning( $probleme );
@@ -151,11 +158,25 @@ final class Migration_Cli {
 			\WP_CLI::log( sprintf( '  %s : %d', $cle, $n ) );
 		}
 		$controle = (array) ( $etat['controle'] ?? array() );
-		if ( 'annule' === $etat['statut'] && ! empty( $controle['verifie'] ) ) {
-			if ( empty( $controle['differences'] ) ) {
+		if ( 'annule' === $etat['statut'] && $controle ) {
+			if ( empty( $controle['verifie'] ) ) {
+				\WP_CLI::warning( 'Contrôle impossible : sauvegarde de l’ancien site absente (journal perdu). Vérifiez à la main les anciennes pages, les catégories, les réglages de lecture et d’inscription et les options Yume.' );
+			} elseif ( empty( $controle['differences'] ) ) {
 				\WP_CLI::log( 'Contrôle : contenus touchés revenus à leur état d’origine.' );
 			} else {
 				\WP_CLI::warning( 'Contrôle : différences — ' . implode( ', ', (array) $controle['differences'] ) );
+			}
+		}
+		if ( 'annule' === $etat['statut'] && ! empty( $etat['annulation']['conserves'] ) ) {
+			\WP_CLI::warning( sprintf( '%d contenu(s) créé(s) par la migration et utilisé(s) depuis ont été conservés : %s', count( (array) $etat['annulation']['conserves'] ), implode( ', ', array_map( 'intval', (array) $etat['annulation']['conserves'] ) ) ) );
+		}
+		if ( 'migre' === $etat['statut'] ) {
+			foreach ( array_filter( (array) $etat['messages'], static fn( $m ) => 'avertissement' === ( $m['type'] ?? '' ) && str_contains( (string) $m['texte'], 'modifié depuis la migration' ) ) as $m ) {
+				\WP_CLI::warning( (string) $m['texte'] );
+			}
+			if ( (int) ( $etat['ignores'] ?? 0 ) > 0 ) {
+				\WP_CLI::warning( sprintf( '%s : les anciennes pages sans remplaçant sont restées en ligne ; relisez le journal (wp yume migrer --etat).', Migration_Runner::resume( $etat )['statut_libelle'] ) );
+				return;
 			}
 		}
 		\WP_CLI::success( $succes );
@@ -173,11 +194,14 @@ final class Migration_Cli {
 			\WP_CLI::error( 'Une annulation est en cours : reprenez-la avec --annuler.' );
 		}
 		if ( 'migre' === $etat['statut'] && ! $forcer ) {
-			\WP_CLI::log( sprintf( 'La migration est déjà faite (%s GMT). Utilisez --forcer pour la relancer.', $etat['migre_le'] ) );
+			\WP_CLI::log( sprintf( 'La migration est déjà faite (%s GMT). --forcer la relance : les contenus créés sont remis à l’état du plan, sauf ceux modifiés depuis, gardés tels quels.', $etat['migre_le'] ) );
 			return;
 		}
 		if ( 'en_cours' !== $etat['statut'] ) {
-			\WP_CLI::confirm( 'Exécuter la migration de l’ancien site sur cette base ?', $assoc_args );
+			if ( 'migre' === $etat['statut'] ) {
+				\WP_CLI::warning( 'Relance : les œuvres, tomes et chapitres créés par la migration et restés tels quels seront réécrits d’après le plan. Ceux modifiés depuis (texte, statut, étape, liens) sont reconnus à leur empreinte et gardés tels quels.' );
+			}
+			\WP_CLI::confirm( 'migre' === $etat['statut'] ? 'Relancer la migration ?' : 'Exécuter la migration de l’ancien site sur cette base ?', $assoc_args );
 			try {
 				Migration_Runner::demarrer_execution( array( 'forcer' => $forcer ) );
 			} catch ( \RuntimeException $e ) {
@@ -213,7 +237,12 @@ final class Migration_Cli {
 			}
 			\WP_CLI::confirm( 'Annuler la migration et revenir à l’ancien site ?', $assoc_args );
 			try {
-				Migration_Runner::demarrer_annulation();
+				Migration_Runner::demarrer_annulation(
+					array(
+						'conserver'    => ! empty( $assoc_args['conserver'] ),
+						'reconstruire' => ! empty( $assoc_args['forcer'] ),
+					)
+				);
 			} catch ( \RuntimeException $e ) {
 				\WP_CLI::error( $e->getMessage() );
 			}

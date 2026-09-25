@@ -14,6 +14,51 @@ defined( 'ABSPATH' ) || exit;
 const PAGE_REGLAGES = 'yume-reglages';
 
 /**
+ * Capacité exigée pour modifier la source et le mode des mises à jour (github_repo, maj_auto) :
+ * celle qui permet déjà d'installer du code (Extensions → Mises à jour). Le rôle Gérant, qui a
+ * yume_reglages mais pas update_plugins, ne voit ni ne modifie ces deux champs.
+ */
+const CAPACITE_MISES_A_JOUR = 'update_plugins';
+
+/**
+ * Le dépôt des mises à jour est-il figé par la constante YUME_GITHUB_REPO (wp-config.php) ?
+ * Elle prime alors sur le réglage github_repo, qui n'est plus modifiable.
+ */
+function depot_fige(): bool {
+	return defined( 'YUME_GITHUB_REPO' ) && is_string( constant( 'YUME_GITHUB_REPO' ) ) && '' !== trim( (string) constant( 'YUME_GITHUB_REPO' ) );
+}
+
+/**
+ * L'utilisateur courant peut-il modifier ce champ ?
+ *
+ * Un champ peut exiger une capacité propre (clé 'capability') en plus de yume_reglages, ou être
+ * verrouillé (clé 'verrouille' : message affiché). Sans utilisateur connecté (WP-CLI, tâche
+ * planifiée, code d'installation), seul le verrou s'applique.
+ *
+ * @param array<string,mixed> $champ Champ.
+ */
+function champ_modifiable( array $champ ): bool {
+	if ( ! empty( $champ['verrouille'] ) ) {
+		return false;
+	}
+	$capacite = isset( $champ['capability'] ) && is_string( $champ['capability'] ) ? $champ['capability'] : '';
+	if ( '' === $capacite || ! get_current_user_id() ) {
+		return true;
+	}
+	return current_user_can( $capacite );
+}
+
+/**
+ * L'utilisateur courant peut-il voir ce champ dans la page de réglages ?
+ *
+ * @param array<string,mixed> $champ Champ.
+ */
+function champ_visible( array $champ ): bool {
+	$capacite = isset( $champ['capability'] ) && is_string( $champ['capability'] ) ? $champ['capability'] : '';
+	return '' === $capacite || current_user_can( $capacite );
+}
+
+/**
  * Valeurs par défaut du contrat (§6), complétées par les champs déclarés avec 'default'.
  *
  * @return array<string,mixed>
@@ -70,7 +115,8 @@ function sections_reglages(): array {
  *
  * Chaque champ : key, label, type (text|url|number|checkbox|select|media|textarea|checkboxes),
  * section, options (select, checkboxes : valeur => libellé), description, et facultativement
- * default, min, max, step, placeholder, sanitize (callable).
+ * default, min, max, step, placeholder, sanitize (callable), capability (capacité exigée en plus
+ * de yume_reglages pour voir et modifier le champ), verrouille (message : champ non modifiable).
  *
  * @return array<int,array<string,mixed>>
  */
@@ -188,6 +234,9 @@ function champs_reglages(): array {
 			'section'     => 'mises_a_jour',
 			'placeholder' => 'propriétaire/dépôt',
 			'description' => __( 'Dépôt dont les releases fournissent les mises à jour du plugin et du thème.', 'yume-core' ),
+			// Désigner la source du code installé revient à pouvoir installer du code.
+			'capability'  => CAPACITE_MISES_A_JOUR,
+			'verrouille'  => depot_fige() ? __( 'Dépôt figé par la constante YUME_GITHUB_REPO (wp-config.php).', 'yume-core' ) : '',
 		),
 		array(
 			'key'         => 'maj_auto',
@@ -195,6 +244,7 @@ function champs_reglages(): array {
 			'type'        => 'checkbox',
 			'section'     => 'mises_a_jour',
 			'description' => __( 'Installer automatiquement les nouvelles versions publiées sur GitHub.', 'yume-core' ),
+			'capability'  => CAPACITE_MISES_A_JOUR,
 		),
 	);
 	/**
@@ -307,6 +357,13 @@ function assainir_reglages( $entree ): array {
 		$cle            = $champ['key'];
 		$connus[ $cle ] = true;
 		$precedent      = $actuels[ $cle ] ?? ( $champ['default'] ?? null );
+		if ( ! champ_modifiable( $champ ) ) {
+			// Capacité insuffisante ou champ verrouillé : la valeur actuelle est conservée.
+			if ( array_key_exists( $cle, $actuels ) ) {
+				$sortie[ $cle ] = $actuels[ $cle ];
+			}
+			continue;
+		}
 		if ( array_key_exists( $cle, $entree ) ) {
 			$sortie[ $cle ] = assainir_champ( $champ, $entree[ $cle ], $precedent );
 		} elseif ( $formulaire && in_array( $champ['type'], array( 'checkbox', 'checkboxes' ), true ) ) {
@@ -375,14 +432,19 @@ add_action( 'rest_api_init', __NAMESPACE__ . '\\enregistrer_reglage' );
  */
 function declarer_champs(): void {
 	$sections = sections_reglages();
-	$champs   = champs_reglages();
+	$champs   = array_values( array_filter( champs_reglages(), __NAMESPACE__ . '\\champ_visible' ) );
+	$remplies = array();
 	foreach ( $champs as $champ ) {
 		if ( ! isset( $sections[ $champ['section'] ] ) ) {
 			$sections[ $champ['section'] ] = ucfirst( str_replace( array( '_', '-' ), ' ', (string) $champ['section'] ) );
 		}
+		$remplies[ $champ['section'] ] = true;
 	}
 	foreach ( $sections as $id => $titre ) {
-		add_settings_section( 'yume_' . $id, $titre, '__return_false', PAGE_REGLAGES );
+		// Une section dont aucun champ n'est accessible à l'utilisateur n'est pas affichée.
+		if ( isset( $remplies[ $id ] ) ) {
+			add_settings_section( 'yume_' . $id, $titre, '__return_false', PAGE_REGLAGES );
+		}
 	}
 	foreach ( $champs as $champ ) {
 		$args = array( 'champ' => $champ );
@@ -407,6 +469,21 @@ function afficher_champ( array $args ): void {
 	$valeur = yume_setting( $cle );
 	$desc   = (string) ( $champ['description'] ?? '' );
 	$aide   = '' !== $desc ? ' aria-describedby="' . esc_attr( $id . '-aide' ) . '"' : '';
+	if ( ! champ_modifiable( $champ ) ) {
+		// Champ verrouillé : valeur affichée en lecture seule (jamais envoyée par le formulaire).
+		$verrou = (string) ( $champ['verrouille'] ?? '' );
+		printf(
+			'<input type="text" id="%1$s" value="%2$s" class="regular-text" disabled%3$s />',
+			esc_attr( $id ),
+			esc_attr( is_scalar( $valeur ) ? (string) $valeur : '' ),
+			$aide // phpcs:ignore WordPress.Security.EscapeOutput
+		);
+		$desc = trim( $desc . ' ' . $verrou );
+		if ( '' !== $desc ) {
+			printf( '<p class="description" id="%1$s">%2$s</p>', esc_attr( $id . '-aide' ), esc_html( $desc ) );
+		}
+		return;
+	}
 
 	switch ( $champ['type'] ) {
 		case 'checkbox':

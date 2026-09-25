@@ -623,14 +623,27 @@ function adresse_ip(): string {
 }
 
 /**
+ * Part lue du chapitre courant, avec son unité (« 41 % du chapitre ») : la fiche œuvre
+ * affiche, elle, la part lue du tome (« 13 % du tome »), et les deux ne doivent pas se
+ * contredire sans libellé.
+ *
+ * @param int $pourcentage Pourcentage (0–100).
+ */
+function libelle_part_chapitre( int $pourcentage ): string {
+	/* translators: %s : pourcentage lu du chapitre en cours. */
+	return sprintf( __( '%s %% du chapitre', 'yume-core' ), (string) max( 0, min( 100, $pourcentage ) ) );
+}
+
+/**
  * Compte une tentative et indique si la limite est dépassée pour cette adresse IP.
  *
  * @param string $action Nom de l'action (inscription, oubli…).
  * @param int    $max    Tentatives autorisées sur la période.
  * @param int    $duree  Période en secondes.
+ * @param string $cle    Clé de comptage (défaut : l'adresse IP ; « u12 » pour un membre…).
  * @return bool Vrai si la limite est atteinte (la tentative doit être refusée).
  */
-function limite_atteinte( string $action, int $max, int $duree ): bool {
+function limite_atteinte( string $action, int $max, int $duree, string $cle = '' ): bool {
 	/**
 	 * Filtre la limite de tentatives d'une action publique par adresse IP.
 	 *
@@ -638,7 +651,7 @@ function limite_atteinte( string $action, int $max, int $duree ): bool {
 	 * @param string $action Action.
 	 */
 	$max  = (int) apply_filters( 'yume_limite_tentatives', $max, $action );
-	$cle  = 'yume_lim_' . sanitize_key( $action ) . '_' . substr( hash_hmac( 'sha256', adresse_ip(), wp_salt( 'nonce' ) ), 0, 32 );
+	$cle  = 'yume_lim_' . sanitize_key( $action ) . '_' . substr( hash_hmac( 'sha256', '' !== $cle ? $cle : adresse_ip(), wp_salt( 'nonce' ) ), 0, 32 );
 	$etat = get_transient( $cle );
 	$etat = is_array( $etat ) ? $etat : array(
 		'n'   => 0,
@@ -743,7 +756,7 @@ function inscriptions_ouvertes(): bool {
  */
 function messages(): array {
 	return array(
-		'inscription-ok'           => array( 'succes', __( 'Compte créé ! Consultez votre boîte mail : un lien vous permet de choisir votre mot de passe.', 'yume-core' ) ),
+		'inscription-ok'           => array( 'succes', __( 'Demande enregistrée ! Consultez votre boîte mail : si cette adresse n’était pas déjà inscrite, un lien vous permet de choisir votre mot de passe.', 'yume-core' ) ),
 		'inscriptions-fermees'     => array( 'erreur', __( 'Les inscriptions sont fermées pour le moment.', 'yume-core' ) ),
 		'inscription-refusee'      => array( 'erreur', __( 'L’inscription n’a pas pu aboutir. Réessayez dans quelques instants.', 'yume-core' ) ),
 		'pseudo-invalide'          => array( 'erreur', __( 'Choisissez un pseudo de 3 à 40 caractères : lettres, chiffres, espaces, points, tirets et tirets bas.', 'yume-core' ) ),
@@ -757,7 +770,7 @@ function messages(): array {
 		'oubli-vide'               => array( 'erreur', __( 'Indiquez votre pseudo ou votre adresse e-mail.', 'yume-core' ) ),
 		'profil-ok'                => array( 'succes', __( 'Profil mis à jour.', 'yume-core' ) ),
 		'pseudo-ok'                => array( 'succes', __( 'Pseudo mis à jour.', 'yume-core' ) ),
-		'email-attente'            => array( 'succes', __( 'Un lien de confirmation a été envoyé à votre nouvelle adresse. Le changement prendra effet après confirmation.', 'yume-core' ) ),
+		'email-attente'            => array( 'succes', __( 'Si cette adresse peut être utilisée, un lien de confirmation vient d’y être envoyé. Le changement prendra effet après confirmation.', 'yume-core' ) ),
 		'email-ok'                 => array( 'succes', __( 'Votre nouvelle adresse e-mail est confirmée.', 'yume-core' ) ),
 		'email-lien-invalide'      => array( 'erreur', __( 'Ce lien de confirmation est invalide ou a expiré.', 'yume-core' ) ),
 		'mdp-ok'                   => array( 'succes', __( 'Mot de passe modifié.', 'yume-core' ) ),

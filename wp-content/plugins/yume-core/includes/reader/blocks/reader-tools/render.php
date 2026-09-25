@@ -76,6 +76,20 @@ $yume_icone     = static function ( string $chemin, string $classe = '' ): strin
 };
 $yume_engrenage = '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path>';
 
+// Compte ou connexion dans la barre (maquette Lecteur : une seule barre ; l'en-tête du
+// gabarit est alors masqué par la feuille de style du bloc).
+if ( is_user_logged_in() ) {
+	$yume_membre      = wp_get_current_user();
+	$yume_url_compte  = function_exists( '\Yume\Core\Social\url_compte' ) ? \Yume\Core\Social\url_compte() : admin_url( 'profile.php' );
+	$yume_nom_membre  = (string) $yume_membre->display_name;
+	$yume_initiale    = '' !== $yume_nom_membre ? mb_strtoupper( mb_substr( $yume_nom_membre, 0, 1 ) ) : '?';
+	/* translators: %s : pseudo du membre. */
+	$yume_lien_compte = '<a class="yn-reader-tools__compte yn-reader-tools__compte--membre" href="' . esc_url( $yume_url_compte ) . '" aria-label="' . esc_attr( sprintf( __( 'Mon compte (%s)', 'yume-core' ), $yume_nom_membre ) ) . '" title="' . esc_attr__( 'Mon compte', 'yume-core' ) . '"><span aria-hidden="true">' . esc_html( $yume_initiale ) . '</span></a>';
+} else {
+	$yume_url_cnx     = function_exists( '\Yume\Core\Social\url_connexion' ) ? \Yume\Core\Social\url_connexion( (string) get_permalink( $yume_chapitre ) ) : wp_login_url( (string) get_permalink( $yume_chapitre ) );
+	$yume_lien_compte = '<a class="yn-btn yn-btn--primary yn-btn--sm yn-reader-tools__compte" href="' . esc_url( $yume_url_cnx ) . '">' . esc_html__( 'Connexion', 'yume-core' ) . '</a>';
+}
+
 $yume_attributs = get_block_wrapper_attributes(
 	array(
 		'class'           => 'yn-reader-tools',
@@ -127,6 +141,7 @@ $yume_attributs = get_block_wrapper_attributes(
 				<button type="button" class="yn-reader-tools__icone yn-reader-tools__icone--principal yn-reader-tools__js" data-yn-action="parametres" aria-haspopup="dialog" aria-expanded="false" aria-controls="yn-parametres-lecture" aria-keyshortcuts="S" aria-label="<?php esc_attr_e( 'Paramètres de lecture', 'yume-core' ); ?>" title="<?php esc_attr_e( 'Paramètres de lecture (touche S)', 'yume-core' ); ?>">
 					<?php echo $yume_icone( $yume_engrenage ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 				</button>
+				<?php echo $yume_lien_compte; // phpcs:ignore WordPress.Security.EscapeOutput -- échappé ci-dessus. ?>
 			</div>
 		</div>
 		<div class="yn-reader-tools__progression yn-bar yn-reader-tools__js" role="progressbar" aria-label="<?php esc_attr_e( 'Progression dans le chapitre', 'yume-core' ); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="<?php esc_attr_e( '0 % du chapitre', 'yume-core' ); ?>" data-yn-progression><span style="--v:0%"></span></div>

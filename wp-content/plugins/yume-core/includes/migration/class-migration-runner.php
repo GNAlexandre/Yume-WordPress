@@ -90,7 +90,13 @@ final class Migration_Runner {
 			if ( ! $forcer || ! Migration_State::plan() ) {
 				throw new \RuntimeException( __( 'La migration est déjà faite.', 'yume-core' ) );
 			}
-			// Relance : même plan, même sauvegarde ; les contenus existants sont mis à jour.
+			$journal = Migration_State::journal();
+			if ( empty( $journal['sauvegarde'] ) || empty( $journal['empreinte'] ) ) {
+				throw new \RuntimeException( __( 'Relance refusée : le journal de la migration est perdu (sauvegarde de l’ancien site absente). Une relance effacerait la dernière trace permettant d’annuler. Annulez d’abord la migration (wp yume migrer --annuler --forcer reconstruit ce qui peut l’être depuis le plan), puis exécutez-la de nouveau.', 'yume-core' ) );
+			}
+			// Relance : même plan, même sauvegarde. Les contenus existants sont mis à jour, sauf
+			// ceux que l'équipe a modifiés depuis (empreinte), qui sont gardés tels quels.
+			$etat['relance']   = true;
 			$etat['statut']    = 'en_cours';
 			$etat['operation'] = 'executer';
 			$etat['etape']     = 'oeuvres';
@@ -106,7 +112,7 @@ final class Migration_Runner {
 				'action' => 'relance',
 				'par'    => get_current_user_id(),
 			);
-			$moteur               = new Migration_Executor( (array) Migration_State::plan(), Migration_State::journal(), $etat );
+			$moteur               = new Migration_Executor( (array) Migration_State::plan(), $journal, $etat );
 			$etat['progression']  = array(
 				'fait'  => $moteur->fait(),
 				'total' => $moteur->total_general(),
@@ -169,20 +175,48 @@ final class Migration_Runner {
 	/**
 	 * Démarre l'annulation.
 	 *
+	 * Refusée (code 412) si le site a été utilisé depuis la migration (chapitres ou tomes
+	 * ajoutés aux œuvres migrées, favoris, notes, progression, commentaires, contenus migrés
+	 * modifiés), sauf avec l'option « conserver » : les œuvres concernées sont alors gardées
+	 * avec tout ce qui en dépend. Refusée aussi si la sauvegarde de l'ancien site est perdue,
+	 * sauf avec l'option « reconstruire » (sauvegarde refaite depuis le plan).
+	 *
+	 * @param array $options 'conserver' (bool), 'reconstruire' (bool).
 	 * @return array<string,mixed> État.
-	 * @throws \RuntimeException Rien à annuler.
+	 * @throws \RuntimeException Rien à annuler, ou confirmation requise.
 	 */
-	public static function demarrer_annulation(): array {
-		return self::sous_verrou( static fn() => self::demarrer_annulation_verrouille() );
+	public static function demarrer_annulation( array $options = array() ): array {
+		return self::sous_verrou( static fn() => self::demarrer_annulation_verrouille( $options ) );
+	}
+
+	/**
+	 * Ce qu'une annulation détruirait (voir Migration_Rollback::dependances()).
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function dependances_annulation(): array {
+		$journal = Migration_State::journal();
+		return Migration_Rollback::dependances( Migration_Rollback::listes( $journal ), Migration_State::etat(), $journal );
+	}
+
+	/**
+	 * Sauvegarde de l'ancien site perdue (journal effacé) alors que la migration a modifié le site ?
+	 *
+	 * @param array $etat    État.
+	 * @param array $journal Journal.
+	 */
+	public static function sauvegarde_perdue( array $etat, array $journal ): bool {
+		return empty( $journal['sauvegarde'] ) && ( 'migre' === $etat['statut'] || in_array( 'preparer', (array) $etat['etapes'], true ) );
 	}
 
 	/**
 	 * Démarrage de l'annulation (verrou pris).
 	 *
+	 * @param array $options Voir demarrer_annulation().
 	 * @return array<string,mixed> État.
-	 * @throws \RuntimeException Rien à annuler.
+	 * @throws \RuntimeException Rien à annuler, ou confirmation requise.
 	 */
-	private static function demarrer_annulation_verrouille(): array {
+	private static function demarrer_annulation_verrouille( array $options ): array {
 		$etat = Migration_State::etat();
 		if ( 'annulation' === $etat['statut'] ) {
 			return $etat;
@@ -193,7 +227,42 @@ final class Migration_Runner {
 		if ( ! Migration_State::plan() ) {
 			throw new \RuntimeException( __( 'Plan de la migration introuvable : annulation impossible.', 'yume-core' ) );
 		}
-		$journal              = Migration_State::journal();
+		$journal = Migration_State::journal();
+		if ( self::sauvegarde_perdue( $etat, $journal ) ) {
+			if ( empty( $options['reconstruire'] ) ) {
+				throw new \RuntimeException( __( 'Le journal de la migration est perdu : la sauvegarde de l’ancien site (statuts des anciennes pages, catégories, options) est absente. L’annulation supprimerait les contenus créés sans pouvoir remettre l’ancien site en ligne. Pour annuler quand même, confirmez la reconstruction de la sauvegarde depuis le plan (wp yume migrer --annuler --forcer) : anciennes pages remises en ligne, catégories et catégories des articles restaurées ; les réglages de lecture, d’inscription et les options Yume seront à vérifier à la main.', 'yume-core' ), 412 );
+			}
+			$journal = Migration_Rollback::reconstruire_sauvegarde( (array) Migration_State::plan(), $journal );
+			Migration_State::enregistrer_journal( $journal );
+			Migration_State::message( $etat, __( 'Journal perdu : sauvegarde reconstruite depuis le plan (anciennes pages, catégories, catégories des articles). Réglages de lecture, d’inscription et options Yume à vérifier à la main.', 'yume-core' ), 'avertissement' );
+		}
+		$listes      = Migration_Rollback::listes( $journal );
+		$dependances = Migration_Rollback::dependances( $listes, $etat, $journal );
+		if ( $dependances['conserver'] ) {
+			if ( empty( $options['conserver'] ) ) {
+				throw new \RuntimeException(
+					implode(
+						"\n",
+						array_merge(
+							array( __( 'Le site a été utilisé depuis la migration ; l’annuler supprimerait ou rendrait orphelins :', 'yume-core' ) ),
+							array_map( static fn( $l ) => '• ' . $l, Migration_Rollback::resume_dependances( $dependances ) ),
+							/* translators: %d: nombre de contenus. */
+							array( sprintf( __( 'Pour annuler quand même, confirmez la conservation des œuvres concernées (%d contenu(s) créé(s) par la migration gardés, avec leurs tomes et chapitres ; wp yume migrer --annuler --conserver).', 'yume-core' ), count( $dependances['conserver'] ) ) )
+						)
+					),
+					412
+				);
+			}
+			foreach ( array( 'pages', 'chapitres', 'tomes', 'oeuvres' ) as $liste ) {
+				$listes[ $liste ] = array_values( array_diff( $listes[ $liste ], $dependances['conserver'] ) );
+			}
+			$listes['conserves'] = $dependances['conserver'];
+			/* translators: %d: nombre de contenus. */
+			Migration_State::message( $etat, sprintf( __( '%d contenu(s) créé(s) par la migration et utilisé(s) depuis sont conservés (œuvres avec leurs tomes et chapitres) : ils garderont leurs chapitres, commentaires et données des lecteurs.', 'yume-core' ), count( $dependances['conserver'] ) ), 'avertissement' );
+			foreach ( Migration_Rollback::resume_dependances( $dependances ) as $ligne ) {
+				Migration_State::message( $etat, $ligne, 'avertissement' );
+			}
+		}
 		$etat['statut']       = 'annulation';
 		$etat['operation']    = 'annuler';
 		$etat['etape']        = 'redirections';
@@ -203,7 +272,7 @@ final class Migration_Runner {
 		$etat['comptes']      = array();
 		$etat['debut']        = current_time( 'mysql', true );
 		$etat['par']          = get_current_user_id();
-		$etat['annulation']   = Migration_Rollback::listes( $journal );
+		$etat['annulation']   = $listes;
 		$etat['historique'][] = array(
 			'date'   => $etat['debut'],
 			'action' => 'annulation',
@@ -361,9 +430,14 @@ final class Migration_Runner {
 		$total   = max( 0, (int) ( $etat['progression']['total'] ?? 0 ) );
 		$fait    = min( $total, max( 0, (int) ( $etat['progression']['fait'] ?? 0 ) ) );
 		$termine = ! in_array( $etat['statut'], array( 'en_cours', 'annulation' ), true );
+		$libelle = Migration_State::STATUTS[ $etat['statut'] ] ?? $etat['statut'];
+		if ( 'migre' === $etat['statut'] && (int) ( $etat['ignores'] ?? 0 ) > 0 ) {
+			/* translators: %d: nombre d'éléments ignorés. */
+			$libelle = sprintf( _n( 'Migré avec %d élément ignoré', 'Migré avec %d éléments ignorés', (int) $etat['ignores'], 'yume-core' ), (int) $etat['ignores'] );
+		}
 		return array(
 			'statut'         => $etat['statut'],
-			'statut_libelle' => Migration_State::STATUTS[ $etat['statut'] ] ?? $etat['statut'],
+			'statut_libelle' => $libelle,
 			'operation'      => $etat['operation'],
 			'etape'          => $etat['etape'],
 			'etape_libelle'  => $etapes[ $etat['etape'] ] ?? '',

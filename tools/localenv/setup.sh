@@ -26,6 +26,8 @@
 #   -h, --aide         cette aide
 #
 # Prérequis : PHP 8.1+ avec pdo_sqlite, git, curl ; Composer pour --source composer.
+# MySQL/MariaDB : exporter YUME_DB_ENGINE=mysql (et au besoin YUME_DB_HOST, YUME_DB_USER,
+# YUME_DB_PASSWORD) avant setup.sh, wp.sh et test.sh ; base « yume_<YUME_ENV> » créée au besoin.
 # Ensuite : . <dossier>/env.sh && tools/localenv/test.sh   (voir tools/localenv/README.md)
 set -eu
 
@@ -254,18 +256,44 @@ if [ ! -f "$WP/wp-config.php" ] || [ "$FORCER" = 1 ]; then
 /**
  * Configuration de l'environnement local Yume Novel, générée par tools/localenv/setup.sh.
  *
- * Base de données : SQLite (drop-in wp-content/db.php). Chaque valeur de la variable
+ * Base de données : SQLite (drop-in wp-content/db.php), ou MySQL/MariaDB avec
+ * YUME_DB_ENGINE=mysql (voir plus bas). Avec SQLite, chaque valeur de la variable
  * d'environnement YUME_ENV a sa propre base dans $(printf '%s' "$DB")/<YUME_ENV>/ :
  * supprimer ce dossier suffit pour repartir de zéro.
  *
  * @package Yume\\Core
  */
 
-// Réglages MySQL inutilisés par SQLite, mais attendus par WordPress.
-define( 'DB_NAME', 'wordpress' );
-define( 'DB_USER', 'wordpress' );
-define( 'DB_PASSWORD', '' );
-define( 'DB_HOST', 'localhost' );
+// Moteur : SQLite par défaut. Avec YUME_DB_ENGINE=mysql, MySQL/MariaDB (moteur de la
+// production) : base « yume_<YUME_ENV> » créée au besoin sur YUME_DB_HOST (défaut localhost)
+// avec YUME_DB_USER / YUME_DB_PASSWORD (défaut wp / wp).
+if ( 'mysql' === getenv( 'YUME_DB_ENGINE' ) ) {
+	define( 'DB_ENGINE', 'mysql' );
+	\$yume_db   = 'yume_' . preg_replace( '/[^a-z0-9_]/', '_', strtolower( (string) getenv( 'YUME_ENV' ) ?: 'default' ) );
+	\$yume_hote = (string) ( getenv( 'YUME_DB_HOST' ) ?: 'localhost' );
+	\$yume_user = (string) ( getenv( 'YUME_DB_USER' ) ?: 'wp' );
+	\$yume_mdp  = false !== getenv( 'YUME_DB_PASSWORD' ) ? (string) getenv( 'YUME_DB_PASSWORD' ) : 'wp';
+	try {
+		\$yume_lien = mysqli_init();
+		if ( \$yume_lien && @mysqli_real_connect( \$yume_lien, \$yume_hote, \$yume_user, \$yume_mdp ) ) {
+			mysqli_query( \$yume_lien, 'CREATE DATABASE IF NOT EXISTS \`' . \$yume_db . '\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci' );
+			mysqli_close( \$yume_lien );
+		}
+	} catch ( \Throwable \$yume_erreur ) {
+		// Serveur injoignable : WordPress affichera lui-même l'erreur de connexion.
+		unset( \$yume_erreur );
+	}
+	define( 'DB_NAME', \$yume_db );
+	define( 'DB_USER', \$yume_user );
+	define( 'DB_PASSWORD', \$yume_mdp );
+	define( 'DB_HOST', \$yume_hote );
+} else {
+	// Réglages MySQL inutilisés par SQLite, mais attendus par WordPress.
+	define( 'DB_NAME', 'wordpress' );
+	define( 'DB_USER', 'wordpress' );
+	define( 'DB_PASSWORD', '' );
+	define( 'DB_HOST', 'localhost' );
+}
 define( 'DB_CHARSET', 'utf8mb4' );
 define( 'DB_COLLATE', '' );
 
@@ -414,7 +442,11 @@ wpenv() {
 	YUME_WP_PATH=$WP WP_CLI=$WPCLI YUME_ENV=$ENV_INITIAL "$REPO/tools/localenv/wp.sh" "$@"
 }
 MOTEUR=$(wpenv eval 'echo defined( "DB_ENGINE" ) ? DB_ENGINE : "mysql";' 2>/dev/null || true)
-[ "$MOTEUR" = sqlite ] || erreur "le drop-in SQLite n'est pas actif (moteur : ${MOTEUR:-inconnu})"
+if [ "${YUME_DB_ENGINE:-}" = mysql ]; then
+	[ "$MOTEUR" = mysql ] || erreur "YUME_DB_ENGINE=mysql, mais le moteur actif est ${MOTEUR:-inconnu}"
+else
+	[ "$MOTEUR" = sqlite ] || erreur "le drop-in SQLite n'est pas actif (moteur : ${MOTEUR:-inconnu})"
+fi
 
 if [ "$LANGUE" != en_US ] && [ ! -f "$WP/wp-content/languages/$LANGUE.mo" ]; then
 	if [ "$BLOQUER_HTTP" = 0 ] && wpenv language core install "$LANGUE" >/dev/null 2>&1; then

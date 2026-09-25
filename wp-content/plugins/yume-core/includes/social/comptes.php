@@ -181,3 +181,64 @@ function confirmer_email(): void {
 	rediriger( url_compte(), is_wp_error( $resultat ) ? 'erreur' : 'email-ok', 'yn-profil' );
 }
 add_action( 'template_redirect', __NAMESPACE__ . '\\confirmer_email', 5 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Profil d'un lecteur : uniquement par la page compte
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * La page compte impose le mot de passe actuel (e-mail, mot de passe), un lien de
+ * confirmation pour la nouvelle adresse et un pseudo unique (pseudo_pris). La route du cœur
+ * POST/PUT/PATCH /wp/v2/users/{id|me} (et son équivalent par /batch/v1) n'applique aucune de
+ * ces règles : elle est donc fermée aux lecteurs, qui modifient leur profil depuis la façade.
+ * L'équipe garde l'accès standard (droits de WordPress).
+ *
+ * @param \WP_REST_Response|\WP_HTTP_Response|\WP_Error|mixed $reponse Réponse déjà calculée.
+ * @param array                                               $handler Gestionnaire de la route.
+ * @param \WP_REST_Request                                    $requete Requête.
+ * @return mixed
+ */
+function bloquer_profil_rest( $reponse, $handler, $requete ) {
+	if ( is_wp_error( $reponse ) || ! $requete instanceof \WP_REST_Request || ! is_user_logged_in() || ! est_lecteur() ) {
+		return $reponse;
+	}
+	$rappel = is_array( $handler ) ? ( $handler['callback'] ?? null ) : null;
+	if ( ! is_array( $rappel ) || ! isset( $rappel[0], $rappel[1] ) ) {
+		return $reponse;
+	}
+	$controleur = $rappel[0];
+	$methode    = (string) $rappel[1];
+	$ecritures  = array( 'create_item', 'update_item', 'update_current_item', 'delete_item', 'delete_current_item' );
+	$vise       = ( $controleur instanceof \WP_REST_Users_Controller && in_array( $methode, $ecritures, true ) )
+		|| ( $controleur instanceof \WP_REST_Application_Passwords_Controller && in_array( $methode, array( 'create_item', 'update_item' ), true ) );
+	if ( ! $vise ) {
+		return $reponse;
+	}
+	return new \WP_Error(
+		'yume_profil_facade',
+		sprintf(
+			/* translators: %s : adresse de la page compte. */
+			__( 'Modifiez votre profil (pseudo, adresse e-mail, mot de passe) depuis votre page compte : %s', 'yume-core' ),
+			url_compte_sure()
+		),
+		array( 'status' => 403 )
+	);
+}
+add_filter( 'rest_request_before_callbacks', __NAMESPACE__ . '\\bloquer_profil_rest', 5, 3 );
+
+/**
+ * Pas de mots de passe d'application pour les lecteurs (ils contourneraient la page compte
+ * et survivraient à un changement de mot de passe).
+ *
+ * @param bool     $disponible Valeur calculée.
+ * @param \WP_User $user       Utilisateur.
+ */
+function mots_de_passe_application( $disponible, $user = null ): bool {
+	if ( $user instanceof \WP_User && est_lecteur( $user ) ) {
+		return false;
+	}
+	return (bool) $disponible;
+}
+add_filter( 'wp_is_application_passwords_available_for_user', __NAMESPACE__ . '\\mots_de_passe_application', 10, 2 );

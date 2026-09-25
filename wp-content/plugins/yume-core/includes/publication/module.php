@@ -38,3 +38,4 @@ add_action( 'init', array( Formulaire::class, 'enregistrer_bloc' ) );
 add_action( 'admin_menu', array( Formulaire::class, 'menu' ), 20 );
 add_action( 'admin_post_yume_publication', array( Formulaire::class, 'traiter' ) );
 add_action( 'admin_post_nopriv_yume_publication', array( Formulaire::class, 'traiter_anonyme' ) );
+add_action( Service::HOOK_GROUPE, array( Service::class, 'sortie_groupee_programmee' ), 10, 2 );

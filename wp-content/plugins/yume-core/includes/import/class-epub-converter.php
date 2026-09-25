@@ -184,7 +184,9 @@ final class Epub_Converter {
 	 * Convertit un fichier EPUB (même Result que Docx_Converter::convert_file()).
 	 *
 	 * @param string              $path    Chemin du fichier.
-	 * @param array<string,mixed> $options typographie (bool, défaut true).
+	 * @param array<string,mixed> $options typographie (bool, défaut true) ; volume_max (int,
+	 *                                     octets) : texte converti maximal (défaut
+	 *                                     Chapter_Builder::VOLUME_MAX).
 	 * @throws Import_Exception Fichier illisible ou qui n'est pas un EPUB.
 	 */
 	public static function convert_file( string $path, array $options = array() ): Result {
@@ -205,7 +207,7 @@ final class Epub_Converter {
 			$this->resultat->source = $this->zip->chemin();
 			$this->opf              = $this->localiser_opf();
 			$spine                  = $this->lire_opf( $this->opf );
-			$this->chapitres        = new Chapter_Builder( $this->resultat );
+			$this->chapitres        = new Chapter_Builder( $this->resultat, (int) ( $this->options['volume_max'] ?? Chapter_Builder::VOLUME_MAX ) );
 			$this->couverture();
 			$this->avec_h1 = $this->utilise_h1( $spine );
 			$corps_atteint = '' === $this->debut_corps;

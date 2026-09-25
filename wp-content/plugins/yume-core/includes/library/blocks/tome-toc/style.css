@@ -24,7 +24,7 @@
 	margin: 0;
 }
 
-.yn-toc__titre {
+.yn-toc .yn-toc__titre {
 	font-size: var(--wp--preset--font-size--grand);
 }
 

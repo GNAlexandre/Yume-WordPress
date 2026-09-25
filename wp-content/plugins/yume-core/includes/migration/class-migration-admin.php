@@ -203,7 +203,12 @@ final class Migration_Admin {
 				if ( empty( $_POST['confirmation'] ) ) {
 					self::retour( 'confirmation_annulation' );
 				}
-				Migration_Runner::demarrer_annulation();
+				Migration_Runner::demarrer_annulation(
+					array(
+						'conserver'    => ! empty( $_POST['conserver'] ),
+						'reconstruire' => ! empty( $_POST['reconstruire'] ),
+					)
+				);
 			}
 			Migration_Runner::lot(
 				array(
@@ -310,7 +315,7 @@ final class Migration_Admin {
 			data-operation="<?php echo esc_attr( $etat['operation'] ); ?>">
 			<h1><?php esc_html_e( 'Migrer l’ancien site', 'yume-core' ); ?></h1>
 			<p class="yume-migrer__intro">
-				<?php esc_html_e( 'La migration transforme les pages de l’ancien site (fiches, arcs, chapitres) en œuvres, tomes et chapitres Yume, reclasse les articles, crée les pages Yume, ouvre les inscriptions des lecteurs (rôle Lecteur) et installe les redirections 301. Elle se fait sur place : les images gardent leur identifiant, les anciennes pages passent en brouillon (rien n’est supprimé) et tout peut être annulé.', 'yume-core' ); ?>
+				<?php esc_html_e( 'La migration transforme les pages de l’ancien site (fiches, arcs, chapitres) en œuvres, tomes et chapitres Yume, reclasse les articles, crée les pages Yume, ouvre les inscriptions des lecteurs (rôle Lecteur) et installe les redirections 301. Elle se fait sur place : les images gardent leur identifiant et les anciennes pages passent en brouillon (rien n’est supprimé). Elle s’annule entièrement tant que le site n’a pas été utilisé ; ensuite, l’annulation conserve les œuvres qui ont reçu des chapitres, des commentaires ou des données de lecteurs.', 'yume-core' ); ?>
 			</p>
 			<?php self::notice(); ?>
 			<?php self::carte_etat( $etat ); ?>
@@ -325,9 +330,10 @@ final class Migration_Admin {
 	/**
 	 * Pastille de statut.
 	 *
-	 * @param string $statut Statut.
+	 * @param string $statut  Statut.
+	 * @param string $libelle Libellé à afficher (« Migré avec 3 éléments ignorés »), sinon celui du statut.
 	 */
-	private static function pastille( string $statut ): string {
+	private static function pastille( string $statut, string $libelle = '' ): string {
 		$classes = array(
 			'non_migre'  => 'neutre',
 			'en_cours'   => 'attention',
@@ -335,10 +341,14 @@ final class Migration_Admin {
 			'annulation' => 'attention',
 			'annule'     => 'neutre',
 		);
+		$classe  = $classes[ $statut ] ?? 'neutre';
+		if ( '' !== $libelle && ( Migration_State::STATUTS[ $statut ] ?? $statut ) !== $libelle && 'migre' === $statut ) {
+			$classe = 'attention'; // Migré avec des éléments ignorés.
+		}
 		return sprintf(
 			'<span class="yume-migrer__pastille yume-migrer__pastille--%1$s">%2$s</span>',
-			esc_attr( $classes[ $statut ] ?? 'neutre' ),
-			esc_html( Migration_State::STATUTS[ $statut ] ?? $statut )
+			esc_attr( $classe ),
+			esc_html( '' !== $libelle ? $libelle : ( Migration_State::STATUTS[ $statut ] ?? $statut ) )
 		);
 	}
 
@@ -350,7 +360,7 @@ final class Migration_Admin {
 	private static function carte_etat( array $etat ): void {
 		?>
 		<section class="yume-migrer__carte" aria-labelledby="yume-migrer-etat">
-			<h2 id="yume-migrer-etat"><?php esc_html_e( 'État', 'yume-core' ); ?> <span data-yume-pastille><?php echo self::pastille( $etat['statut'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- échappé dans pastille(). ?></span></h2>
+			<h2 id="yume-migrer-etat"><?php esc_html_e( 'État', 'yume-core' ); ?> <span data-yume-pastille><?php echo self::pastille( $etat['statut'], (string) Migration_Runner::resume( $etat )['statut_libelle'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- échappé dans pastille(). ?></span></h2>
 			<?php if ( 'migre' === $etat['statut'] ) : ?>
 				<p>
 					<?php
@@ -358,6 +368,19 @@ final class Migration_Admin {
 					echo esc_html( sprintf( __( 'Migré le %1$s par %2$s.', 'yume-core' ), self::date( (string) $etat['migre_le'] ), self::nom( (int) $etat['migre_par'] ) ) );
 					?>
 				</p>
+				<?php if ( (int) ( $etat['ignores'] ?? 0 ) > 0 ) : ?>
+					<div class="notice notice-warning inline"><p>
+						<?php
+						/* translators: %d: nombre d'éléments ignorés. */
+						echo esc_html( sprintf( _n( '%d élément a été ignoré pendant la migration : il n’a pas été migré, et les anciennes pages qui en dépendent sont restées en ligne. Relisez le journal ci-dessous.', '%d éléments ont été ignorés pendant la migration : ils n’ont pas été migrés, et les anciennes pages qui en dépendent sont restées en ligne. Relisez le journal ci-dessous.', (int) $etat['ignores'], 'yume-core' ), (int) $etat['ignores'] ) );
+						?>
+					</p></div>
+					<ol class="yume-migrer__journal">
+						<?php foreach ( array_filter( (array) $etat['messages'], static fn( $m ) => in_array( $m['type'] ?? '', array( 'avertissement', 'erreur' ), true ) ) as $m ) : ?>
+							<li class="yume-migrer__message--<?php echo esc_attr( (string) $m['type'] ); ?>"><?php echo esc_html( (string) $m['texte'] ); ?></li>
+						<?php endforeach; ?>
+					</ol>
+				<?php endif; ?>
 			<?php elseif ( 'annule' === $etat['statut'] ) : ?>
 				<p>
 					<?php
@@ -387,7 +410,11 @@ final class Migration_Admin {
 	 * @param array $controle Contrôle (date, differences, verifie).
 	 */
 	private static function controle( array $controle ): void {
+		if ( ! $controle ) {
+			return;
+		}
 		if ( empty( $controle['verifie'] ) ) {
+			echo '<p class="yume-migrer__alerte">' . esc_html__( 'Contrôle impossible : la sauvegarde de l’ancien site était absente (journal perdu). Vérifiez à la main les anciennes pages, les catégories, les réglages de lecture et d’inscription et les options Yume.', 'yume-core' ) . '</p>';
 			return;
 		}
 		if ( empty( $controle['differences'] ) ) {
@@ -421,6 +448,9 @@ final class Migration_Admin {
 			'pages_restaurees'     => __( 'anciennes pages restaurées', 'yume-core' ),
 			'supprimes'            => __( 'contenus supprimés', 'yume-core' ),
 			'ignores'              => __( 'éléments ignorés', 'yume-core' ),
+			'pages_maintenues'     => __( 'anciennes pages laissées en ligne (sans remplaçant)', 'yume-core' ),
+			'pages_nettoyees'      => __( 'pages conservées nettoyées (couleurs, textes alternatifs)', 'yume-core' ),
+			'modifies_conserves'   => __( 'contenus modifiés depuis la migration, gardés tels quels', 'yume-core' ),
 		);
 		echo '<ul class="yume-migrer__comptes">';
 		foreach ( $comptes as $cle => $n ) {
@@ -506,8 +536,8 @@ final class Migration_Admin {
 		$c      = $plan['comptes'];
 		$n      = static fn( $v ) => number_format_i18n( (int) $v );
 		$lignes = array(
-			array( __( 'Œuvres', 'yume-core' ), $c['oeuvres']['total'], self::detail( $c['oeuvres']['par_type'] ) . ' · ' . self::detail( $c['oeuvres']['par_statut'] ) ),
-			array( __( 'Tomes', 'yume-core' ), $c['tomes']['total'], self::detail( $c['tomes']['par_nature'] ) . ' · ' . self::detail( $c['tomes']['par_statut'] ) ),
+			array( __( 'Œuvres', 'yume-core' ), $c['oeuvres']['total'], self::detail( $c['oeuvres']['par_type'], 'type' ) . ' · ' . self::detail( $c['oeuvres']['par_statut'], 'statut' ) ),
+			array( __( 'Tomes', 'yume-core' ), $c['tomes']['total'], self::detail( $c['tomes']['par_nature'], 'nature' ) . ' · ' . self::detail( $c['tomes']['par_statut'], 'publication' ) ),
 			/* translators: 1: migrés, 2: planifiés, 3: mots. */
 			array( __( 'Chapitres', 'yume-core' ), $c['chapitres']['total'], sprintf( __( '%1$s migrés, %2$s planifiés (brouillons), %3$s mots', 'yume-core' ), $n( $c['chapitres']['migres'] ), $n( $c['chapitres']['planifies'] ), $n( $c['chapitres']['mots'] ) ) ),
 			/* translators: 1: sorties, 2: actualités, 3: ignorés. */
@@ -543,14 +573,16 @@ final class Migration_Admin {
 	}
 
 	/**
-	 * « clé : valeur · … » d'un tableau de comptes.
+	 * « libellé : valeur, … » d'un tableau de comptes (clés traduites : « Brouillon »,
+	 * « Abandonnée », « Light novel »…).
 	 *
-	 * @param array $comptes Comptes.
+	 * @param array  $comptes Comptes.
+	 * @param string $groupe  Groupe de libellés (Plan_Report::libelle()).
 	 */
-	private static function detail( array $comptes ): string {
+	private static function detail( array $comptes, string $groupe = '' ): string {
 		$morceaux = array();
 		foreach ( $comptes as $cle => $valeur ) {
-			$morceaux[] = $cle . ' : ' . number_format_i18n( (int) $valeur );
+			$morceaux[] = Plan_Report::libelle( $groupe, (string) $cle ) . ' : ' . number_format_i18n( (int) $valeur );
 		}
 		return implode( ', ', $morceaux );
 	}
@@ -862,7 +894,7 @@ final class Migration_Admin {
 						<label for="yume-migrer-confirmation"><?php esc_html_e( 'Tapez MIGRER pour confirmer', 'yume-core' ); ?></label>
 						<input type="text" id="yume-migrer-confirmation" name="confirmation" autocomplete="off" spellcheck="false" class="regular-text" aria-describedby="yume-migrer-confirmation-aide" data-yume-confirmation>
 						<button type="submit" class="button button-primary"><?php esc_html_e( 'Exécuter la migration', 'yume-core' ); ?></button>
-						<p class="description" id="yume-migrer-confirmation-aide"><?php esc_html_e( 'Tout reste réversible avec « Annuler la migration ».', 'yume-core' ); ?></p>
+						<p class="description" id="yume-migrer-confirmation-aide"><?php esc_html_e( 'Réversible avec « Annuler la migration » tant que le site n’est pas utilisé. Après la mise en service (chapitres publiés, lecteurs inscrits), l’annulation ne supprime plus les œuvres utilisées : elle les conserve.', 'yume-core' ); ?></p>
 					</form>
 					<?php self::progression( $resume, false, 'executer' ); ?>
 				<?php endif; ?>
@@ -888,41 +920,46 @@ final class Migration_Admin {
 				<?php self::progression( $resume, true, 'annuler' ); ?>
 				<?php self::reprise( 'yume_migration_annuler', $resume, __( 'Reprendre l’annulation', 'yume-core' ) ); ?>
 			<?php else : ?>
-				<?php $autres = self::contenus_ajoutes_depuis(); ?>
+				<?php
+				$dependances = Migration_Runner::dependances_annulation();
+				$perdue      = Migration_Runner::sauvegarde_perdue( $etat, Migration_State::journal() );
+				?>
 				<p><?php esc_html_e( 'L’annulation supprime les œuvres, tomes, chapitres et pages créés par la migration, remet les anciennes pages en ligne, restaure les catégories des articles, les réglages de lecture, d’inscription et les options, et retire les redirections.', 'yume-core' ); ?></p>
-				<?php if ( $autres ) : ?>
-					<div class="notice notice-warning inline"><p>
-						<?php
-						/* translators: %s: nombre de contenus. */
-						echo esc_html( sprintf( __( '%s contenu(s) Yume ont été ajoutés depuis la migration : ils ne seront pas supprimés mais perdront leur œuvre ou leur tome.', 'yume-core' ), number_format_i18n( $autres ) ) );
-						?>
-					</p></div>
+				<?php if ( $dependances['conserver'] ) : ?>
+					<div class="notice notice-warning inline">
+						<p><?php esc_html_e( 'Le site a été utilisé depuis la migration. Une annulation supprimerait ou rendrait orphelins :', 'yume-core' ); ?></p>
+						<ul class="yume-migrer__liste">
+							<?php foreach ( Migration_Rollback::resume_dependances( $dependances ) as $ligne ) : ?>
+								<li><?php echo esc_html( $ligne ); ?></li>
+							<?php endforeach; ?>
+						</ul>
+						<p>
+							<?php
+							/* translators: %s: nombre de contenus. */
+							echo esc_html( sprintf( __( 'Si vous annulez quand même, les œuvres concernées (%s contenu(s) créé(s) par la migration, avec leurs tomes et chapitres) sont conservées, ainsi que tout ce qui s’y rattache.', 'yume-core' ), number_format_i18n( count( $dependances['conserver'] ) ) ) );
+							?>
+						</p>
+					</div>
+				<?php endif; ?>
+				<?php if ( $perdue ) : ?>
+					<div class="notice notice-error inline"><p><?php esc_html_e( 'Le journal de la migration est perdu : la sauvegarde de l’ancien site est absente. L’annulation ne peut que la reconstruire depuis le plan (anciennes pages remises en ligne, catégories et catégories des articles) ; les réglages de lecture, d’inscription et les options Yume seront à vérifier à la main.', 'yume-core' ); ?></p></div>
 				<?php endif; ?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="yume-migrer__confirmer" data-yume-form="annuler">
 					<input type="hidden" name="action" value="yume_migration_annuler">
 					<?php wp_nonce_field( 'yume_migration_annuler' ); ?>
 					<p><label><input type="checkbox" name="confirmation" value="1" data-yume-confirmation-annulation> <?php esc_html_e( 'Je confirme vouloir annuler la migration et revenir à l’ancien site.', 'yume-core' ); ?></label></p>
+					<?php if ( $dependances['conserver'] ) : ?>
+						<p><label><input type="checkbox" name="conserver" value="1" data-yume-conserver> <?php esc_html_e( 'Je comprends que les œuvres utilisées depuis la migration sont conservées (avec leurs chapitres, commentaires et données des lecteurs).', 'yume-core' ); ?></label></p>
+					<?php endif; ?>
+					<?php if ( $perdue ) : ?>
+						<p><label><input type="checkbox" name="reconstruire" value="1" data-yume-reconstruire> <?php esc_html_e( 'Reconstruire la sauvegarde depuis le plan et annuler quand même.', 'yume-core' ); ?></label></p>
+					<?php endif; ?>
 					<button type="submit" class="button yume-migrer__bouton-danger"><?php esc_html_e( 'Annuler la migration', 'yume-core' ); ?></button>
 				</form>
 				<?php self::progression( $resume, false, 'annuler' ); ?>
 			<?php endif; ?>
 		</section>
 		<?php
-	}
-
-	/**
-	 * Contenus Yume (œuvres, tomes, chapitres) qui n'ont pas été créés par la migration.
-	 */
-	private static function contenus_ajoutes_depuis(): int {
-		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		return (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = %s
-				WHERE p.post_type IN ( 'yume_oeuvre', 'yume_tome', 'yume_chapitre' ) AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' ) AND m.meta_id IS NULL",
-				Site_Source::META_CLE
-			)
-		);
 	}
 
 	/**

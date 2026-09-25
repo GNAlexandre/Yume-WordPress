@@ -90,7 +90,7 @@
 	text-decoration: underline;
 }
 
-.yn-oeuvre-header__titre {
+.yn-oeuvre-header .yn-oeuvre-header__titre {
 	font-size: clamp(30px, 1.2rem + 2.2vw, 44px);
 	line-height: 1.1;
 	text-wrap: balance;
@@ -133,7 +133,7 @@
 		font-size: 13px;
 	}
 
-	.yn-oeuvre-header__titre {
+	.yn-oeuvre-header .yn-oeuvre-header__titre {
 		font-size: clamp(24px, 6.4vw, 30px);
 	}
 

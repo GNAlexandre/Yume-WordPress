@@ -9,6 +9,7 @@
  * - lecteur : yume/chapter-header, yume/chapter-nav.
  *
  * Données publiques de schema.org (JSON-LD) et balises rel=prev/next dans <head> : seo.php.
+ * Ordre des résultats de la recherche (œuvres correspondantes d'abord) : recherche.php.
  * Les listes calculées sont mises en cache (transients versionnés, voir donnees.php) et
  * invalidées à chaque enregistrement ou suppression d'une œuvre, d'un tome ou d'un chapitre.
  *
@@ -30,3 +31,4 @@ require_once __DIR__ . '/rendus-fiches.php';
 require_once __DIR__ . '/rendus-lecture.php';
 require_once __DIR__ . '/blocs.php';
 require_once __DIR__ . '/seo.php';
+require_once __DIR__ . '/recherche.php';

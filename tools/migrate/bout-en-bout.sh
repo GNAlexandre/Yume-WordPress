@@ -102,6 +102,13 @@ while IFS="$(printf '\t')" read -r source cible; do
 	n=$((n + 1))
 done < "$TRAVAIL/urls.tsv"
 [ "$n" -ge 20 ] || { echo "ÉCHEC : $n redirections testées (20 attendues)" >&2; exit 1; }
+# Adresse courte d'une ancienne fiche (partages anciens) : 301 vers la nouvelle adresse.
+resultat=$(curl -s -o /dev/null --max-time 30 -w '%{http_code} %{redirect_url}' "$ADRESSE/?page_id=2209")
+if [ "$resultat" != "301 $ADRESSE/oeuvres/grimgar-of-fantasy-and-ash/" ]; then
+	echo "ÉCHEC : /?page_id=2209 → $resultat (attendu 301 $ADRESSE/oeuvres/grimgar-of-fantasy-and-ash/)" >&2
+	exit 1
+fi
+echo "  ok  301 /?page_id=2209 → /oeuvres/grimgar-of-fantasy-and-ash/"
 
 if [ "${GARDER:-0}" = "1" ]; then
 	echo "== Site migré conservé (GARDER=1) : $ADRESSE"

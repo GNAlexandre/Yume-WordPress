@@ -168,7 +168,9 @@ final class Docx_Converter {
 	 *
 	 * @param string              $path    Chemin du fichier.
 	 * @param array<string,mixed> $options typographie (bool, défaut true) : espaces insécables
-	 *                                     ajoutées devant ? ! : ; et dans les guillemets.
+	 *                                     ajoutées devant ? ! : ; et dans les guillemets ;
+	 *                                     volume_max (int, octets) : texte converti maximal
+	 *                                     (défaut Chapter_Builder::VOLUME_MAX).
 	 * @throws Import_Exception Fichier illisible ou qui n'est pas un DOCX.
 	 */
 	public static function convert_file( string $path, array $options = array() ): Result {
@@ -192,7 +194,7 @@ final class Docx_Converter {
 			$this->styles    = new Docx_Styles( $this->xml_relation( 'styles' ), $this->xml_relation( 'numbering' ) );
 			$this->lire_notes( 'footnotes', 'footnote' );
 			$this->lire_notes( 'endnotes', 'endnote' );
-			$this->chapitres = new Chapter_Builder( $this->resultat );
+			$this->chapitres = new Chapter_Builder( $this->resultat, (int) ( $this->options['volume_max'] ?? Chapter_Builder::VOLUME_MAX ) );
 			$this->parcourir();
 			$this->chapitres->terminer();
 		} finally {
@@ -322,9 +324,11 @@ final class Docx_Converter {
 	 * @throws Import_Exception Document illisible.
 	 */
 	private function parcourir(): void {
-		if ( $this->zip->taille( $this->partie ) > 512 * 1024 * 1024 ) {
-			throw new Import_Exception( 'Document refusé : son texte décompressé dépasse 512 Mo.', 'docx_trop_grand' );
+		if ( $this->zip->taille( $this->partie ) > Zip::DOCUMENT_MAX ) {
+			throw new Import_Exception( sprintf( 'Document refusé : son texte décompressé dépasse %d Mo.', (int) ( Zip::DOCUMENT_MAX / ( 1024 * 1024 ) ) ), 'docx_trop_grand' );
 		}
+		// Taux de compression anormal (bombe ZIP) : refus avant toute lecture.
+		$this->zip->controler_taux( $this->partie );
 		$debut = $this->zip->debut( $this->partie, 2048 );
 		if ( false !== stripos( $debut, '<!DOCTYPE' ) ) {
 			throw new Import_Exception( 'Document refusé : il contient une déclaration de type (DOCTYPE) inattendue.', 'docx_suspect' );

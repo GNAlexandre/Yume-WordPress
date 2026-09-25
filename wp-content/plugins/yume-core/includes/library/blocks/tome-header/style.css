@@ -61,7 +61,7 @@
 	gap: 8px;
 }
 
-.yn-tome-header__titre {
+.yn-tome-header .yn-tome-header__titre {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
@@ -123,7 +123,7 @@
 	margin-top: 18px !important;
 }
 
-.yn-galerie__titre {
+.yn-galerie .yn-galerie__titre {
 	margin: 0;
 	font-size: var(--wp--preset--font-size--grand);
 }
@@ -191,7 +191,7 @@
 		align-self: center;
 	}
 
-	.yn-tome-header__titre {
+	.yn-tome-header .yn-tome-header__titre {
 		font-size: clamp(24px, 6.4vw, 30px);
 	}
 

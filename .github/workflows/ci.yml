@@ -3,7 +3,8 @@
 #   syntaxe      php -l sur PHP 8.1, 8.2, 8.3 et 8.4 (plugin, bibliothèque vendorisée, thème, outils),
 #                blueprints Playground régénérés depuis tools/playground/demo.php
 #   normes       PHPCS : WordPress-Extra + WordPress-Docs + phpcs.xml.dist (bloquant : zéro écart)
-#   tests        WordPress fr_FR + SQLite monté comme tools/localenv, puis tests/runner.php
+#   tests        WordPress fr_FR monté comme tools/localenv, puis tests/runner.php, sur la version
+#                minimale déclarée (6.6) et la dernière, avec SQLite et MariaDB 10.11 (production)
 #   archives     dist/yume-core.zip et dist/yume.zip en artefacts téléchargeables
 #
 # Déclenché à chaque push de branche et à chaque pull request ; appelé aussi par release.yml
@@ -79,22 +80,44 @@ jobs:
         run: cs2pr --graceful-warnings phpcs-rapport.xml
 
   tests:
-    name: Tests WordPress (PHP ${{ matrix.php }})
+    name: Tests WordPress ${{ matrix.wp }} (PHP ${{ matrix.php }}, ${{ matrix.base }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
+      # Contrat §0 (WordPress ≥ 6.6) et §13 (les tests tournent sur les deux moteurs) : version
+      # minimale et dernière version, SQLite (développement) et MariaDB 10.11 (production).
       matrix:
-        php: ['8.1', '8.4']
+        include:
+          - { php: '8.1', wp: '6.6', base: sqlite }
+          - { php: '8.1', wp: '6.6', base: mariadb }
+          - { php: '8.4', wp: latest, base: sqlite }
+          - { php: '8.4', wp: latest, base: mariadb }
+    services:
+      # Démarré seulement pour les combinaisons MariaDB (image vide : service ignoré).
+      mariadb:
+        image: ${{ matrix.base == 'mariadb' && 'mariadb:10.11' || '' }}
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=30
     env:
       YUME_ENV: ci
+      # Lu par le wp-config.php de tools/localenv/setup.sh : vide = SQLite, mysql = MariaDB.
+      YUME_DB_ENGINE: ${{ matrix.base == 'mariadb' && 'mysql' || '' }}
+      YUME_DB_HOST: 127.0.0.1
+      YUME_DB_USER: root
+      YUME_DB_PASSWORD: root
     steps:
       - uses: actions/checkout@v4
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: sqlite3, pdo_sqlite, zip, intl, gd, mbstring, dom, xml, xmlreader
+          extensions: sqlite3, pdo_sqlite, mysqli, zip, intl, gd, mbstring, dom, xml, xmlreader
           ini-values: memory_limit=512M
           coverage: none
           tools: wp-cli
@@ -102,19 +125,26 @@ jobs:
       # Même montage que tools/localenv : WordPress téléchargé en français par WP-CLI, intégration
       # SQLite clonée depuis WordPress/sqlite-database-integration, plugin et thème en liens
       # symboliques vers ce dépôt, requêtes HTTP sortantes bloquées (aucun appel réel pendant les tests).
-      - name: Installer WordPress (fr_FR, SQLite)
-        run: >-
-          tools/localenv/setup.sh
-          --dossier "$RUNNER_TEMP/localenv"
-          --source wp-cli
-          --langue fr_FR
-          --bloquer-http
+      - name: Installer WordPress ${{ matrix.wp }} (fr_FR, ${{ matrix.base }})
+        env:
+          WP_VERSION: ${{ matrix.wp }}
+        run: |
+          set --
+          if [ "$WP_VERSION" != latest ]; then
+            set -- --version "$WP_VERSION"
+          fi
+          tools/localenv/setup.sh \
+            --dossier "$RUNNER_TEMP/localenv" \
+            --source wp-cli \
+            --langue fr_FR \
+            --bloquer-http \
+            "$@"
 
       - name: WordPress installé
         run: |
           . "$RUNNER_TEMP/localenv/env.sh"
           tools/localenv/wp.sh core version --extra
-          tools/localenv/wp.sh eval 'printf( "Langue %s, base %s, PHP %s\n", get_locale(), DB_ENGINE, PHP_VERSION );'
+          tools/localenv/wp.sh eval 'global $wpdb; printf( "Langue %s, base %s (%s), PHP %s\n", get_locale(), DB_ENGINE, $wpdb->db_server_info(), PHP_VERSION );'
           tools/localenv/wp.sh plugin get yume-core --fields=name,status,version
           tools/localenv/wp.sh theme get yume --fields=name,status,version
 

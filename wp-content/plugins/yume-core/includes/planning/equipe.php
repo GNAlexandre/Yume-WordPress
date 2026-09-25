@@ -262,7 +262,7 @@ function champs_tache( array $tache, string $prefixe, ?array $retour ): string {
 		$html .= champ_curseur( $prefixe, $etape, (int) $l['avancement'][ $etape ], $retard && $etape === $tache['principale'] ? 'warn' : '', count( $tache['etapes'] ) > 1 );
 	}
 	$html   .= '</div>';
-	$options = yume_etapes();
+	$options = etapes_proposees( (int) $l['tome_id'], (string) $l['etape'], get_current_user_id() );
 	$html   .= champ_select( $prefixe . '-etape', 'etape', __( 'Étape', 'yume-core' ), $options, $l['etape'] );
 	$html   .= champ_saisie( $prefixe . '-date', 'date_cible', 'date' === $l['motif_retard'] ? __( 'Nouvelle date', 'yume-core' ) : __( 'Date cible', 'yume-core' ), $l['date_cible'], 'date' );
 	$html   .= '<p class="yn-team__action"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Enregistrer', 'yume-core' ) . '</button></p>';
@@ -336,7 +336,7 @@ function ligne_gestion( array $l, array $membres, ?array $retour ): string {
 	$html   .= '<form class="yn-team__gestion" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-yn-planning="' . $id . '">';
 	$html   .= champs_caches_maj( $id, $ancre );
 	$html   .= '<div class="yn-team__champs">';
-	$html   .= champ_select( $prefixe . '-etape', 'etape', __( 'Étape', 'yume-core' ), yume_etapes(), $l['etape'] );
+	$html   .= champ_select( $prefixe . '-etape', 'etape', __( 'Étape', 'yume-core' ), etapes_proposees( $id, (string) $l['etape'], get_current_user_id() ), $l['etape'] );
 	$html   .= champ_saisie( $prefixe . '-date', 'date_cible', __( 'Date cible', 'yume-core' ), $l['date_cible'], 'date' );
 	$html   .= '</div><div class="yn-team__etapes">';
 	$choix   = array( '0' => __( '— Personne —', 'yume-core' ) ) + $membres;

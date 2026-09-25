@@ -179,15 +179,17 @@ Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approu
 
 ## 8. Pour les gérants
 
-- **Membres et rôles** (espace équipe) : ajouter un membre, changer son rôle, le retirer. Un membre
-  qui quitte l'équipe est repassé au rôle Lecteur ; réattribuez d'abord ses tâches.
+- **Membres et rôles** (espace équipe, *Comptes* dans l'administration) : ajouter un membre,
+  changer son rôle (Lecteur, Traducteur, Relecteur, Graphiste, Éditeur Yume), le retirer. Un membre
+  qui quitte l'équipe est repassé au rôle Lecteur ; réattribuez d'abord ses tâches. Les comptes
+  administrateurs et gérants ne sont modifiables que par un administrateur.
 - **Yume → Réglages** (administration) :
   - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),
     heure des rappels, jour du récapitulatif ;
   - *Annonces et notifications* : webhooks Discord (sorties, équipe), e-mails aux lecteurs, modèle
     du texte d'annonce ;
-  - *Mises à jour* : ne pas modifier sans l'équipe technique.
+  - *Mises à jour* : section réservée aux administrateurs (invisible pour les gérants).
 - Les tâches automatiques (rappels, e-mails) peuvent être contrôlées avec l'extension WP Crontrol.
 
 ## 9. Mises à jour du site

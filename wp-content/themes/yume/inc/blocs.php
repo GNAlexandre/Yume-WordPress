@@ -242,3 +242,76 @@ function yume_theme_type_de_contenu( $contenu, $bloc ) {
 	return sprintf( '<p class="%1$s">%2$s</p>', esc_attr( $classe ), esc_html( $libelle ) );
 }
 add_filter( 'render_block_core/paragraph', 'yume_theme_type_de_contenu', 10, 2 );
+
+/**
+ * Luminance relative (WCAG 2.x) d'une couleur CSS écrite en #rgb, #rrggbb (#rrggbbaa) ou
+ * rgb()/rgba() ; null pour toute autre écriture (variable, dégradé, nom de couleur…).
+ *
+ * @param string $couleur Couleur.
+ * @return float|null
+ */
+function yume_theme_luminance( $couleur ) {
+	$couleur = strtolower( trim( (string) $couleur ) );
+	$rvb     = null;
+	if ( preg_match( '/^#([0-9a-f]{3,4})$/', $couleur, $m ) ) {
+		$rvb = array_map( static fn( $c ) => hexdec( $c . $c ), str_split( substr( $m[1], 0, 3 ) ) );
+	} elseif ( preg_match( '/^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/', $couleur, $m ) ) {
+		$rvb = array_map( 'hexdec', str_split( $m[1], 2 ) );
+	} elseif ( preg_match( '/^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/', $couleur, $m ) ) {
+		$rvb = array( (int) $m[1], (int) $m[2], (int) $m[3] );
+	}
+	if ( null === $rvb ) {
+		return null;
+	}
+	$lineaire = array_map(
+		static function ( $c ) {
+			$c = min( 255, max( 0, (int) $c ) ) / 255;
+			return $c <= 0.04045 ? $c / 12.92 : ( ( $c + 0.055 ) / 1.055 ) ** 2.4;
+		},
+		$rvb
+	);
+	return 0.2126 * $lineaire[0] + 0.7152 * $lineaire[1] + 0.0722 * $lineaire[2];
+}
+
+/**
+ * Blocs à fond personnalisé sans couleur de texte (contenus migrés de l'ancien site, clair :
+ * groupes « style="background-color:#efe7fb" ») : ils héritaient de l'encre du thème actif,
+ * claire en Nuit (texte invisible sur fond clair). Le bloc reçoit yn-fond-clair ou
+ * yn-fond-sombre selon l'encre la plus lisible sur son fond ; yume.css y applique la palette
+ * Papier (fond clair sous le thème Nuit) ou Nuit (fond sombre sous Papier et Sépia).
+ *
+ * @param string $contenu Rendu du bloc.
+ * @param array  $bloc    Bloc analysé.
+ * @return string
+ */
+function yume_theme_encre_fond_personnalise( $contenu, $bloc ) {
+	if ( ! is_string( $contenu ) || '' === $contenu || ! is_array( $bloc ) ) {
+		return $contenu;
+	}
+	$nom = (string) ( $bloc['blockName'] ?? '' );
+	// Couverture (voile et texte clair propres) et boutons (couleurs d'élément du thème) exclus.
+	if ( '' === $nom || in_array( $nom, array( 'core/cover', 'core/button', 'core/buttons' ), true ) ) {
+		return $contenu;
+	}
+	$attrs = is_array( $bloc['attrs'] ?? null ) ? $bloc['attrs'] : array();
+	$fond  = $attrs['style']['color']['background'] ?? '';
+	if ( ! is_string( $fond ) || '' === $fond || ! empty( $attrs['textColor'] ) || ! empty( $attrs['style']['color']['text'] ) ) {
+		return $contenu;
+	}
+	$luminance = yume_theme_luminance( $fond );
+	if ( null === $luminance ) {
+		return $contenu;
+	}
+	// Encre la plus contrastée : sombre (#2a1240, Papier) ou claire (#fff8fb, Nuit).
+	$sombre = yume_theme_luminance( '#2a1240' );
+	$claire = yume_theme_luminance( '#fff8fb' );
+	$classe = ( $luminance + 0.05 ) / ( $sombre + 0.05 ) >= ( $claire + 0.05 ) / ( $luminance + 0.05 ) ? 'yn-fond-clair' : 'yn-fond-sombre';
+
+	$balises = new WP_HTML_Tag_Processor( $contenu );
+	if ( ! $balises->next_tag() ) {
+		return $contenu;
+	}
+	$balises->add_class( $classe );
+	return $balises->get_updated_html();
+}
+add_filter( 'render_block', 'yume_theme_encre_fond_personnalise', 10, 2 );

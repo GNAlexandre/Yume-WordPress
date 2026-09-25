@@ -38,6 +38,20 @@
 	background: var(--wp--preset--color--bande);
 }
 
+.yn-publish__menu {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-publish__menu li {
+	margin: 0;
+	padding: 0;
+}
+
 .yn-publish .yn-publish__nav a {
 	display: flex;
 	align-items: center;
@@ -626,6 +640,12 @@
 		overflow-x: auto;
 	}
 
+	.yn-publish__menu {
+		flex-direction: row;
+		gap: 4px;
+	}
+
+	.yn-publish__menu li,
 	.yn-publish__nav a {
 		flex-shrink: 0;
 		min-height: 40px;

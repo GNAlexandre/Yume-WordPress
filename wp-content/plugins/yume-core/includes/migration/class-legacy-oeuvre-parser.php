@@ -25,6 +25,25 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Legacy_Oeuvre_Parser {
 
+	/** Champs d'informations dont les liens (fiche AniList, éditeur…) rejoignent les liens de l'œuvre. */
+	private const ROLES_LIENS = array(
+		'auteur'       => 'Auteur',
+		'illustrateur' => 'Illustrations',
+		'chara'        => 'Chara-design',
+		'mangaka'      => 'Mangaka',
+		'editeur_vo'   => 'Éditeur VO',
+		'editeur_vf'   => 'Éditeur VF',
+	);
+
+	/** Libellés des statuts de traduction (mêmes libellés que yume_statuts() du cœur). */
+	public const STATUTS_LIBELLES = array(
+		'en-cours'   => 'En cours',
+		'terminee'   => 'Terminée',
+		'en-pause'   => 'En pause',
+		'licenciee'  => 'Licenciée',
+		'abandonnee' => 'Abandonnée',
+	);
+
 	/** Libellés normalisés du paragraphe d'informations → champ. */
 	private const LIBELLES = array(
 		'noms'                 => 'noms',
@@ -345,9 +364,48 @@ final class Legacy_Oeuvre_Parser {
 					break;
 				default:
 					$infos[ $champ ] = $valeur;
+					// Noms liés (auteur sur AniList, éditeur sur Nautiljon…) : le lien est gardé
+					// dans les liens de l'œuvre, le champ ne reçoit que le texte.
+					if ( isset( self::ROLES_LIENS[ $champ ] ) ) {
+						foreach ( Html::liens( $ligne['html'] ) as $lien ) {
+							if ( ! preg_match( '#^https?://#i', $lien['url'] ) ) {
+								continue;
+							}
+							$infos['liens'][] = array(
+								'label' => sprintf( '%s : %s (%s)', self::ROLES_LIENS[ $champ ], '' !== $lien['texte'] ? $lien['texte'] : $valeur, self::site_lien( $lien['url'] ) ),
+								'url'   => $lien['url'],
+							);
+						}
+					}
 			}
 		}
 		return $infos;
+	}
+
+	/**
+	 * Nom lisible du site d'un lien (« AniList », « Nautiljon », sinon le domaine).
+	 *
+	 * @param string $url URL.
+	 */
+	public static function site_lien( string $url ): string {
+		$hote = strtolower( (string) preg_replace( '/^www\./i', '', (string) wp_parse_url( $url, PHP_URL_HOST ) ) );
+		$noms = array(
+			'anilist.co'       => 'AniList',
+			'nautiljon.com'    => 'Nautiljon',
+			'myanimelist.net'  => 'MyAnimeList',
+			'mangaupdates.com' => 'MangaUpdates',
+			'novelupdates.com' => 'NovelUpdates',
+		);
+		return $noms[ $hote ] ?? ( '' !== $hote ? $hote : $url );
+	}
+
+	/**
+	 * Libellé français d'un statut de traduction (« abandonnee » → « Abandonnée »).
+	 *
+	 * @param string $slug Slug du terme yume_statut.
+	 */
+	public static function libelle_statut( string $slug ): string {
+		return self::STATUTS_LIBELLES[ $slug ] ?? $slug;
 	}
 
 	/**
@@ -418,6 +476,7 @@ final class Legacy_Oeuvre_Parser {
 		$courant = null;
 		$fermer  = static function () use ( &$courant, &$tomes ): void {
 			if ( null !== $courant ) {
+				self::marquer_achat( $courant );
 				$tomes[] = $courant;
 				$courant = null;
 			}
@@ -440,6 +499,7 @@ final class Legacy_Oeuvre_Parser {
 				if ( null !== $entete && mb_strlen( $texte, 'UTF-8' ) <= 20 ) {
 					$fermer();
 					$courant = self::tome_vide( $entete, $index );
+					self::marquer_achat( $courant, $texte );
 				}
 				continue;
 			}
@@ -501,8 +561,27 @@ final class Legacy_Oeuvre_Parser {
 			'sommaire'        => array(),
 			'chapitres_plage' => null,
 			'a_venir'         => false,
+			'achat_mentionne' => false,
 			'bloc_index'      => $index,
 		);
+	}
+
+	/**
+	 * Marque un tome que la fiche propose à l'achat (lien « Acheter », bouton ou simple mention
+	 * « ==> Acheter <== » sans lien) : édition française, les fichiers de l'équipe sont retirés.
+	 *
+	 * @param array  $tome  Tome (par référence).
+	 * @param string $texte Texte de l'en-tête ou du paragraphe du tome.
+	 */
+	private static function marquer_achat( array &$tome, string $texte = '' ): void {
+		$achat = (bool) preg_match( '/\bachet/', Html::normaliser( $texte ) );
+		foreach ( $tome['liens'] as $lien ) {
+			$achat = $achat || 'achat' === $lien['type'];
+		}
+		foreach ( $tome['boutons_vides'] as $bouton ) {
+			$achat = $achat || (bool) preg_match( '/\bachet/', Html::normaliser( (string) $bouton ) );
+		}
+		$tome['achat_mentionne'] = $tome['achat_mentionne'] || $achat;
 	}
 
 	/**
@@ -613,6 +692,7 @@ final class Legacy_Oeuvre_Parser {
 		if ( $tome['sommaire'] && count( $tome['sommaire'] ) === $barres ) {
 			$tome['a_venir'] = true;
 		}
+		self::marquer_achat( $tome, Html::texte( $lignes[0] ) );
 		if ( ! $tome['a_venir'] && '' === $tome['lien_pdf'] && '' === $tome['lien_epub'] && ! array_filter( $tome['liens'], static fn( $l ) => in_array( $l['type'], array( 'achat', 'lecture' ), true ) ) ) {
 			$avert[] = sprintf( '%s : aucun lien de téléchargement, d’achat ou de lecture.', $tome['libelle_source'] );
 		}
@@ -853,13 +933,13 @@ final class Legacy_Oeuvre_Parser {
 			} else {
 				$statut = $candidats[0];
 			}
-			$avert[] = sprintf( '« %s » : statut ambigu dans le hub (« %s ») → %s retenu, à confirmer par l’équipe.', $titre, $hub['libelle'] ?? '', $statut );
+			$avert[] = sprintf( '« %s » : statut ambigu dans le hub (« %s ») → « %s » retenu, à confirmer par l’équipe.', $titre, $hub['libelle'] ?? '', self::libelle_statut( $statut ) );
 		} elseif ( '' !== $depuis_fiche ) {
 			$statut  = $depuis_fiche;
-			$avert[] = sprintf( '« %s » : absente des hubs, statut déduit de la fiche (%s).', $titre, $statut );
+			$avert[] = sprintf( '« %s » : absente des hubs, statut déduit de la fiche (« %s »).', $titre, self::libelle_statut( $statut ) );
 		} else {
 			$statut  = 'en-cours';
-			$avert[] = sprintf( '« %s » : statut introuvable (ni hub ni fiche) → en-cours par défaut.', $titre );
+			$avert[] = sprintf( '« %s » : statut introuvable (ni hub ni fiche) → « %s » par défaut.', $titre, self::libelle_statut( $statut ) );
 		}
 
 		if ( '' !== $depuis_fiche && $depuis_fiche !== $statut && ! ( 'en-cours' === $depuis_fiche && 'en-cours' === $statut ) && $candidats ) {

@@ -64,6 +64,9 @@ function pastille( string $etat, string $texte = '', array $attrs = array() ): s
 	$contenu = '<span aria-hidden="true">' . esc_html( icone_etat( $etat ) ) . '</span> ';
 	if ( '' === $texte ) {
 		$contenu .= esc_html( $libelle );
+	} elseif ( '' !== $libelle && 0 === mb_stripos( $texte, $libelle ) ) {
+		// Le texte nomme déjà l'état (« En retard de 3 j », « En retard · édition ») : pas de doublon.
+		$contenu .= esc_html( $texte );
 	} else {
 		$contenu .= '<span class="yn-visually-hidden">' . esc_html( $libelle ) . ' : </span>' . esc_html( $texte );
 	}
@@ -276,8 +279,19 @@ function rendu_upcoming( array $attributs ): string {
 	$html .= '<ul class="yn-upcoming__liste">';
 	foreach ( $lignes as $l ) {
 		$etape = etape_de_travail( $l['etape'] );
-		$texte = 'en_retard' === $l['etat'] ? libelle_etape_min( $etape ) : pct( (int) ( $l['avancement'][ $etape ] ?? 0 ) );
-		$date  = '' !== $l['date_cible'] ? date_cible_lisible( $l['date_cible'] ) : __( 'à venir', 'yume-core' );
+		// Le retard se lit en toutes lettres, pas seulement à la couleur et à l'icône.
+		$texte = 'en_retard' === $l['etat']
+			? etats()['en_retard'] . ' · ' . libelle_etape_min( $etape )
+			: pct( (int) ( $l['avancement'][ $etape ] ?? 0 ) );
+		if ( '' === $l['date_cible'] ) {
+			$date = __( 'à venir', 'yume-core' );
+		} elseif ( $l['date_cible'] < date_locale() ) {
+			// Date dépassée : ce n'est plus une date de sortie annoncée.
+			/* translators: %s : date cible dépassée */
+			$date = sprintf( __( 'prévu %s', 'yume-core' ), date_cible_lisible( $l['date_cible'], true ) );
+		} else {
+			$date = date_cible_lisible( $l['date_cible'] );
+		}
 		$titre = '<b>' . esc_html( $l['oeuvre'] ) . '</b>';
 		if ( '' !== $l['url_oeuvre'] ) {
 			$titre = '<a href="' . esc_url( $l['url_oeuvre'] ) . '">' . $titre . '</a>';

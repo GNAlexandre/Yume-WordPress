@@ -79,8 +79,25 @@ unset( $yume_module );
 function yume_core_install(): void {
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 	do_action( 'yume_core_install' );
-	update_option( YUME_CORE_DB_VERSION_OPTION, YUME_CORE_VERSION, false );
+	// Autochargée : elle est relue à chaque requête (crochet init ci-dessous).
+	update_option( YUME_CORE_DB_VERSION_OPTION, YUME_CORE_VERSION, true );
+	if ( function_exists( 'wp_set_option_autoload' ) ) {
+		wp_set_option_autoload( YUME_CORE_DB_VERSION_OPTION, true ); // Installations antérieures (autoload off).
+	}
 	flush_rewrite_rules( false );
+}
+
+/**
+ * Désactivation : chaque module nettoie (yume_core_deactivate), puis les règles de réécriture
+ * sont supprimées plutôt que régénérées. Dans cette requête, les types Yume et les règles
+ * /oeuvres/… et /lire/… sont encore enregistrés : un flush les réécrirait en base. WordPress
+ * régénère l'option à la requête suivante, sans le plugin.
+ */
+function yume_core_deactivate(): void {
+	do_action( 'yume_core_deactivate' );
+	delete_option( 'rewrite_rules' );
+	// À la réactivation, les règles Yume seront de nouveau écrites (routing.php).
+	delete_option( 'yume_core_regles' );
 }
 
 register_activation_hook(
@@ -92,13 +109,7 @@ register_activation_hook(
 	}
 );
 
-register_deactivation_hook(
-	__FILE__,
-	static function (): void {
-		do_action( 'yume_core_deactivate' );
-		flush_rewrite_rules( false );
-	}
-);
+register_deactivation_hook( __FILE__, 'yume_core_deactivate' );
 
 add_action(
 	'init',

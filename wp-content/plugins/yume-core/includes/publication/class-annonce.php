@@ -103,7 +103,8 @@ final class Annonce {
 			array(
 				'{nature}'  => self::nature_minuscule( (string) get_post_meta( $tome_id, 'yume_nature', true ) ),
 				'{numero}'  => $numero,
-				'{oeuvre}'  => $oeuvre_id ? get_the_title( $oeuvre_id ) : '',
+				// Titre brut (sans entités de wptexturize) : il est enregistré dans post_title.
+				'{oeuvre}'  => $oeuvre_id ? Service::titre_texte( $oeuvre_id ) : '',
 				'{titre}'   => (string) ( ( (array) get_post_meta( $tome_id, Service::META, true ) )['titre'] ?? '' ),
 				'{libelle}' => yume_libelle_tome( $tome_id ),
 			)

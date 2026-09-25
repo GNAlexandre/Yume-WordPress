@@ -1153,7 +1153,7 @@ yume_test(
 		yume_assert_contains( 'yn-resume yn-resume--bandeau', $bandeau );
 		yume_assert_not_contains( 'yn-card', $bandeau, 'le thème fournit le bandeau' );
 		yume_assert_contains( '<p class="yn-label">Reprendre la lecture</p>', $bandeau );
-		yume_assert_contains( 'Tome 3 · chapitre 2 · 41 %', $bandeau );
+		yume_assert_contains( 'Tome 3 · chapitre 2 · 41 % du chapitre', $bandeau, 'unité explicite (UX-3)' );
 		yume_assert_contains( 'yn-btn yn-btn--primary', $bandeau );
 		yume_assert_contains( 'Continuer', $bandeau );
 		yume_assert_contains( '#yn-p-10', $bandeau );
@@ -1310,7 +1310,7 @@ yume_test(
 		$html = $rendu();
 		wp_set_current_user( 0 );
 		yume_assert_same( 1, substr_count( $html, 'yn-tome-list__ligne--lecture' ), 'une seule ligne mise en avant' );
-		yume_assert_contains( 'En cours · 63 %', $html, 'avancement du tome pondéré par les mots' );
+		yume_assert_contains( 'En cours · 63 % du tome', $html, 'avancement du tome pondéré par les mots, unité explicite (UX-3)' );
 		yume_assert_contains( 'vous en êtes au chapitre 3', $html );
 		yume_assert_contains( esc_url( get_permalink( $chaps[2][3] ) . '#yn-p-11' ), $html, 'Reprendre vers le paragraphe retenu' );
 		yume_assert_same( 1, substr_count( $html, '>Reprendre<' ) );
@@ -1334,5 +1334,320 @@ yume_test(
 		$autre = $rendu();
 		wp_set_current_user( 0 );
 		yume_assert_not_contains( 'lu ✓', $autre );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Non-régression (revue de sécurité et de conformité)
+ * -----------------------------------------------------------------------------
+ */
+
+yume_test(
+	'SEC-E-4 : /wp/v2/users/me fermé aux lecteurs (e-mail, mot de passe, pseudo), équipe inchangée',
+	function () {
+		$lecteur = yume_ts_membre();
+		$email   = get_userdata( $lecteur )->user_email;
+		$nom     = get_userdata( $lecteur )->display_name;
+		$gerant  = yume_ts_membre( 'yume_editeur' );
+		wp_update_user(
+			array(
+				'ID'           => $gerant,
+				'display_name' => 'Angeloids' . wp_rand( 1, 9999 ),
+			)
+		);
+		$essais = array(
+			array( 'email' => 'pirate@example.test' ),
+			array( 'password' => 'NouveauPirate-99' ),
+			array(
+				'name'     => get_userdata( $gerant )->display_name,
+				'nickname' => get_userdata( $gerant )->display_name,
+			),
+			array( 'slug' => 'pirate' ),
+		);
+		foreach ( $essais as $essai ) {
+			foreach ( array( '/wp/v2/users/me', '/wp/v2/users/' . $lecteur ) as $route ) {
+				$r = yume_rest( 'POST', $route, $essai, $lecteur );
+				yume_assert_same( 403, $r->get_status(), $route . ' ' . implode( ',', array_keys( $essai ) ) );
+				yume_assert_same( 'yume_profil_facade', $r->get_data()['code'] ?? '' );
+			}
+		}
+		clean_user_cache( $lecteur );
+		$apres = get_userdata( $lecteur );
+		yume_assert_same( $email, $apres->user_email, 'adresse inchangée' );
+		yume_assert_same( $nom, $apres->display_name, 'pseudo inchangé' );
+		yume_assert_true( wp_check_password( 'secret-123', $apres->user_pass, $lecteur ), 'mot de passe inchangé' );
+
+		// Lot /batch/v1 : même garde.
+		$lot = yume_rest(
+			'POST',
+			'/batch/v1',
+			array(
+				'requests' => array(
+					array(
+						'method' => 'POST',
+						'path'   => '/wp/v2/users/me',
+						'body'   => array( 'email' => 'lot@example.test' ),
+					),
+				),
+			),
+			$lecteur
+		);
+		clean_user_cache( $lecteur );
+		yume_assert_same( $email, get_userdata( $lecteur )->user_email, 'lot refusé aussi (statut ' . $lot->get_status() . ')' );
+
+		// Lecture toujours possible ; l'équipe garde la route standard.
+		yume_assert_same( 200, yume_rest( 'GET', '/wp/v2/users/me', array( 'context' => 'edit' ), $lecteur )->get_status() );
+		yume_assert_same( 200, yume_rest( 'POST', '/wp/v2/users/me', array( 'description' => 'Relecture' ), $gerant )->get_status(), 'équipe : route standard' );
+
+		// Pas de mots de passe d'application pour un lecteur.
+		yume_assert_false( wp_is_application_passwords_available_for_user( get_userdata( $lecteur ) ) );
+	}
+);
+
+yume_test(
+	'SEC-E-6 : changement d’adresse sans énumération (titulaire prévenu) et limité par membre',
+	function () {
+		add_filter( 'send_auth_cookies', '__return_false' );
+		$ip_avant               = $_SERVER['REMOTE_ADDR'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sauvegarde puis restauration telle quelle.
+		$_SERVER['REMOTE_ADDR'] = '192.0.2.' . wp_rand( 1, 250 );
+		$u                      = yume_ts_membre();
+		$equipe                 = get_userdata( yume_ts_membre( 'yume_editeur' ) );
+		wp_set_current_user( $u );
+		$base    = array(
+			'_yn_nonce'     => wp_create_nonce( 'yume_compte_profil' ),
+			'yn_retour'     => url_compte(),
+			'yn_mdp_actuel' => 'secret-123',
+		);
+		$url     = '';
+		$envois  = yume_ts_emails(
+			static function () use ( $base, $equipe, &$url ) {
+				$url = yume_ts_post( array_merge( $base, array( 'yn_email' => $equipe->user_email ) ), static fn() => yume_ts_redirection( 'Yume\Core\Social\traiter_profil' ) );
+			}
+		);
+		yume_assert_contains( 'yn-msg=email-attente', $url, 'même réponse qu’une adresse libre' );
+		yume_assert_not_contains( 'email-pris', $url );
+		yume_assert_same( array( $equipe->user_email ), yume_ts_destinataires( $envois ), 'seul le titulaire est prévenu' );
+		yume_assert_not_contains( 'yn-email=', $envois[0]['message'], 'aucun lien de confirmation' );
+		yume_assert_same( '', get_user_meta( $u, '_yume_email_en_attente', true ), 'aucune demande en attente vers l’adresse prise' );
+
+		// Cinq demandes par heure et par membre, puis refus sans e-mail.
+		for ( $i = 2; $i <= 5; $i++ ) {
+			$url = yume_ts_post( array_merge( $base, array( 'yn_email' => 'libre' . $i . '-' . wp_rand( 1, 99999 ) . '@example.test' ) ), static fn() => yume_ts_redirection( 'Yume\Core\Social\traiter_profil' ) );
+			yume_assert_contains( 'email-attente', $url, 'demande ' . $i );
+		}
+		$envois = yume_ts_emails(
+			static function () use ( $base, &$url ) {
+				$url = yume_ts_post( array_merge( $base, array( 'yn_email' => 'libre6@example.test' ) ), static fn() => yume_ts_redirection( 'Yume\Core\Social\traiter_profil' ) );
+			}
+		);
+		yume_assert_contains( 'trop-de-tentatives', $url, '6e demande' );
+		yume_assert_same( array(), $envois, 'aucun e-mail au-delà de la limite' );
+		wp_set_current_user( 0 );
+
+		// Inscription avec une adresse déjà inscrite : réponse neutre, titulaire prévenu.
+		update_option( 'users_can_register', 1 );
+		$envois = yume_ts_emails(
+			static function () use ( $equipe, &$url ) {
+				$url = yume_ts_post(
+					array(
+						'_yn_nonce'   => wp_create_nonce( 'yume_inscription' ),
+						'yn_jeton'    => yume_ts_jeton( 30 ),
+						'yn_retour'   => home_url( '/connexion/' ),
+						'yn_pseudo'   => 'curieux' . wp_rand( 1000, 9999 ),
+						'yn_email'    => $equipe->user_email,
+						'yn_site_web' => '',
+					),
+					static fn() => yume_ts_redirection( 'Yume\Core\Social\traiter_inscription' )
+				);
+			}
+		);
+		update_option( 'users_can_register', 0 );
+		yume_assert_contains( 'yn-msg=inscription-ok', $url, 'même réponse qu’une inscription réussie' );
+		yume_assert_same( array( $equipe->user_email ), yume_ts_destinataires( $envois ) );
+		yume_assert_contains( 'Mot de passe oublié', $envois[0]['message'] );
+		remove_filter( 'send_auth_cookies', '__return_false' );
+		if ( null === $ip_avant ) {
+			unset( $_SERVER['REMOTE_ADDR'] );
+		} else {
+			$_SERVER['REMOTE_ADDR'] = $ip_avant;
+		}
+	}
+);
+
+yume_test(
+	'SEC-S-3 : un tome dépublié retire ses alertes en attente (et celles de ses chapitres)',
+	function () {
+		global $wpdb;
+		if ( ! function_exists( '\Yume\Core\Planning\table_notifications' ) ) {
+			return;
+		}
+		$table = \Yume\Core\Planning\table_notifications();
+		$s     = yume_ts_oeuvre( 2 );
+		$autre = yume_ts_oeuvre( 1 );
+		$u     = yume_factory_user();
+		ajouter_favori( $u, $s['oeuvre'] );
+		ajouter_favori( $u, $autre['oeuvre'] );
+		yume_assert_same( 1, alerter_sortie( $s['tome'] ) );
+		yume_assert_same( 1, alerter_sortie( $s['chapitres'][1] ) );
+		yume_assert_same( 1, alerter_sortie( $autre['tome'] ) );
+		$attente = static function ( int $id ) use ( $wpdb, $table ): int {
+			// phpcs:ignore WordPress.DB
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE statut = 'attente' AND contexte = %s", 'alerte_sortie_' . $id ) );
+		};
+		yume_assert_same( 1, $attente( $s['tome'] ), 'e-mail en file, contexte lié au tome' );
+
+		add_filter( 'yume_core_notifier', '__return_false' );
+		wp_update_post(
+			array(
+				'ID'          => $s['tome'],
+				'post_status' => 'draft',
+			)
+		);
+		remove_filter( 'yume_core_notifier', '__return_false' );
+		yume_assert_same( 0, $attente( $s['tome'] ), 'alerte du tome retirée' );
+		yume_assert_same( 0, $attente( $s['chapitres'][1] ), 'alerte d’un chapitre du tome retirée' );
+		yume_assert_same( 1, $attente( $autre['tome'] ), 'autre œuvre intacte' );
+		yume_assert_false( metadata_exists( 'post', $s['tome'], '_yume_alerte_envoyee' ), 'sortie oubliée : une republication préviendra' );
+
+		// Envoi du lot : rien ne part pour le tome dépublié.
+		$envois = yume_ts_emails(
+			static function () {
+				\Yume\Core\Planning\envoyer_lot( 50 );
+			}
+		);
+		foreach ( $envois as $envoi ) {
+			yume_assert_not_contains( esc_url( get_permalink( $s['chapitres'][0] ) ), $envoi['message'] );
+		}
+	}
+);
+
+yume_test(
+	'SEC-S-4 : suppression du compte → commentaires anonymisés même sous une ancienne adresse',
+	function () {
+		$s = yume_ts_oeuvre( 1 );
+		$u = yume_ts_membre();
+		wp_update_user(
+			array(
+				'ID'         => $u,
+				'user_email' => 'ancienne' . $u . '@lecteur.test',
+			)
+		);
+		$avant = wp_insert_comment(
+			array(
+				'comment_post_ID'      => $s['chapitres'][0],
+				'user_id'              => $u,
+				'comment_author'       => 'LecteurRGPD',
+				'comment_author_email' => 'ancienne' . $u . '@lecteur.test',
+				'comment_author_IP'    => '203.0.113.7',
+				'comment_content'      => 'Avant',
+				'comment_approved'     => 1,
+			)
+		);
+		wp_update_user(
+			array(
+				'ID'         => $u,
+				'user_email' => 'nouvelle' . $u . '@lecteur.test',
+			)
+		);
+		$apres = wp_insert_comment(
+			array(
+				'comment_post_ID'      => $s['chapitres'][0],
+				'user_id'              => $u,
+				'comment_author'       => 'LecteurRGPD',
+				'comment_author_email' => 'nouvelle' . $u . '@lecteur.test',
+				'comment_author_IP'    => '203.0.113.7',
+				'comment_content'      => 'Après',
+				'comment_approved'     => 1,
+			)
+		);
+		yume_assert_true( true === \Yume\Core\Social\supprimer_compte( $u ) );
+		foreach ( array( $avant, $apres ) as $id ) {
+			clean_comment_cache( $id );
+			$c = get_comment( $id );
+			yume_assert_same( '0', (string) $c->user_id, 'commentaire ' . $id . ' détaché' );
+			yume_assert_same( '', (string) $c->comment_author_email );
+			yume_assert_not_contains( 'LecteurRGPD', (string) $c->comment_author );
+			yume_assert_same( '203.0.113.0', (string) $c->comment_author_IP );
+		}
+		yume_assert_same( 'Avant', get_comment( $avant )->comment_content, 'texte conservé' );
+	}
+);
+
+yume_test(
+	'SEC-S-5 : objets d’e-mail en texte brut (apostrophes, guillemets, esperluette)',
+	function () {
+		$s = yume_ts_oeuvre( 1 );
+		wp_update_post(
+			array(
+				'ID'         => $s['oeuvre'],
+				'post_title' => 'Miss Medic\'s Diary & "War"...',
+			)
+		);
+		$sujet = \Yume\Core\Social\message_sortie( $s['tome'] )['sujet'];
+		yume_assert_not_contains( '&#', $sujet );
+		yume_assert_not_contains( '&amp;', $sujet );
+		yume_assert_contains( 'Medic’s Diary & “War”…', $sujet );
+
+		$u = yume_factory_user();
+		ajouter_favori( $u, $s['oeuvre'] );
+		$envois = yume_ts_emails(
+			static function () use ( $s ) {
+				alerter_sortie( $s['tome'] );
+			}
+		);
+		yume_assert_same( 1, count( $envois ) );
+		yume_assert_not_contains( '&#8217;', $envois[0]['subject'], 'objet de la file décodé' );
+
+		// Réponse à un commentaire : titre et pseudo décodés.
+		$auteur = yume_factory_user();
+		$parent = wp_insert_comment(
+			array(
+				'comment_post_ID'  => $s['chapitres'][0],
+				'user_id'          => $auteur,
+				'comment_content'  => 'Question',
+				'comment_approved' => 1,
+			)
+		);
+		$envois = yume_ts_emails(
+			static function () use ( $s, $parent ) {
+				wp_insert_comment(
+					array(
+						'comment_post_ID'  => $s['chapitres'][0],
+						'comment_parent'   => $parent,
+						'user_id'          => yume_factory_user(),
+						'comment_author'   => 'Tom &amp; Jerry',
+						'comment_content'  => 'Réponse',
+						'comment_approved' => 1,
+					)
+				);
+				\Yume\Core\Social\notifier_reponse( get_comment( (int) get_comments( array( 'parent' => $parent, 'number' => 1, 'fields' => 'ids' ) )[0] ) );
+			}
+		);
+		yume_assert_true( count( $envois ) >= 1 );
+		yume_assert_contains( 'Tom & Jerry a répondu', $envois[0]['subject'] );
+	}
+);
+
+yume_test(
+	'MET-12 / RC-4 : récapitulatif recalé sur dimanche 10 h (heure du site) s’il a dérivé',
+	function () {
+		$fuseau = get_option( 'timezone_string' );
+		update_option( 'timezone_string', 'Europe/Paris' );
+		wp_clear_scheduled_hook( 'yume_social_recap_hebdo' );
+		// Programmé à 10 h UTC (avant le réglage du fuseau), puis à 9 h (heure d'hiver).
+		foreach ( array( '2026-09-27 10:00:00 UTC', '2026-10-25 09:00:00 Europe/Paris', '2026-10-02 23:40:00 Europe/Paris' ) as $date ) {
+			wp_clear_scheduled_hook( 'yume_social_recap_hebdo' );
+			wp_schedule_event( strtotime( $date ), 'weekly', 'yume_social_recap_hebdo' );
+			\Yume\Core\Social\planifier();
+			$ts = wp_next_scheduled( 'yume_social_recap_hebdo' );
+			yume_assert_same( '0 10:00', wp_date( 'w H:i', $ts ), 'recalé : ' . $date );
+			yume_assert_true( $ts > time() && $ts <= time() + WEEK_IN_SECONDS, 'prochain dimanche' );
+		}
+		// Déjà conforme : inchangé.
+		$ts = wp_next_scheduled( 'yume_social_recap_hebdo' );
+		\Yume\Core\Social\planifier();
+		yume_assert_same( $ts, wp_next_scheduled( 'yume_social_recap_hebdo' ) );
+		update_option( 'timezone_string', $fuseau );
 	}
 );

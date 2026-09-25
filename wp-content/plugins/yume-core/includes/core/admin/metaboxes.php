@@ -556,6 +556,15 @@ function boite_planning( \WP_Post $post ): void {
 		);
 	}
 
+	// Valeurs lues à l'ouverture de l'éditeur : à l'enregistrement, seuls les champs que
+	// l'utilisateur a réellement modifiés sont écrits (enregistrer_planning()).
+	if ( ! $lecture ) {
+		printf(
+			'<input type="hidden" name="yume[planning_origine]" value="%s" />',
+			esc_attr( (string) wp_json_encode( valeurs_planning( $id ) ) )
+		);
+	}
+
 	$maj = (string) get_post_meta( $id, 'yume_derniere_maj', true );
 	if ( '' !== $maj ) {
 		$auteur = get_userdata( (int) get_post_meta( $id, 'yume_maj_par', true ) );
@@ -609,6 +618,47 @@ function enregistrer_tome( $post_id ): void {
 add_action( 'save_post_' . CPT_TOME, __NAMESPACE__ . '\\enregistrer_tome' );
 
 /**
+ * Normalise une valeur de planning (stockée ou affichée) pour la comparer à une saisie.
+ *
+ * @param string $cle    Clé de métadonnée (yume_etape, yume_avancement…).
+ * @param mixed  $valeur Valeur brute.
+ * @return mixed
+ */
+function normaliser_planning( string $cle, $valeur ) {
+	switch ( $cle ) {
+		case 'yume_avancement':
+			return san_avancement( $valeur );
+		case 'yume_responsables':
+			return san_responsables( $valeur );
+		case 'yume_bloque':
+			return (bool) $valeur;
+		case 'yume_etape':
+			// Comme la liste déroulante : une étape absente s'affiche (et s'envoie) « à faire ».
+			return san_enum( $valeur, array_keys( yume_etapes() ), 'a_faire' );
+		case 'yume_date_cible':
+			return san_date( $valeur );
+		case 'yume_note_equipe':
+			return san_texte_long( $valeur );
+		default:
+			return san_texte( $valeur );
+	}
+}
+
+/**
+ * Valeurs de planning stockées d'un tome, normalisées (champ caché de la méta-boîte).
+ *
+ * @param int $post_id Tome.
+ * @return array<string,mixed>
+ */
+function valeurs_planning( int $post_id ): array {
+	$valeurs = array();
+	foreach ( array( 'yume_etape', 'yume_avancement', 'yume_responsables', 'yume_date_cible', 'yume_bloque', 'yume_bloque_raison', 'yume_note_equipe' ) as $cle ) {
+		$valeurs[ $cle ] = normaliser_planning( $cle, get_post_meta( $post_id, $cle, true ) );
+	}
+	return $valeurs;
+}
+
+/**
  * Enregistre les champs de planning qui ont changé, puis date et auteur de la mise à jour
  * et journal du module planning (s'il est chargé).
  *
@@ -627,22 +677,19 @@ function enregistrer_planning( int $post_id ): void {
 	if ( current_user_can( 'yume_maj_planning' ) && null !== saisie( 'note_equipe' ) ) {
 		$nouveau['yume_note_equipe'] = san_texte_long( saisie( 'note_equipe' ) );
 	}
+	// Valeurs affichées à l'ouverture de l'éditeur. Un champ que l'utilisateur n'a pas touché
+	// n'est jamais réécrit : la publication (étape « publié », 100 %) ou une mise à jour faite
+	// entre-temps depuis l'espace équipe ou l'API ne sont pas écrasées par des valeurs périmées.
+	$origine = saisie( 'planning_origine' );
+	$origine = is_string( $origine ) ? json_decode( $origine, true ) : null;
+	$origine = is_array( $origine ) ? $origine : null;
+
 	$changements = array();
 	foreach ( $nouveau as $cle => $valeur ) {
-		$ancien = get_post_meta( $post_id, $cle, true );
-		switch ( $cle ) {
-			case 'yume_avancement':
-				$ancien = san_avancement( $ancien );
-				break;
-			case 'yume_responsables':
-				$ancien = san_responsables( $ancien );
-				break;
-			case 'yume_bloque':
-				$ancien = (bool) $ancien;
-				break;
-			default:
-				$ancien = (string) $ancien;
+		if ( null !== $origine && array_key_exists( $cle, $origine ) && normaliser_planning( $cle, $origine[ $cle ] ) === $valeur ) {
+			continue; // Champ inchangé dans le formulaire.
 		}
+		$ancien = normaliser_planning( $cle, get_post_meta( $post_id, $cle, true ) );
 		if ( $ancien === $valeur ) {
 			continue;
 		}

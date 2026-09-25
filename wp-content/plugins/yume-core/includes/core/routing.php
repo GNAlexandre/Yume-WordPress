@@ -160,15 +160,93 @@ add_action( 'init', __NAMESPACE__ . '\\verifier_regles', 100 );
  * @param bool     $leavename Garder le jeton %yume_chapitre% à la place du slug.
  */
 function segment_chapitre( \WP_Post $chapitre, bool $leavename = false ): string {
-	$nature = (string) get_post_meta( $chapitre->ID, 'yume_nature', true );
-	$numero = numero_ou_null( get_post_meta( $chapitre->ID, 'yume_numero', true ) );
-	if ( ( '' === $nature || 'chapitre' === $nature ) && null !== $numero && $numero >= 0 ) {
-		return numero_url( $numero );
+	$numero = numero_segment( $chapitre );
+	if ( null !== $numero ) {
+		$tome_id  = (int) get_post_meta( $chapitre->ID, 'yume_tome_id', true );
+		$segments = $tome_id ? segments_tome( $tome_id ) : array();
+		// Numéro déjà porté par un autre chapitre du tome : ce chapitre-ci est adressé par son slug.
+		if ( ! isset( $segments[ $chapitre->ID ] ) || $segments[ $chapitre->ID ] === $numero ) {
+			return $numero;
+		}
 	}
 	if ( $leavename ) {
 		return '%' . CPT_CHAPITRE . '%';
 	}
 	return (string) $chapitre->post_name;
+}
+
+/**
+ * Numéro d'URL d'un chapitre numéroté (« 3 », « 12.5 »), ou null pour un chapitre spécial.
+ *
+ * @param \WP_Post $chapitre Chapitre.
+ */
+function numero_segment( \WP_Post $chapitre ): ?string {
+	$nature = (string) get_post_meta( $chapitre->ID, 'yume_nature', true );
+	$numero = numero_ou_null( get_post_meta( $chapitre->ID, 'yume_numero', true ) );
+	if ( ( '' === $nature || 'chapitre' === $nature ) && null !== $numero && $numero >= 0 ) {
+		return numero_url( $numero );
+	}
+	return null;
+}
+
+/**
+ * Segments d'URL des chapitres d'un tome : ID => segment.
+ *
+ * Deux chapitres ne partagent jamais une adresse : quand plusieurs chapitres du tome portent le
+ * même numéro, le premier (publié d'abord, puis le plus ancien) garde le numéro et les autres
+ * sont adressés par leur slug (/lire/…/chapitre-3-2/). Calculé avec une requête sur les
+ * chapitres et l'amorçage de leurs caches, puis mis en cache pour la requête en cours.
+ *
+ * @param int $tome_id Tome.
+ * @return array<int,string>
+ */
+function segments_tome( int $tome_id ): array {
+	static $cache = array();
+	$cle          = $tome_id . ':' . wp_cache_get_last_changed( 'posts' );
+	if ( isset( $cache[ $cle ] ) ) {
+		return $cache[ $cle ];
+	}
+	if ( count( $cache ) > 200 ) {
+		$cache = array();
+	}
+	$ids = $tome_id > 0 ? ids_par_meta( CPT_CHAPITRE, 'yume_tome_id', $tome_id, statuts_actifs() ) : array();
+	if ( $ids ) {
+		_prime_post_caches( $ids, false, true );
+	}
+	$posts = array_values( array_filter( array_map( 'get_post', $ids ) ) );
+	// Ordre d'attribution des numéros : publiés d'abord, puis par date, puis par ID.
+	usort(
+		$posts,
+		static function ( \WP_Post $a, \WP_Post $b ): int {
+			$pa = 'publish' === $a->post_status ? 0 : 1;
+			$pb = 'publish' === $b->post_status ? 0 : 1;
+			if ( $pa !== $pb ) {
+				return $pa <=> $pb;
+			}
+			$cmp = strcmp( (string) $a->post_date_gmt, (string) $b->post_date_gmt );
+			return 0 !== $cmp ? $cmp : ( $a->ID <=> $b->ID );
+		}
+	);
+	$segments = array();
+	$pris     = array();
+	foreach ( $posts as $post ) {
+		$numero = numero_segment( $post );
+		if ( null !== $numero && ( ! isset( $pris[ $numero ] ) || '' === (string) $post->post_name ) ) {
+			$pris[ $numero ]       = true;
+			$segments[ $post->ID ] = $numero;
+		} else {
+			$segments[ $post->ID ] = (string) $post->post_name;
+		}
+	}
+	// Ordre des IDs de ids_par_meta() conservé (menu_order, ID).
+	$ordonnes = array();
+	foreach ( $ids as $id ) {
+		if ( isset( $segments[ $id ] ) ) {
+			$ordonnes[ $id ] = $segments[ $id ];
+		}
+	}
+	$cache[ $cle ] = $ordonnes;
+	return $ordonnes;
 }
 
 /**
@@ -318,13 +396,16 @@ function trouver_oeuvre( string $slug ): ?array {
 /**
  * Premier contenu visible d'une liste d'IDs (ou le premier tout court si $visibilite est faux).
  *
+ * La visibilité est héritée (visibility.php) : un tome dont l'œuvre n'est pas visible, un
+ * chapitre dont le tome ou l'œuvre ne l'est pas, ne sont pas consultables.
+ *
  * @param int[] $ids        IDs candidats.
  * @param bool  $visibilite Exiger que l'utilisateur courant puisse le consulter.
  */
 function premier_visible( array $ids, bool $visibilite ): int {
 	foreach ( $ids as $id ) {
 		$post = get_post( $id );
-		if ( $post && ( ! $visibilite || est_visible( $post ) ) ) {
+		if ( $post && ( ! $visibilite || est_consultable( $post ) ) ) {
 			return (int) $post->ID;
 		}
 	}
@@ -394,7 +475,7 @@ function resoudre_tome( string $o, string $t, bool $visibilite ): ?array {
 			}
 		)
 	);
-	if ( 1 === count( $publies ) ) {
+	if ( 1 === count( $publies ) && ( ! $visibilite || premier_visible( $publies, true ) ) ) {
 		return array(
 			'id'        => $publies[0],
 			'canonique' => false,
@@ -416,23 +497,20 @@ function resoudre_chapitre( string $o, string $t, string $c ): ?array {
 	if ( ! $tome ) {
 		return null;
 	}
-	$chapitres = ids_par_meta( CPT_CHAPITRE, 'yume_tome_id', $tome['id'], statuts_actifs() );
-	if ( ! $chapitres ) {
+	// Segments de tous les chapitres du tome, calculés en une fois (caches amorcés).
+	$segments = segments_tome( $tome['id'] );
+	if ( ! $segments ) {
 		return null;
 	}
+	$chapitres = array_keys( $segments );
 	$brut      = rawurldecode( $c );
 	$numerique = (bool) preg_match( '/^[0-9]+(?:[.,][0-9]+)?$/', $brut );
 	$segment   = $numerique ? numero_url( (float) str_replace( ',', '.', $brut ) ) : normaliser_segment( $c );
 	$canonique = $tome['canonique'] && ( ! $numerique || $segment === $brut );
 
-	// Segment canonique (numéro d'un chapitre numéroté, slug d'un chapitre spécial).
-	$exacts = array();
-	foreach ( $chapitres as $id ) {
-		$post = get_post( $id );
-		if ( $post && segment_chapitre( $post ) === $segment ) {
-			$exacts[] = $id;
-		}
-	}
+	// Segment canonique (numéro d'un chapitre numéroté, slug d'un chapitre spécial ou d'un
+	// chapitre dont le numéro est déjà pris dans le tome).
+	$exacts = array_keys( $segments, $segment, true );
 	if ( $exacts ) {
 		$id = premier_visible( $exacts, true );
 		return $id ? array(

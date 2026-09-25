@@ -204,10 +204,16 @@
 					}
 					return;
 				}
-				if ( ! window.confirm( 'Annuler la migration ? Les œuvres, tomes, chapitres et pages créés seront supprimés et l’ancien site remis en ligne.' ) ) {
+				if ( ! window.confirm( 'Annuler la migration ? Les œuvres, tomes, chapitres et pages créés par la migration seront supprimés (sauf ceux utilisés depuis, conservés) et l’ancien site remis en ligne.' ) ) {
 					return;
 				}
-				boucle( 'annuler', { confirmation: 'ANNULER' } );
+				var conserver = formulaire.querySelector( '[data-yume-conserver]' );
+				var reconstruire = formulaire.querySelector( '[data-yume-reconstruire]' );
+				boucle( 'annuler', {
+					confirmation: 'ANNULER',
+					conserver: !! ( conserver && conserver.checked ),
+					reconstruire: !! ( reconstruire && reconstruire.checked ),
+				} );
 			}
 		} );
 	} );

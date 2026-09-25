@@ -48,6 +48,13 @@ abstract class Migration_Moteur {
 	protected array $options;
 
 	/**
+	 * Enregistrement de l'avancement (journal et état) pendant un lot, ou null.
+	 *
+	 * @var callable|null
+	 */
+	private $persistance = null;
+
+	/**
 	 * Constructeur.
 	 *
 	 * @param array $plan    Plan.
@@ -166,6 +173,7 @@ abstract class Migration_Moteur {
 		$traites              = 0;
 		$derniere             = microtime( true );
 		$this->etat['erreur'] = '';
+		$this->persistance    = $sauvegarde;
 		while ( true ) {
 			$etape = (string) $this->etat['etape'];
 			$pos   = array_search( $etape, $etapes, true );
@@ -219,12 +227,34 @@ abstract class Migration_Moteur {
 	}
 
 	/**
+	 * Enregistre tout de suite le journal et l'état (après une modification de la base qu'une
+	 * reprise ne saurait pas reconstituer : sans cela, un arrêt brutal du processus PHP avant
+	 * l'enregistrement de fin de lot ferait oublier la modification à l'annulation).
+	 */
+	protected function persister(): void {
+		if ( null !== $this->persistance ) {
+			( $this->persistance )( $this );
+		}
+	}
+
+	/**
+	 * Un élément vient d'être ignoré à la demande de l'équipe (à surcharger).
+	 *
+	 * @param string $etape Étape.
+	 * @param int    $index Index de l'élément.
+	 */
+	protected function noter_ignore( string $etape, int $index ): void {
+		unset( $etape, $index );
+	}
+
+	/**
 	 * Saute l'élément courant (erreur que l'équipe choisit d'ignorer).
 	 */
 	public function ignorer_element(): void {
 		$etape = (string) $this->etat['etape'];
 		if ( '' !== (string) $this->etat['erreur'] && (int) $this->etat['curseur'] < $this->total( $etape ) ) {
 			$this->message( sprintf( 'Élément %d de l’étape « %s » ignoré à la demande.', (int) $this->etat['curseur'] + 1, static::etapes()[ $etape ] ?? $etape ), 'avertissement' );
+			$this->noter_ignore( $etape, (int) $this->etat['curseur'] );
 			++$this->etat['curseur'];
 			$this->compter( 'ignores' );
 		}

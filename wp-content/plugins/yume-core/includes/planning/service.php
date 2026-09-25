@@ -201,6 +201,68 @@ function valider_saisie( array $saisie, int $user_id, bool $forcer = false ) {
 }
 
 /**
+ * L'utilisateur peut-il marquer « publié » un tome (ou en retirer l'étape « publié ») à la
+ * main ? L'étape suit normalement la publication (événement yume_tome_publie).
+ *
+ * @param int $user_id Utilisateur.
+ */
+function peut_forcer_publie( int $user_id ): bool {
+	return user_can( $user_id, 'yume_maj_planning_tous' ) || user_can( $user_id, 'yume_publier' );
+}
+
+/**
+ * Contrôle un changement d'étape saisi à la main (hors écriture système).
+ *
+ * - « publié » n'est accepté que pour un tome réellement publié (statut publish), et
+ *   seulement de la part d'un éditeur, d'un gérant ou d'un publieur ;
+ * - un tome publié ne quitte l'étape « publié » que par un éditeur ou un gérant
+ *   (yume_maj_planning_tous) : sinon il reviendrait dans les prochaines sorties.
+ *
+ * @param int    $tome_id Tome.
+ * @param string $avant   Étape actuelle.
+ * @param string $apres   Étape demandée.
+ * @param int    $user_id Auteur.
+ * @return true|\WP_Error
+ */
+function controler_etape( int $tome_id, string $avant, string $apres, int $user_id ) {
+	if ( $avant === $apres ) {
+		return true;
+	}
+	$publie = 'publish' === get_post_status( $tome_id );
+	if ( 'publie' === $apres ) {
+		if ( ! $publie ) {
+			return erreur( 'yume_etape_publie_interdite', __( 'Ce tome n’est pas encore publié : l’étape « publié » est fixée à sa publication.', 'yume-core' ), 400 );
+		}
+		if ( ! peut_forcer_publie( $user_id ) ) {
+			return erreur( 'yume_etape_publie_interdite', __( 'Seuls les éditeurs et les gérants peuvent marquer un tome comme publié.', 'yume-core' ), 403 );
+		}
+	}
+	if ( 'publie' === $avant && $publie && ! user_can( $user_id, 'yume_maj_planning_tous' ) ) {
+		return erreur( 'yume_etape_publie_interdite', __( 'Ce tome est publié : seuls les éditeurs et les gérants peuvent changer son étape.', 'yume-core' ), 403 );
+	}
+	return true;
+}
+
+/**
+ * Étapes proposées dans les formulaires de l'espace équipe pour un tome : celles que
+ * controler_etape() accepterait, plus l'étape actuelle.
+ *
+ * @param int    $tome_id  Tome.
+ * @param string $courante Étape actuelle.
+ * @param int    $user_id  Utilisateur.
+ * @return array<string,string>
+ */
+function etapes_proposees( int $tome_id, string $courante, int $user_id ): array {
+	$options = array();
+	foreach ( yume_etapes() as $cle => $libelle ) {
+		if ( $cle === $courante || true === controler_etape( $tome_id, $courante, (string) $cle, $user_id ) ) {
+			$options[ $cle ] = $libelle;
+		}
+	}
+	return $options;
+}
+
+/**
  * Met à jour le planning d'un tome.
  *
  * Écrit les champs modifiés, puis yume_derniere_maj et yume_maj_par, journalise chaque champ
@@ -238,6 +300,12 @@ function mettre_a_jour( int $tome_id, array $saisie, int $user_id, array $option
 	}
 
 	$avant  = donnees_tome( $tome_id );
+	if ( ! $options['forcer'] && array_key_exists( 'etape', $propre ) ) {
+		$controle = controler_etape( $tome_id, $avant['etape'], $propre['etape'], $user_id );
+		if ( is_wp_error( $controle ) ) {
+			return $controle;
+		}
+	}
 	$apres  = array();
 	$champs = array( 'etape', 'avancement', 'responsables', 'date_cible', 'bloque', 'bloque_raison', 'note_equipe' );
 	foreach ( $champs as $champ ) {

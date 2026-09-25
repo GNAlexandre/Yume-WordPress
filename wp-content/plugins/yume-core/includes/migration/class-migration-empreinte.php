@@ -26,6 +26,7 @@ final class Migration_Empreinte {
 		'yume_pages',
 		'yume_reglages',
 		'yume_redirections',
+		'yume_redirections_ids',
 		'users_can_register',
 		'default_role',
 		'posts_per_page',
@@ -119,7 +120,7 @@ final class Migration_Empreinte {
 	}
 
 	/**
-	 * Clés dont la valeur diffère entre deux empreintes.
+	 * Clés de l'empreinte d'origine dont la valeur a changé.
 	 *
 	 * @param array $avant Empreinte d'origine.
 	 * @param array $apres Empreinte actuelle.
@@ -127,7 +128,9 @@ final class Migration_Empreinte {
 	 */
 	public static function differences( array $avant, array $apres ): array {
 		$diff = array();
-		foreach ( array_unique( array_merge( array_keys( $avant ), array_keys( $apres ) ) ) as $cle ) {
+		// Clés de l'empreinte d'origine seulement : une empreinte prise par une version antérieure
+		// ne couvre pas les options ajoutées depuis (yume_redirections_ids…).
+		foreach ( array_keys( $avant ) as $cle ) {
 			if ( ( $avant[ $cle ] ?? null ) !== ( $apres[ $cle ] ?? null ) ) {
 				$diff[] = (string) $cle;
 			}

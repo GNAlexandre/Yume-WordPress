@@ -415,4 +415,165 @@ final class Html {
 		$segments = array_values( array_filter( explode( '/', $chemin ), 'strlen' ) );
 		return $segments ? (string) end( $segments ) : '';
 	}
+
+	/**
+	 * Retire d'un contenu de blocs les couleurs de fond et de texte posées en ligne (attributs
+	 * backgroundColor, textColor, gradient, style.color ; classes has-background,
+	 * has-…-color ; déclarations background, background-color et color), qui rendent le texte
+	 * illisible dans les thèmes sombres. Les blocs couverture (voile de couleur) sont laissés
+	 * tels quels.
+	 *
+	 * @param string $contenu Contenu de blocs.
+	 */
+	public static function sans_couleurs( string $contenu ): string {
+		$contenu = (string) preg_replace_callback(
+			'#<!--\s+wp:([a-z][a-z0-9_-]*(?:/[a-z][a-z0-9_-]*)?)\s+(\{.*?\})\s+(/)?-->#s',
+			static function ( array $m ): string {
+				if ( in_array( $m[1], array( 'cover', 'core/cover' ), true ) ) {
+					return $m[0];
+				}
+				$attrs = json_decode( $m[2], true );
+				if ( ! is_array( $attrs ) ) {
+					return $m[0];
+				}
+				$avant = $attrs;
+				unset( $attrs['backgroundColor'], $attrs['textColor'], $attrs['gradient'] );
+				if ( isset( $attrs['style'] ) && is_array( $attrs['style'] ) ) {
+					unset( $attrs['style']['color'] );
+					if ( isset( $attrs['style']['elements'] ) && is_array( $attrs['style']['elements'] ) ) {
+						foreach ( $attrs['style']['elements'] as $element => $valeurs ) {
+							if ( is_array( $valeurs ) ) {
+								unset( $valeurs['color'] );
+							}
+							if ( empty( $valeurs ) ) {
+								unset( $attrs['style']['elements'][ $element ] );
+							} else {
+								$attrs['style']['elements'][ $element ] = $valeurs;
+							}
+						}
+						if ( empty( $attrs['style']['elements'] ) ) {
+							unset( $attrs['style']['elements'] );
+						}
+					}
+					if ( empty( $attrs['style'] ) ) {
+						unset( $attrs['style'] );
+					}
+				}
+				if ( $attrs === $avant ) {
+					return $m[0];
+				}
+				return '<!-- wp:' . $m[1] . ( $attrs ? ' ' . serialize_block_attributes( $attrs ) : '' ) . ' ' . ( ! empty( $m[3] ) ? '/' : '' ) . '-->';
+			},
+			$contenu
+		);
+		return (string) preg_replace_callback(
+			'#<([a-z][a-z0-9]*)(\s[^<>]*?)(/?)>#i',
+			static function ( array $m ): string {
+				$attributs = $m[2];
+				if ( ! preg_match( '/\s(?:class|style)\s*=/i', $attributs ) || false !== stripos( $attributs, 'wp-block-cover' ) ) {
+					return $m[0];
+				}
+				$attributs = (string) preg_replace_callback(
+					'/\sclass="([^"]*)"/i',
+					static function ( array $c ): string {
+						$classes = array_filter(
+							preg_split( '/\s+/', trim( $c[1] ) ),
+							static fn( $classe ) => '' !== $classe && ! in_array( $classe, array( 'has-background', 'has-text-color', 'has-link-color' ), true )
+								&& ! ( preg_match( '/^has-[a-z0-9-]+-(?:background-)?color$/', $classe ) && ! str_ends_with( $classe, '-border-color' ) )
+								&& ! preg_match( '/^has-[a-z0-9-]+-gradient-background$/', $classe )
+						);
+						return $classes ? ' class="' . implode( ' ', $classes ) . '"' : '';
+					},
+					$attributs
+				);
+				$attributs = (string) preg_replace_callback(
+					'/\sstyle="([^"]*)"/i',
+					static function ( array $c ): string {
+						$gardees = array();
+						foreach ( explode( ';', $c[1] ) as $declaration ) {
+							$propriete = strtolower( trim( (string) strtok( $declaration, ':' ) ) );
+							if ( '' === trim( $declaration ) || in_array( $propriete, array( 'background', 'background-color', 'color' ), true ) ) {
+								continue;
+							}
+							$gardees[] = trim( $declaration );
+						}
+						return $gardees ? ' style="' . implode( ';', $gardees ) . '"' : '';
+					},
+					$attributs
+				);
+				return '<' . $m[1] . $attributs . $m[3] . '>';
+			},
+			$contenu
+		);
+	}
+
+	/**
+	 * Motif d'un lien dont le seul contenu est une image : 1 ouverture du lien, 2 URL, 3 balise
+	 * image.
+	 */
+	private const LIEN_IMAGE = '#(<a\s[^>]*?href="([^"]*)"[^>]*>)\s*(<img\s[^>]*?/?>)\s*</a>#i';
+
+	/**
+	 * Nombre de liens dont le seul contenu est une image sans texte alternatif (liens sans nom
+	 * accessible : un lecteur d'écran n'annonce que « lien »).
+	 *
+	 * @param string $contenu HTML.
+	 */
+	public static function liens_images_sans_alt( string $contenu ): int {
+		$n = 0;
+		if ( preg_match_all( self::LIEN_IMAGE, $contenu, $m, PREG_SET_ORDER ) ) {
+			foreach ( $m as $lien ) {
+				$n += self::a_alt( $lien[3] ) ? 0 : 1;
+			}
+		}
+		return $n;
+	}
+
+	/**
+	 * Une balise image a-t-elle un texte alternatif non vide ?
+	 *
+	 * @param string $img Balise img.
+	 */
+	private static function a_alt( string $img ): bool {
+		return (bool) preg_match( '/\salt\s*=\s*"\s*[^"\s][^"]*"/i', $img );
+	}
+
+	/**
+	 * Donne un texte alternatif aux images qui sont le seul contenu d'un lien (« Rejoindre le
+	 * serveur Discord de Yume Novel »), d'après la destination du lien.
+	 *
+	 * @param string $contenu HTML.
+	 */
+	public static function alt_liens_images( string $contenu ): string {
+		return (string) preg_replace_callback(
+			self::LIEN_IMAGE,
+			static function ( array $m ): string {
+				if ( self::a_alt( $m[3] ) ) {
+					return $m[0];
+				}
+				$alt = self::attr( self::libelle_destination( self::decoder( $m[2] ) ) );
+				$img = preg_match( '/\salt\s*=\s*"[^"]*"/i', $m[3] )
+					? (string) preg_replace( '/\salt\s*=\s*"[^"]*"/i', ' alt="' . $alt . '"', $m[3], 1 )
+					: (string) preg_replace( '#^<img\s#i', '<img alt="' . $alt . '" ', $m[3], 1 );
+				return str_replace( $m[3], $img, $m[0] );
+			},
+			$contenu
+		);
+	}
+
+	/**
+	 * Libellé d'une destination de lien, pour le texte alternatif d'une image cliquable.
+	 *
+	 * @param string $url URL.
+	 */
+	public static function libelle_destination( string $url ): string {
+		$hote = strtolower( (string) preg_replace( '/^www\./i', '', (string) wp_parse_url( $url, PHP_URL_HOST ) ) );
+		if ( preg_match( '/(^|\.)(discord\.gg|discord\.com|discordapp\.com)$/', $hote ) ) {
+			return 'Rejoindre le serveur Discord de Yume Novel';
+		}
+		if ( preg_match( '/(^|\.)(twitter\.com|x\.com)$/', $hote ) ) {
+			return 'Yume Novel sur X (Twitter)';
+		}
+		return '' !== $hote ? 'Ouvrir ' . $hote : 'Ouvrir le lien';
+	}
 }

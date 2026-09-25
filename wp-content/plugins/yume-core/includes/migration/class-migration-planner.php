@@ -738,6 +738,7 @@ final class Migration_Planner {
 			),
 			'date_source'    => '',
 			'liens'          => array(),
+			'achat_fiche'    => false,
 			'chapitres'      => array(),
 			'url'            => '/oeuvres/' . $oeuvre . '/' . $slug . '/',
 			'avertissements' => array(),
@@ -764,6 +765,7 @@ final class Migration_Planner {
 		$plan['meta']['yume_lien_pdf']  = $tome['lien_pdf'];
 		$plan['meta']['yume_lien_epub'] = $tome['lien_epub'];
 		$plan['liens']                  = $tome['liens'];
+		$plan['achat_fiche']            = ! empty( $tome['achat_mentionne'] );
 		$plan['couverture_url']         = $tome['couverture_url'];
 
 		$contenu = array();
@@ -1131,6 +1133,11 @@ final class Migration_Planner {
 			foreach ( array( 'pdf', 'epub' ) as $format ) {
 				$meta = 'yume_lien_' . $format;
 				if ( '' === $tomes[ $cle ]['meta'][ $meta ] && '' !== $article['liens'][ $format ] ) {
+					$refus = $this->refus_lien_article( $tomes[ $cle ], $oeuvres, $article );
+					if ( null !== $refus ) {
+						$this->avertir( $refus['niveau'], 'liens', sprintf( '« %s » : lien %s de l’article « %s » (%s) non repris : %s.', $tomes[ $cle ]['post']['post_title'], strtoupper( $format ), $article['titre'], $article['liens'][ $format ], $refus['raison'] ), $id );
+						continue;
+					}
 					$tomes[ $cle ]['meta'][ $meta ] = $article['liens'][ $format ];
 					$this->avertir( 'info', 'liens', sprintf( '« %s » : lien %s absent de la fiche, repris de l’article « %s ».', $tomes[ $cle ]['post']['post_title'], strtoupper( $format ), $article['titre'] ), $id );
 				} elseif ( '' !== $article['liens'][ $format ] && $tomes[ $cle ]['meta'][ $meta ] !== $article['liens'][ $format ] && in_array( $article['type_sortie'], array( 'tome', 'tome_relie' ), true ) ) {
@@ -1138,6 +1145,41 @@ final class Migration_Planner {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Raison de ne pas reprendre sur un tome le lien PDF / EPUB d'un article, ou null s'il peut
+	 * l'être : seul un article de sortie du tome (tome, tome relié) donne le fichier du tome
+	 * (une sortie de chapitre renvoie au fichier d'un chapitre) ; jamais pour une œuvre
+	 * licenciée ni pour un tome que la fiche ne propose qu'à l'achat (fichiers retirés par
+	 * l'équipe).
+	 *
+	 * @param array $tome    Tome du plan.
+	 * @param array $oeuvres Œuvres du plan.
+	 * @param array $article Article analysé.
+	 * @return array{niveau:string,raison:string}|null
+	 */
+	private function refus_lien_article( array $tome, array $oeuvres, array $article ): ?array {
+		$statut = (string) ( $oeuvres[ $tome['oeuvre'] ]['termes']['yume_statut'][0] ?? '' );
+		if ( 'licenciee' === $statut ) {
+			return array(
+				'niveau' => 'attention',
+				'raison' => 'œuvre licenciée, fichiers retirés par l’équipe',
+			);
+		}
+		if ( ! empty( $tome['achat_fiche'] ) ) {
+			return array(
+				'niveau' => 'attention',
+				'raison' => 'la fiche ne propose ce tome qu’à l’achat',
+			);
+		}
+		if ( ! in_array( $article['type_sortie'], array( 'tome', 'tome_relie' ), true ) ) {
+			return array(
+				'niveau' => 'info',
+				'raison' => 'l’article n’annonce pas la sortie du tome (lien d’un chapitre)',
+			);
+		}
+		return null;
 	}
 
 	/**
@@ -1346,8 +1388,13 @@ final class Migration_Planner {
 				if ( $wpcom ) {
 					$remarques[] = sprintf( '%d lien(s) vers yumenovel.wordpress.com à réécrire.', $wpcom );
 				}
-				if ( preg_match( '/style="[^"]*background-color/i', (string) $page['content'] ) ) {
-					$remarques[] = 'Couleurs de fond en ligne (#efe7fb…) à retirer pour les thèmes Nuit / Papier.';
+				if ( Html::sans_couleurs( (string) $page['content'] ) !== (string) $page['content'] ) {
+					$remarques[] = 'Couleurs de fond et de texte en ligne (#efe7fb…) retirées à l’exécution (illisibles dans les thèmes Nuit / Papier).';
+				}
+				$sans_alt = Html::liens_images_sans_alt( (string) $page['content'] );
+				if ( $sans_alt ) {
+					$remarques[] = sprintf( '%d lien(s)-image sans texte alternatif : texte alternatif ajouté à l’exécution.', $sans_alt );
+					$this->avertir( 'info', 'accessibilite', sprintf( 'Page « %s » : %d lien(s) dont le seul contenu est une image sans texte alternatif ; texte alternatif ajouté à l’exécution d’après la destination du lien.', $page['title'], $sans_alt ), $id );
 				}
 				$plan['conserver'][] = array(
 					'id'        => $id,
@@ -1729,23 +1776,77 @@ final class Migration_Planner {
 		ksort( $usages );
 		$references = array();
 		$manquants  = array();
+		$connues    = null;
 		foreach ( $usages as $id => $liste ) {
-			$existe       = isset( $this->medias[ $id ] );
+			$existe = isset( $this->medias[ $id ] );
+			$url    = $existe ? (string) $this->medias[ $id ]['source_url'] : '';
+			if ( ! $existe ) {
+				// URL connue par le contenu (src de l'image, couverture d'un tome, bannière d'un
+				// hub) : l'exécution retrouve le fichier sous un autre ID (suffixe, puis nom).
+				$connues = $connues ?? $this->urls_images_connues( $tomes );
+				$url     = $connues[ (int) $id ] ?? '';
+			}
 			$references[] = array(
 				'id'     => (int) $id,
-				'url'    => $existe ? $this->medias[ $id ]['source_url'] : '',
+				'url'    => $url,
 				'existe' => $existe,
 				'usages' => $liste,
 			);
 			if ( ! $existe ) {
 				$manquants[] = (int) $id;
-				$this->avertir( 'erreur', 'media', sprintf( 'Média %d référencé (%s) mais absent de la médiathèque exportée.', $id, implode( ', ', $liste ) ) );
+				$fichier     = '' !== $url ? Media_Mapper::suffixe( $url ) : '';
+				$this->avertir(
+					'attention',
+					'media',
+					sprintf(
+						'Média %d référencé (%s) introuvable sous cet ID dans la médiathèque : %s',
+						$id,
+						implode( ', ', $liste ),
+						'' !== $fichier || '' !== $url
+							? sprintf( 'il sera recherché par son fichier (« %s ») à l’exécution, sinon l’image restera vide.', '' !== $fichier ? $fichier : $url )
+							: 'fichier inconnu, l’image restera vide (à reposer à la main après la migration).'
+					)
+				);
 			}
 		}
 		return array(
 			'references' => $references,
 			'manquants'  => $manquants,
 		);
+	}
+
+	/**
+	 * URL des images connues par leur ID dans les contenus de l'ancien site (classe wp-image-N
+	 * ou attribut id des blocs image et media-text), les couvertures des tomes et les bannières
+	 * des hubs.
+	 *
+	 * @param array $tomes Tomes du plan.
+	 * @return array<int,string> ID => URL.
+	 */
+	private function urls_images_connues( array $tomes ): array {
+		$urls     = array();
+		$contenus = array();
+		foreach ( array( 'pages', 'posts', 'template_parts' ) as $liste ) {
+			foreach ( (array) ( $this->export[ $liste ] ?? array() ) as $item ) {
+				$contenus[] = (string) ( $item['content'] ?? '' );
+			}
+		}
+		foreach ( $contenus as $contenu ) {
+			if ( ! preg_match_all( '/<img\s[^>]*>/i', $contenu, $m ) ) {
+				continue;
+			}
+			foreach ( $m[0] as $img ) {
+				if ( preg_match( '/wp-image-(\d+)/', $img, $id ) && preg_match( '/\ssrc="([^"]+)"/i', $img, $src ) && ! isset( $urls[ (int) $id[1] ] ) ) {
+					$urls[ (int) $id[1] ] = Html::decoder( $src[1] );
+				}
+			}
+		}
+		foreach ( $tomes as $t ) {
+			if ( ! empty( $t['thumbnail_id'] ) && '' !== (string) ( $t['couverture_url'] ?? '' ) ) {
+				$urls[ (int) $t['thumbnail_id'] ] = (string) $t['couverture_url'];
+			}
+		}
+		return $urls;
 	}
 
 	/**

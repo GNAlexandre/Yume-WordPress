@@ -52,16 +52,107 @@ final class Plan_Report {
 	}
 
 	/**
-	 * Liste « clé : valeur » d'un tableau de comptes.
+	 * Libellés français des clés de comptes, par groupe (les clés du plan restent les slugs
+	 * WordPress ; seul l'affichage est traduit).
 	 *
-	 * @param array $comptes Comptes.
+	 * @return array<string,array<string,string>>
 	 */
-	private static function liste_comptes( array $comptes ): string {
+	private static function libelles(): array {
+		$statuts = function_exists( 'yume_statuts' ) ? yume_statuts() : array();
+		$types   = function_exists( 'yume_types' ) ? yume_types() : array();
+		$natures = function_exists( 'yume_natures_tome' ) ? yume_natures_tome() : array();
+		$etapes  = function_exists( 'yume_etapes' ) ? yume_etapes() : array();
+		return array(
+			'statut'      => $statuts + Legacy_Oeuvre_Parser::STATUTS_LIBELLES,
+			'type'        => $types + array(
+				'light-novel' => 'Light novel',
+				'web-novel'   => 'Web novel',
+				'manga'       => 'Manga',
+			),
+			'nature'      => $natures + array(
+				'tome'      => 'Tome',
+				'arc'       => 'Arc',
+				'ex'        => 'Tome EX',
+				'bonus'     => 'Bonus',
+				'chapitres' => 'Chapitres',
+			),
+			'etape'       => $etapes + array(
+				'a_faire'    => 'À faire',
+				'traduction' => 'Traduction',
+				'relecture'  => 'Relecture',
+				'edition'    => 'Édition',
+				'publie'     => 'Publié',
+			),
+			'publication' => array(
+				'publish' => 'Publié',
+				'draft'   => 'Brouillon',
+				'future'  => 'Planifié',
+				'pending' => 'En attente de relecture',
+				'private' => 'Privé',
+				'trash'   => 'Corbeille',
+			),
+			'classement'  => array(
+				'sortie'    => 'Sorties',
+				'actualite' => 'Actualités',
+			),
+			'famille'     => array(
+				'fiche'            => 'Fiches',
+				'arc'              => 'Arcs',
+				'chapitre'         => 'Chapitres',
+				'hub'              => 'Hubs',
+				'categorie'        => 'Pages de catégorie',
+				'institutionnelle' => 'Institutionnelles',
+				'ignoree'          => 'Ignorées',
+			),
+			'pages'       => array(
+				'conserver' => 'Conservées',
+				'remplacer' => 'Remplacées',
+				'ignorer'   => 'Ignorées',
+				'creer'     => 'À créer',
+			),
+			'niveau'      => array(
+				'erreur'    => 'Erreurs',
+				'attention' => 'Points d’attention',
+				'info'      => 'Informations',
+			),
+			'action'      => array(
+				'renommer'  => 'Renommée',
+				'conserver' => 'Conservée',
+				'supprimer' => 'Supprimée',
+				'creer'     => 'Créée',
+			),
+		);
+	}
+
+	/**
+	 * Libellé français d'une clé de compte (« draft » → « Brouillon », « abandonnee » →
+	 * « Abandonnée »), ou la clé elle-même si elle n'a pas de libellé (hébergeurs…).
+	 *
+	 * @param string $groupe statut, type, nature, etape, publication, classement, famille, pages,
+	 *                       niveau ou action.
+	 * @param string $cle    Clé.
+	 */
+	public static function libelle( string $groupe, string $cle ): string {
+		static $cache = null;
+		if ( null === $cache ) {
+			$cache = self::libelles();
+		}
+		return (string) ( $cache[ $groupe ][ $cle ] ?? $cle );
+	}
+
+	/**
+	 * Liste « libellé : valeur » d'un tableau de comptes.
+	 *
+	 * @param array  $comptes   Comptes.
+	 * @param string $groupe    Groupe de libellés (voir libelle()).
+	 * @param string $separateur Séparateur.
+	 */
+	public static function liste_comptes( array $comptes, string $groupe = '', string $separateur = ' · ' ): string {
 		$morceaux = array();
 		foreach ( $comptes as $cle => $valeur ) {
-			$morceaux[] = $cle . ' : ' . $valeur;
+			$morceaux[] = self::libelle( $groupe, (string) $cle ) . ' : ' . $valeur;
 		}
-		return implode( ' · ', $morceaux );
+		return implode( $separateur, $morceaux );
 	}
 
 	/**
@@ -78,16 +169,16 @@ final class Plan_Report {
 		$md .= self::tableau(
 			array( 'Élément', 'Total', 'Détail' ),
 			array(
-				array( 'Pages de l’ancien site', $c['pages']['total'], self::liste_comptes( $c['pages']['par_famille'] ) . ' (statuts : ' . self::liste_comptes( $c['pages']['par_statut'] ) . ')' ),
-				array( 'Articles', $c['articles']['total'], self::liste_comptes( $c['articles']['par_classement'] ) . sprintf( ' ; avec œuvre liée : %d ; sorties sans œuvre : %d ; en « Non classé » : %d ; brouillons ignorés : %d', $c['articles']['avec_oeuvre'], $c['articles']['sorties_sans_oeuvre'], $c['articles']['non_classe'], $c['articles']['a_ignorer'] ) . ' (statuts : ' . self::liste_comptes( $c['articles']['par_statut'] ) . ')' ),
-				array( 'Œuvres', $c['oeuvres']['total'], self::liste_comptes( $c['oeuvres']['par_type'] ) . ' ; ' . self::liste_comptes( $c['oeuvres']['par_statut'] ) ),
-				array( 'Tomes', $c['tomes']['total'], self::liste_comptes( $c['tomes']['par_nature'] ) . ' ; ' . self::liste_comptes( $c['tomes']['par_statut'] ) ),
+				array( 'Pages de l’ancien site', $c['pages']['total'], self::liste_comptes( $c['pages']['par_famille'], 'famille' ) . ' (statuts : ' . self::liste_comptes( $c['pages']['par_statut'], 'publication' ) . ')' ),
+				array( 'Articles', $c['articles']['total'], self::liste_comptes( $c['articles']['par_classement'], 'classement' ) . sprintf( ' ; avec œuvre liée : %d ; sorties sans œuvre : %d ; en « Non classé » : %d ; brouillons ignorés : %d', $c['articles']['avec_oeuvre'], $c['articles']['sorties_sans_oeuvre'], $c['articles']['non_classe'], $c['articles']['a_ignorer'] ) . ' (statuts : ' . self::liste_comptes( $c['articles']['par_statut'], 'publication' ) . ')' ),
+				array( 'Œuvres', $c['oeuvres']['total'], self::liste_comptes( $c['oeuvres']['par_type'], 'type' ) . ' ; ' . self::liste_comptes( $c['oeuvres']['par_statut'], 'statut' ) ),
+				array( 'Tomes', $c['tomes']['total'], self::liste_comptes( $c['tomes']['par_nature'], 'nature' ) . ' ; ' . self::liste_comptes( $c['tomes']['par_statut'], 'publication' ) ),
 				array( 'Chapitres', $c['chapitres']['total'], sprintf( 'migrés : %d ; planifiés (brouillons) : %d ; %d mots ; %d dialogues ; %d pensées ; %d illustrations ; %d images de navigation supprimées', $c['chapitres']['migres'], $c['chapitres']['planifies'], $c['chapitres']['mots'], $c['chapitres']['dialogues'], $c['chapitres']['pensees'], $c['chapitres']['illustrations'], $c['chapitres']['images_navigation_supprimees'] ) ),
 				array( 'Liens de téléchargement', $c['liens']['pdf'] + $c['liens']['epub'], sprintf( 'PDF : %d ; EPUB : %d ; ', $c['liens']['pdf'], $c['liens']['epub'] ) . self::liste_comptes( $c['liens']['hebergeurs'] ) ),
 				array( 'Redirections 301', $c['redirections'], '' ),
-				array( 'Pages (plan)', array_sum( $c['pages_plan'] ), self::liste_comptes( $c['pages_plan'] ) ),
+				array( 'Pages (plan)', array_sum( $c['pages_plan'] ), self::liste_comptes( $c['pages_plan'], 'pages' ) ),
 				array( 'Médias', $c['medias']['exportes'], sprintf( 'référencés par le plan : %d ; manquants : %d', $c['medias']['references'], $c['medias']['manquants'] ) ),
-				array( 'Avertissements', array_sum( $c['avertissements'] ), self::liste_comptes( $c['avertissements'] ) ),
+				array( 'Avertissements', array_sum( $c['avertissements'] ), self::liste_comptes( $c['avertissements'], 'niveau' ) ),
 			)
 		);
 
@@ -96,8 +187,8 @@ final class Plan_Report {
 		foreach ( $plan['oeuvres'] as $o ) {
 			$lignes[] = array(
 				$o['post']['post_title'],
-				$o['termes']['yume_type'][0],
-				$o['termes']['yume_statut'][0],
+				self::libelle( 'type', (string) $o['termes']['yume_type'][0] ),
+				self::libelle( 'statut', (string) $o['termes']['yume_statut'][0] ),
 				$o['infos']['statut_hub'],
 				$o['infos']['statut_fiche'],
 				count( $o['tomes'] ),
@@ -112,8 +203,8 @@ final class Plan_Report {
 		foreach ( $plan['tomes'] as $t ) {
 			$lignes[] = array(
 				$t['post']['post_title'],
-				$t['post']['post_status'],
-				$t['meta']['yume_etape'],
+				self::libelle( 'publication', (string) $t['post']['post_status'] ),
+				self::libelle( 'etape', (string) $t['meta']['yume_etape'] ),
 				$t['post']['post_date'] . ( '' !== $t['date_source'] ? ' (' . $t['date_source'] . ')' : '' ),
 				'' !== $t['meta']['yume_lien_pdf'] ? 'oui' : '—',
 				'' !== $t['meta']['yume_lien_epub'] ? 'oui' : '—',
@@ -130,7 +221,7 @@ final class Plan_Report {
 			$lignes[] = array(
 				$ch['tome'],
 				$ch['post']['post_title'],
-				$ch['post']['post_status'],
+				self::libelle( 'publication', (string) $ch['post']['post_status'] ),
 				$ch['meta']['yume_credits']['traduction'] . ( '' !== $ch['meta']['yume_credits']['relecture'] ? ' / ' . $ch['meta']['yume_credits']['relecture'] : '' ),
 				$ch['meta']['yume_nb_mots'],
 				isset( $ch['source']['slug'] ) ? '/' . $ch['source']['slug'] . '/' : '(annoncé)',
@@ -156,7 +247,7 @@ final class Plan_Report {
 
 		$md .= "## Catégories\n\n";
 		foreach ( $plan['categories'] as $cat ) {
-			$md .= sprintf( "- **%s** %s%s\n", $cat['action'], $cat['nom_actuel'] ?? $cat['nom'], isset( $cat['nom'] ) && ( $cat['nom_actuel'] ?? '' ) !== $cat['nom'] ? ' → ' . $cat['nom'] . ' (' . $cat['slug'] . ')' : ( isset( $cat['condition'] ) ? ' — ' . $cat['condition'] : '' ) );
+			$md .= sprintf( "- **%s** %s%s\n", self::libelle( 'action', (string) $cat['action'] ), $cat['nom_actuel'] ?? $cat['nom'], isset( $cat['nom'] ) && ( $cat['nom_actuel'] ?? '' ) !== $cat['nom'] ? ' → ' . $cat['nom'] . ' (' . $cat['slug'] . ')' : ( isset( $cat['condition'] ) ? ' — ' . $cat['condition'] : '' ) );
 		}
 		$md .= "\n## Pages\n\n";
 		$md .= "### Conservées\n\n";
@@ -169,11 +260,11 @@ final class Plan_Report {
 			$par_famille[ $p['famille'] ][] = $p;
 		}
 		foreach ( $par_famille as $famille => $liste ) {
-			$md .= sprintf( "- %s : %d page(s) — %s\n", $famille, count( $liste ), implode( ', ', array_map( static fn( $p ) => $p['slug'], array_slice( $liste, 0, 12 ) ) ) . ( count( $liste ) > 12 ? '…' : '' ) );
+			$md .= sprintf( "- %s : %d page(s) — %s\n", self::libelle( 'famille', (string) $famille ), count( $liste ), implode( ', ', array_map( static fn( $p ) => $p['slug'], array_slice( $liste, 0, 12 ) ) ) . ( count( $liste ) > 12 ? '…' : '' ) );
 		}
 		$md .= "\n### Ignorées\n\n";
 		foreach ( $plan['pages']['ignorer'] as $p ) {
-			$md .= sprintf( "- %d « %s » (%s) : %s\n", $p['id'], $p['titre'], $p['statut'], $p['raison'] );
+			$md .= sprintf( "- %d « %s » (%s) : %s\n", $p['id'], $p['titre'], self::libelle( 'publication', (string) $p['statut'] ), $p['raison'] );
 		}
 		$md .= "\n### À créer (contrat §11)\n\n";
 		foreach ( $plan['pages']['creer'] as $p ) {

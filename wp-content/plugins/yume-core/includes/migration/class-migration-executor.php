@@ -42,6 +42,20 @@ final class Migration_Executor extends Migration_Moteur {
 	/** Méta : identifiant de l'exécution qui a créé le contenu. */
 	public const META_RUN = '_yume_migration_run';
 
+	/**
+	 * Méta : empreinte d'un contenu créé, prise en fin d'exécution. Une relance (--forcer) ou une
+	 * annulation la compare à l'état courant pour reconnaître un contenu modifié depuis.
+	 */
+	public const META_EMPREINTE = '_yume_migration_empreinte';
+
+	/** Métadonnées écrites par la migration, par type de contenu (comprises dans l'empreinte). */
+	private const META_EMPREINTE_CLES = array(
+		'yume_oeuvre'   => array( 'yume_titres_alt', 'yume_auteur', 'yume_illustrateur', 'yume_editeur_vo', 'yume_nb_tomes_vo', 'yume_statut_vo', 'yume_liens', 'yume_source_traduction', 'yume_banniere_id', 'yume_equipe', '_thumbnail_id' ),
+		'yume_tome'     => array( 'yume_oeuvre_id', 'yume_numero', 'yume_nature', 'yume_lien_pdf', 'yume_lien_epub', 'yume_equivalence', 'yume_illustrations', 'yume_credits', 'yume_etape', 'yume_avancement', '_thumbnail_id' ),
+		'yume_chapitre' => array( 'yume_tome_id', 'yume_numero', 'yume_sous_titre', 'yume_nature', 'yume_credits', 'yume_source' ),
+		'page'          => array(),
+	);
+
 	/** Métadonnées de cache calculées par le cœur, jamais écrites par la migration. */
 	private const CACHES = array( 'yume_nb_chapitres', 'yume_note_moyenne', 'yume_nb_notes', 'yume_nb_favoris', 'yume_derniere_sortie' );
 
@@ -59,18 +73,19 @@ final class Migration_Executor extends Migration_Moteur {
 	 */
 	public static function etapes(): array {
 		return array(
-			'preparer'        => __( 'Préparation (sauvegarde, médias)', 'yume-core' ),
-			'oeuvres'         => __( 'Œuvres', 'yume-core' ),
-			'tomes'           => __( 'Tomes', 'yume-core' ),
-			'chapitres'       => __( 'Chapitres', 'yume-core' ),
-			'categories'      => __( 'Catégories', 'yume-core' ),
-			'articles'        => __( 'Articles', 'yume-core' ),
-			'pages'           => __( 'Pages Yume', 'yume-core' ),
-			'anciennes_pages' => __( 'Anciennes pages (brouillons)', 'yume-core' ),
-			'reglages'        => __( 'Réglages de lecture', 'yume-core' ),
-			'redirections'    => __( 'Redirections 301', 'yume-core' ),
-			'nettoyage'       => __( 'Nettoyage des catégories', 'yume-core' ),
-			'terminer'        => __( 'Fin', 'yume-core' ),
+			'preparer'         => __( 'Préparation (sauvegarde, médias)', 'yume-core' ),
+			'oeuvres'          => __( 'Œuvres', 'yume-core' ),
+			'tomes'            => __( 'Tomes', 'yume-core' ),
+			'chapitres'        => __( 'Chapitres', 'yume-core' ),
+			'categories'       => __( 'Catégories', 'yume-core' ),
+			'articles'         => __( 'Articles', 'yume-core' ),
+			'pages'            => __( 'Pages Yume', 'yume-core' ),
+			'anciennes_pages'  => __( 'Anciennes pages (brouillons)', 'yume-core' ),
+			'pages_conservees' => __( 'Pages conservées (couleurs, textes alternatifs)', 'yume-core' ),
+			'reglages'         => __( 'Réglages de lecture', 'yume-core' ),
+			'redirections'     => __( 'Redirections 301', 'yume-core' ),
+			'nettoyage'        => __( 'Nettoyage des catégories', 'yume-core' ),
+			'terminer'         => __( 'Fin', 'yume-core' ),
 		);
 	}
 
@@ -90,6 +105,8 @@ final class Migration_Executor extends Migration_Moteur {
 				return count( (array) ( $this->plan['pages']['creer'] ?? array() ) );
 			case 'anciennes_pages':
 				return count( (array) ( $this->plan['pages']['remplacer'] ?? array() ) );
+			case 'pages_conservees':
+				return count( (array) ( $this->plan['pages']['conserver'] ?? array() ) );
 			default:
 				return 1;
 		}
@@ -171,6 +188,9 @@ final class Migration_Executor extends Migration_Moteur {
 			case 'anciennes_pages':
 				$this->ancienne_page( $this->plan['pages']['remplacer'][ $index ] );
 				break;
+			case 'pages_conservees':
+				$this->page_conservee( $this->plan['pages']['conserver'][ $index ] );
+				break;
 			case 'reglages':
 				$this->reglages();
 				break;
@@ -189,8 +209,23 @@ final class Migration_Executor extends Migration_Moteur {
 	 * Fin de l'exécution.
 	 */
 	protected function finir(): void {
+		// Empreinte des contenus créés : une relance ou une annulation reconnaîtra ceux que l'équipe
+		// aura modifiés depuis.
+		foreach ( array( 'oeuvre', 'tome', 'chapitre', 'page' ) as $type ) {
+			foreach ( (array) ( $this->journal['correspondances'][ $type ] ?? array() ) as $cle => $id ) {
+				$id = (int) $id;
+				// Un contenu gardé tel quel (modifié par l'équipe) garde son empreinte d'origine :
+				// il reste reconnu comme modifié aux relances suivantes.
+				if ( $id && ! isset( $this->journal['modifies'][ $id ] ) && (string) get_post_meta( $id, self::META_CLE, true ) === $type . ':' . $cle ) {
+					update_post_meta( $id, self::META_EMPREINTE, self::empreinte_contenu( $id ) );
+				}
+			}
+		}
+		$ignores                    = (int) ( $this->etat['comptes']['ignores'] ?? 0 );
+		$maintenues                 = count( (array) ( $this->journal['pages_maintenues'] ?? array() ) );
 		$this->etat['statut']       = 'migre';
 		$this->etat['operation']    = '';
+		$this->etat['ignores']      = $ignores;
 		$this->etat['fin']          = current_time( 'mysql', true );
 		$this->etat['migre_le']     = $this->etat['fin'];
 		$this->etat['migre_par']    = (int) ( $this->etat['par'] ?? 0 );
@@ -199,7 +234,19 @@ final class Migration_Executor extends Migration_Moteur {
 			'action' => 'migre',
 			'par'    => get_current_user_id(),
 		);
-		$this->message( __( 'Migration terminée.', 'yume-core' ), 'succes' );
+		if ( $ignores || $maintenues ) {
+			$this->message(
+				sprintf(
+					/* translators: 1: éléments ignorés, 2: anciennes pages laissées en ligne. */
+					__( 'Migration terminée avec %1$d élément(s) ignoré(s) : %2$d ancienne(s) page(s) sans remplaçant sont restées en ligne, sans redirection. Relisez les avertissements ci-dessus.', 'yume-core' ),
+					$ignores,
+					$maintenues
+				),
+				'avertissement'
+			);
+		} else {
+			$this->message( __( 'Migration terminée.', 'yume-core' ), 'succes' );
+		}
 		/**
 		 * La migration vient de se terminer.
 		 *
@@ -261,6 +308,195 @@ final class Migration_Executor extends Migration_Moteur {
 			}
 		}
 		return 0;
+	}
+
+	/**
+	 * Empreinte d'un contenu créé par la migration : champs du contenu, métadonnées écrites
+	 * par la migration et taxonomies de l'œuvre (hors caches calculés par le cœur).
+	 *
+	 * @param int $id Contenu.
+	 */
+	public static function empreinte_contenu( int $id ): string {
+		$post = get_post( $id );
+		if ( ! $post instanceof \WP_Post ) {
+			return '';
+		}
+		$meta = array();
+		foreach ( self::META_EMPREINTE_CLES[ $post->post_type ] ?? array() as $cle ) {
+			$meta[ $cle ] = get_post_meta( $id, $cle, true );
+		}
+		$termes = array();
+		if ( 'yume_oeuvre' === $post->post_type ) {
+			foreach ( array( 'yume_type', 'yume_statut', 'yume_genre' ) as $taxonomie ) {
+				if ( taxonomy_exists( $taxonomie ) ) {
+					$slugs = wp_get_object_terms( $id, $taxonomie, array( 'fields' => 'slugs' ) );
+					$slugs = is_array( $slugs ) ? $slugs : array();
+					sort( $slugs );
+					$termes[ $taxonomie ] = $slugs;
+				}
+			}
+		}
+		return md5(
+			(string) wp_json_encode(
+				array(
+					$post->post_title,
+					$post->post_name,
+					$post->post_status,
+					md5( $post->post_content ),
+					$post->post_excerpt,
+					$post->post_date,
+					(int) $post->menu_order,
+					(int) $post->post_parent,
+					$meta,
+					$termes,
+				)
+			)
+		);
+	}
+
+	/**
+	 * Un contenu créé par la migration a-t-il été modifié depuis (texte, statut, métadonnées) ?
+	 * Comparé à l'empreinte prise en fin d'exécution ; à défaut (contenu d'une version
+	 * antérieure), à la date de fin de la migration.
+	 *
+	 * @param int    $id       Contenu.
+	 * @param string $migre_le Date GMT de fin de la migration (« » si inconnue).
+	 */
+	public static function modifie_depuis_migration( int $id, string $migre_le ): bool {
+		$empreinte = (string) get_post_meta( $id, self::META_EMPREINTE, true );
+		if ( '' !== $empreinte ) {
+			return self::empreinte_contenu( $id ) !== $empreinte;
+		}
+		$post = get_post( $id );
+		return '' !== $migre_le && $post instanceof \WP_Post && (string) $post->post_modified_gmt > $migre_le;
+	}
+
+	/**
+	 * Contenu existant modifié depuis la migration : il n'est pas réécrit (relance, ou nouvelle
+	 * exécution après une annulation qui l'a conservé) ; sa correspondance est gardée.
+	 *
+	 * @param string   $type      oeuvre, tome ou chapitre.
+	 * @param string   $cle       Clé du plan.
+	 * @param int      $id        Contenu existant (0 : aucun).
+	 * @param int|null $source_id Contenu d'origine.
+	 * @param array    $meta      Métadonnées que la migration écrirait.
+	 */
+	private function conserver_si_modifie( string $type, string $cle, int $id, ?int $source_id, array $meta ): bool {
+		if ( ! $id ) {
+			return false;
+		}
+		$modifie = self::modifie_depuis_migration( $id, ! empty( $this->etat['relance'] ) ? (string) $this->etat['migre_le'] : '' );
+		if ( ! $modifie && ! empty( $this->etat['relance'] ) && '' === (string) get_post_meta( $id, self::META_EMPREINTE, true ) ) {
+			// Contenu migré par une version sans empreinte : une métadonnée qui n'a plus la valeur
+			// du plan (étape, lien…) a été changée depuis (une modification de métadonnée ne
+			// change pas la date de modification du contenu).
+			$modifie = $this->meta_differe_du_plan( $id, $meta );
+		}
+		if ( ! $modifie ) {
+			return false;
+		}
+		$this->correspondance( $type, $cle, $id, $source_id );
+		$this->journal['modifies'][ $id ] = true;
+		$this->compter( 'modifies_conserves' );
+		/* translators: 1: titre, 2: ID. */
+		$this->message( sprintf( __( '« %1$s » (ID %2$d) a été modifié depuis la migration : conservé tel quel, non réécrit.', 'yume-core' ), (string) get_post_field( 'post_title', $id ), $id ), 'avertissement' );
+		return true;
+	}
+
+	/**
+	 * Une métadonnée écrite par la migration (liste de l'empreinte) a-t-elle aujourd'hui une autre
+	 * valeur que celle du plan ?
+	 *
+	 * @param int   $id   Contenu.
+	 * @param array $meta Métadonnées que la migration écrirait.
+	 */
+	private function meta_differe_du_plan( int $id, array $meta ): bool {
+		$texte = static function ( $valeur ) use ( &$texte ) {
+			if ( is_array( $valeur ) ) {
+				return array_map( $texte, $valeur );
+			}
+			if ( is_bool( $valeur ) ) {
+				return $valeur ? '1' : '';
+			}
+			return null === $valeur ? '' : (string) $valeur;
+		};
+		foreach ( self::META_EMPREINTE_CLES[ (string) get_post_type( $id ) ] ?? array() as $cle ) {
+			if ( ! array_key_exists( $cle, $meta ) || '_thumbnail_id' === $cle ) {
+				continue;
+			}
+			if ( $texte( $meta[ $cle ] ) !== $texte( get_post_meta( $id, $cle, true ) ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Élément du plan ignoré (lui-même, ou avec son œuvre ou son tome) ?
+	 *
+	 * @param string $type oeuvre, tome ou chapitre.
+	 * @param string $cle  Clé du plan.
+	 */
+	private function est_ignore( string $type, string $cle ): bool {
+		return in_array( $cle, (array) ( $this->journal['ignores'][ $type ] ?? array() ), true );
+	}
+
+	/**
+	 * Note un élément ignoré (à la demande de l'équipe, ou avec son œuvre ou son tome).
+	 *
+	 * @param string $type oeuvre, tome, chapitre ou page.
+	 * @param string $cle  Clé du plan.
+	 */
+	private function ignorer( string $type, string $cle ): void {
+		if ( ! $this->est_ignore( $type, $cle ) ) {
+			$this->journal['ignores'][ $type ][] = $cle;
+		}
+	}
+
+	/**
+	 * L'équipe ignore l'élément en erreur : un tome ignoré emporte ses chapitres, une œuvre
+	 * ignorée ses tomes et leurs chapitres (sans une erreur à ignorer pour chacun).
+	 *
+	 * @param string $etape Étape.
+	 * @param int    $index Index.
+	 */
+	protected function noter_ignore( string $etape, int $index ): void {
+		$types = array(
+			'oeuvres'   => 'oeuvre',
+			'tomes'     => 'tome',
+			'chapitres' => 'chapitre',
+		);
+		if ( isset( $types[ $etape ] ) && isset( $this->plan[ $etape ][ $index ]['cle'] ) ) {
+			$this->ignorer( $types[ $etape ], (string) $this->plan[ $etape ][ $index ]['cle'] );
+			if ( 'chapitres' !== $etape ) {
+				$this->message( __( 'Ce qui en dépend (tomes, chapitres) sera ignoré avec lui, et les anciennes pages correspondantes resteront en ligne.', 'yume-core' ), 'avertissement' );
+			}
+		} elseif ( 'pages' === $etape && isset( $this->plan['pages']['creer'][ $index ]['cle'] ) ) {
+			$this->ignorer( 'page', (string) $this->plan['pages']['creer'][ $index ]['cle'] );
+		}
+	}
+
+	/**
+	 * Saute un élément dont le parent a été ignoré.
+	 *
+	 * @param string $type       tome ou chapitre.
+	 * @param string $cle        Clé du plan.
+	 * @param string $parent_cle Clé du parent ignoré.
+	 */
+	private function ignorer_avec_parent( string $type, string $cle, string $parent_cle ): void {
+		$premier = true;
+		foreach ( (array) ( $this->journal['ignores'][ $type ] ?? array() ) as $deja ) {
+			if ( 'chapitre' === $type && str_starts_with( (string) $deja, $parent_cle . '/' ) ) {
+				$premier = false;
+				break;
+			}
+		}
+		$this->ignorer( $type, $cle );
+		$this->compter( 'ignores' );
+		if ( 'tome' === $type || $premier ) {
+			/* translators: 1: élément, 2: parent. */
+			$this->message( sprintf( __( '« %1$s » ignoré avec « %2$s » (et la suite de ce qui en dépend).', 'yume-core' ), $cle, $parent_cle ), 'avertissement' );
+		}
 	}
 
 	/**
@@ -507,6 +743,9 @@ final class Migration_Executor extends Migration_Moteur {
 		if ( $vignette ) {
 			$meta['_thumbnail_id'] = $vignette;
 		}
+		if ( $this->conserver_si_modifie( 'oeuvre', $cle, $id, $source_id, $meta ) ) {
+			return;
+		}
 		$post   = $o['post'];
 		$id2    = $this->enregistrer(
 			array(
@@ -542,7 +781,11 @@ final class Migration_Executor extends Migration_Moteur {
 	 * @throws \RuntimeException Œuvre absente.
 	 */
 	private function tome( array $t ): void {
-		$cle       = (string) $t['cle'];
+		$cle = (string) $t['cle'];
+		if ( $this->est_ignore( 'oeuvre', (string) $t['oeuvre'] ) ) {
+			$this->ignorer_avec_parent( 'tome', $cle, (string) $t['oeuvre'] );
+			return;
+		}
 		$oeuvre_id = (int) ( $this->journal['correspondances']['oeuvre'][ $t['oeuvre'] ] ?? 0 );
 		if ( ! $oeuvre_id ) {
 			/* translators: %s: clé de l'œuvre. */
@@ -561,6 +804,9 @@ final class Migration_Executor extends Migration_Moteur {
 		$couverture                = $this->media( (int) ( $t['thumbnail_id'] ?? 0 ) );
 		if ( $couverture ) {
 			$meta['_thumbnail_id'] = $couverture;
+		}
+		if ( $this->conserver_si_modifie( 'tome', $cle, $id, $source_id, $meta ) ) {
+			return;
 		}
 		$post = $t['post'];
 		$id2  = $this->enregistrer(
@@ -591,7 +837,11 @@ final class Migration_Executor extends Migration_Moteur {
 	 * @throws \RuntimeException Tome absent.
 	 */
 	private function chapitre( array $c ): void {
-		$cle     = (string) $c['cle'];
+		$cle = (string) $c['cle'];
+		if ( $this->est_ignore( 'tome', (string) $c['tome'] ) ) {
+			$this->ignorer_avec_parent( 'chapitre', $cle, (string) $c['tome'] );
+			return;
+		}
 		$tome_id = (int) ( $this->journal['correspondances']['tome'][ $c['tome'] ] ?? 0 );
 		if ( ! $tome_id ) {
 			/* translators: %s: clé du tome. */
@@ -611,9 +861,12 @@ final class Migration_Executor extends Migration_Moteur {
 		$meta[ self::META_CLE ]    = 'chapitre:' . $cle;
 		$meta[ self::META_SOURCE ] = (int) ( $c['source']['id'] ?? 0 );
 		$meta[ self::META_RUN ]    = (string) $this->etat['run'];
-		$post                      = $c['post'];
-		$contenu                   = Media_Mapper::remapper_contenu( (string) ( $post['post_content'] ?? '' ), (array) ( $this->journal['medias'] ?? array() ) );
-		$id2                       = $this->enregistrer(
+		if ( $this->conserver_si_modifie( 'chapitre', $cle, $id, $source_id, $meta ) ) {
+			return;
+		}
+		$post    = $c['post'];
+		$contenu = Media_Mapper::remapper_contenu( (string) ( $post['post_content'] ?? '' ), (array) ( $this->journal['medias'] ?? array() ) );
+		$id2     = $this->enregistrer(
 			array(
 				'post_type'      => 'yume_chapitre',
 				'post_title'     => $post['post_title'],
@@ -640,7 +893,8 @@ final class Migration_Executor extends Migration_Moteur {
 	 * @throws \RuntimeException Renommage ou création impossible.
 	 */
 	private function categories(): void {
-		$cibles = (array) ( $this->journal['categories_cibles'] ?? array() );
+		$cibles  = (array) ( $this->journal['categories_cibles'] ?? array() );
+		$relance = ! empty( $this->etat['relance'] );
 		foreach ( (array) ( $this->plan['categories'] ?? array() ) as $cat ) {
 			$action = (string) ( $cat['action'] ?? '' );
 			if ( 'supprimer' === $action ) {
@@ -655,7 +909,16 @@ final class Migration_Executor extends Migration_Moteur {
 					$cibles[ $slug ] = (int) $autre->term_id;
 					continue;
 				}
+				if ( $relance && in_array( (int) $terme->term_id, (array) $this->journal['modifications']['categories_modifiees'], true ) ) {
+					// Relance : déjà renommée par la migration ; un nom retouché depuis est gardé.
+					$cibles[ $slug ] = (int) $terme->term_id;
+					continue;
+				}
 				if ( $terme->slug !== $slug || $terme->name !== $cat['nom'] ) {
+					// Noté (et enregistré) avant la modification : un arrêt brutal juste après
+					// n'empêche pas l'annulation de la défaire.
+					$this->noter_categorie_modifiee( (int) $terme->term_id );
+					$this->persister();
 					$res = wp_update_term(
 						(int) $terme->term_id,
 						'category',
@@ -668,7 +931,6 @@ final class Migration_Executor extends Migration_Moteur {
 					if ( is_wp_error( $res ) ) {
 						throw new \RuntimeException( $res->get_error_message() );
 					}
-					$this->noter_categorie_modifiee( (int) $terme->term_id );
 					/* translators: 1: ancien nom, 2: nouveau nom. */
 					$this->message( sprintf( __( 'Catégorie « %1$s » renommée « %2$s ».', 'yume-core' ), $cat['nom_actuel'] ?? '', $cat['nom'] ) );
 				}
@@ -677,8 +939,9 @@ final class Migration_Executor extends Migration_Moteur {
 			}
 			if ( 'conserver' === $action && $terme instanceof \WP_Term ) {
 				if ( '' === (string) $terme->description && '' !== (string) ( $cat['description'] ?? '' ) ) {
-					wp_update_term( (int) $terme->term_id, 'category', array( 'description' => $cat['description'] ) );
 					$this->noter_categorie_modifiee( (int) $terme->term_id );
+					$this->persister();
+					wp_update_term( (int) $terme->term_id, 'category', array( 'description' => $cat['description'] ) );
 				}
 				$cibles[ $slug ] = (int) $terme->term_id;
 				continue;
@@ -695,8 +958,39 @@ final class Migration_Executor extends Migration_Moteur {
 			}
 		}
 		$this->journal['categories_cibles'] = $cibles;
+		$this->reconcilier_categories();
 		update_option( 'default_category', (int) $cibles[ Legacy_Post_Parser::CATEGORIE_ACTUALITES ] );
 		$this->noter_option( 'default_category' );
+	}
+
+	/**
+	 * Journal des catégories rendu indépendant de l'histoire de l'exécution : toute catégorie
+	 * sauvegardée qui diffère de sa sauvegarde est notée modifiée, toute catégorie cible absente
+	 * de la sauvegarde est notée créée, toute catégorie sauvegardée disparue est notée
+	 * supprimée. Après un arrêt brutal et une reprise, l'annulation défait donc aussi ce que le
+	 * lot interrompu avait déjà écrit en base.
+	 */
+	private function reconcilier_categories(): void {
+		$sauvegarde = (array) ( $this->journal['sauvegarde']['categories'] ?? array() );
+		foreach ( $sauvegarde as $id => $ligne ) {
+			$terme = get_term( (int) $id, 'category' );
+			if ( ! $terme instanceof \WP_Term ) {
+				$supprimees = (array) $this->journal['modifications']['categories_supprimees'];
+				if ( ! in_array( (int) $id, array_map( 'intval', $supprimees ), true ) ) {
+					$this->journal['modifications']['categories_supprimees'][] = (int) $id;
+				}
+				continue;
+			}
+			if ( (string) $terme->name !== (string) $ligne['name'] || (string) $terme->slug !== (string) $ligne['slug'] || (string) $terme->description !== (string) $ligne['description'] || (int) $terme->parent !== (int) $ligne['parent'] ) {
+				$this->noter_categorie_modifiee( (int) $id );
+			}
+		}
+		foreach ( (array) ( $this->journal['categories_cibles'] ?? array() ) as $id ) {
+			$id = (int) $id;
+			if ( $id && ! isset( $sauvegarde[ $id ] ) && ! in_array( $id, array_map( 'intval', (array) $this->journal['modifications']['categories_creees'] ), true ) && get_term( $id, 'category' ) instanceof \WP_Term ) {
+				$this->journal['modifications']['categories_creees'][] = $id;
+			}
+		}
 	}
 
 	/**
@@ -724,6 +1018,7 @@ final class Migration_Executor extends Migration_Moteur {
 			throw new \RuntimeException( $res->get_error_message() );
 		}
 		$this->journal['modifications']['categories_creees'][] = (int) $res['term_id'];
+		$this->persister();
 		/* translators: %s: nom de la catégorie. */
 		$this->message( sprintf( __( 'Catégorie « %s » créée.', 'yume-core' ), $nom ) );
 		return (int) $res['term_id'];
@@ -765,6 +1060,10 @@ final class Migration_Executor extends Migration_Moteur {
 		if ( ! $post instanceof \WP_Post || 'post' !== $post->post_type ) {
 			/* translators: %d: ID de l'article. */
 			$this->message( sprintf( __( 'Article %d introuvable : ignoré.', 'yume-core' ), $id ), 'avertissement' );
+			return;
+		}
+		if ( ! empty( $this->etat['relance'] ) && in_array( $id, array_map( 'intval', (array) $this->journal['modifications']['articles'] ), true ) ) {
+			// Relance : article déjà reclassé ; un reclassement fait depuis par l'équipe est gardé.
 			return;
 		}
 		$categorie = (int) ( $this->journal['categories_cibles'][ $a['categorie_cible'] ] ?? 0 );
@@ -863,6 +1162,7 @@ final class Migration_Executor extends Migration_Moteur {
 			'post_content'  => $page->post_content,
 			'post_modified' => $page->post_modified,
 		);
+		$this->persister();
 		if ( '' === trim( (string) $page->post_content ) && '' !== (string) ( $p['post_content'] ?? '' ) ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->update( $wpdb->posts, array( 'post_content' => (string) $p['post_content'] ), array( 'ID' => $page->ID ) );
@@ -888,6 +1188,18 @@ final class Migration_Executor extends Migration_Moteur {
 		if ( ! $post instanceof \WP_Post || 'page' !== $post->post_type ) {
 			return;
 		}
+		if ( in_array( (string) ( $p['famille'] ?? '' ), array( 'fiche', 'arc', 'chapitre' ), true ) && ! $this->remplacee( $id ) ) {
+			// Aucun contenu créé ne la remplace (élément ignoré ou en erreur) : la dépublier
+			// retirerait le texte du site. Elle reste en ligne, sans redirection.
+			if ( ! isset( $this->journal['pages_maintenues'][ $id ] ) ) {
+				$this->journal['pages_maintenues'][ $id ] = $post->post_title;
+				$this->compter( 'pages_maintenues' );
+				/* translators: 1: titre, 2: ID. */
+				$this->message( sprintf( __( 'Ancienne page « %1$s » (ID %2$d) : rien ne la remplace (élément ignoré ou en erreur), elle reste en ligne, sans redirection.', 'yume-core' ), $post->post_title, $id ), 'avertissement' );
+			}
+			return;
+		}
+		unset( $this->journal['pages_maintenues'][ $id ] );
 		if ( in_array( $post->post_status, array( 'publish', 'private', 'future' ), true ) ) {
 			self::changer_statut( $id, 'draft' );
 			$this->journal['modifications']['pages_depubliees'][ $id ] = $post->post_status;
@@ -896,11 +1208,66 @@ final class Migration_Executor extends Migration_Moteur {
 	}
 
 	/**
+	 * Une ancienne page a-t-elle un remplaçant créé par la migration (œuvre, tome ou chapitre
+	 * enregistré depuis elle) ?
+	 *
+	 * @param int $id Ancienne page.
+	 */
+	private function remplacee( int $id ): bool {
+		foreach ( (array) ( $this->journal['sources'][ $id ] ?? array() ) as $lien ) {
+			list( $type, $cle ) = array_pad( explode( ':', (string) $lien, 2 ), 2, '' );
+			$cible              = (int) ( $this->journal['correspondances'][ $type ][ $cle ] ?? 0 );
+			$statut             = $cible ? get_post_status( $cible ) : false;
+			if ( $statut && 'trash' !== $statut ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Page conservée telle quelle (institutionnelle) : ses couleurs de fond et de texte en ligne
+	 * sont retirées (illisibles dans les thèmes Nuit et Papier) et ses liens-images sans texte
+	 * reçoivent un texte alternatif. Le contenu d'origine est gardé pour l'annulation.
+	 *
+	 * @param array $p Page du plan (pages.conserver[]).
+	 */
+	private function page_conservee( array $p ): void {
+		global $wpdb;
+		$id   = (int) $p['id'];
+		$post = get_post( $id );
+		if ( ! $post instanceof \WP_Post || 'page' !== $post->post_type || isset( $this->journal['modifications']['pages_nettoyees'][ $id ] ) ) {
+			// Déjà traitée (reprise, relance) : une retouche faite depuis par l'équipe est gardée.
+			return;
+		}
+		$contenu = Html::alt_liens_images( Html::sans_couleurs( (string) $post->post_content ) );
+		if ( $contenu === $post->post_content ) {
+			return;
+		}
+		$this->journal['modifications']['pages_nettoyees'][ $id ] = array(
+			'post_content' => $post->post_content,
+			'ecrit'        => md5( $contenu ),
+		);
+		$this->persister();
+		// Contenu écrit tel quel (sans filtre, sans révision, date de modification inchangée).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->update( $wpdb->posts, array( 'post_content' => $contenu ), array( 'ID' => $id ) );
+		clean_post_cache( $id );
+		$this->compter( 'pages_nettoyees' );
+		/* translators: %s: titre. */
+		$this->message( sprintf( __( 'Page conservée « %s » : couleurs en ligne retirées, textes alternatifs ajoutés.', 'yume-core' ), $post->post_title ) );
+	}
+
+	/**
 	 * Réglages : page d'accueil, page des articles (12 par page), bannière du site, inscription
 	 * des lecteurs (« Tout le monde peut s'inscrire », rôle par défaut Lecteur). Les valeurs
 	 * d'origine sont sauvegardées à la préparation et restaurées par l'annulation.
 	 */
 	private function reglages(): void {
+		if ( ! empty( $this->etat['relance'] ) && in_array( 'show_on_front', (array) $this->journal['modifications']['options'], true ) ) {
+			// Relance : réglages déjà posés ; ceux que l'équipe a changés depuis sont gardés.
+			return;
+		}
 		// L'inscription en façade (page connexion, module lecteurs) dépend de ces deux réglages.
 		if ( '1' !== (string) get_option( 'users_can_register' ) ) {
 			update_option( 'users_can_register', 1 );
@@ -989,7 +1356,11 @@ final class Migration_Executor extends Migration_Moteur {
 		$entrees = array();
 		$pages   = (array) ( $this->journal['correspondances']['page'] ?? array() );
 		$cibles  = (array) ( $this->journal['categories_cibles'] ?? array() );
+		$ids     = array();
 		foreach ( (array) ( $this->plan['redirections'] ?? array() ) as $r ) {
+			if ( ! empty( $r['source_id'] ) && isset( $this->journal['pages_maintenues'][ (int) $r['source_id'] ] ) ) {
+				continue; // Ancienne page restée en ligne faute de remplaçant.
+			}
 			$cible = (string) $r['cible'];
 			$type  = (string) ( $r['type'] ?? '' );
 			if ( in_array( $type, array( 'oeuvre', 'tome', 'chapitre' ), true ) && ! empty( $r['cle'] ) ) {
@@ -1002,7 +1373,13 @@ final class Migration_Executor extends Migration_Moteur {
 				$cible = is_string( $lien ) ? self::chemin( $lien ) : $cible;
 			}
 			$entrees[ (string) $r['source'] ] = $cible;
+			if ( ! empty( $r['source_id'] ) ) {
+				$ids[ (int) $r['source_id'] ] = $cible;
+			}
 		}
+		// Anciennes adresses courtes ?page_id=N des pages remplacées.
+		Redirections::ajouter_ids( $ids );
+		$this->noter_option( Redirections::OPTION_IDS );
 		$ecrites                                        = Redirections::ajouter( $entrees );
 		$this->journal['modifications']['redirections'] = array_values( array_unique( array_merge( (array) $this->journal['modifications']['redirections'], $ecrites ) ) );
 		$this->noter_option( 'yume_redirections' );
@@ -1020,14 +1397,27 @@ final class Migration_Executor extends Migration_Moteur {
 			if ( 'supprimer' !== ( $cat['action'] ?? '' ) || empty( $cat['id'] ) ) {
 				continue;
 			}
-			$id    = (int) $cat['id'];
-			$terme = get_term( $id, 'category' );
-			if ( ! $terme instanceof \WP_Term || (int) get_option( 'default_category' ) === $id ) {
+			$id         = (int) $cat['id'];
+			$terme      = get_term( $id, 'category' );
+			$supprimees = array_map( 'intval', (array) $this->journal['modifications']['categories_supprimees'] );
+			if ( ! $terme instanceof \WP_Term ) {
+				// Déjà supprimée (reprise après un arrêt brutal) : notée pour l'annulation.
+				if ( isset( $this->journal['sauvegarde']['categories'][ $id ] ) && ! in_array( $id, $supprimees, true ) ) {
+					$this->journal['modifications']['categories_supprimees'][] = $id;
+				}
 				continue;
 			}
-			$res = wp_delete_term( $id, 'category' );
-			if ( true === $res ) {
+			if ( (int) get_option( 'default_category' ) === $id ) {
+				continue;
+			}
+			if ( ! in_array( $id, $supprimees, true ) ) {
 				$this->journal['modifications']['categories_supprimees'][] = $id;
+			}
+			$this->persister();
+			$res = wp_delete_term( $id, 'category' );
+			if ( true !== $res ) {
+				$this->journal['modifications']['categories_supprimees'] = array_values( array_diff( array_map( 'intval', (array) $this->journal['modifications']['categories_supprimees'] ), array( $id ) ) );
+			} else {
 				/* translators: %s: nom de la catégorie. */
 				$this->message( sprintf( __( 'Catégorie « %s » supprimée (articles reclassés).', 'yume-core' ), $terme->name ) );
 			}

@@ -1919,3 +1919,468 @@ yume_test(
 		yume_assert_same( array( $c2, $c3, $c1 ), array_map( 'intval', $q->posts ), 'chapitres par tome ' . $q->request );
 	}
 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Correctifs de revue (non-régression)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Exécute des variables de requête comme la requête principale (pre_get_posts la voit comme telle).
+ *
+ * @param array<string,mixed> $vars Variables de requête.
+ */
+function yume_tc_requete_principale( array $vars ): WP_Query {
+	$sauve                   = $GLOBALS['wp_the_query'] ?? null;
+	$q                       = new WP_Query();
+	$GLOBALS['wp_the_query'] = $q;
+	try {
+		$q->query( $vars );
+	} finally {
+		$GLOBALS['wp_the_query'] = $sauve;
+	}
+	return $q;
+}
+
+yume_test(
+	'SEC-E-1 : github_repo et maj_auto réservés aux comptes qui peuvent installer des mises à jour',
+	function () {
+		\Yume\Core\Core\enregistrer_reglage();
+		$gerant = yume_factory_user( 'yume_gerant' );
+		$admin  = yume_factory_user( 'administrator' );
+		delete_option( 'yume_reglages' );
+
+		wp_set_current_user( $gerant );
+		yume_assert_true( current_user_can( 'yume_reglages' ) );
+		yume_assert_false( current_user_can( 'update_plugins' ) );
+		// Formulaire complet envoyé à options.php par un gérant.
+		$sortie = assainir_reglages(
+			array(
+				'_formulaire' => '1',
+				'kofi_url'    => 'https://ko-fi.com/gerant',
+				'github_repo' => 'attaquant/depot-piege',
+			)
+		);
+		yume_assert_same( 'GNAlexandre/Yume-WordPress', $sortie['github_repo'], 'dépôt inchangé' );
+		yume_assert_true( $sortie['maj_auto'], 'case absente : valeur conservée, pas décochée' );
+		yume_assert_same( 'https://ko-fi.com/gerant', $sortie['kofi_url'], 'les autres réglages restent modifiables' );
+		// Écriture directe de l'option (même assainissement que options.php).
+		update_option(
+			'yume_reglages',
+			array(
+				'github_repo' => 'attaquant/depot-piege',
+				'maj_auto'    => false,
+			)
+		);
+		yume_assert_same( 'GNAlexandre/Yume-WordPress', yume_setting( 'github_repo' ) );
+		yume_assert_true( (bool) yume_setting( 'maj_auto' ) );
+		yume_assert_same( 'https://github.com/GNAlexandre/Yume-WordPress/', \Yume\Core\Updater\url_depot( \Yume\Core\Updater\depot() ) );
+		// Les deux champs ne sont pas affichés au gérant.
+		$cles = array();
+		foreach ( \Yume\Core\Core\champs_reglages() as $champ ) {
+			if ( \Yume\Core\Core\champ_visible( $champ ) ) {
+				$cles[] = $champ['key'];
+			}
+		}
+		yume_assert_false( in_array( 'github_repo', $cles, true ) );
+		yume_assert_false( in_array( 'maj_auto', $cles, true ) );
+		yume_assert_true( in_array( 'kofi_url', $cles, true ) );
+
+		// L'administrateur les modifie.
+		wp_set_current_user( $admin );
+		update_option(
+			'yume_reglages',
+			array(
+				'github_repo' => 'Yume-Novel/Yume-WordPress',
+				'maj_auto'    => false,
+			)
+		);
+		yume_assert_same( 'Yume-Novel/Yume-WordPress', yume_setting( 'github_repo' ) );
+		yume_assert_false( (bool) yume_setting( 'maj_auto' ) );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_test(
+	'SEC-S-2 / MET-6 : dépublier un tome ou une œuvre retire ses tomes et chapitres (URL, REST, plan du site)',
+	function () {
+		flush_rewrite_rules( false );
+		$editeur                 = yume_factory_user( 'yume_editeur' );
+		list( $o, $t, $c1, $c2 ) = yume_tc_sans_evenements(
+			static function (): array {
+				$o = yume_tc_oeuvre( 'Visibilité héritée' );
+				$t = yume_tc_tome( $o, 7801 );
+				return array( $o, $t, yume_tc_chapitre( $t, 1 ), yume_tc_chapitre( $t, 2 ) );
+			}
+		);
+		$lien_c1                 = get_permalink( $c1 );
+		$lien_t                  = get_permalink( $t );
+		yume_assert_same( $c1, (int) ( yume_tc_parse( $lien_c1 )['p'] ?? 0 ), 'chapitre visible avant' );
+		yume_assert_same( 200, yume_rest( 'GET', '/wp/v2/chapitres/' . $c1 )->get_status() );
+
+		// Tome dépublié.
+		wp_update_post(
+			array(
+				'ID'          => $t,
+				'post_status' => 'draft',
+			)
+		);
+		yume_assert_same( '404', yume_tc_parse( $lien_c1 )['error'] ?? '', 'chapitre d’un tome brouillon : 404' );
+		yume_assert_same( 404, yume_rest( 'GET', '/wp/v2/chapitres/' . $c1 )->get_status(), 'REST élément' );
+		$liste = wp_list_pluck(
+			yume_rest(
+				'GET',
+				'/wp/v2/chapitres',
+				array(
+					'per_page' => 100,
+					'include'  => array( $c1, $c2 ),
+				)
+			)->get_data(),
+			'id'
+		);
+		yume_assert_same( array(), array_map( 'intval', $liste ), 'REST liste' );
+		$args = apply_filters(
+			'wp_sitemaps_posts_query_args',
+			array(
+				'post_type'      => 'yume_chapitre',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			),
+			'yume_chapitre'
+		);
+		$plan = array_map( 'intval', ( new WP_Query( $args ) )->posts );
+		yume_assert_false( in_array( $c1, $plan, true ) || in_array( $c2, $plan, true ), 'plan du site' );
+		$q = yume_tc_requete_principale(
+			array(
+				'post_type' => 'yume_chapitre',
+				'p'         => $c1,
+			)
+		);
+		yume_assert_same( array(), $q->posts, 'lien simple ?post_type=yume_chapitre&p=' );
+		// Aperçu : l'éditeur, qui peut modifier le tome, lit toujours le chapitre.
+		wp_set_current_user( $editeur );
+		yume_assert_same( $c1, (int) ( yume_tc_parse( $lien_c1 )['p'] ?? 0 ), 'aperçu éditeur' );
+		wp_set_current_user( 0 );
+		yume_assert_same( 200, yume_rest( 'GET', '/wp/v2/chapitres/' . $c1, array( 'context' => 'edit' ), $editeur )->get_status() );
+
+		// Tome republié : tout revient.
+		wp_update_post(
+			array(
+				'ID'          => $t,
+				'post_status' => 'publish',
+			)
+		);
+		yume_assert_same( $c1, (int) ( yume_tc_parse( $lien_c1 )['p'] ?? 0 ) );
+		yume_assert_same( 200, yume_rest( 'GET', '/wp/v2/chapitres/' . $c1 )->get_status() );
+
+		// Œuvre dépubliée : tome et chapitres disparaissent, recherche comprise.
+		wp_update_post(
+			array(
+				'ID'          => $o,
+				'post_status' => 'draft',
+			)
+		);
+		yume_assert_same( '404', yume_tc_parse( $lien_t )['error'] ?? '', 'tome d’une œuvre brouillon : 404' );
+		yume_assert_same( '404', yume_tc_parse( $lien_c1 )['error'] ?? '', 'chapitre d’une œuvre brouillon : 404' );
+		yume_assert_same( 404, yume_rest( 'GET', '/wp/v2/tomes/' . $t )->get_status() );
+		yume_assert_same( 404, yume_rest( 'GET', '/wp/v2/chapitres/' . $c2 )->get_status() );
+		$trouves = wp_list_pluck( yume_rest( 'GET', '/wp/v2/search', array( 'search' => 'Visibilité héritée' ) )->get_data(), 'id' );
+		yume_assert_false( in_array( $t, array_map( 'intval', $trouves ), true ), 'recherche REST' );
+		$q = yume_tc_requete_principale(
+			array(
+				'post_type' => 'yume_tome',
+				'p'         => $t,
+			)
+		);
+		yume_assert_same( array(), $q->posts, 'lien simple du tome' );
+		$args = apply_filters(
+			'wp_sitemaps_posts_query_args',
+			array(
+				'post_type'      => 'yume_tome',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			),
+			'yume_tome'
+		);
+		yume_assert_false( in_array( $t, array_map( 'intval', ( new WP_Query( $args ) )->posts ), true ), 'plan du site des tomes' );
+	}
+);
+
+yume_test(
+	'SEC-S-7 : archives d’auteur fermées, pas de plan du site des utilisateurs',
+	function () {
+		flush_rewrite_rules( false );
+		$membre         = yume_factory_user( 'yume_traducteur' );
+		$_GET['author'] = (string) $membre;
+		try {
+			yume_assert_same( '404', yume_tc_parse( home_url( '/?author=' . $membre ) )['error'] ?? '', '?author=N' );
+		} finally {
+			unset( $_GET['author'] );
+		}
+		$nicename = get_userdata( $membre )->user_nicename;
+		yume_assert_same( '404', yume_tc_parse( home_url( '/author/' . $nicename . '/' ) )['error'] ?? '' );
+		yume_assert_same( '404', yume_tc_parse( home_url( '/author/' . $nicename . '/feed/' ) )['error'] ?? '' );
+		yume_assert_false( apply_filters( 'wp_sitemaps_add_provider', new stdClass(), 'users' ) );
+		yume_assert_true( is_object( apply_filters( 'wp_sitemaps_add_provider', new stdClass(), 'posts' ) ) );
+	}
+);
+
+yume_test(
+	'MET-1 : la méta-boîte n’écrase ni la publication ni une mise à jour concurrente du planning',
+	function () {
+		$editeur = yume_factory_user( 'yume_editeur' );
+		$o       = yume_tc_oeuvre( 'Planning concurrent' );
+		$t       = yume_tc_sans_evenements( static fn(): int => yume_tc_tome( $o, 3, array( 'post_status' => 'draft' ) ) );
+		update_post_meta( $t, 'yume_etape', 'relecture' );
+		update_post_meta(
+			$t,
+			'yume_avancement',
+			array(
+				'traduction' => 100,
+				'relecture'  => 20,
+				'edition'    => 0,
+			)
+		);
+		wp_set_current_user( $editeur );
+		// Formulaire tel qu'affiché à l'ouverture de l'éditeur.
+		ob_start();
+		\Yume\Core\Core\boite_planning( get_post( $t ) );
+		$html = (string) ob_get_clean();
+		yume_assert_true( (bool) preg_match( '/name="yume\[planning_origine\]" value="([^"]*)"/', $html, $m ), 'valeurs d’origine dans le formulaire' );
+		$origine = html_entity_decode( $m[1], ENT_QUOTES );
+		$poster  = static function ( array $champs ) use ( $t, $origine ): void {
+			$_POST = array(
+				'yume_nonce_tome' => wp_create_nonce( 'yume_enregistrer_tome_' . $t ),
+				'yume'            => wp_slash(
+					array_merge(
+						array(
+							'oeuvre_id'        => (string) get_post_meta( $t, 'yume_oeuvre_id', true ),
+							'nature'           => 'tome',
+							'numero'           => '3',
+							'etape'            => 'relecture',
+							'avancement'       => array(
+								'traduction' => '100',
+								'relecture'  => '20',
+								'edition'    => '0',
+							),
+							'responsables'     => array(
+								'traduction' => '0',
+								'relecture'  => '0',
+								'edition'    => '0',
+							),
+							'date_cible'       => '',
+							'bloque_raison'    => '',
+							'note_equipe'      => '',
+							'planning_origine' => $origine,
+						),
+						$champs
+					)
+				),
+			);
+			try {
+				\Yume\Core\Core\enregistrer_tome( $t );
+			} finally {
+				$_POST = array();
+			}
+		};
+
+		// (a) La publication a fait passer le tome à « publié, 100 % » entre-temps.
+		update_post_meta( $t, 'yume_etape', 'publie' );
+		update_post_meta(
+			$t,
+			'yume_avancement',
+			array(
+				'traduction' => 100,
+				'relecture'  => 100,
+				'edition'    => 100,
+			)
+		);
+		$poster( array() );
+		yume_assert_same( 'publie', get_post_meta( $t, 'yume_etape', true ), 'étape non ramenée en arrière' );
+		yume_assert_same( 100, get_post_meta( $t, 'yume_avancement', true )['relecture'] );
+
+		// (b) Mise à jour concurrente d'un seul champ, puis modification d'un autre champ dans l'éditeur.
+		update_post_meta( $t, 'yume_etape', 'relecture' );
+		update_post_meta(
+			$t,
+			'yume_avancement',
+			array(
+				'traduction' => 77,
+				'relecture'  => 20,
+				'edition'    => 0,
+			)
+		);
+		$poster( array( 'date_cible' => '2026-12-24' ) );
+		yume_assert_same( 77, get_post_meta( $t, 'yume_avancement', true )['traduction'], 'progression concurrente conservée' );
+		yume_assert_same( '2026-12-24', get_post_meta( $t, 'yume_date_cible', true ), 'champ modifié écrit' );
+
+		// (c) Champ réellement modifié par l'utilisateur : écrit.
+		$poster( array( 'etape' => 'edition' ) );
+		yume_assert_same( 'edition', get_post_meta( $t, 'yume_etape', true ) );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_test(
+	'MET-3 : yume_tome_publie part une fois toutes les métadonnées écrites (REST)',
+	function () {
+		$editeur = yume_factory_user( 'yume_editeur' );
+		$o       = yume_tc_oeuvre( 'Annonce complète' );
+		$vus     = array();
+		$ecoute  = static function ( $id ) use ( &$vus ): void {
+			$vus[] = array(
+				'numero' => (string) get_post_meta( (int) $id, 'yume_numero', true ),
+				'nature' => (string) get_post_meta( (int) $id, 'yume_nature', true ),
+				'pdf'    => (string) get_post_meta( (int) $id, 'yume_lien_pdf', true ),
+			);
+		};
+		add_action( 'yume_tome_publie', $ecoute, 1 );
+		try {
+			$rep = yume_rest(
+				'POST',
+				'/wp/v2/tomes',
+				array(
+					'title'  => 'Annonce complète — Tome 8',
+					'status' => 'publish',
+					'meta'   => array(
+						'yume_oeuvre_id' => $o,
+						'yume_numero'    => 8,
+						'yume_nature'    => 'tome',
+						'yume_lien_pdf'  => 'https://example.com/tome8.pdf',
+					),
+				),
+				$editeur
+			);
+		} finally {
+			remove_action( 'yume_tome_publie', $ecoute, 1 );
+		}
+		yume_assert_same( 201, $rep->get_status() );
+		yume_assert_same( 1, count( $vus ), 'un seul événement' );
+		yume_assert_same( '8', $vus[0]['numero'] );
+		yume_assert_same( 'tome', $vus[0]['nature'] );
+		yume_assert_same( 'https://example.com/tome8.pdf', $vus[0]['pdf'] );
+	}
+);
+
+yume_test(
+	'MET-9 : le gérant gère les membres de l’équipe, jamais les administrateurs ni les gérants',
+	function () {
+		\Yume\Core\Core\installer_roles();
+		$gerant = yume_factory_user( 'yume_gerant' );
+		$autre  = yume_factory_user( 'yume_gerant' );
+		$admin  = yume_factory_user( 'administrator' );
+		$trad   = yume_factory_user( 'yume_traducteur' );
+		$lec    = yume_factory_user( 'subscriber' );
+		wp_set_current_user( $gerant );
+		foreach ( array( 'create_users', 'list_users', 'promote_users', 'edit_users' ) as $cap ) {
+			yume_assert_true( current_user_can( $cap ), "gérant : $cap" );
+		}
+		yume_assert_true( current_user_can( 'edit_user', $trad ) );
+		yume_assert_true( current_user_can( 'promote_user', $lec ) );
+		yume_assert_false( current_user_can( 'edit_user', $admin ), 'administrateur intouchable' );
+		yume_assert_false( current_user_can( 'promote_user', $admin ) );
+		yume_assert_false( current_user_can( 'edit_user', $autre ), 'autre gérant intouchable' );
+		yume_assert_false( current_user_can( 'promote_user', $gerant ), 'pas de changement de son propre rôle' );
+		yume_assert_true( current_user_can( 'edit_user', $gerant ), 'son propre profil' );
+		yume_assert_false( current_user_can( 'delete_users' ) );
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		$roles = array_keys( get_editable_roles() );
+		sort( $roles );
+		yume_assert_same( array( 'subscriber', 'yume_editeur', 'yume_graphiste', 'yume_relecteur', 'yume_traducteur' ), $roles );
+		wp_set_current_user( 0 );
+
+		// REST : changer le rôle d'un lecteur, refuser administrateur et gérant.
+		$rep = yume_rest( 'POST', '/wp/v2/users/' . $lec, array( 'roles' => array( 'yume_traducteur' ) ), $gerant );
+		yume_assert_same( 200, $rep->get_status(), wp_json_encode( $rep->get_data() ) );
+		yume_assert_same( array( 'yume_traducteur' ), array_values( get_userdata( $lec )->roles ) );
+		yume_assert_true( yume_rest( 'POST', '/wp/v2/users/' . $lec, array( 'roles' => array( 'administrator' ) ), $gerant )->get_status() >= 400 );
+		yume_assert_true( yume_rest( 'POST', '/wp/v2/users/' . $admin, array( 'roles' => array( 'subscriber' ) ), $gerant )->get_status() >= 400 );
+		yume_assert_true( in_array( 'administrator', get_userdata( $admin )->roles, true ) );
+
+		// L'administrateur garde tous les rôles.
+		wp_set_current_user( $admin );
+		yume_assert_true( isset( get_editable_roles()['administrator'] ) );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_test(
+	'MET-13 / RC-5 : deux chapitres de même numéro ont deux adresses ; routage sans N+1',
+	function () {
+		global $wpdb;
+		flush_rewrite_rules( false );
+		list( $t, $c2, $c3a, $c3b, $c4 ) = yume_tc_sans_evenements(
+			static function (): array {
+				$o = yume_tc_oeuvre( 'Doublons de numéro' );
+				$t = yume_tc_tome( $o, 7802 );
+				return array(
+					$t,
+					yume_tc_chapitre( $t, 2 ),
+					yume_tc_chapitre( $t, 3, array( 'post_date' => '2026-01-01 10:00:00' ) ),
+					yume_tc_chapitre( $t, 3, array( 'post_date' => '2026-01-02 10:00:00' ) ),
+					yume_tc_chapitre( $t, 4 ),
+				);
+			}
+		);
+		$lien_a                          = get_permalink( $c3a );
+		$lien_b                          = get_permalink( $c3b );
+		yume_assert_true( str_ends_with( $lien_a, '/3/' ), $lien_a );
+		yume_assert_true( $lien_a !== $lien_b, 'adresses distinctes : ' . $lien_b );
+		yume_assert_true( str_ends_with( $lien_b, '/' . get_post_field( 'post_name', $c3b ) . '/' ), $lien_b );
+		$qv = yume_tc_parse( $lien_a );
+		yume_assert_same( $c3a, (int) ( $qv['p'] ?? 0 ) );
+		yume_assert_true( empty( $qv['yume_non_canonique'] ) );
+		$qv = yume_tc_parse( $lien_b );
+		yume_assert_same( $c3b, (int) ( $qv['p'] ?? 0 ), 'le second chapitre est lisible' );
+		yume_assert_true( empty( $qv['yume_non_canonique'] ), 'et son adresse est canonique' );
+		// Navigation : le chapitre suivant du premier « 3 » est le second, sans boucle.
+		$suivant = yume_chapitre_voisin( $c3a, 'next' );
+		yume_assert_same( $c3b, $suivant ? (int) $suivant->ID : 0 );
+		yume_assert_true( get_permalink( $suivant ) !== $lien_a );
+
+		// Routage : nombre de requêtes indépendant du nombre de chapitres du tome.
+		yume_tc_sans_evenements(
+			static function () use ( $t ): void {
+				for ( $i = 5; $i <= 30; $i++ ) {
+					yume_tc_chapitre( $t, $i );
+				}
+			}
+		);
+		wp_cache_flush();
+		$avant = $wpdb->num_queries;
+		yume_tc_parse( get_permalink( $c4 ) );
+		$nombre = $wpdb->num_queries - $avant;
+		yume_assert_true( $nombre < 25, "requêtes pour router un chapitre d'un tome de 30 chapitres : $nombre" );
+	}
+);
+
+yume_test(
+	'RC-3 / RC-7 : désactivation sans règles orphelines, version autochargée',
+	function () {
+		global $wpdb;
+		flush_rewrite_rules( false );
+		$avant = (array) get_option( 'rewrite_rules' );
+		yume_assert_true( (bool) preg_grep( '/yume_/', $avant ), 'règles Yume présentes' );
+		// Désactivation sans les nettoyages des modules (tâches planifiées…).
+		$sauve = $GLOBALS['wp_filter']['yume_core_deactivate'] ?? null;
+		unset( $GLOBALS['wp_filter']['yume_core_deactivate'] );
+		try {
+			yume_core_deactivate();
+		} finally {
+			if ( $sauve ) {
+				$GLOBALS['wp_filter']['yume_core_deactivate'] = $sauve;
+			}
+		}
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( 'rewrite_rules', 'options' );
+		yume_assert_false( (bool) preg_grep( '/yume_/', (array) get_option( 'rewrite_rules' ) ), 'aucune règle Yume laissée en base' );
+		flush_rewrite_rules( false );
+
+		yume_core_install();
+		$autoload = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", YUME_CORE_DB_VERSION_OPTION ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		yume_assert_true( in_array( $autoload, array( 'yes', 'on', 'auto-on' ), true ), 'autoload : ' . $autoload );
+	}
+);

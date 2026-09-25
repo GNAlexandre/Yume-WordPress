@@ -1607,7 +1607,12 @@ yume_tp_test(
 				yume_assert_same( 3, substr_count( $html, 'yn-upcoming__item' ) );
 				yume_assert_true( strpos( $html, 'Secrets of the Silent Witch' ) < strpos( $html, 'Grimgar of Fantasy and Ash' ), 'ordre des dates' );
 				yume_assert_contains( 'lun. 21 sept.', $html );
-				yume_assert_contains( '<span aria-hidden="true">▲</span> <span class="yn-visually-hidden">En retard : </span>relecture', $html );
+				// UX-4 : le retard se lit en clair (pas seulement à la couleur et à l'icône) et une
+				// date dépassée n'est pas présentée comme une date de sortie à venir.
+				yume_assert_contains( '<span aria-hidden="true">▲</span> En retard · relecture</span>', $html );
+				yume_assert_not_contains( 'En retard : ', $html, 'pas de doublon pour les lecteurs d’écran' );
+				yume_assert_contains( '<span class="yn-label yn-upcoming__date">prévu lun. 21 sept.</span>', $html );
+				yume_assert_contains( '<span class="yn-label yn-upcoming__date">' . \Yume\Core\Planning\date_cible_lisible( yume_tp_jour( 3 ) ) . '</span>', $html, 'date future inchangée' );
 				yume_assert_contains( 'À l’heure : </span>62', $html );
 				yume_assert_not_contains( 'Witches', $html );
 				yume_assert_not_contains( 'Tome 9', $html );
@@ -1869,6 +1874,220 @@ yume_tp_test(
 				yume_assert_same( 'ok', $retour['type'] );
 				yume_assert_same( 'traduction', get_post_meta( $retour['tome_id'], 'yume_etape', true ) );
 				yume_assert_contains( 'Raven of the Inner Palace T.8 ajouté au planning', $retour['message'] );
+			}
+		);
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Non-régression (revue)
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tp_test(
+	'SEC-E-3 : /wp/v2/tomes ne contourne pas yume_maj_planning_tous (création, méta de planning, responsables)',
+	function () {
+		yume_tp_a(
+			function () {
+				$d = yume_tp_jeu();
+				yume_assert_false( user_can( $d['calumi'], get_post_type_object( 'yume_tome' )->cap->create_posts ), 'un traducteur ne crée pas de tome' );
+				yume_assert_true( user_can( $d['editeur'], get_post_type_object( 'yume_tome' )->cap->create_posts ), 'un éditeur crée un tome' );
+
+				$avant = count( get_posts( array( 'post_type' => 'yume_tome', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids' ) ) );
+				$r     = yume_rest(
+					'POST',
+					'/wp/v2/tomes',
+					array(
+						'title'  => 'Grimgar of Fantasy and Ash — Tome 42',
+						'status' => 'draft',
+						'meta'   => array(
+							'yume_oeuvre_id'    => $d['grimgar'],
+							'yume_numero'       => 42,
+							'yume_etape'        => 'edition',
+							'yume_date_cible'   => yume_tp_jour( 5 ),
+							'yume_responsables' => array(
+								'traduction' => $d['calumi'],
+								'relecture'  => $d['lecteur'],
+								'edition'    => 0,
+							),
+						),
+					),
+					$d['calumi']
+				);
+				yume_assert_same( 403, $r->get_status(), 'création refusée au traducteur' );
+				yume_assert_same( $avant, count( get_posts( array( 'post_type' => 'yume_tome', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids' ) ) ) );
+				yume_assert_not_contains( 'Tome 42', (string) wp_json_encode( yume_get_planning() ) );
+
+				// Tome dont le traducteur est l'auteur (données anciennes) : méta de planning refusées.
+				wp_update_post(
+					array(
+						'ID'          => $d['raven7'],
+						'post_author' => $d['calumi'],
+					)
+				);
+				foreach (
+					array(
+						'yume_responsables' => array(
+							'traduction' => $d['calumi'],
+							'relecture'  => $d['lecteur'],
+							'edition'    => 0,
+						),
+						'yume_etape'        => 'publie',
+						'yume_avancement'   => array(
+							'traduction' => 100,
+							'relecture'  => 100,
+							'edition'    => 100,
+						),
+						'yume_date_cible'   => yume_tp_jour( 60 ),
+						'yume_bloque'       => true,
+					) as $cle => $valeur
+				) {
+					$r = yume_rest( 'POST', '/wp/v2/tomes/' . $d['raven7'], array( 'meta' => array( $cle => $valeur ) ), $d['calumi'] );
+					yume_assert_same( 403, $r->get_status(), $cle . ' : ' . yume_test_export( $r->get_data() ) );
+				}
+				yume_assert_same( 'traduction', get_post_meta( $d['raven7'], 'yume_etape', true ) );
+				yume_assert_same( 0, (int) get_post_meta( $d['raven7'], 'yume_responsables', true )['relecture'] );
+				yume_assert_same( yume_tp_jour( 25 ), get_post_meta( $d['raven7'], 'yume_date_cible', true ) );
+				yume_assert_false( user_can( $d['calumi'], 'edit_post_meta', $d['raven7'], 'yume_responsables' ) );
+				// Les autres champs du tome restent modifiables par son auteur.
+				yume_assert_same( 200, yume_rest( 'POST', '/wp/v2/tomes/' . $d['raven7'], array( 'excerpt' => 'Résumé' ), $d['calumi'] )->get_status() );
+
+				// Éditeur : méta de planning permises, responsables limités à l'équipe.
+				$r = yume_rest(
+					'POST',
+					'/wp/v2/tomes/' . $d['raven7'],
+					array( 'meta' => array( 'yume_responsables' => array( 'relecture' => $d['lecteur'] ) ) ),
+					$d['editeur']
+				);
+				yume_assert_same( 400, $r->get_status(), 'un lecteur n’est pas responsable' );
+				yume_assert_same( 0, (int) get_post_meta( $d['raven7'], 'yume_responsables', true )['relecture'] );
+				$r = yume_rest(
+					'POST',
+					'/wp/v2/tomes/' . $d['raven7'],
+					array(
+						'meta' => array(
+							'yume_responsables' => array(
+								'traduction' => $d['calumi'],
+								'relecture'  => $d['angeloids'],
+								'edition'    => $d['jojo'],
+							),
+						),
+					),
+					$d['editeur']
+				);
+				yume_assert_same( 200, $r->get_status(), yume_test_export( $r->get_data() ) );
+				yume_assert_same( $d['angeloids'], (int) get_post_meta( $d['raven7'], 'yume_responsables', true )['relecture'] );
+				wp_set_current_user( 0 );
+			}
+		);
+	}
+);
+
+yume_tp_test(
+	'MET-4 : l’étape « publié » suit la publication (tome non publié refusé, retour arrière réservé)',
+	function () {
+		yume_tp_a(
+			function () {
+				$d = yume_tp_jeu();
+				// Tome brouillon : ni le responsable ni l'éditeur ne le marquent publié à la main.
+				$route = '/yume/v1/tomes/' . $d['t10'] . '/planning';
+				$r     = yume_rest( 'PATCH', $route, array( 'etape' => 'publie' ), $d['calumi'] );
+				yume_assert_same( 400, $r->get_status() );
+				yume_assert_same( 'yume_etape_publie_interdite', $r->get_data()['code'] );
+				yume_assert_same( 400, yume_rest( 'PATCH', $route, array( 'etape' => 'publie' ), $d['editeur'] )->get_status() );
+				yume_assert_same( 'relecture', get_post_meta( $d['t10'], 'yume_etape', true ) );
+				yume_assert_same( array(), yume_tp_journal( $d['t10'] ) );
+				yume_assert_false( array_key_exists( 'publie', \Yume\Core\Planning\etapes_proposees( $d['t10'], 'relecture', $d['calumi'] ) ), 'étape non proposée' );
+				yume_assert_true( array_key_exists( 'edition', \Yume\Core\Planning\etapes_proposees( $d['t10'], 'relecture', $d['calumi'] ) ) );
+
+				// Tome publié : un simple responsable ne le fait pas revenir dans les sorties à venir.
+				update_post_meta(
+					$d['t9'],
+					'yume_responsables',
+					array(
+						'traduction' => $d['calumi'],
+						'relecture'  => 0,
+						'edition'    => 0,
+					)
+				);
+				$route = '/yume/v1/tomes/' . $d['t9'] . '/planning';
+				$r     = yume_rest( 'PATCH', $route, array( 'etape' => 'traduction' ), $d['calumi'] );
+				yume_assert_same( 403, $r->get_status() );
+				yume_assert_same( 'publie', get_post_meta( $d['t9'], 'yume_etape', true ) );
+				yume_assert_same( 200, yume_rest( 'PATCH', $route, array( 'etape' => 'publie' ), $d['calumi'] )->get_status(), 'étape inchangée acceptée' );
+				yume_assert_same( 200, yume_rest( 'PATCH', $route, array( 'avancement' => array( 'edition' => 100 ) ), $d['calumi'] )->get_status() );
+				yume_assert_same( array( 'publie' => 'Publié' ), \Yume\Core\Planning\etapes_proposees( $d['t9'], 'publie', $d['calumi'] ) );
+				yume_assert_not_contains( 'Tome 9', (string) wp_json_encode( yume_get_planning( array( 'a_venir' => true ) ) ) );
+
+				// L'éditeur peut corriger, puis remettre « publié » sur le tome publié.
+				yume_assert_same( 200, yume_rest( 'PATCH', $route, array( 'etape' => 'edition' ), $d['editeur'] )->get_status() );
+				yume_assert_same( 200, yume_rest( 'PATCH', $route, array( 'etape' => 'publie' ), $d['editeur'] )->get_status() );
+				yume_assert_same( 'publie', get_post_meta( $d['t9'], 'yume_etape', true ) );
+
+				// Écriture système (publication) : toujours acceptée.
+				$res = mettre_a_jour( $d['arc7'], array( 'etape' => 'publie' ), 0, array( 'forcer' => true ) );
+				yume_assert_false( is_wp_error( $res ) );
+				wp_set_current_user( 0 );
+			}
+		);
+	}
+);
+
+yume_tp_test(
+	'RC-6 : lignes du planning sans requête par tome (termes, chapitres, membres)',
+	function () {
+		yume_tp_a(
+			function () {
+				$d      = yume_tp_jeu();
+				$mesure = static function (): int {
+					wp_cache_flush();
+					$avant = $GLOBALS['wpdb']->num_queries;
+					yume_get_planning( array( 'public' => false ) );
+					return $GLOBALS['wpdb']->num_queries - $avant;
+				};
+				$base   = $mesure();
+				add_filter( 'yume_core_notifier', '__return_false' );
+				try {
+					for ( $i = 0; $i < 6; $i++ ) {
+						$o = yume_tp_oeuvre( 'Série ' . $i, 0 === $i % 2 ? 'manga' : 'light-novel' );
+						$u = yume_tp_membre( 'yume_traducteur', 'Membre ' . $i );
+						$t = yume_tp_tome(
+							$o,
+							1,
+							array(
+								'yume_responsables' => array(
+									'traduction' => $u,
+									'relecture'  => $d['angeloids'],
+									'edition'    => 0,
+								),
+								'yume_maj_par'      => $u,
+								'yume_date_cible'   => yume_tp_jour( 5 + $i ),
+							)
+						);
+						foreach ( array( 'publish', 'draft' ) as $statut ) {
+							yume_factory_post(
+								array(
+									'post_type'   => 'yume_chapitre',
+									'post_status' => $statut,
+									'meta_input'  => array( 'yume_tome_id' => $t ),
+								)
+							);
+						}
+					}
+				} finally {
+					remove_filter( 'yume_core_notifier', '__return_false' );
+				}
+				$apres  = $mesure();
+				yume_assert_true( $apres - $base <= 3, sprintf( 'requêtes : %d pour 7 tomes, %d pour 13 tomes', $base, $apres ) );
+
+				// Les comptes groupés valent ceux calculés tome par tome.
+				foreach ( yume_get_planning( array( 'public' => false ) ) as $ligne ) {
+					$chapitres = yume_get_chapitres( (int) $ligne['tome_id'], array( 'status' => 'any' ) );
+					yume_assert_same( count( $chapitres ), $ligne['chapitres']['total'], 'total ' . $ligne['tome'] );
+					yume_assert_same( count( array_filter( $chapitres, static fn( $c ) => 'publish' === $c->post_status ) ), $ligne['chapitres']['publies'], 'publiés ' . $ligne['tome'] );
+				}
+				yume_assert_same( array(), \Yume\Core\Planning\comptes_chapitres_amorces(), 'lot vidé après calcul' );
 			}
 		);
 	}

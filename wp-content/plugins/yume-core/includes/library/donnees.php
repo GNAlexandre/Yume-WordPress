@@ -25,6 +25,12 @@ const OPTION_VERSION_CACHE = 'yume_bibliotheque_cache';
 /** Préfixe des transients du module. */
 const PREFIXE_CACHE = 'yume_bib_';
 
+/**
+ * Format des données en cache : à changer quand leur calcul change (les transients d'une
+ * version précédente du code ne sont alors plus lus).
+ */
+const FORMAT_CACHE = '2';
+
 /** Durée de vie des transients (filet de sécurité : l'invalidation est explicite). */
 const DUREE_CACHE = 12 * HOUR_IN_SECONDS;
 
@@ -68,7 +74,7 @@ function version_cache(): string {
  * @param array  $args Arguments qui la distinguent.
  */
 function cle_cache( string $nom, array $args = array() ): string {
-	return PREFIXE_CACHE . $nom . '_' . substr( md5( wp_json_encode( $args ) . '|' . version_cache() ), 0, 16 );
+	return PREFIXE_CACHE . $nom . '_' . substr( md5( wp_json_encode( $args ) . '|' . version_cache() . '|' . FORMAT_CACHE ), 0, 16 );
 }
 
 /**
@@ -194,7 +200,7 @@ add_action( 'transition_post_status', __NAMESPACE__ . '\\invalider_transition', 
  * @param string    $meta_key  Clé.
  */
 function invalider_meta( $meta_id, $object_id, $meta_key ): void {
-	$cles = array( 'yume_oeuvre_id', 'yume_tome_id', 'yume_numero', 'yume_nature', 'yume_derniere_sortie', 'yume_nb_chapitres', 'yume_nb_mots', 'yume_temps_lecture', 'yume_etape' );
+	$cles = array( 'yume_oeuvre_id', 'yume_tome_id', 'yume_numero', 'yume_nature', 'yume_derniere_sortie', 'yume_nb_chapitres', 'yume_nb_mots', 'yume_temps_lecture', 'yume_etape', '_yume_publication' );
 	if ( in_array( $meta_key, $cles, true ) && est_contenu_yume( (int) $object_id ) ) {
 		invalider();
 	}
@@ -595,8 +601,9 @@ function stats_tome( int $tome_id ): array {
 
 /**
  * Dernières sorties : une entrée par tome (le plus récent d'abord). La date d'un tome publié
- * d'un coup est celle du tome ; celle d'un arc ou d'un tome de web novel publié chapitre par
- * chapitre est celle de son dernier chapitre publié.
+ * d'un coup est celle de sa sortie (date_sortie_tome() : date du tome, ou de la mise en
+ * lecture en ligne d'un tome déjà publié) ; celle d'un arc ou d'un tome de web novel publié
+ * chapitre par chapitre est celle de son dernier chapitre publié.
  *
  * @param int $nombre Nombre d'entrées.
  * @return array<int,array{tome:int,ts:int,oeuvre:int,stats:array}>
@@ -604,6 +611,45 @@ function stats_tome( int $tome_id ): array {
 function dernieres_sorties( int $nombre ): array {
 	$nombre = max( 1, min( 48, $nombre ) );
 	return en_cache( 'sorties', array( $nombre ), static fn(): array => calculer_dernieres_sorties( $nombre ) );
+}
+
+/**
+ * Date de sortie effective d'un tome publié : la date du tome, ou celle de sa dernière sortie
+ * par le module publication si elle est plus récente. Un tome migré déjà en ligne avec ses
+ * seuls PDF/EPUB, dont la lecture en ligne sort plus tard (« Publier maintenant » ou sortie
+ * programmée), garde sa post_date d'origine : sa sortie est datée par _yume_publication
+ * (sortie « maintenant » : sortie_le, en UTC ; sortie programmée : la date prévue, une fois
+ * passée).
+ *
+ * @param int|\WP_Post $tome Tome.
+ * @return int Horodatage (0 si inconnu).
+ */
+function date_sortie_tome( $tome ): int {
+	$tome = get_post( $tome );
+	if ( ! $tome instanceof \WP_Post ) {
+		return 0;
+	}
+	$ts = horodatage( $tome );
+	if ( 'publish' !== $tome->post_status ) {
+		return $ts;
+	}
+	$meta = get_post_meta( $tome->ID, '_yume_publication', true );
+	if ( ! is_array( $meta ) ) {
+		return $ts;
+	}
+	$sortie = isset( $meta['sortie'] ) && is_string( $meta['sortie'] ) ? $meta['sortie'] : '';
+	$date   = '';
+	if ( 'maintenant' === $sortie ) {
+		$date = isset( $meta['sortie_le'] ) && is_string( $meta['sortie_le'] ) ? $meta['sortie_le'] . ' UTC' : '';
+	} elseif ( '' !== $sortie ) {
+		$date = $sortie;
+	}
+	$sortie_ts = '' !== $date ? strtotime( $date ) : false;
+	// Une sortie programmée non encore passée ne date rien.
+	if ( false === $sortie_ts || $sortie_ts <= 0 || $sortie_ts > time() + HOUR_IN_SECONDS ) {
+		return $ts;
+	}
+	return max( $ts, $sortie_ts );
 }
 
 /**
@@ -668,7 +714,7 @@ function calculer_dernieres_sorties( int $nombre ): array {
 		if ( ! isset( $publiees[ $oeuvre_id ] ) ) {
 			continue;
 		}
-		$ts = horodatage( $tome );
+		$ts = date_sortie_tome( $tome );
 		if ( sortie_progressive( $tome_id ) ) {
 			$stats = stats_tome( $tome_id );
 			$ts    = max( $ts, (int) $stats['dernier_ts'] );

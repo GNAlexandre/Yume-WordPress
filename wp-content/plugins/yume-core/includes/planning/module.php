@@ -18,6 +18,7 @@ require_once __DIR__ . '/planning.php';
 require_once __DIR__ . '/install.php';
 require_once __DIR__ . '/journal.php';
 require_once __DIR__ . '/service.php';
+require_once __DIR__ . '/droits.php';
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/evenements.php';
 require_once __DIR__ . '/rappels.php';

@@ -3,7 +3,8 @@
  * Accès sécurisé à une archive ZIP (DOCX et EPUB sont des archives ZIP).
  *
  * - Les entrées sont lues à la demande, jamais extraites sur le disque en bloc.
- * - La taille décompressée de chaque entrée est contrôlée avant lecture (bombes ZIP).
+ * - La taille décompressée de chaque entrée, son taux de compression et le volume cumulé lu
+ *   en mémoire sont contrôlés avant lecture (bombes ZIP).
  * - Les chemins internes sont normalisés et ne peuvent pas sortir de l'archive.
  *
  * Aucune fonction WordPress.
@@ -31,6 +32,28 @@ final class Zip {
 
 	/** Taille décompressée maximale d'une image copiée (octets). */
 	public const IMAGE_MAX = 64 * 1024 * 1024;
+
+	/** Taille décompressée maximale du texte d'un document Word (word/document.xml), lu en continu. */
+	public const DOCUMENT_MAX = 128 * 1024 * 1024;
+
+	/**
+	 * Taux de compression maximal d'une entrée (taille décompressée / taille compressée). Un
+	 * document réel dépasse rarement 10:1 ; une bombe ZIP atteint plusieurs centaines.
+	 */
+	public const TAUX_MAX = 100;
+
+	/** En dessous de cette taille décompressée, le taux de compression n'est pas contrôlé. */
+	public const TAUX_SEUIL = 8 * 1024 * 1024;
+
+	/** Volume décompressé cumulé maximal des parties lues en mémoire (octets). */
+	public const LECTURE_MAX = 256 * 1024 * 1024;
+
+	/**
+	 * Volume décompressé déjà lu en mémoire (octets).
+	 *
+	 * @var int
+	 */
+	private int $lu = 0;
 
 	/**
 	 * Archive ouverte.
@@ -199,6 +222,31 @@ final class Zip {
 	}
 
 	/**
+	 * Refuse une entrée dont le taux de compression est anormal (bombe ZIP).
+	 *
+	 * @param string $entree Chemin interne.
+	 * @throws Import_Exception Taux de compression anormal.
+	 */
+	public function controler_taux( string $entree ): void {
+		$nom = $this->nom_reel( $entree );
+		if ( null === $nom ) {
+			return;
+		}
+		$stat = $this->zip->statName( $nom );
+		if ( ! is_array( $stat ) ) {
+			return;
+		}
+		$taille    = (int) $stat['size'];
+		$compresse = max( 1, (int) $stat['comp_size'] );
+		if ( $taille > self::TAUX_SEUIL && $taille / $compresse > self::TAUX_MAX ) {
+			throw new Import_Exception(
+				sprintf( 'Fichier refusé : la partie « %s » est anormalement compressée (%d:1), comme une bombe de décompression.', $nom, (int) ( $taille / $compresse ) ),
+				'archive_suspecte'
+			);
+		}
+	}
+
+	/**
 	 * Lit une entrée en mémoire après contrôle de sa taille décompressée.
 	 *
 	 * @param string $entree Chemin interne.
@@ -214,6 +262,11 @@ final class Zip {
 		$taille = $this->taille( $nom );
 		if ( $taille > $max ) {
 			throw new Import_Exception( sprintf( 'La partie « %s » du fichier est trop volumineuse pour être lue.', $nom ), 'partie_trop_grande' );
+		}
+		$this->controler_taux( $nom );
+		$this->lu += max( 0, $taille );
+		if ( $this->lu > self::LECTURE_MAX ) {
+			throw new Import_Exception( 'Fichier refusé : son contenu décompressé est trop volumineux. Découpez-le en plusieurs fichiers.', 'archive_trop_grande' );
 		}
 		$contenu = $this->zip->getFromName( $nom );
 		if ( false === $contenu ) {
@@ -263,6 +316,11 @@ final class Zip {
 		$nom = $this->nom_reel( $entree );
 		if ( null === $nom || $this->taille( $nom ) > $max ) {
 			return false;
+		}
+		try {
+			$this->controler_taux( $nom );
+		} catch ( Import_Exception $e ) {
+			return false; // Image anormalement compressée : ignorée.
 		}
 		$source = $this->zip->getStream( $nom );
 		if ( false === $source ) {

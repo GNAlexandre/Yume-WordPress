@@ -110,6 +110,39 @@ if ( ! function_exists( 'yume_timp_fixture' ) ) {
 	}
 }
 
+if ( ! function_exists( 'yume_timp_docx' ) ) {
+	/**
+	 * Charge les fonctions de construction de fixtures (yume_fx_*).
+	 *
+	 * @throws Yume_Test_Failure Outil de fixtures absent.
+	 */
+	function yume_timp_outils_fixtures(): void {
+		if ( function_exists( 'yume_fx_docx' ) ) {
+			return;
+		}
+		$outil = dirname( YUME_CORE_DIR, 3 ) . '/tools/fixtures/build-fixtures.php';
+		if ( ! is_file( $outil ) ) {
+			throw new Yume_Test_Failure( 'tools/fixtures/build-fixtures.php introuvable.' );
+		}
+		require_once $outil;
+	}
+
+	/**
+	 * Construit un DOCX temporaire (styles français, titres Titre1) à partir du contenu de
+	 * w:body, avec les fonctions de tools/fixtures/build-fixtures.php.
+	 *
+	 * @param string $corps Contenu de w:body (yume_fx_t(), yume_fx_p()…).
+	 * @return string Chemin du fichier (à supprimer par l'appelant).
+	 * @throws Yume_Test_Failure Outil de fixtures absent.
+	 */
+	function yume_timp_docx( string $corps ): string {
+		yume_timp_outils_fixtures();
+		$fichier = get_temp_dir() . 'yume-test-' . wp_generate_password( 8, false ) . '.docx';
+		yume_fx_docx( $fichier, $corps, yume_fx_styles_fr(), '', array() );
+		return $fichier;
+	}
+}
+
 // Inclusion par test-publication.php pour ses seules fonctions d'aide.
 if ( ! empty( $GLOBALS['yume_tests_import_aides_seules'] ) ) {
 	return;
@@ -604,6 +637,49 @@ yume_test(
 		$json = json_decode( (string) wp_json_encode( $r ), true );
 		yume_assert_same( array( 'chapters', 'front_images', 'images', 'warnings', 'stats' ), array_keys( $json ) );
 		yume_assert_same( 'Chapitre 1 — La Crête Brumeuse', Result::libelle( $r->chapters[1] ) );
+	}
+);
+
+yume_test(
+	'docx : bombe de compression et texte converti démesuré refusés proprement (sans épuiser la mémoire)',
+	function () {
+		yume_timp_outils_fixtures();
+		// Partie document.xml anormalement compressée (bombe ZIP) : refus avant lecture.
+		$para  = yume_fx_t( str_repeat( 'Encore et toujours la même phrase. ', 10 ) );
+		$bombe = yume_timp_docx( str_repeat( $para, (int) ceil( ( Zip::TAUX_SEUIL + MB_IN_BYTES ) / strlen( $para ) ) ) );
+		try {
+			$avant = memory_get_usage();
+			Docx_Converter::convert_file( $bombe );
+			throw new Yume_Test_Failure( 'bombe acceptée' );
+		} catch ( Import_Exception $e ) {
+			yume_assert_same( 'archive_suspecte', $e->code_erreur() );
+			yume_assert_contains( 'anormalement compressée', $e->getMessage() );
+			yume_assert_true( memory_get_usage() - $avant < 8 * MB_IN_BYTES, 'rien n’est chargé en mémoire' );
+		} finally {
+			wp_delete_file( $bombe );
+		}
+
+		// Texte converti au-delà du volume maximal : Import_Exception, pas d'erreur fatale.
+		$corps = yume_fx_t( 'Chapitre 1', array( 'style' => 'Titre1' ) );
+		for ( $i = 0; $i < 2000; $i++ ) {
+			$corps .= yume_fx_t( 'Paragraphe numéro ' . $i . ' : ' . md5( (string) $i ) . ' ' . sha1( (string) $i ) . '.' );
+		}
+		$gros = yume_timp_docx( $corps );
+		try {
+			try {
+				Docx_Converter::convert_file( $gros, array( 'volume_max' => 64 * 1024 ) );
+				throw new Yume_Test_Failure( 'volume dépassé accepté' );
+			} catch ( Import_Exception $e ) {
+				yume_assert_same( 'document_trop_grand', $e->code_erreur() );
+			}
+			// Limite par défaut : le même document passe.
+			$r = Docx_Converter::convert_file( $gros );
+			yume_assert_same( 1, count( $r->chapters ) );
+			yume_assert_same( 2000, $r->chapters[0]['stats']['paragraphes'] );
+		} finally {
+			wp_delete_file( $gros );
+		}
+		yume_assert_true( Zip::DOCUMENT_MAX <= 128 * MB_IN_BYTES, 'texte Word décompressé borné à 128 Mo' );
 	}
 );
 

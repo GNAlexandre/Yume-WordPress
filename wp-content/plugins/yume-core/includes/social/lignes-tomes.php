@@ -163,9 +163,9 @@ function ligne_tome_progression( $ligne, $tome_id = 0, $stats = array() ) {
 		$classes[] = 'yn-tome-list__ligne--lecture';
 		$format    = ! empty( $stats['en_cours'] )
 			/* translators: %s : pourcentage lu du tome (arc encore en cours de sortie). */
-			? __( 'Lecture · %s %%', 'yume-core' )
+			? __( 'Lecture · %s %% du tome', 'yume-core' )
 			/* translators: %s : pourcentage lu du tome. */
-			: __( 'En cours · %s %%', 'yume-core' );
+			: __( 'En cours · %s %% du tome', 'yume-core' );
 
 		$ligne['nom']     = (string) ( $ligne['nom'] ?? '' ) . ' <span class="yn-chip yn-chip--ok yn-tome-list__progression"><span class="yn-visually-hidden">' . esc_html__( 'Votre lecture :', 'yume-core' ) . ' </span>' . esc_html( sprintf( $format, (string) $avancement ) ) . '</span>';
 		$ligne['details'] = array_values( array_filter( array_merge( $resume, array( texte_position_tome( (int) $position['chapitre_id'] ) ) ), 'strlen' ) );

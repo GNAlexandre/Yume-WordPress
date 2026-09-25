@@ -75,6 +75,8 @@ final class Migration_State {
 			'historique'  => array(),
 			'controle'    => array(),
 			'plan'        => array(),
+			'relance'     => false,
+			'ignores'     => 0,
 		);
 	}
 
@@ -122,9 +124,12 @@ final class Migration_State {
 			'medias'            => array(),
 			'categories_cibles' => array(),
 			'sauvegarde'        => array(),
+			'ignores'           => array(),
+			'pages_maintenues'  => array(),
 			'modifications'     => array(
 				'pages_depubliees'      => array(),
 				'pages_adoptees'        => array(),
+				'pages_nettoyees'       => array(),
 				'articles'              => array(),
 				'categories_modifiees'  => array(),
 				'categories_creees'     => array(),

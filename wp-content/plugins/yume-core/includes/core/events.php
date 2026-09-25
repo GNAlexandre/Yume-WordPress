@@ -200,17 +200,87 @@ function apres_enregistrement_evenements( $post_id ): void {
 add_action( 'wp_after_insert_post', __NAMESPACE__ . '\\apres_enregistrement_evenements', 20 );
 
 /**
- * Rattachement enregistré après coup (update_post_meta hors wp_insert_post) : l'événement en
- * attente peut partir.
+ * Note qu'un enregistrement de tome ou de chapitre est en cours (wp_insert_post a commencé,
+ * wp_after_insert_post n'a pas encore eu lieu) : pendant ce temps, l'API REST et les
+ * méta-boîtes écrivent les métadonnées une à une, et l'événement ne doit partir qu'une fois
+ * toutes écrites.
+ *
+ * @param int $post_id ID.
+ */
+function noter_enregistrement( $post_id ): void {
+	$post_id = (int) $post_id;
+	if ( $post_id > 0 && in_array( get_post_type( $post_id ), array( CPT_TOME, CPT_CHAPITRE ), true ) ) {
+		etat_ajouter( 'enregistrement_en_cours', $post_id );
+		if ( ! has_action( 'shutdown', __NAMESPACE__ . '\\terminer_enregistrements' ) ) {
+			add_action( 'shutdown', __NAMESPACE__ . '\\terminer_enregistrements' );
+		}
+	}
+}
+add_action( 'pre_post_update', __NAMESPACE__ . '\\noter_enregistrement', 1 );
+
+/**
+ * Sur transition_post_status : l'enregistrement d'un nouveau contenu est aussi noté.
+ *
+ * @param string   $nouveau Nouveau statut.
+ * @param string   $ancien  Ancien statut.
+ * @param \WP_Post $post    Contenu.
+ */
+function noter_enregistrement_transition( $nouveau, $ancien, $post ): void {
+	if ( $post instanceof \WP_Post ) {
+		noter_enregistrement( (int) $post->ID );
+	}
+}
+add_action( 'transition_post_status', __NAMESPACE__ . '\\noter_enregistrement_transition', 1, 3 );
+
+/**
+ * Retire un contenu de la liste des enregistrements en cours.
+ *
+ * @param int $post_id ID.
+ */
+function oublier_enregistrement( int $post_id ): void {
+	$ids = (array) etat_get( 'enregistrement_en_cours', array() );
+	$ids = array_values( array_diff( array_map( 'intval', $ids ), array( $post_id ) ) );
+	etat_set( 'enregistrement_en_cours', $ids );
+}
+
+/**
+ * Sur wp_after_insert_post (après l'émission) : l'enregistrement est terminé.
+ *
+ * @param int $post_id ID.
+ */
+function fin_enregistrement( $post_id ): void {
+	oublier_enregistrement( (int) $post_id );
+}
+add_action( 'wp_after_insert_post', __NAMESPACE__ . '\\fin_enregistrement', PHP_INT_MAX );
+
+/**
+ * En fin de requête : un enregistrement jamais conclu par wp_after_insert_post (appel de
+ * wp_insert_post() sans les crochets de fin) émet malgré tout son événement en attente.
+ */
+function terminer_enregistrements(): void {
+	foreach ( array_map( 'intval', (array) etat_get( 'enregistrement_en_cours', array() ) ) as $post_id ) {
+		oublier_enregistrement( $post_id );
+		traiter_notification( $post_id );
+	}
+}
+
+/**
+ * Rattachement enregistré après coup (update_post_meta hors de tout enregistrement du contenu) :
+ * l'événement en attente peut partir. Pendant un enregistrement (REST, méta-boîtes), il attend
+ * wp_after_insert_post pour que le numéro, la nature et les liens soient déjà écrits.
  *
  * @param int    $meta_id   ID de la métadonnée.
  * @param int    $object_id ID du contenu.
  * @param string $meta_key  Clé.
  */
 function rattachement_enregistre( $meta_id, $object_id, $meta_key ): void {
-	if ( in_array( $meta_key, array( 'yume_oeuvre_id', 'yume_tome_id' ), true ) && ! doing_action( 'wp_after_insert_post' ) ) {
-		traiter_notification( (int) $object_id );
+	if ( ! in_array( $meta_key, array( 'yume_oeuvre_id', 'yume_tome_id' ), true ) || doing_action( 'wp_after_insert_post' ) ) {
+		return;
 	}
+	if ( etat_contient( 'enregistrement_en_cours', (int) $object_id ) ) {
+		return;
+	}
+	traiter_notification( (int) $object_id );
 }
 add_action( 'added_post_meta', __NAMESPACE__ . '\\rattachement_enregistre', 30, 3 );
 add_action( 'updated_post_meta', __NAMESPACE__ . '\\rattachement_enregistre', 30, 3 );

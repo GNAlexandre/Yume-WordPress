@@ -16,6 +16,9 @@
  * - une copie de développement (lien symbolique ou dépôt Git) n'est jamais écrasée.
  *
  * Dépôt privé : définir YUME_GITHUB_TOKEN (jeton en lecture seule) dans wp-config.php.
+ * Source figée : définir YUME_GITHUB_REPO (« propriétaire/dépôt ») dans wp-config.php ; elle
+ * prime sur le réglage github_repo. Ce réglage et maj_auto ne sont visibles et modifiables que
+ * par les comptes qui peuvent déjà installer des mises à jour (update_plugins).
  *
  * @package Yume\Core
  */
@@ -82,7 +85,11 @@ function reglage( string $cle, $defaut ) {
  * @return string
  */
 function depot(): string {
-	$depot = normaliser_depot( (string) reglage( 'github_repo', DEPOT_DEFAUT ) );
+	// La constante YUME_GITHUB_REPO (wp-config.php) prime sur le réglage modifiable dans l'admin.
+	$depot = depot_constante();
+	if ( '' === $depot ) {
+		$depot = normaliser_depot( (string) reglage( 'github_repo', DEPOT_DEFAUT ) );
+	}
 	/**
 	 * Filtre le dépôt GitHub utilisé pour les mises à jour (forme « propriétaire/dépôt »).
 	 *
@@ -90,6 +97,20 @@ function depot(): string {
 	 */
 	$depot = normaliser_depot( (string) apply_filters( 'yume_updater_depot', $depot ) );
 	return '' !== $depot ? $depot : DEPOT_DEFAUT;
+}
+
+/**
+ * Dépôt figé par la constante YUME_GITHUB_REPO, normalisé ; chaîne vide si elle est absente
+ * ou invalide.
+ *
+ * @return string
+ */
+function depot_constante(): string {
+	if ( ! defined( 'YUME_GITHUB_REPO' ) ) {
+		return '';
+	}
+	$valeur = constant( 'YUME_GITHUB_REPO' );
+	return is_string( $valeur ) ? normaliser_depot( $valeur ) : '';
 }
 
 /**
@@ -488,6 +509,8 @@ function champs_reglages( $champs ): array {
 			'default'     => DEPOT_DEFAUT,
 			'placeholder' => 'propriétaire/dépôt',
 			'description' => __( 'Dépôt dont les releases fournissent les mises à jour du plugin et du thème.', 'yume-core' ),
+			'capability'  => 'update_plugins',
+			'verrouille'  => '' !== depot_constante() ? __( 'Dépôt figé par la constante YUME_GITHUB_REPO (wp-config.php).', 'yume-core' ) : '',
 		);
 	}
 	if ( ! isset( $cles['maj_auto'] ) ) {
@@ -498,6 +521,7 @@ function champs_reglages( $champs ): array {
 			'section'     => 'mises_a_jour',
 			'default'     => true,
 			'description' => __( 'Installer automatiquement les nouvelles versions publiées sur GitHub.', 'yume-core' ),
+			'capability'  => 'update_plugins',
 		);
 	}
 	return $champs;

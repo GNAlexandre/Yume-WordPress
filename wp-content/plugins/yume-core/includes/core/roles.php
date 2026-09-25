@@ -53,6 +53,9 @@ function definitions_roles(): array {
 	$gerant  = array_merge(
 		$editeur,
 		array( 'yume_gerer_equipe', 'yume_reglages', 'edit_others_posts', 'delete_others_posts', 'list_users' ),
+		// Membres et rôles : ajouter un membre, changer son rôle (limité aux rôles de l'équipe et
+		// au Lecteur par roles_gerables()), modifier son profil.
+		array( 'create_users', 'edit_users', 'promote_users' ),
 		// Sans ces deux capacités, delete_others_posts ne permet pas de supprimer un article publié.
 		array( 'delete_posts', 'delete_published_posts' )
 	);
@@ -178,3 +181,83 @@ function filtre_nom_role( $traduction, $texte, $contexte, $domaine ) {
 	return $traduction;
 }
 add_filter( 'gettext_with_context', __NAMESPACE__ . '\\filtre_nom_role', 10, 4 );
+
+/**
+ * Rôles qu'un gérant (tout compte sans manage_options) peut attribuer, et comptes qu'il peut
+ * modifier : Lecteur et rôles de l'équipe, jamais administrateur, gérant ni rôles WordPress
+ * éditoriaux.
+ *
+ * @return string[]
+ */
+function roles_gerables(): array {
+	return array( 'subscriber', 'yume_traducteur', 'yume_relecteur', 'yume_graphiste', 'yume_editeur' );
+}
+
+/**
+ * Le compte peut-il administrer tous les utilisateurs (administrateur) ?
+ *
+ * @param int $user_id Utilisateur.
+ */
+function gere_tous_les_membres( int $user_id ): bool {
+	return $user_id > 0 && ( user_can( $user_id, 'manage_options' ) || is_super_admin( $user_id ) );
+}
+
+/**
+ * Liste des rôles attribuables (user-new.php, user-edit.php, users.php, REST /wp/v2/users) :
+ * limitée à roles_gerables() pour qui n'est pas administrateur.
+ *
+ * @param array<string,array> $roles Rôles.
+ * @return array<string,array>
+ */
+function limiter_roles_attribuables( $roles ) {
+	if ( ! is_array( $roles ) || gere_tous_les_membres( get_current_user_id() ) ) {
+		return $roles;
+	}
+	return array_intersect_key( $roles, array_flip( roles_gerables() ) );
+}
+add_filter( 'editable_roles', __NAMESPACE__ . '\\limiter_roles_attribuables' );
+
+/**
+ * Un compte sans manage_options (gérant) ne modifie, ne promeut ni ne supprime que des comptes
+ * dont tous les rôles sont dans roles_gerables() ; il ne change jamais son propre rôle.
+ *
+ * @param string[] $caps    Capacités primitives exigées.
+ * @param string   $cap     Capacité demandée.
+ * @param int      $user_id Utilisateur qui agit.
+ * @param array    $args    Arguments (ID du compte visé).
+ * @return string[]
+ */
+function limiter_gestion_membres( $caps, $cap, $user_id, $args ) {
+	if ( ! in_array( $cap, array( 'edit_user', 'promote_user', 'remove_user', 'delete_user' ), true ) || empty( $args[0] ) ) {
+		return $caps;
+	}
+	$user_id = (int) $user_id;
+	$cible   = (int) $args[0];
+	if ( gere_tous_les_membres( $user_id ) ) {
+		return $caps;
+	}
+	if ( $cible === $user_id ) {
+		// Son propre profil reste modifiable ; son propre rôle, non.
+		return 'promote_user' === $cap ? array( 'do_not_allow' ) : $caps;
+	}
+	$compte = get_userdata( $cible );
+	if ( $compte instanceof \WP_User && ( array_diff( (array) $compte->roles, roles_gerables() ) || is_super_admin( $cible ) ) ) {
+		return array( 'do_not_allow' );
+	}
+	return $caps;
+}
+add_filter( 'map_meta_cap', __NAMESPACE__ . '\\limiter_gestion_membres', 10, 4 );
+
+/**
+ * Réinstalle les capacités quand les définitions des rôles ont changé (nouvelle capacité dans
+ * une mise à jour du plugin), sans attendre une montée de version.
+ */
+function verifier_roles(): void {
+	$signature = md5( (string) wp_json_encode( array_map( static fn( array $def ): array => $def['caps'], definitions_roles() ) ) );
+	if ( get_option( 'yume_core_roles' ) === $signature ) {
+		return;
+	}
+	installer_roles();
+	update_option( 'yume_core_roles', $signature, true );
+}
+add_action( 'init', __NAMESPACE__ . '\\verifier_roles', 98 );

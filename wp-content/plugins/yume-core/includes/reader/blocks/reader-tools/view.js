@@ -292,7 +292,11 @@
 		}
 		clearTimeout( minuterieTheme );
 		minuterieTheme = setTimeout( function () {
-			requete( 'PUT', 'moi/reglages', { theme: theme } ).then(
+			// Compte encore sans réglages : le serveur compléterait le thème avec les valeurs
+			// par défaut, qui écraseraient ensuite les réglages de l'appareil (appliqués
+			// jusque-là). On envoie donc le jeu complet en vigueur.
+			const donnees = config.reglages ? { theme: theme } : Object.assign( copie( enVigueur ), { theme: theme } );
+			requete( 'PUT', 'moi/reglages', donnees ).then(
 				function ( reponse ) {
 					config.reglages = reponse;
 				},
@@ -711,9 +715,26 @@
 		return Math.max( 0, Math.min( 100, Math.round( ( fait / parcours ) * 100 ) ) );
 	}
 
+	/**
+	 * Paragraphe en cours : le premier dont une part lisible (au moins SEUIL_VISIBLE px) dépasse
+	 * sous la barre collante. Le bas du paragraphe précédent, visible de quelques pixels après
+	 * un saut vers #yn-p-N (marge de 16 px), ne compte pas : sinon chaque reprise sans
+	 * lecture reculerait la position enregistrée d'un paragraphe.
+	 */
+	const SEUIL_VISIBLE = 20;
 	function paragrapheCourant() {
 		if ( visibles.size ) {
-			return Math.min.apply( null, Array.from( visibles ) );
+			const tries = Array.from( visibles ).sort( function ( a, b ) {
+				return a - b;
+			} );
+			const limite = hauteurCollant();
+			for ( let i = 0; i < tries.length; i++ ) {
+				const el = paragraphes[ tries[ i ] ];
+				if ( el && el.getBoundingClientRect().bottom - limite >= SEUIL_VISIBLE ) {
+					return tries[ i ];
+				}
+			}
+			return tries[ tries.length - 1 ];
 		}
 		// Aucun paragraphe visible (grande illustration) : le dernier dont le haut est passé.
 		const limite = hauteurCollant() + 1;

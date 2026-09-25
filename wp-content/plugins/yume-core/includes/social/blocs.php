@@ -344,13 +344,13 @@ function rendu_resume( array $attributes = array() ): string {
 	$classe   = 'yn-resume yn-resume--' . $layout . ( 'carte' === $layout ? ' yn-card' : '' );
 
 	if ( $position ) {
-		$texte = implode( ' · ', array_filter( array( $position['oeuvre'], $position['tome'], mb_strtolower( $position['chapitre'] ), $position['pourcentage'] . ' %' ), 'strlen' ) );
+		$texte = implode( ' · ', array_filter( array( $position['oeuvre'], $position['tome'], mb_strtolower( $position['chapitre'] ), libelle_part_chapitre( (int) $position['pourcentage'] ) ), 'strlen' ) );
 		return '<div ' . attributs_racine( $classe ) . '>' . contenu_resume(
 			$layout,
 			array(
 				'titre'       => $texte,
 				'oeuvre'      => $position['oeuvre'],
-				'detail'      => implode( ' · ', array_filter( array( $position['tome'], mb_strtolower( $position['chapitre'] ), $position['pourcentage'] . ' %' ), 'strlen' ) ),
+				'detail'      => implode( ' · ', array_filter( array( $position['tome'], mb_strtolower( $position['chapitre'] ), libelle_part_chapitre( (int) $position['pourcentage'] ) ), 'strlen' ) ),
 				'url'         => $position['url_reprise'],
 				'pourcentage' => $position['pourcentage'],
 				'couverture'  => function_exists( 'yume_get_cover_id' ) ? yume_get_cover_id( $position['chapitre_id'] ) : 0,

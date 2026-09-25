@@ -650,6 +650,10 @@ function sous_titre_tome( int $tome_id ): string {
  * @return array{publies:int,total:int}
  */
 function compte_chapitres( int $tome_id ): array {
+	$lot = comptes_chapitres_amorces();
+	if ( isset( $lot[ $tome_id ] ) ) {
+		return $lot[ $tome_id ];
+	}
 	$tous    = yume_get_chapitres( $tome_id, array( 'status' => 'any' ) );
 	$publies = 0;
 	foreach ( $tous as $chapitre ) {
@@ -661,6 +665,69 @@ function compte_chapitres( int $tome_id ): array {
 		'publies' => $publies,
 		'total'   => count( $tous ),
 	);
+}
+
+/**
+ * Comptes de chapitres calculés d'avance pour un lot de tomes (voir amorcer_comptes_chapitres()).
+ *
+ * @param array|null $nouveau Remplace le lot (null : lecture).
+ * @return array<int,array{publies:int,total:int}>
+ */
+function comptes_chapitres_amorces( ?array $nouveau = null ): array {
+	static $lot = array();
+	if ( null !== $nouveau ) {
+		$lot = $nouveau;
+	}
+	return $lot;
+}
+
+/**
+ * Compte en une requête les chapitres (publiés / tous, statuts actifs comme
+ * yume_get_chapitres( …, 'any' )) d'un lot de tomes, pour compte_chapitres(). Le lot ne vaut
+ * que le temps d'un calcul : l'appelant le vide ensuite (oublier_comptes_chapitres()).
+ *
+ * @param int[] $tome_ids Tomes.
+ */
+function amorcer_comptes_chapitres( array $tome_ids ): void {
+	global $wpdb;
+	$tome_ids = array_values( array_unique( array_filter( array_map( 'intval', $tome_ids ) ) ) );
+	if ( ! $tome_ids ) {
+		return;
+	}
+	$lot = array();
+	foreach ( $tome_ids as $id ) {
+		$lot[ $id ] = array(
+			'publies' => 0,
+			'total'   => 0,
+		);
+	}
+	$statuts = array( 'publish', 'future', 'draft', 'pending', 'private' );
+	$m_stat  = implode( ', ', array_fill( 0, count( $statuts ), '%s' ) );
+	$m_ids   = implode( ', ', array_fill( 0, count( $tome_ids ), '%s' ) );
+	$sql     = 'SELECT m.meta_value AS tome, COUNT( DISTINCT p.ID ) AS total,'
+		. " COUNT( DISTINCT CASE WHEN p.post_status = 'publish' THEN p.ID END ) AS publies"
+		. " FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'yume_tome_id'"
+		. " WHERE p.post_type = 'yume_chapitre' AND p.post_status IN ($m_stat) AND m.meta_value IN ($m_ids)"
+		. ' GROUP BY m.meta_value';
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	$lignes = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( $statuts, array_map( 'strval', $tome_ids ) ) ) );
+	foreach ( (array) $lignes as $ligne ) {
+		$id = (int) $ligne->tome;
+		if ( isset( $lot[ $id ] ) && (string) $id === (string) $ligne->tome ) {
+			$lot[ $id ] = array(
+				'publies' => (int) $ligne->publies,
+				'total'   => (int) $ligne->total,
+			);
+		}
+	}
+	comptes_chapitres_amorces( $lot );
+}
+
+/**
+ * Vide le lot de comptes de chapitres.
+ */
+function oublier_comptes_chapitres(): void {
+	comptes_chapitres_amorces( array() );
 }
 
 /*

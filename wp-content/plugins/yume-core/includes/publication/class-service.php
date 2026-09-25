@@ -14,7 +14,9 @@
  * - le fichier source téléversé est supprimé du serveur, même en cas d'erreur.
  *
  * Sortie (publier()) : yume_publication_en_cours, puis chapitres, tome et annonce publiés (ou programmés
- * à la date donnée), puis yume_tome_publie une seule fois pour une publication immédiate.
+ * à la date donnée), puis yume_tome_publie une seule fois pour une publication immédiate. Plusieurs
+ * chapitres ajoutés d'un coup à un tome déjà en ligne forment UNE sortie (annoncer_groupe()),
+ * immédiate ou programmée (tâche cron unique yume_publication_sortie_groupee).
  *
  * @package Yume\Core
  */
@@ -43,6 +45,18 @@ final class Service {
 
 	/** Méta de core : événement de publication traité. */
 	private const META_NOTIFIE = '_yume_publie_notifie';
+
+	/** Méta du module social : sortie notée (verrou d'alerte, date du récapitulatif hebdomadaire). */
+	private const META_ALERTE = '_yume_alerte_envoyee';
+
+	/** Méta du tome : sortie groupée programmée ['ts' => horodatage, 'ids' => chapitres, 'ignores' => chapitres marqués]. */
+	public const META_GROUPE = '_yume_sortie_groupee';
+
+	/** Méta d'un chapitre : horodatage de la sortie groupée programmée dont il fait partie. */
+	public const META_GROUPE_CHAPITRE = '_yume_sortie_groupee_ts';
+
+	/** Tâche cron (unique) de la sortie groupée programmée d'un tome déjà en ligne. */
+	public const HOOK_GROUPE = 'yume_publication_sortie_groupee';
 
 	/**
 	 * Relève les limites de temps et de mémoire pendant un traitement lourd.
@@ -322,6 +336,17 @@ final class Service {
 	}
 
 	/**
+	 * Titre d'un contenu en texte brut (entités de wptexturize décodées, sans balises) : pour
+	 * les réponses JSON (affichées avec textContent), les titres enregistrés et les messages
+	 * échappés à l'affichage.
+	 *
+	 * @param int|\WP_Post $post Contenu.
+	 */
+	public static function titre_texte( $post ): string {
+		return trim( html_entity_decode( wp_strip_all_tags( (string) get_the_title( $post ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+	}
+
+	/**
 	 * Résumé d'un contenu pour les réponses (id, titre, statut, liens).
 	 *
 	 * @param \WP_Post $post Contenu.
@@ -337,7 +362,7 @@ final class Service {
 		);
 		return array(
 			'id'      => (int) $post->ID,
-			'titre'   => get_the_title( $post ),
+			'titre'   => self::titre_texte( $post ),
 			'statut'  => $post->post_status,
 			'etat'    => $statuts[ $post->post_status ] ?? $post->post_status,
 			'date'    => 'future' === $post->post_status ? mysql_to_rfc3339( $post->post_date ) : '',
@@ -377,6 +402,46 @@ final class Service {
 		);
 		$slug     = $prefixes[ $nature ] ?? 'tome';
 		return null === $numero ? $slug : $slug . '-' . str_replace( '.', '-', Texte::numero_url( $numero ) );
+	}
+
+	/**
+	 * Texte d'un titre extrait d'un document (DOCX, EPUB) : balises retirées, espaces
+	 * normalisées. Le résultat est du texte brut, à échapper à l'affichage.
+	 *
+	 * @param string $texte Texte extrait.
+	 */
+	public static function texte_titre( string $texte ): string {
+		return trim( (string) preg_replace( '/\s+/u', ' ', wp_strip_all_tags( $texte ) ) );
+	}
+
+	/**
+	 * Le tome, pas encore en ligne, a-t-il un slug vide ou tiré de son titre par WordPress
+	 * (« grimgar-of-fantasy-and-ash-tome-10 ») plutôt que le slug du contrat (« tome-10 ») ?
+	 * C'est le cas d'un brouillon créé par le planning ou dans l'administration. Un tome publié
+	 * (ou privé) garde toujours son adresse.
+	 *
+	 * @param \WP_Post $tome Tome.
+	 */
+	private static function slug_a_poser( \WP_Post $tome ): bool {
+		if ( in_array( $tome->post_status, array( 'publish', 'private' ), true ) ) {
+			return false;
+		}
+		$slug = (string) $tome->post_name;
+		if ( '' === $slug ) {
+			return true;
+		}
+		$auto = sanitize_title( (string) $tome->post_title );
+		return '' !== $auto && (bool) preg_match( '/^' . preg_quote( $auto, '/' ) . '(?:-\d+)?$/', urldecode( $slug ) );
+	}
+
+	/**
+	 * Slug du contrat pour un tome existant, d'après ses métadonnées (nature, numéro).
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	private static function slug_tome_existant( int $tome_id ): string {
+		$nature = (string) get_post_meta( $tome_id, 'yume_nature', true );
+		return self::slug_tome( '' === $nature ? 'tome' : $nature, self::numero( get_post_meta( $tome_id, 'yume_numero', true ) ) );
 	}
 
 	/**
@@ -444,6 +509,11 @@ final class Service {
 		);
 		if ( '' !== $champs['titre'] || '' === trim( $tome->post_title ) ) {
 			$donnees['post_title'] = $titre;
+		}
+		if ( self::slug_a_poser( $tome ) ) {
+			// Brouillon du planning ou de l'administration : adresse du contrat §3 (« tome-10 »),
+			// et non celle que WordPress tirerait du titre à la publication.
+			$donnees['post_name'] = self::slug_tome( $champs['nature'], $champs['numero'] );
 		}
 		$id = wp_update_post( wp_slash( $donnees ), true );
 		if ( is_wp_error( $id ) ) {
@@ -515,11 +585,19 @@ final class Service {
 			$numero = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
 			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs );
 			$post   = $existants[ $cle ] ?? null;
-			$titre  = (string) $chapitre['titre'] . ( '' !== (string) $chapitre['sous_titre'] ? ' — ' . $chapitre['sous_titre'] : '' );
-			$meta   = array(
+			// Titre et sous-titre extraits du document : du texte, jamais du balisage (le titre
+			// est affiché sans échappement par core/post-title, et kses ne s'applique pas à un
+			// compte unfiltered_html).
+			$libelle    = self::texte_titre( (string) $chapitre['titre'] );
+			$sous_titre = self::texte_titre( (string) $chapitre['sous_titre'] );
+			if ( '' === $libelle ) {
+				$libelle = __( 'Chapitre', 'yume-core' ) . ( null !== $numero ? ' ' . Texte::numero_fr( $numero ) : '' );
+			}
+			$titre = $libelle . ( '' !== $sous_titre ? ' — ' . $sous_titre : '' );
+			$meta  = array(
 				'yume_tome_id'       => $tome_id,
 				'yume_nature'        => (string) $chapitre['nature'],
-				'yume_sous_titre'    => (string) $chapitre['sous_titre'],
+				'yume_sous_titre'    => sanitize_text_field( $sous_titre ),
 				'yume_nb_mots'       => (int) $chapitre['nb_mots'],
 				'yume_temps_lecture' => (int) $chapitre['nb_mots'] > 0 ? max( 1, (int) ceil( (int) $chapitre['nb_mots'] / 230 ) ) : 0,
 				'yume_source'        => $source,
@@ -560,7 +638,7 @@ final class Service {
 				$id     = (int) $post->ID;
 				$action = 'maj';
 			}
-			$alt = $prefixe . ', ' . $chapitre['titre'] . ' — ' . __( 'illustration', 'yume-core' );
+			$alt = $prefixe . ', ' . $libelle . ' — ' . __( 'illustration', 'yume-core' );
 			$ids = array();
 			foreach ( (array) $chapitre['images'] as $cle_image ) {
 				$ids[ $cle_image ] = self::image( $resultat, (string) $cle_image, $id, $tome_id, $alt, $cache, $avert );
@@ -609,8 +687,8 @@ final class Service {
 				array(
 					'numero'     => $numero,
 					'nature'     => (string) $chapitre['nature'],
-					'libelle'    => (string) $chapitre['titre'],
-					'sous_titre' => (string) $chapitre['sous_titre'],
+					'libelle'    => $libelle,
+					'sous_titre' => $sous_titre,
 					'nb_mots'    => (int) $chapitre['nb_mots'],
 					'action'     => $action,
 				)
@@ -831,7 +909,7 @@ final class Service {
 				),
 				'oeuvre'         => array(
 					'id'    => (int) $oeuvre->ID,
-					'titre' => get_the_title( $oeuvre ),
+					'titre' => self::titre_texte( $oeuvre ),
 				),
 				'chapitres'      => $chapitres['chapitres'],
 				'disparus'       => $chapitres['disparus'],
@@ -886,6 +964,211 @@ final class Service {
 	}
 
 	/**
+	 * Libellé d'un groupe de chapitres : « Chapitres 21 à 23 », « Chapitres 4 et 5 »,
+	 * sinon « Prologue à Chapitre 3 ».
+	 *
+	 * @param int[] $ids Chapitres, dans l'ordre de lecture.
+	 */
+	public static function libelle_groupe( array $ids ): string {
+		$ids = array_values( array_map( 'intval', $ids ) );
+		if ( ! $ids ) {
+			return '';
+		}
+		if ( 1 === count( $ids ) ) {
+			return yume_libelle_chapitre( $ids[0] );
+		}
+		$numeros = array();
+		foreach ( $ids as $id ) {
+			$nature = (string) get_post_meta( $id, 'yume_nature', true );
+			$numero = self::numero( get_post_meta( $id, 'yume_numero', true ) );
+			if ( ( '' !== $nature && 'chapitre' !== $nature ) || null === $numero ) {
+				$numeros = array();
+				break;
+			}
+			$numeros[] = $numero;
+		}
+		if ( $numeros ) {
+			$min = min( $numeros );
+			$max = max( $numeros );
+			if ( 2 === count( $numeros ) ) {
+				/* translators: 1: premier numéro, 2: second numéro */
+				return sprintf( __( 'Chapitres %1$s et %2$s', 'yume-core' ), Texte::numero_fr( $min ), Texte::numero_fr( $max ) );
+			}
+			/* translators: 1: premier numéro, 2: dernier numéro */
+			return sprintf( __( 'Chapitres %1$s à %2$s', 'yume-core' ), Texte::numero_fr( $min ), Texte::numero_fr( $max ) );
+		}
+		/* translators: 1: premier chapitre, 2: dernier chapitre */
+		return sprintf( __( '%1$s à %2$s', 'yume-core' ), yume_libelle_chapitre( $ids[0] ), yume_libelle_chapitre( $ids[ count( $ids ) - 1 ] ) );
+	}
+
+	/**
+	 * Annonce UNE sortie pour plusieurs chapitres publiés ensemble dans un tome déjà en ligne :
+	 * yume_tome_publie si le tome n'a jamais été annoncé (migration, PDF/EPUB seuls, contrat §8),
+	 * sinon un seul yume_chapitre_publie (premier chapitre) dont le libellé cite tout le groupe
+	 * (« Chapitres 21 à 23 ») dans l'e-mail, le journal et Discord. Les autres chapitres
+	 * reçoivent la même date de sortie pour le récapitulatif hebdomadaire.
+	 *
+	 * @param int   $tome_id Tome.
+	 * @param int[] $ids     Chapitres publiés, dans l'ordre de lecture.
+	 */
+	public static function annoncer_groupe( int $tome_id, array $ids ): void {
+		$ids = array_values( array_map( 'intval', $ids ) );
+		if ( ! $ids ) {
+			return;
+		}
+		$notifie = (string) get_post_meta( $tome_id, self::META_NOTIFIE, true );
+		if ( '' === $notifie || 'ignore' === $notifie ) {
+			// Tome jamais annoncé comme sortie : c'est sa sortie en lecture en ligne.
+			do_action( 'yume_tome_publie', $tome_id );
+			return;
+		}
+		$premier = $ids[0];
+		if ( 1 === count( $ids ) ) {
+			/** This action is documented in includes/core/events.php */
+			do_action( 'yume_chapitre_publie', $premier, $ids );
+			return;
+		}
+		$libelle        = self::libelle_groupe( $ids );
+		$filtre_libelle = static function ( $valeur, $chapitre_id ) use ( $premier, $libelle ) {
+			return (int) $chapitre_id === $premier ? $libelle : $valeur;
+		};
+		$filtre_sous    = static function ( $valeur, $object_id, $cle ) use ( $premier ) {
+			// Le sous-titre du premier chapitre ne décrit pas tout le groupe.
+			return (int) $object_id === $premier && 'yume_sous_titre' === $cle ? array( '' ) : $valeur;
+		};
+		$filtre_discord = static function ( $texte, $chapitre_id ) use ( $premier ) {
+			$singulier = __( 'Nouveau chapitre :', 'yume-core' );
+			if ( (int) $chapitre_id === $premier && str_starts_with( (string) $texte, $singulier ) ) {
+				$texte = __( 'Nouveaux chapitres :', 'yume-core' ) . substr( (string) $texte, strlen( $singulier ) );
+			}
+			return $texte;
+		};
+		add_filter( 'yume_libelle_chapitre', $filtre_libelle, 1000, 2 );
+		add_filter( 'get_post_metadata', $filtre_sous, 1000, 3 );
+		add_filter( 'yume_planning_annonce_chapitre', $filtre_discord, 1, 2 );
+		try {
+			/**
+			 * Sortie groupée : un seul événement pour le premier chapitre ; le second argument
+			 * donne tous les chapitres du groupe.
+			 *
+			 * This action is documented in includes/core/events.php
+			 */
+			do_action( 'yume_chapitre_publie', $premier, $ids );
+		} finally {
+			remove_filter( 'yume_libelle_chapitre', $filtre_libelle, 1000 );
+			remove_filter( 'get_post_metadata', $filtre_sous, 1000 );
+			remove_filter( 'yume_planning_annonce_chapitre', $filtre_discord, 1 );
+		}
+		// Récapitulatif hebdomadaire : chaque chapitre du groupe est une sortie de cette date
+		// (verrou unique : aucune alerte supplémentaire ne partira pour eux).
+		$verrou = (string) get_post_meta( $premier, self::META_ALERTE, true );
+		if ( '' !== $verrou ) {
+			foreach ( array_slice( $ids, 1 ) as $id ) {
+				add_post_meta( $id, self::META_ALERTE, $verrou, true );
+			}
+		}
+	}
+
+	/**
+	 * Sortie programmée de plusieurs chapitres d'un tome déjà en ligne : chaque chapitre est
+	 * marqué pour que core n'émette rien à sa publication par WordPress, et une seule tâche
+	 * cron annonce le groupe à la date de sortie (Service::sortie_groupee_programmee()).
+	 *
+	 * @param int   $tome_id Tome.
+	 * @param int[] $ids     Chapitres programmés.
+	 * @param int   $ts      Horodatage de la sortie.
+	 */
+	private static function programmer_sortie_groupee( int $tome_id, array $ids, int $ts ): void {
+		$ignores = array();
+		foreach ( $ids as $id ) {
+			if ( ! metadata_exists( 'post', $id, self::META_NOTIFIE ) ) {
+				update_post_meta( $id, self::META_NOTIFIE, 'ignore' );
+				$ignores[] = (int) $id;
+			}
+			update_post_meta( $id, self::META_GROUPE_CHAPITRE, $ts );
+		}
+		update_post_meta(
+			$tome_id,
+			self::META_GROUPE,
+			array(
+				'ts'      => $ts,
+				'ids'     => array_values( array_map( 'intval', $ids ) ),
+				'ignores' => $ignores,
+			)
+		);
+		wp_schedule_single_event( $ts, self::HOOK_GROUPE, array( $tome_id, $ts ) );
+	}
+
+	/**
+	 * Annule la sortie groupée programmée d'un tome (nouvelle sortie) : tâche cron supprimée,
+	 * marques retirées des chapitres qui ne sont pas encore en ligne.
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	private static function annuler_sortie_groupee( int $tome_id ): void {
+		$groupe = get_post_meta( $tome_id, self::META_GROUPE, true );
+		if ( ! is_array( $groupe ) ) {
+			return;
+		}
+		$ts = (int) ( $groupe['ts'] ?? 0 );
+		wp_clear_scheduled_hook( self::HOOK_GROUPE, array( $tome_id, $ts ) );
+		self::liberer_chapitres( $groupe );
+		delete_post_meta( $tome_id, self::META_GROUPE );
+	}
+
+	/**
+	 * Retire les marques d'une sortie groupée des chapitres qui ne sont pas en ligne : leur
+	 * publication ultérieure sera notifiée normalement par core.
+	 *
+	 * @param array<string,mixed> $groupe Méta META_GROUPE.
+	 * @return int[] Chapitres du groupe publiés.
+	 */
+	private static function liberer_chapitres( array $groupe ): array {
+		$ts      = (int) ( $groupe['ts'] ?? 0 );
+		$ignores = array_map( 'intval', (array) ( $groupe['ignores'] ?? array() ) );
+		$publies = array();
+		foreach ( array_map( 'intval', (array) ( $groupe['ids'] ?? array() ) ) as $id ) {
+			if ( (int) get_post_meta( $id, self::META_GROUPE_CHAPITRE, true ) !== $ts ) {
+				continue; // Chapitre passé depuis dans une autre sortie.
+			}
+			delete_post_meta( $id, self::META_GROUPE_CHAPITRE );
+			if ( 'publish' === get_post_status( $id ) ) {
+				$publies[] = $id;
+			} elseif ( in_array( $id, $ignores, true ) && 'ignore' === get_post_meta( $id, self::META_NOTIFIE, true ) ) {
+				delete_post_meta( $id, self::META_NOTIFIE );
+			}
+		}
+		return $publies;
+	}
+
+	/**
+	 * Tâche cron de la sortie groupée programmée : publie les chapitres arrivés à échéance
+	 * (si WordPress ne l'a pas encore fait), puis annonce le groupe une seule fois.
+	 *
+	 * @param int $tome_id Tome.
+	 * @param int $ts      Horodatage de la sortie.
+	 */
+	public static function sortie_groupee_programmee( $tome_id, $ts ): void {
+		$tome_id = (int) $tome_id;
+		$groupe  = get_post_meta( $tome_id, self::META_GROUPE, true );
+		if ( ! is_array( $groupe ) || (int) ( $groupe['ts'] ?? 0 ) !== (int) $ts ) {
+			return; // Sortie remplacée ou annulée.
+		}
+		delete_post_meta( $tome_id, self::META_GROUPE );
+		foreach ( array_map( 'intval', (array) ( $groupe['ids'] ?? array() ) ) as $id ) {
+			$post = get_post( $id );
+			if ( $post && 'future' === $post->post_status && (int) get_post_meta( $id, self::META_GROUPE_CHAPITRE, true ) === (int) $ts ) {
+				check_and_publish_future_post( $post );
+				clean_post_cache( $id );
+			}
+		}
+		$publies = self::liberer_chapitres( $groupe );
+		if ( $publies && 'publish' === get_post_status( $tome_id ) ) {
+			self::annoncer_groupe( $tome_id, $publies );
+		}
+	}
+
+	/**
 	 * Publie tout de suite, ou programme, le tome, ses chapitres et son annonce.
 	 *
 	 * @param int    $tome_id Tome.
@@ -922,10 +1205,14 @@ final class Service {
 		);
 		// Tome déjà en ligne qui reçoit plusieurs chapitres d'un coup (tome migré avec ses seuls
 		// PDF/EPUB mis en lecture en ligne, nouveaux chapitres en bloc) : une seule sortie, et
-		// non un événement yume_chapitre_publie (e-mails, Discord) par chapitre.
-		$groupe = $deja_sorti && $immediat && count( $a_publier ) > 1;
+		// non un événement yume_chapitre_publie (e-mails, Discord) par chapitre, que la sortie
+		// soit immédiate ou programmée.
+		$groupe = $deja_sorti && count( $a_publier ) > 1;
 
-		if ( ! $deja_sorti || $groupe ) {
+		// Une sortie groupée programmée auparavant est remplacée par celle-ci.
+		self::annuler_sortie_groupee( $tome_id );
+
+		if ( ! $deja_sorti || ( $groupe && $immediat ) ) {
 			/**
 			 * Une publication de tome commence : core n'émet aucun événement de sortie pendant
 			 * celle-ci (le module publication émet yume_tome_publie une fois tout publié).
@@ -936,7 +1223,7 @@ final class Service {
 		}
 
 		$publies = 0;
-		$premier = 0;
+		$ids     = array();
 		foreach ( $a_publier as $chapitre ) {
 			$ok = wp_update_post(
 				array(
@@ -950,20 +1237,21 @@ final class Service {
 			);
 			if ( ! is_wp_error( $ok ) ) {
 				++$publies;
-				$premier = $premier ? $premier : (int) $chapitre->ID;
+				$ids[] = (int) $chapitre->ID;
 			}
 		}
 		if ( ! $deja_sorti ) {
-			$ok = wp_update_post(
-				array(
-					'ID'            => $tome_id,
-					'post_status'   => $statut,
-					'post_date'     => $local,
-					'post_date_gmt' => $gmt,
-					'edit_date'     => true,
-				),
-				true
+			$donnees = array(
+				'ID'            => $tome_id,
+				'post_status'   => $statut,
+				'post_date'     => $local,
+				'post_date_gmt' => $gmt,
+				'edit_date'     => true,
 			);
+			if ( self::slug_a_poser( $tome ) ) {
+				$donnees['post_name'] = self::slug_tome_existant( $tome_id );
+			}
+			$ok = wp_update_post( $donnees, true );
 			if ( is_wp_error( $ok ) ) {
 				return $ok;
 			}
@@ -978,16 +1266,10 @@ final class Service {
 			 * @param int $tome_id Tome.
 			 */
 			do_action( 'yume_tome_publie', $tome_id );
-		} elseif ( $groupe && $publies > 0 && 'publish' === get_post_status( $tome_id ) ) {
-			$notifie = (string) get_post_meta( $tome_id, self::META_NOTIFIE, true );
-			if ( '' === $notifie || 'ignore' === $notifie ) {
-				// Tome jamais annoncé comme sortie (migration, PDF/EPUB seuls) : c'est sa sortie
-				// en lecture en ligne. Voir contrat §8.
-				do_action( 'yume_tome_publie', $tome_id );
-			} else {
-				/** This action is documented in includes/core/events.php */
-				do_action( 'yume_chapitre_publie', $premier );
-			}
+		} elseif ( $groupe && $immediat && $publies > 0 && 'publish' === get_post_status( $tome_id ) ) {
+			self::annoncer_groupe( $tome_id, $ids );
+		} elseif ( $groupe && ! $immediat && count( $ids ) > 1 ) {
+			self::programmer_sortie_groupee( $tome_id, $ids, $date->getTimestamp() );
 		}
 
 		$meta = get_post_meta( $tome_id, self::META, true );

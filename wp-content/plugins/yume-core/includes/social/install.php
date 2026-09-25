@@ -85,14 +85,27 @@ function prochain_dimanche( int $apres ): int {
 }
 
 /**
- * Planifie le récapitulatif hebdomadaire (dimanche 10 h, heure du site) s'il ne l'est pas.
+ * Un horodatage tombe-t-il un dimanche à 10 h pile (heure du site) ?
+ *
+ * @param int $ts Horodatage.
+ */
+function est_dimanche_10h( int $ts ): bool {
+	$date = ( new \DateTimeImmutable( '@' . $ts ) )->setTimezone( wp_timezone() );
+	return '0' === $date->format( 'w' ) && '10:00' === $date->format( 'H:i' );
+}
+
+/**
+ * Planifie le récapitulatif hebdomadaire (dimanche 10 h, heure du site) : s'il ne l'est pas,
+ * ou s'il ne tombe plus un dimanche à 10 h (programmé avant le réglage du fuseau, passage à
+ * l'heure d'hiver ou d'été avec une récurrence fixe de 7 jours, exécution anticipée), il est
+ * recalé sur le prochain dimanche 10 h.
  */
 function planifier(): void {
 	if ( wp_installing() ) {
 		return;
 	}
 	$evenement = wp_get_scheduled_event( HOOK_RECAP );
-	if ( $evenement && 'weekly' === $evenement->schedule ) {
+	if ( $evenement && 'weekly' === $evenement->schedule && est_dimanche_10h( (int) $evenement->timestamp ) ) {
 		return;
 	}
 	wp_clear_scheduled_hook( HOOK_RECAP );

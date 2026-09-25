@@ -136,6 +136,61 @@ if ( ! function_exists( 'yume_tpub' ) ) {
 		}
 		return $rapport;
 	}
+
+	/**
+	 * Tome publié il y a un mois et déjà annoncé (_yume_publie_notifie daté), avec des
+	 * chapitres en brouillon.
+	 *
+	 * @param int   $oeuvre   Œuvre.
+	 * @param int[] $numeros  Numéros des chapitres brouillons.
+	 * @return array{0:int,1:int[]} Tome, chapitres.
+	 */
+	function yume_tpub_tome_annonce( int $oeuvre, array $numeros ): array {
+		$ancienne = gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS );
+		add_filter( 'yume_core_notifier', '__return_false' );
+		$tome = yume_factory_post(
+			array(
+				'post_type'     => 'yume_tome',
+				'post_title'    => 'Tome annoncé — Tome 7',
+				'post_name'     => 'tome-7',
+				'post_status'   => 'publish',
+				'post_date'     => get_date_from_gmt( $ancienne ),
+				'post_date_gmt' => $ancienne,
+				'meta_input'    => array(
+					'yume_oeuvre_id' => $oeuvre,
+					'yume_numero'    => 7,
+					'yume_nature'    => 'tome',
+				),
+			)
+		);
+		remove_filter( 'yume_core_notifier', '__return_false' );
+		update_post_meta( $tome, '_yume_publie_notifie', $ancienne );
+		$chapitres = array();
+		foreach ( array_values( $numeros ) as $i => $numero ) {
+			$chapitres[] = yume_factory_post(
+				array(
+					'post_type'    => 'yume_chapitre',
+					'post_title'   => 'Chapitre ' . $numero,
+					'post_name'    => 'chapitre-' . $numero,
+					'post_status'  => 'draft',
+					'post_content' => '<!-- wp:paragraph --><p>Texte.</p><!-- /wp:paragraph -->',
+					'menu_order'   => $i + 1,
+					'meta_input'   => array(
+						'yume_tome_id' => $tome,
+						'yume_numero'  => $numero,
+						'yume_nature'  => 'chapitre',
+					),
+				)
+			);
+		}
+		// Le tome n'a pas été publié « dans cette requête » (comme en production, où le cron
+		// publie les chapitres programmés bien après la sortie du tome).
+		if ( function_exists( 'Yume\Core\Core\etat_set' ) ) {
+			\Yume\Core\Core\etat_set( 'publies_yume_tome', array() );
+		}
+		unset( $GLOBALS['wp_actions']['yume_publication_en_cours'] );
+		return array( $tome, $chapitres );
+	}
 }
 
 /*
@@ -470,6 +525,259 @@ yume_test(
 			} finally {
 				remove_action( 'yume_chapitre_publie', $suivre, 1 );
 			}
+		}
+	)
+);
+
+yume_test(
+	'service : titres de chapitre importés enregistrés comme du texte (aucune balise, même avec unfiltered_html)',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'administrator' ) );
+			yume_timp_outils_fixtures();
+			$corps           = yume_fx_t( 'Chapitre 1 : <img src=x onerror=alert(document.domain)>', array( 'style' => 'Titre1' ) );
+			$corps          .= yume_fx_t( 'Premier paragraphe du chapitre un.' );
+			$corps          .= yume_fx_t( 'Chapitre 2 : <svg onload=alert(2)>Le <b>vrai</b> titre', array( 'style' => 'Titre1' ) );
+			$corps          .= yume_fx_t( 'Texte du chapitre deux, avec <script>alert(3)</script> en toutes lettres.' );
+			$corps          .= yume_fx_t( 'Chapitre 3 : Quand a < b', array( 'style' => 'Titre1' ) );
+			$corps          .= yume_fx_t( 'Texte du chapitre trois.' );
+			$docx            = yume_timp_docx( $corps );
+			$ctx->fichiers[] = $docx;
+			$r               = yume_tpub_preparer( $ctx, yume_tpub_oeuvre(), array(), $docx );
+			$titres          = array();
+			foreach ( yume_get_chapitres( (int) $r['tome']['id'], array( 'status' => 'any' ) ) as $chapitre ) {
+				$titres[] = array( $chapitre->post_title, get_post_meta( $chapitre->ID, 'yume_sous_titre', true ) );
+				yume_assert_not_contains( '<', str_replace( 'a < b', '', $chapitre->post_title ), 'aucune balise dans le titre' );
+			}
+			yume_assert_same(
+				array(
+					array( 'Chapitre 1', '' ),
+					array( 'Chapitre 2 — Le vrai titre', 'Le vrai titre' ),
+					array( 'Chapitre 3 — Quand a < b', sanitize_text_field( 'Quand a < b' ) ),
+				),
+				$titres
+			);
+			yume_assert_same( 'Le vrai titre', $r['chapitres'][1]['sous_titre'] );
+			// Le texte des paragraphes reste échappé.
+			yume_assert_contains( '&lt;script&gt;', get_post( $r['chapitres'][1]['id'] )->post_content );
+			Service::publier( (int) $r['tome']['id'], 'maintenant' );
+			yume_assert_not_contains( 'onerror', get_the_title( $r['chapitres'][0]['id'] ) );
+			yume_assert_not_contains( '<svg', get_the_title( $r['chapitres'][1]['id'] ) );
+		}
+	)
+);
+
+yume_test(
+	'service : un tome créé sans adresse (planning, administration) reçoit « tome-10 » à la préparation et à la publication',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre   = yume_tpub_oeuvre( 'Grimgar of Fantasy and Ash' );
+			$planifie = yume_factory_post(
+				array(
+					'post_type'   => 'yume_tome',
+					'post_status' => 'draft',
+					'post_title'  => 'Grimgar of Fantasy and Ash — Tome 10',
+					'meta_input'  => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_numero'    => 10,
+						'yume_nature'    => 'tome',
+					),
+				)
+			);
+			yume_assert_same( '', get_post( $planifie )->post_name, 'brouillon du planning sans adresse' );
+			$r = yume_tpub_preparer( $ctx, $oeuvre );
+			yume_assert_same( $planifie, (int) $r['tome']['id'] );
+			yume_assert_same( 'tome-10', get_post( $planifie )->post_name );
+			Service::publier( $planifie, 'maintenant' );
+			yume_assert_same( 'tome-10', get_post( $planifie )->post_name );
+			yume_assert_contains( '/tome-10/', (string) get_permalink( $planifie ) );
+
+			// Tome programmé depuis l'administration (slug tiré du titre par WordPress), puis
+			// publié par le module sans nouveau fichier.
+			$admin = yume_factory_post(
+				array(
+					'post_type'   => 'yume_tome',
+					'post_status' => 'future',
+					'post_title'  => 'Grimgar of Fantasy and Ash — Arc 11',
+					'post_date'   => wp_date( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ),
+					'meta_input'  => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_numero'    => 11,
+						'yume_nature'    => 'arc',
+					),
+				)
+			);
+			yume_assert_same( 'grimgar-of-fantasy-and-ash-arc-11', get_post( $admin )->post_name );
+			Service::publier( $admin, 'maintenant' );
+			yume_assert_same( 'arc-11', get_post( $admin )->post_name );
+
+			// Un tome déjà en ligne garde toujours son adresse.
+			$en_ligne = yume_factory_post(
+				array(
+					'post_type'  => 'yume_tome',
+					'post_title' => 'Grimgar of Fantasy and Ash — Tome 12',
+					'post_name'  => 'grimgar-tome-12-ancien',
+					'meta_input' => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_numero'    => 12,
+						'yume_nature'    => 'tome',
+					),
+				)
+			);
+			yume_tpub_preparer( $ctx, $oeuvre, array( 'numero' => '12' ) );
+			Service::publier( $en_ligne, 'maintenant' );
+			yume_assert_same( 'grimgar-tome-12-ancien', get_post( $en_ligne )->post_name );
+		}
+	)
+);
+
+yume_test(
+	'service : titres sans entités HTML (annonce enregistrée, réponses REST)',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre = yume_tpub_oeuvre( "Miss Medic's Diary at War" );
+			$r      = yume_tpub_preparer( $ctx, $oeuvre, array( 'titre' => "Tournoi d'échec" ) );
+			$titre  = Annonce::titre( (int) $r['tome']['id'] );
+			yume_assert_not_contains( '&#', $titre );
+			yume_assert_contains( 'Miss Medic', $titre );
+			yume_assert_not_contains( '&#', get_post( $r['article']['id'] )->post_title, 'titre de l’article enregistré sans entité' );
+			yume_assert_not_contains( '&#', $r['tome']['titre'] );
+			yume_assert_not_contains( '&#', $r['oeuvre']['titre'] );
+			yume_assert_contains( 'Tournoi d', $r['tome']['titre'] );
+			$sortie = Service::publier( (int) $r['tome']['id'], 'maintenant' );
+			yume_assert_not_contains( '&#', $sortie['tome']['titre'] );
+			yume_assert_not_contains( '&#', $sortie['article']['titre'] );
+		}
+	)
+);
+
+yume_test(
+	'service : plusieurs chapitres d’un tome déjà annoncé = une seule annonce qui les cite tous',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			list( $tome, $ids ) = yume_tpub_tome_annonce( yume_tpub_oeuvre( 'Grimgar annoncé' ), array( 21, 22, 23 ) );
+			$vus                = array();
+			$ecouteur           = static function ( $id, $groupe = array() ) use ( &$vus ) {
+				// Verrou du module social (posé à la priorité 20) : simulé ici.
+				add_post_meta( (int) $id, '_yume_alerte_envoyee', '2026-09-25 10:00:00', true );
+				$vus[] = array( (int) $id, $groupe, yume_libelle_chapitre( (int) $id ), get_post_meta( (int) $id, 'yume_sous_titre', true ) );
+			};
+			update_post_meta( $ids[0], 'yume_sous_titre', 'Sous-titre du premier' );
+			add_action( 'yume_chapitre_publie', $ecouteur, 1, 2 );
+			try {
+				$sortie = Service::publier( $tome, 'maintenant' );
+			} finally {
+				remove_action( 'yume_chapitre_publie', $ecouteur, 1 );
+			}
+			yume_assert_same( 3, $sortie['chapitres'] );
+			yume_assert_same( array( array( $ids[0], $ids, 'Chapitres 21 à 23', '' ) ), $vus );
+			yume_assert_same( 'Chapitre 21', yume_libelle_chapitre( $ids[0] ), 'libellé normal hors de l’annonce' );
+			yume_assert_same( 'Sous-titre du premier', get_post_meta( $ids[0], 'yume_sous_titre', true ) );
+			foreach ( $ids as $id ) {
+				yume_assert_same( '2026-09-25 10:00:00', get_post_meta( $id, '_yume_alerte_envoyee', true ), 'chapitre noté pour le récapitulatif' );
+			}
+			yume_assert_same( 'Chapitres 4 et 5', Service::libelle_groupe( array( yume_tpub_tome_annonce( yume_tpub_oeuvre(), array( 4, 5 ) )[1] )[0] ) );
+		}
+	)
+);
+
+yume_test(
+	'service : sortie programmée de plusieurs chapitres d’un tome en ligne = une seule annonce au passage de la date',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			list( $tome, $ids ) = yume_tpub_tome_annonce( yume_tpub_oeuvre( 'Grimgar programmé' ), array( 24, 25, 26 ) );
+			$vus                = array();
+			$ecouteur           = static function ( $id, $groupe = array() ) use ( &$vus ) {
+				$vus[] = array( (int) $id, $groupe, yume_libelle_chapitre( (int) $id ) );
+			};
+			add_action( 'yume_chapitre_publie', $ecouteur, 1, 2 );
+			try {
+				// Programmée, puis reprogrammée : une seule tâche, la dernière.
+				$q1 = wp_date( 'Y-m-d\TH:i', time() + 2 * DAY_IN_SECONDS );
+				$t1 = Service::date_sortie( $q1 )->getTimestamp();
+				Service::publier( $tome, $q1 );
+				yume_assert_true( false !== wp_next_scheduled( Service::HOOK_GROUPE, array( $tome, $t1 ) ) );
+				$q2     = wp_date( 'Y-m-d\TH:i', time() + 3 * DAY_IN_SECONDS );
+				$t2     = Service::date_sortie( $q2 )->getTimestamp();
+				$sortie = Service::publier( $tome, $q2 );
+				yume_assert_same( 3, $sortie['chapitres'] );
+				yume_assert_false( wp_next_scheduled( Service::HOOK_GROUPE, array( $tome, $t1 ) ), 'ancienne tâche supprimée' );
+				yume_assert_true( false !== wp_next_scheduled( Service::HOOK_GROUPE, array( $tome, $t2 ) ) );
+				foreach ( $ids as $id ) {
+					yume_assert_same( 'future', get_post_status( $id ) );
+					yume_assert_same( 'ignore', get_post_meta( $id, '_yume_publie_notifie', true ) );
+				}
+				yume_assert_same( array(), $ctx->emis );
+				yume_assert_same( array(), $vus );
+
+				// Le cron de WordPress publie chaque chapitre (publish_future_post) : rien n'est émis.
+				foreach ( $ids as $id ) {
+					wp_publish_post( $id );
+				}
+				yume_assert_same( array(), $vus, 'aucune annonce par chapitre' );
+				// Puis la tâche de la sortie groupée : une seule annonce.
+				do_action( Service::HOOK_GROUPE, $tome, $t2 );
+				yume_assert_same( array( array( $ids[0], $ids, 'Chapitres 24 à 26' ) ), $vus );
+				yume_assert_same( array(), $ctx->emis );
+				yume_assert_false( metadata_exists( 'post', $tome, Service::META_GROUPE ) );
+				do_action( Service::HOOK_GROUPE, $tome, $t2 );
+				yume_assert_same( 1, count( $vus ), 'jamais deux fois' );
+
+				// Chapitre retiré de la sortie avant la date : il sera annoncé normalement plus tard.
+				list( $tome2, $ids2 ) = yume_tpub_tome_annonce( yume_tpub_oeuvre( 'Autre' ), array( 1, 2 ) );
+				$vus                  = array();
+				$q3                   = wp_date( 'Y-m-d\TH:i', time() + 2 * DAY_IN_SECONDS );
+				$t3                   = Service::date_sortie( $q3 )->getTimestamp();
+				Service::publier( $tome2, $q3 );
+				wp_update_post(
+					array(
+						'ID'          => $ids2[1],
+						'post_status' => 'draft',
+					)
+				);
+				wp_publish_post( $ids2[0] );
+				do_action( Service::HOOK_GROUPE, $tome2, $t3 );
+				yume_assert_same( array( array( $ids2[0], array( $ids2[0] ), 'Chapitre 1' ) ), $vus );
+				yume_assert_false( metadata_exists( 'post', $ids2[1], '_yume_publie_notifie' ), 'marque retirée du chapitre non publié' );
+
+				// Sortie programmée remplacée par une sortie immédiate : une seule annonce, tâche supprimée.
+				list( $tome3, $ids3 ) = yume_tpub_tome_annonce( yume_tpub_oeuvre( 'Troisième' ), array( 8, 9 ) );
+				$vus                  = array();
+				$q4                   = wp_date( 'Y-m-d\TH:i', time() + 2 * DAY_IN_SECONDS );
+				$t4                   = Service::date_sortie( $q4 )->getTimestamp();
+				Service::publier( $tome3, $q4 );
+				Service::publier( $tome3, 'maintenant' );
+				yume_assert_false( wp_next_scheduled( Service::HOOK_GROUPE, array( $tome3, $t4 ) ) );
+				yume_assert_same( array( array( $ids3[0], $ids3, 'Chapitres 8 et 9' ) ), $vus );
+			} finally {
+				remove_action( 'yume_chapitre_publie', $ecouteur, 1 );
+			}
+		}
+	)
+);
+
+yume_test(
+	'bloc : navigation identique à celle du tableau de bord (ordre, entrées, cibles)',
+	yume_tpub(
+		function () {
+			wp_set_current_user( yume_factory_user( 'administrator' ) );
+			$html = yume_render_block( 'yume/publish-form' );
+			preg_match( '#<nav class="yn-publish__nav".*?</nav>#s', $html, $m );
+			yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
+			preg_match_all( '#<li><a href="([^"]*)"[^>]*>([^<]*)</a></li>#', $m[0], $liens, PREG_SET_ORDER );
+			$libelles = array_map( static fn( $l ) => html_entity_decode( $l[2], ENT_QUOTES, 'UTF-8' ), $liens );
+			yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages (rappels, Discord)' ), $libelles );
+			$equipe = esc_url( yume_url_page( 'equipe' ) );
+			yume_assert_same( $equipe . '#yn-mes-taches', $liens[1][1] );
+			yume_assert_same( $equipe . '#yn-tous-les-tomes', $liens[3][1] );
+			yume_assert_same( $equipe . '#yn-team-journal', $liens[5][1] );
+			yume_assert_not_contains( 'edit.php?post_type=yume_tome', $m[0] );
+			yume_assert_same( 1, substr_count( $m[0], 'aria-current="page"' ) );
+			yume_assert_contains( 'aria-current="page" class="is-actif">Publier un tome', $m[0] );
 		}
 	)
 );

@@ -141,7 +141,7 @@ l'implémenter. Ne jamais redéclarer une fonction `yume_*` d'un autre module.
 | --- | --- |
 | Syntaxe PHP 8.1 / 8.2 / 8.3 / 8.4 | `tools/build/lint.sh` ; blueprints Playground à jour (`construire.php --verifier`) |
 | Normes de code | PHPCS, annotations sur la PR (bloquant, voir §4) |
-| Tests WordPress (PHP 8.1 et 8.4) | `tools/localenv/setup.sh --source wp-cli --langue fr_FR --bloquer-http`, puis `wp eval-file wp-content/plugins/yume-core/tests/runner.php` ; contrôle de `debug.log` |
+| Tests WordPress (6.6 sous PHP 8.1, dernière version sous PHP 8.4 ; chacune sur SQLite et sur MariaDB 10.11) | `tools/localenv/setup.sh --source wp-cli --langue fr_FR --bloquer-http [--version 6.6]` (avec `YUME_DB_ENGINE=mysql` et un service `mariadb:10.11` pour MariaDB), puis `wp eval-file wp-content/plugins/yume-core/tests/runner.php` ; contrôle de `debug.log` |
 | Archives | `tools/build/zip.sh`, artefact `yume-archives-<version>-<n°>` (à décompresser : il contient `yume-core.zip`, `yume.zip`, `SHA256SUMS`) |
 
 Protection de la branche principale recommandée (docs/05 §3) : PR obligatoire, jobs *Syntaxe*,
@@ -210,6 +210,12 @@ permission *Contents : read* sur ce dépôt) déclaré dans `wp-config.php` :
 `define( 'YUME_GITHUB_TOKEN', 'github_pat_…' );`. Le plan actuel ne donne pas accès à
 `wp-config.php` (ni SFTP ni SSH) : **le dépôt doit donc rester public** pour que yumenovel.fr se
 mette à jour.
+
+Seuls les comptes qui peuvent déjà installer des mises à jour (`update_plugins` : les
+administrateurs) voient et modifient *Dépôt GitHub* et *Mises à jour automatiques* : un gérant ne
+peut pas désigner la source du code installé. Pour figer la source, déclarer dans `wp-config.php`
+`define( 'YUME_GITHUB_REPO', 'GNAlexandre/Yume-WordPress' );` : la constante prime sur le réglage,
+alors affiché en lecture seule.
 
 Réglages du module updater pour les développeurs : filtres `yume_updater_actif` (désactiver
 complètement la recherche de mises à jour), `yume_updater_depot` (autre dépôt « propriétaire/dépôt »)

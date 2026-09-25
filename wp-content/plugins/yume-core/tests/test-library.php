@@ -463,6 +463,65 @@ yume_tl_test(
 	}
 );
 
+yume_tl_test(
+	'latest-releases : un tome déjà publié (PDF seul) mis en lecture en ligne est daté de cette sortie (UX-2)',
+	static function () {
+		$oeuvre = yume_tl_oeuvre( 'Grimgar of Fantasy and Ash', array( 'yume_type' => 'light-novel' ) );
+		$t7     = yume_tl_tome( $oeuvre, 7, array( 'post_date' => yume_tl_date( 19 ) ) );
+		$t9     = yume_tl_tome( $oeuvre, 9, array( 'post_date' => yume_tl_date( 5 ) ) );
+		$raven  = yume_tl_oeuvre( 'Raven of the Inner Palace', array( 'yume_type' => 'light-novel' ) );
+		$r6     = yume_tl_tome( $raven, 6, array( 'post_date' => yume_tl_date( 13 ) ) );
+		// Programmation future d'un autre tome publié : ne le date pas (sortie non passée).
+		update_post_meta(
+			$r6,
+			'_yume_publication',
+			array(
+				'sortie'    => gmdate( DATE_ATOM, time() + 3 * DAY_IN_SECONDS ),
+				'sortie_le' => gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS ),
+			)
+		);
+
+		$html = yume_tl_rendu( 'latest-releases' );
+		yume_assert_true( strpos( $html, get_permalink( $t9 ) ) < strpos( $html, get_permalink( $t7 ) ), 'avant la sortie en ligne : T9 d’abord' );
+		yume_assert_true( strpos( $html, get_permalink( $r6 ) ) < strpos( $html, get_permalink( $t7 ) ), 'avant la sortie en ligne : Raven T6 avant T7' );
+		yume_assert_same( 1, yume_tl_compte( 'yn-chip--new', $html ), 'seul T9 est nouveau' );
+
+		// « Publier maintenant » (module publication) : chapitres publiés maintenant, métadonnée de sortie.
+		$maintenant = time() - 60;
+		yume_tl_chapitre( $t7, 1, array( 'post_date' => wp_date( 'Y-m-d H:i:s', $maintenant ) ) );
+		update_post_meta(
+			$t7,
+			'_yume_publication',
+			array(
+				'sortie'     => 'maintenant',
+				'sortie_par' => 1,
+				'sortie_le'  => gmdate( 'Y-m-d H:i:s', $maintenant ),
+			)
+		);
+		yume_assert_same( $maintenant, \Yume\Core\Library\date_sortie_tome( $t7 ), 'date de sortie effective (sortie_le, UTC)' );
+		yume_assert_same( (int) get_post_time( 'U', true, $r6 ), \Yume\Core\Library\date_sortie_tome( $r6 ), 'sortie programmée à venir ignorée' );
+
+		$html = yume_tl_rendu( 'latest-releases' );
+		yume_assert_true( strpos( $html, get_permalink( $t7 ) ) < strpos( $html, get_permalink( $t9 ) ), 'la sortie du jour en tête (cache invalidé)' );
+		yume_assert_same( 2, yume_tl_compte( 'yn-chip--new', $html ), 'badge « Nouveau » sur T7' );
+		yume_assert_contains( 'Tome 7 · <time datetime="' . esc_attr( gmdate( 'c', $maintenant ) ) . '">' . esc_html( date_courte( $maintenant ) ) . '</time>', $html, 'datée du jour de la sortie en ligne' );
+
+		// Sortie programmée passée d'un tome déjà publié : datée de la date prévue.
+		$prevue = time() - 2 * DAY_IN_SECONDS;
+		update_post_meta(
+			$r6,
+			'_yume_publication',
+			array(
+				'sortie'    => gmdate( DATE_ATOM, $prevue ),
+				'sortie_le' => gmdate( 'Y-m-d H:i:s', time() - 4 * DAY_IN_SECONDS ),
+			)
+		);
+		yume_assert_same( $prevue, \Yume\Core\Library\date_sortie_tome( $r6 ), 'sortie programmée passée' );
+		$html = yume_tl_rendu( 'latest-releases' );
+		yume_assert_true( strpos( $html, get_permalink( $r6 ) ) < strpos( $html, get_permalink( $t9 ) ), 'Raven T6 remonte après sa sortie programmée' );
+	}
+);
+
 /*
  * -----------------------------------------------------------------------------
  * yume/library-grid
@@ -1143,7 +1202,7 @@ yume_tl_test(
 		$t1     = yume_tl_tome( $oeuvre, 1, array( 'post_date' => yume_tl_date( 10 ) ) );
 		yume_assert_same( 1, yume_tl_compte( '<li class="yn-releases__item">', yume_tl_rendu( 'latest-releases' ) ) );
 		$version = version_cache();
-		yume_assert_true( false !== get_transient( 'yume_bib_sorties_' . substr( md5( wp_json_encode( array( 6 ) ) . '|' . $version ), 0, 16 ) ), 'liste mise en cache (transient)' );
+		yume_assert_true( false !== get_transient( 'yume_bib_sorties_' . substr( md5( wp_json_encode( array( 6 ) ) . '|' . $version . '|' . \Yume\Core\Library\FORMAT_CACHE ), 0, 16 ) ), 'liste mise en cache (transient)' );
 
 		$t2 = yume_tl_tome( $oeuvre, 2, array( 'post_date' => yume_tl_date( 1 ) ) );
 		yume_assert_true( version_cache() !== $version, 'nouvelle version après enregistrement' );
@@ -1205,5 +1264,175 @@ yume_tl_test(
 		yume_assert_true( est_nouveau( time() - 6 * DAY_IN_SECONDS ) );
 		yume_assert_false( est_nouveau( time() - 8 * DAY_IN_SECONDS ) );
 		yume_assert_false( est_nouveau( 0 ) );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Recherche
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Lance une recherche comme requête principale et renvoie les ID trouvés, dans l'ordre.
+ *
+ * @param array $vars Variables de requête.
+ * @return int[]
+ */
+function yume_tl_rechercher( array $vars ): array {
+	$requete                 = new WP_Query();
+	$GLOBALS['wp_the_query'] = $requete;
+	$GLOBALS['wp_query']     = $requete;
+	return array_map(
+		'intval',
+		$requete->query(
+			array_merge(
+				array(
+					'fields'         => 'ids',
+					'posts_per_page' => 50,
+				),
+				$vars
+			)
+		)
+	);
+}
+
+yume_tl_test(
+	'recherche : la fiche de l’œuvre (titre ou titre alternatif) passe avant ses tomes et ses annonces (UX-7)',
+	static function () {
+		$oeuvre = yume_tl_oeuvre( 'Grimgar of Fantasy and Ash', array(), array( 'post_date' => yume_tl_date( 400 ) ) );
+		$alt    = yume_tl_oeuvre(
+			'Hai to Gensou',
+			array(),
+			array(
+				'post_date'    => yume_tl_date( 300 ),
+				'post_content' => '<!-- wp:paragraph --><p>Le monde de grimgar, vu autrement.</p><!-- /wp:paragraph -->',
+				'meta_input'   => array( 'yume_titres_alt' => array( 'Grimgar, le monde de cendres' ) ),
+			)
+		);
+		$autre  = yume_tl_oeuvre(
+			'Raven of the Inner Palace',
+			array(),
+			array(
+				'post_date'    => yume_tl_date( 200 ),
+				'post_content' => '<!-- wp:paragraph --><p>Pour les lecteurs de Grimgar.</p><!-- /wp:paragraph -->',
+			)
+		);
+		$tomes  = array();
+		for ( $i = 1; $i <= 9; $i++ ) {
+			$tomes[] = yume_tl_tome( $oeuvre, $i, array( 'post_date' => yume_tl_date( 100 - $i ) ) );
+		}
+		$annonce = yume_factory_post(
+			array(
+				'post_type'   => 'post',
+				'post_status' => 'publish',
+				'post_title'  => 'Le tome 9 de Grimgar est disponible !',
+				'post_date'   => yume_tl_date( 1 ),
+			)
+		);
+
+		$ids = yume_tl_rechercher( array( 's' => 'grimgar' ) );
+		yume_assert_same( $oeuvre, $ids[0] ?? 0, 'la fiche de l’œuvre en premier' );
+		yume_assert_same( $alt, $ids[1] ?? 0, 'puis l’œuvre dont un titre alternatif correspond' );
+		yume_assert_true( array_search( $tomes[8], $ids, true ) < array_search( $annonce, $ids, true ), 'à pertinence égale, les tomes avant les annonces' );
+		yume_assert_true( array_search( $annonce, $ids, true ) < array_search( $autre, $ids, true ), 'une œuvre qui ne cite le nom que dans son synopsis ne passe pas devant les titres' );
+		yume_assert_same( $tomes[8], $ids[2] ?? 0, 'tomes du plus récent au plus ancien' );
+
+		// Tri explicite demandé : ordre de WordPress conservé.
+		$ids = yume_tl_rechercher(
+			array(
+				's'       => 'grimgar',
+				'orderby' => 'date',
+			)
+		);
+		yume_assert_same( $annonce, $ids[0] ?? 0, 'orderby=date : la plus récente d’abord' );
+
+		// Requête secondaire (non principale) : ordre inchangé.
+		$secondaire = new WP_Query(
+			array(
+				's'              => 'grimgar',
+				'fields'         => 'ids',
+				'posts_per_page' => 50,
+			)
+		);
+		yume_assert_same( $annonce, (int) ( $secondaire->posts[0] ?? 0 ), 'requête secondaire : ordre de WordPress' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Thème : blocs à fond personnalisé (contenus migrés)
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'thème : un groupe à fond clair sans couleur de texte prend l’encre sombre (UX-1, /lequipe/ en Nuit)',
+	static function () {
+		if ( ! function_exists( 'yume_theme_encre_fond_personnalise' ) ) {
+			return; // Thème Yume inactif.
+		}
+		$groupe = static function ( array $attrs ): string {
+			$fond = $attrs['style']['color']['background'] ?? '';
+			return do_blocks( '<!-- wp:group ' . wp_json_encode( $attrs ) . ' --><div class="wp-block-group has-background" style="background-color:' . esc_attr( $fond ) . '"><!-- wp:heading {"level":3} --><h3 class="wp-block-heading">La direction</h3><!-- /wp:heading --></div><!-- /wp:group -->' );
+		};
+		yume_assert_contains( 'yn-fond-clair', $groupe( array( 'style' => array( 'color' => array( 'background' => '#efe7fb' ) ) ) ), '#efe7fb : fond clair' );
+		yume_assert_contains( 'yn-fond-clair', $groupe( array( 'style' => array( 'color' => array( 'background' => '#F5F0FA' ) ) ) ), 'hexadécimal en capitales' );
+		yume_assert_contains( 'yn-fond-clair', $groupe( array( 'style' => array( 'color' => array( 'background' => '#fff' ) ) ) ), 'forme courte' );
+		yume_assert_contains( 'yn-fond-sombre', $groupe( array( 'style' => array( 'color' => array( 'background' => '#1b1231' ) ) ) ), 'fond sombre' );
+		yume_assert_contains( 'yn-fond-sombre', $groupe( array( 'style' => array( 'color' => array( 'background' => 'rgb(20, 10, 40)' ) ) ) ), 'rgb()' );
+		yume_assert_not_contains(
+			'yn-fond-',
+			$groupe(
+				array(
+					'style' => array(
+						'color' => array(
+							'background' => '#efe7fb',
+							'text'       => '#333333',
+						),
+					),
+				)
+			),
+			'couleur de texte propre : inchangé'
+		);
+		yume_assert_not_contains(
+			'yn-fond-',
+			$groupe(
+				array(
+					'textColor' => 'texte-fort',
+					'style'     => array( 'color' => array( 'background' => '#efe7fb' ) ),
+				)
+			),
+			'couleur de texte de palette : inchangé'
+		);
+		yume_assert_not_contains( 'yn-fond-', $groupe( array( 'backgroundColor' => 'carte' ) ), 'fond de palette (suit le thème) : inchangé' );
+		yume_assert_not_contains( 'yn-fond-', $groupe( array( 'style' => array( 'color' => array( 'background' => 'var(--wp--preset--color--carte)' ) ) ) ), 'variable : inchangé' );
+		yume_assert_true( abs( yume_theme_luminance( '#ffffff' ) - 1.0 ) < 0.0001 && yume_theme_luminance( '#000' ) < 0.0001, 'luminance WCAG' );
+		yume_assert_same( null, yume_theme_luminance( 'linear-gradient(#fff,#000)' ), 'dégradé ignoré' );
+
+		$css = (string) file_get_contents( get_theme_file_path( 'assets/css/yume.css' ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
+		yume_assert_contains( 'html[data-yn-theme="nuit"] .yn-fond-clair {', $css, 'palette Papier sous le thème Nuit' );
+		yume_assert_contains( 'html[data-yn-theme="papier"] .yn-fond-sombre,', $css, 'palette Nuit sous Papier et Sépia' );
+	}
+);
+
+yume_tl_test(
+	'styles des blocs : titres plus spécifiques que :root :where(hN) de WordPress 6.6 (RC-1)',
+	static function () {
+		// Sous WordPress 6.6 (minimum déclaré), theme.json produit « :root :where(h2){…} » (0,1,0),
+		// chargé après les feuilles des blocs : une classe seule sur un titre perd.
+		$titres  = array(
+			'tome-list/style.css'     => array( 'yn-tome-list__titre', 'yn-tome-list__nom' ),
+			'oeuvre-header/style.css' => array( 'yn-oeuvre-header__titre' ),
+			'tome-header/style.css'   => array( 'yn-tome-header__titre', 'yn-galerie__titre' ),
+			'tome-toc/style.css'      => array( 'yn-toc__titre' ),
+		);
+		$dossier = dirname( __DIR__ ) . '/includes/library/blocks/';
+		foreach ( $titres as $fichier => $classes ) {
+			$css = (string) file_get_contents( $dossier . $fichier ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
+			foreach ( $classes as $classe ) {
+				yume_assert_same( 0, preg_match( '/(?:^|[},])\s*\.' . preg_quote( $classe, '/' ) . '\s*[{,]/m', $css ), $fichier . ' : .' . $classe . ' jamais seul' );
+				yume_assert_true( 1 === preg_match( '/\.[a-z-]+\s+\.' . preg_quote( $classe, '/' ) . '\s*\{/', $css ), $fichier . ' : .' . $classe . ' préfixé par son bloc' );
+			}
+		}
 	}
 );

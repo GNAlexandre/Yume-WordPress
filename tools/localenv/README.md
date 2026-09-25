@@ -85,6 +85,17 @@ YUME_ENV=demo tools/localenv/serve.sh
 rm -rf ~/.local/share/yume-localenv/databases/demo                        # repartir de zéro
 ```
 
+### MySQL / MariaDB (moteur de la production)
+
+Avec `YUME_DB_ENGINE=mysql`, le `wp-config.php` généré par `setup.sh` utilise MySQL/MariaDB au lieu
+de SQLite : base `yume_<YUME_ENV>` créée au besoin sur `YUME_DB_HOST` (défaut `localhost`) avec
+`YUME_DB_USER` / `YUME_DB_PASSWORD` (défaut `wp` / `wp`). La CI lance ainsi les tests sur les deux
+moteurs (contrat §13). Un `wp-config.php` antérieur doit être régénéré (`setup.sh --forcer`).
+
+```sh
+YUME_DB_ENGINE=mysql YUME_ENV=tests tools/localenv/test.sh
+```
+
 ### Ne charger que certains modules
 
 `YUME_ONLY_MODULES` (pris en compte seulement quand `YUME_DEV` est vrai, ce que fait `wp-config.php`

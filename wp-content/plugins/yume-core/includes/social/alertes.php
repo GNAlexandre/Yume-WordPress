@@ -79,6 +79,25 @@ function envoyer_email( int $user_id, string $sujet, string $corps, string $cont
 }
 
 /**
+ * Titre d'un contenu en texte brut, pour un objet d'e-mail : get_the_title() renvoie du HTML
+ * (entités de wptexturize : &#8217;, &#038;…) qu'une ligne d'objet afficherait telles quelles.
+ *
+ * @param int $post_id Contenu.
+ */
+function titre_brut( int $post_id ): string {
+	return texte_brut( (string) get_the_title( $post_id ) );
+}
+
+/**
+ * Texte HTML (titre, pseudo stocké avec &amp;…) ramené en texte brut.
+ *
+ * @param string $html Texte.
+ */
+function texte_brut( string $html ): string {
+	return trim( html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+}
+
+/**
  * Première page de lecture d'un tome (son premier chapitre publié), sinon le tome.
  *
  * @param int $tome_id Tome.
@@ -96,15 +115,15 @@ function url_lecture_tome( int $tome_id ): string {
 function libelle_sortie( int $post_id ): string {
 	if ( 'yume_tome' === get_post_type( $post_id ) ) {
 		$libelle = function_exists( 'yume_libelle_tome' ) ? yume_libelle_tome( $post_id ) : '';
-		return '' !== $libelle ? $libelle : wp_strip_all_tags( get_the_title( $post_id ) );
+		return '' !== $libelle ? texte_brut( $libelle ) : titre_brut( $post_id );
 	}
 	$morceaux = array();
 	$tome     = function_exists( 'yume_libelle_tome' ) ? yume_libelle_tome( $post_id ) : '';
 	if ( '' !== $tome ) {
-		$morceaux[] = $tome;
+		$morceaux[] = texte_brut( $tome );
 	}
 	$chapitre   = function_exists( 'yume_libelle_chapitre' ) ? yume_libelle_chapitre( $post_id ) : '';
-	$morceaux[] = '' !== $chapitre ? $chapitre : wp_strip_all_tags( get_the_title( $post_id ) );
+	$morceaux[] = '' !== $chapitre ? texte_brut( $chapitre ) : titre_brut( $post_id );
 	return implode( ' · ', $morceaux );
 }
 
@@ -116,7 +135,7 @@ function libelle_sortie( int $post_id ): string {
  */
 function message_sortie( int $post_id ): array {
 	$oeuvre_id = yume_get_oeuvre_id( $post_id );
-	$oeuvre    = wp_strip_all_tags( get_the_title( $oeuvre_id ) );
+	$oeuvre    = titre_brut( $oeuvre_id );
 	$libelle   = libelle_sortie( $post_id );
 	$est_tome  = 'yume_tome' === get_post_type( $post_id );
 	if ( $est_tome ) {
@@ -139,7 +158,7 @@ function message_sortie( int $post_id ): array {
 			'<strong>' . esc_html( $libelle ) . '</strong>',
 			'<strong>' . esc_html( $oeuvre ) . '</strong>'
 		);
-		$sous_titre = (string) get_post_meta( $post_id, 'yume_sous_titre', true );
+		$sous_titre = texte_brut( (string) get_post_meta( $post_id, 'yume_sous_titre', true ) );
 		if ( '' !== $sous_titre ) {
 			$texte .= ' <em>' . esc_html( $sous_titre ) . '</em>';
 		}
@@ -193,7 +212,7 @@ function alerter_sortie( int $post_id ): int {
 		if ( ! preferences_alertes( $user_id )['sorties'] ) {
 			continue;
 		}
-		if ( envoyer_email( $user_id, $message['sujet'], $message['corps'], 'alerte_sortie' ) ) {
+		if ( envoyer_email( $user_id, $message['sujet'], $message['corps'], contexte_sortie( $post_id ) ) ) {
 			++$envoyes;
 		}
 	}
@@ -206,6 +225,116 @@ function alerter_sortie( int $post_id ): int {
 	do_action( 'yume_alertes_envoyees', $post_id, $envoyes );
 	return $envoyes;
 }
+
+/**
+ * Contexte des e-mails d'alerte d'une sortie dans la file (identifie le contenu annoncé, pour
+ * retirer les e-mails en attente s'il est dépublié).
+ *
+ * @param int $post_id Tome ou chapitre.
+ */
+function contexte_sortie( int $post_id ): string {
+	return 'alerte_sortie_' . $post_id;
+}
+
+/**
+ * Contenus dont les alertes deviennent caduques quand $post_id quitte l'état publié : le
+ * contenu lui-même, les chapitres d'un tome, les tomes et chapitres d'une œuvre.
+ *
+ * @param \WP_Post $post Contenu dépublié.
+ * @return int[]
+ */
+function sorties_concernees( \WP_Post $post ): array {
+	$ids = array( (int) $post->ID );
+	if ( 'yume_chapitre' === $post->post_type ) {
+		return $ids;
+	}
+	$tomes = array();
+	if ( 'yume_tome' === $post->post_type ) {
+		$tomes = array( (int) $post->ID );
+	} elseif ( 'yume_oeuvre' === $post->post_type ) {
+		$tomes = get_posts(
+			array(
+				'post_type'        => 'yume_tome',
+				'post_status'      => 'any',
+				'fields'           => 'ids',
+				'posts_per_page'   => -1,
+				'no_found_rows'    => true,
+				'suppress_filters' => true,
+				'meta_key'         => 'yume_oeuvre_id', // phpcs:ignore WordPress.DB.SlowDBQuery
+				'meta_value'       => (int) $post->ID, // phpcs:ignore WordPress.DB.SlowDBQuery
+			)
+		);
+		$ids   = array_merge( $ids, array_map( 'intval', $tomes ) );
+	}
+	if ( $tomes ) {
+		$chapitres = get_posts(
+			array(
+				'post_type'        => 'yume_chapitre',
+				'post_status'      => 'any',
+				'fields'           => 'ids',
+				'posts_per_page'   => -1,
+				'no_found_rows'    => true,
+				'suppress_filters' => true,
+				'meta_query'       => array( // phpcs:ignore WordPress.DB.SlowDBQuery
+					array(
+						'key'     => 'yume_tome_id',
+						'value'   => array_map( 'intval', $tomes ),
+						'compare' => 'IN',
+					),
+				),
+			)
+		);
+		$ids       = array_merge( $ids, array_map( 'intval', $chapitres ) );
+	}
+	return array_values( array_unique( $ids ) );
+}
+
+/**
+ * Retire de la file les alertes encore en attente pour des contenus dépubliés. Si aucune
+ * alerte de la sortie n'était encore partie, la sortie est « oubliée » (_yume_alerte_envoyee
+ * effacée) : une republication préviendra de nouveau les abonnés.
+ *
+ * @param int[] $ids Tomes ou chapitres.
+ * @return int Nombre d'e-mails retirés.
+ */
+function retirer_alertes_en_attente( array $ids ): int {
+	global $wpdb;
+	if ( ! $ids || ! function_exists( '\Yume\Core\Planning\table_notifications' ) ) {
+		return 0;
+	}
+	$table   = \Yume\Core\Planning\table_notifications();
+	$retires = 0;
+	foreach ( $ids as $id ) {
+		$contexte = contexte_sortie( (int) $id );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		$retires += (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE statut = 'attente' AND contexte = %s", $contexte ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		$partis = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE contexte = %s", $contexte ) );
+		if ( 0 === $partis ) {
+			delete_post_meta( (int) $id, META_ALERTE_ENVOYEE );
+		}
+	}
+	return $retires;
+}
+
+/**
+ * Un tome, un chapitre ou une œuvre quitte l'état publié : ses alertes en attente ne partent
+ * pas (le formulaire de publication promet qu'un tome dépublié disparaît des notifications).
+ *
+ * @param string   $nouveau Nouveau statut.
+ * @param string   $ancien  Ancien statut.
+ * @param \WP_Post $post    Contenu.
+ */
+function sur_depublication( $nouveau, $ancien, $post ): void {
+	if ( 'publish' !== $ancien || 'publish' === $nouveau || ! $post instanceof \WP_Post ) {
+		return;
+	}
+	if ( ! in_array( $post->post_type, array( 'yume_tome', 'yume_chapitre', 'yume_oeuvre' ), true ) ) {
+		return;
+	}
+	retirer_alertes_en_attente( sorties_concernees( $post ) );
+}
+add_action( 'transition_post_status', __NAMESPACE__ . '\\sur_depublication', 10, 3 );
 
 /**
  * Action yume_tome_publie : alerte des abonnés.
@@ -310,7 +439,7 @@ function envoyer_recap(): int {
 	foreach ( destinataires_recap( $sorties ) as $user_id => $oeuvres ) {
 		$corps = '<p style="margin:0 0 12px;">' . esc_html__( 'Voici les sorties de la semaine pour les œuvres que vous suivez :', 'yume-core' ) . '</p>';
 		foreach ( $oeuvres as $oeuvre_id ) {
-			$corps .= '<p style="margin:16px 0 4px;font-weight:700;"><a href="' . esc_url( (string) get_permalink( $oeuvre_id ) ) . '">' . esc_html( wp_strip_all_tags( get_the_title( $oeuvre_id ) ) ) . '</a></p><ul style="margin:0;padding-left:20px;">';
+			$corps .= '<p style="margin:16px 0 4px;font-weight:700;"><a href="' . esc_url( (string) get_permalink( $oeuvre_id ) ) . '">' . esc_html( titre_brut( $oeuvre_id ) ) . '</a></p><ul style="margin:0;padding-left:20px;">';
 			foreach ( $sorties[ $oeuvre_id ] as $post_id ) {
 				$url    = 'yume_tome' === get_post_type( $post_id ) ? url_lecture_tome( $post_id ) : (string) get_permalink( $post_id );
 				$corps .= '<li><a href="' . esc_url( $url ) . '">' . esc_html( libelle_sortie( $post_id ) ) . '</a></li>';
@@ -353,8 +482,9 @@ function notifier_reponse( \WP_Comment $reponse ): bool {
 	if ( ! add_comment_meta( (int) $reponse->comment_ID, '_yume_reponse_notifiee', maintenant_gmt(), true ) ) {
 		return false;
 	}
-	$titre  = wp_strip_all_tags( get_the_title( (int) $reponse->comment_post_ID ) );
-	$auteur = '' !== (string) $reponse->comment_author ? (string) $reponse->comment_author : __( 'Un lecteur', 'yume-core' );
+	$titre  = titre_brut( (int) $reponse->comment_post_ID );
+	$auteur = texte_brut( (string) $reponse->comment_author );
+	$auteur = '' !== $auteur ? $auteur : __( 'Un lecteur', 'yume-core' );
 	/* translators: 1 : auteur de la réponse, 2 : titre de la page. */
 	$sujet   = sprintf( __( '%1$s a répondu à votre commentaire sur « %2$s »', 'yume-core' ), $auteur, $titre );
 	$extrait = wp_trim_words( wp_strip_all_tags( (string) $reponse->comment_content ), 60, '…' );

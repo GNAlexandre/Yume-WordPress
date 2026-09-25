@@ -157,14 +157,20 @@ function traiter_inscription(): void {
 		if ( in_array( 'username_exists', $codes, true ) ) {
 			rediriger( $retour, 'pseudo-pris', 'yn-inscription' );
 		}
-		if ( in_array( 'email_exists', $codes, true ) ) {
-			rediriger( $retour, 'email-pris', 'yn-inscription' );
-		}
 		if ( array_intersect( array( 'invalid_email', 'empty_email' ), $codes ) ) {
 			rediriger( $retour, 'email-invalide', 'yn-inscription' );
 		}
 		if ( array_intersect( array( 'invalid_username', 'empty_username', 'username_too_long', 'illegal_user_login' ), $codes ) ) {
 			rediriger( $retour, 'pseudo-invalide', 'yn-inscription' );
+		}
+		if ( array( 'email_exists' ) === array_values( array_unique( $codes ) ) ) {
+			// Même réponse qu'une inscription réussie : la page ne révèle pas quelles adresses
+			// sont inscrites. Le titulaire de l'adresse est prévenu (lien « mot de passe oublié »).
+			$titulaire = email_exists( $email );
+			if ( $titulaire ) {
+				prevenir_adresse_prise( (int) $titulaire, 'inscription' );
+			}
+			rediriger( $retour, 'inscription-ok', 'yn-connexion' );
 		}
 		rediriger( $retour, 'inscription-refusee', 'yn-inscription' );
 	}
@@ -268,6 +274,54 @@ function demander_changement_email( \WP_User $user, string $email ): bool {
 }
 
 /**
+ * Prévient le titulaire d'une adresse déjà inscrite qu'une personne a tenté de l'utiliser
+ * (inscription ou changement d'adresse d'un autre compte), au lieu de le révéler à cette
+ * personne. Trois messages par jour et par compte au plus : au-delà, rien n'est envoyé.
+ *
+ * @param int    $user_id  Titulaire de l'adresse.
+ * @param string $contexte 'inscription' ou 'profil'.
+ * @return bool Faux si l'envoi a échoué.
+ */
+function prevenir_adresse_prise( int $user_id, string $contexte ): bool {
+	$user = get_userdata( $user_id );
+	if ( ! $user || ! is_email( $user->user_email ) ) {
+		return true;
+	}
+	if ( limite_atteinte( 'adresse-prise', 3, DAY_IN_SECONDS, 'u' . $user_id ) ) {
+		return true;
+	}
+	$site  = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+	$sujet = sprintf( /* translators: %s : nom du site. */ __( '[%s] Votre adresse e-mail a été saisie sur le site', 'yume-core' ), $site );
+	if ( 'inscription' === $contexte ) {
+		$texte = sprintf(
+			/* translators: 1 : nom du site, 2 : lien de connexion. */
+			__( "Bonjour,
+
+Quelqu’un vient de demander la création d’un compte %1\$s avec cette adresse e-mail. Aucun nouveau compte n’a été créé : cette adresse est déjà associée à votre compte.
+
+Si c’était vous et que vous avez oublié votre mot de passe, utilisez « Mot de passe oublié » :
+
+%2\$s
+
+Sinon, ignorez simplement ce message.", 'yume-core' ),
+			$site,
+			url_connexion() . '#yn-oubli'
+		);
+	} else {
+		$texte = sprintf(
+			/* translators: %s : nom du site. */
+			__( "Bonjour,
+
+Quelqu’un a demandé à utiliser cette adresse e-mail pour un autre compte %s. La demande a été refusée : cette adresse reste associée à votre compte et rien n’a été modifié.
+
+Vous n’avez rien à faire.", 'yume-core' ),
+			$site
+		);
+	}
+	return (bool) wp_mail( $user->user_email, $sujet, $texte );
+}
+
+/**
  * Profil et sécurité : pseudo, adresse e-mail (confirmée par lien) et mot de passe. Changer
  * l'adresse ou le mot de passe exige le mot de passe actuel.
  */
@@ -313,8 +367,17 @@ function traiter_profil(): void {
 				$autre = email_exists( $email );
 				if ( ! is_email( $email ) ) {
 					$erreurs[] = 'email-invalide';
+				} elseif ( limite_atteinte( 'profil-email', 5, HOUR_IN_SECONDS, 'u' . $user->ID ) || limite_atteinte( 'profil-email', 10, HOUR_IN_SECONDS ) ) {
+					// Chaque demande envoie un e-mail : limite par membre et par adresse IP.
+					$erreurs[] = 'trop-de-tentatives';
 				} elseif ( $autre && (int) $autre !== (int) $user->ID ) {
-					$erreurs[] = 'email-pris';
+					// Adresse d'un autre compte : même réponse qu'une adresse libre (pas
+					// d'énumération) ; son titulaire est prévenu au lieu du lien de confirmation.
+					if ( prevenir_adresse_prise( (int) $autre, 'profil' ) ) {
+						$codes[] = 'email-attente';
+					} else {
+						$erreurs[] = 'erreur';
+					}
 				} elseif ( demander_changement_email( $user, $email ) ) {
 					$codes[] = 'email-attente';
 				} else {

@@ -4,7 +4,11 @@
  *
  *   GET  /yume/v1/migration            état (statut, étape, progression, messages)
  *   POST /yume/v1/migration/executer   démarre (confirmation « MIGRER ») ou reprend un lot
- *   POST /yume/v1/migration/annuler    démarre (confirmation « ANNULER ») ou reprend un lot
+ *   POST /yume/v1/migration/annuler    démarre (confirmation « ANNULER ») ou reprend un lot ;
+ *                                      conserver (booléen) : annuler malgré l'utilisation du site
+ *                                      depuis la migration (œuvres utilisées conservées) ;
+ *                                      reconstruire (booléen) : annuler malgré un journal perdu
+ *                                      (erreur 412 sans ces confirmations)
  *
  * Paramètre commun des POST : ignorer (booléen) pour sauter l'élément en erreur.
  *
@@ -65,7 +69,19 @@ final class Migration_Rest {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( self::class, 'annuler' ),
 				'permission_callback' => $permission,
-				'args'                => $args,
+				'args'                => array_merge(
+					$args,
+					array(
+						'conserver'    => array(
+							'type'    => 'boolean',
+							'default' => false,
+						),
+						'reconstruire' => array(
+							'type'    => 'boolean',
+							'default' => false,
+						),
+					)
+				),
 			)
 		);
 	}
@@ -90,7 +106,7 @@ final class Migration_Rest {
 	 * @param \RuntimeException $e Exception.
 	 */
 	private static function erreur( \RuntimeException $e ): \WP_Error {
-		$statut = 409 === (int) $e->getCode() ? 409 : 400;
+		$statut = in_array( (int) $e->getCode(), array( 409, 412 ), true ) ? (int) $e->getCode() : 400;
 		return new \WP_Error( 'yume_migration', $e->getMessage(), array( 'status' => $statut ) );
 	}
 
@@ -131,7 +147,12 @@ final class Migration_Rest {
 				if ( 'ANNULER' !== (string) $request->get_param( 'confirmation' ) ) {
 					return new \WP_Error( 'yume_migration_confirmation', __( 'Confirmez l’annulation de la migration.', 'yume-core' ), array( 'status' => 400 ) );
 				}
-				Migration_Runner::demarrer_annulation();
+				Migration_Runner::demarrer_annulation(
+					array(
+						'conserver'    => (bool) $request->get_param( 'conserver' ),
+						'reconstruire' => (bool) $request->get_param( 'reconstruire' ),
+					)
+				);
 			} elseif ( 'annulation' !== $etat['statut'] ) {
 				return new \WP_Error( 'yume_migration_etat', __( 'Aucune migration à annuler.', 'yume-core' ), array( 'status' => 409 ) );
 			}

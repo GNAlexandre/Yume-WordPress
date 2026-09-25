@@ -55,7 +55,8 @@
 	const suite = morceaux.slice( 1 ).map( function ( texte, i, liste ) {
 		return i === liste.length - 1 ? texte.charAt( 0 ).toLowerCase() + texte.slice( 1 ) : texte;
 	} );
-	const detail = suite.concat( [ pourcentage + ' %' ] ).join( ' · ' );
+	// Unité explicite : la fiche œuvre affiche la part lue du tome (« 13 % du tome »).
+	const detail = suite.concat( [ pourcentage + ' % du chapitre' ] ).join( ' · ' );
 
 	function remplir( bloc, selecteur, texte ) {
 		const cible = bloc.querySelector( selecteur );

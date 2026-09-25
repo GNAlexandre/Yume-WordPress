@@ -39,17 +39,33 @@ if ( $yume_tome ) {
 }
 ?>
 <div class="yn-publish__cadre">
+	<?php
+	// Navigation de l'espace équipe : mêmes entrées, même ordre et mêmes cibles que celle du
+	// tableau de bord (/equipe/, bloc yume/team-dashboard), WCAG 3.2.3.
+	$yume_nav = array(
+		array( __( 'Tableau de bord', 'yume-core' ), $yume_equipe, false ),
+		array( __( 'Mes tâches', 'yume-core' ), $yume_equipe . '#yn-mes-taches', false ),
+		array( __( 'Publier un tome', 'yume-core' ), '' !== self::url_page() ? self::url_page() : (string) get_permalink(), true ),
+	);
+	if ( current_user_can( 'yume_maj_planning_tous' ) ) {
+		$yume_nav[] = array( __( 'Tous les tomes', 'yume-core' ), $yume_equipe . '#yn-tous-les-tomes', false );
+	}
+	$yume_nav[] = array( __( 'Planning complet', 'yume-core' ), $yume_planning, false );
+	$yume_nav[] = array( __( 'Journal', 'yume-core' ), $yume_equipe . '#yn-team-journal', false );
+	if ( current_user_can( 'list_users' ) ) {
+		$yume_nav[] = array( __( 'Membres et rôles', 'yume-core' ), admin_url( 'users.php' ), false );
+	}
+	if ( current_user_can( 'yume_reglages' ) ) {
+		$yume_nav[] = array( __( 'Réglages (rappels, Discord)', 'yume-core' ), admin_url( 'admin.php?page=yume-reglages' ), false );
+	}
+	?>
 	<nav class="yn-publish__nav" aria-label="<?php esc_attr_e( 'Espace équipe', 'yume-core' ); ?>">
 		<a class="yn-publish__marque" href="<?php echo esc_url( $yume_equipe ); ?>"><span class="yn-publish__pastille" aria-hidden="true"></span><?php esc_html_e( 'Yume · Équipe', 'yume-core' ); ?></a>
-		<a href="<?php echo esc_url( $yume_equipe ); ?>"><?php esc_html_e( 'Tableau de bord', 'yume-core' ); ?></a>
-		<a href="<?php echo esc_url( '' !== self::url_page() ? self::url_page() : get_permalink() ); ?>" aria-current="page" class="is-actif"><?php esc_html_e( 'Publier un tome', 'yume-core' ); ?></a>
-		<a href="<?php echo esc_url( $yume_planning ); ?>"><?php esc_html_e( 'Planning complet', 'yume-core' ); ?></a>
-		<?php if ( current_user_can( 'edit_yume_tomes' ) ) : ?>
-			<a href="<?php echo esc_url( admin_url( 'edit.php?post_type=yume_tome' ) ); ?>"><?php esc_html_e( 'Tous les tomes', 'yume-core' ); ?></a>
-		<?php endif; ?>
-		<?php if ( current_user_can( 'yume_reglages' ) ) : ?>
-			<a href="<?php echo esc_url( admin_url( 'admin.php?page=yume-reglages' ) ); ?>"><?php esc_html_e( 'Réglages (rappels, Discord)', 'yume-core' ); ?></a>
-		<?php endif; ?>
+		<ul class="yn-publish__menu">
+			<?php foreach ( $yume_nav as $yume_entree ) : ?>
+				<li><a href="<?php echo esc_url( $yume_entree[1] ); ?>"<?php echo $yume_entree[2] ? ' aria-current="page" class="is-actif"' : ''; ?>><?php echo esc_html( $yume_entree[0] ); ?></a></li>
+			<?php endforeach; ?>
+		</ul>
 	</nav>
 
 	<div class="yn-publish__page">

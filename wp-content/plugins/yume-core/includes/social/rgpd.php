@@ -171,6 +171,49 @@ function anonymiser_commentaires( string $email ): void {
 }
 
 /**
+ * Anonymise tous les commentaires rattachés au compte (user_id), quelle que soit l'adresse
+ * e-mail enregistrée avec eux : après un changement d'adresse, les anciens commentaires
+ * portent encore l'ancienne adresse, que l'effaceur de WordPress (recherche par adresse) ne
+ * retrouve pas. Même traitement que wp_comments_personal_data_eraser().
+ *
+ * @param int $user_id Membre.
+ * @return int Nombre de commentaires anonymisés.
+ */
+function anonymiser_commentaires_membre( int $user_id ): int {
+	global $wpdb;
+	if ( $user_id <= 0 ) {
+		return 0;
+	}
+	$n = 0;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$ids = $wpdb->get_col( $wpdb->prepare( "SELECT comment_ID FROM {$wpdb->comments} WHERE user_id = %d", $user_id ) );
+	foreach ( array_map( 'intval', (array) $ids ) as $comment_id ) {
+		$commentaire = get_comment( $comment_id );
+		if ( ! $commentaire instanceof \WP_Comment ) {
+			continue;
+		}
+		$anonyme = array(
+			'comment_agent'        => '',
+			'comment_author'       => __( 'Anonymous' ), // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- même libellé que l'effaceur de WordPress.
+			'comment_author_email' => '',
+			'comment_author_IP'    => wp_privacy_anonymize_data( 'ip', $commentaire->comment_author_IP ),
+			'comment_author_url'   => '',
+			'user_id'              => 0,
+		);
+		/** This filter is documented in wp-includes/comment.php */
+		if ( true !== apply_filters( 'wp_anonymize_comment', true, $commentaire, $anonyme ) ) {
+			continue;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( $wpdb->update( $wpdb->comments, $anonyme, array( 'comment_ID' => $comment_id ) ) ) {
+			clean_comment_cache( $comment_id );
+			++$n;
+		}
+	}
+	return $n;
+}
+
+/**
  * Supprime un compte lecteur et toutes ses données. Refusé pour l'équipe et les administrateurs.
  *
  * @param int $user_id Utilisateur.
@@ -192,6 +235,7 @@ function supprimer_compte( int $user_id ) {
 	do_action( 'yume_compte_suppression', $user_id );
 
 	anonymiser_commentaires( (string) $user->user_email );
+	anonymiser_commentaires_membre( $user_id );
 	effacer_donnees( $user_id );
 
 	require_once ABSPATH . 'wp-admin/includes/user.php';

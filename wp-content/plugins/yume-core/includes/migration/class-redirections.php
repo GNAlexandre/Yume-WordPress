@@ -20,6 +20,12 @@ final class Redirections {
 	public const OPTION = 'yume_redirections';
 
 	/**
+	 * Option : ID d'une ancienne page remplacée => cible relative, pour les adresses courtes
+	 * « /?page_id=N » (ou « /?p=N ») des partages et liens anciens (chargée automatiquement).
+	 */
+	public const OPTION_IDS = 'yume_redirections_ids';
+
+	/**
 	 * Table des redirections, éventuellement complétée par le filtre yume_redirections.
 	 *
 	 * @return array<string,string>
@@ -87,6 +93,54 @@ final class Redirections {
 	}
 
 	/**
+	 * Enregistre les cibles des anciennes adresses courtes (ID de page => cible), en remplaçant
+	 * celles des mêmes ID.
+	 *
+	 * @param array<int,string> $ids ID d'origine => cible relative.
+	 */
+	public static function ajouter_ids( array $ids ): void {
+		$table = get_option( self::OPTION_IDS, array() );
+		$table = is_array( $table ) ? $table : array();
+		foreach ( $ids as $id => $cible ) {
+			if ( (int) $id > 0 && '' !== trim( (string) $cible ) ) {
+				$table[ (int) $id ] = trim( (string) $cible );
+			}
+		}
+		ksort( $table );
+		update_option( self::OPTION_IDS, $table, true );
+	}
+
+	/**
+	 * Cible d'une adresse courte « ?page_id=N » ou « ?p=N » d'une ancienne page remplacée (non
+	 * publiée), ou null.
+	 *
+	 * @param string $requete Chaîne de requête.
+	 * @return array{0:string,1:string}|null Cible et chaîne de requête restante.
+	 */
+	private static function cible_id( string $requete ): ?array {
+		if ( '' === $requete ) {
+			return null;
+		}
+		parse_str( $requete, $params );
+		if ( isset( $params['preview'] ) || isset( $params['preview_id'] ) ) {
+			return null;
+		}
+		$id = 0;
+		foreach ( array( 'page_id', 'p' ) as $cle ) {
+			if ( isset( $params[ $cle ] ) && is_string( $params[ $cle ] ) && ctype_digit( $params[ $cle ] ) ) {
+				$id = (int) $params[ $cle ];
+				unset( $params[ $cle ] );
+				break;
+			}
+		}
+		$table = get_option( self::OPTION_IDS, array() );
+		if ( ! $id || ! is_array( $table ) || empty( $table[ $id ] ) || 'publish' === get_post_status( $id ) ) {
+			return null;
+		}
+		return array( (string) $table[ $id ], http_build_query( $params ) );
+	}
+
+	/**
 	 * Retire des redirections.
 	 *
 	 * @param string[] $sources Chemins source.
@@ -122,11 +176,19 @@ final class Redirections {
 	 * @param string $requete Chaîne de requête à conserver si la cible n'en a pas.
 	 */
 	public static function resoudre( string $uri, string $requete = '' ): ?string {
+		$chemin = self::normaliser( $uri );
+		if ( '/' === $chemin ) {
+			$par_id = self::cible_id( $requete );
+			if ( null === $par_id ) {
+				return null;
+			}
+			$url = self::url( $par_id[0] );
+			return '' !== $par_id[1] && ! str_contains( $url, '?' ) ? $url . '?' . $par_id[1] : $url;
+		}
 		$table = self::table();
 		if ( ! $table ) {
 			return null;
 		}
-		$chemin  = self::normaliser( $uri );
 		$suffixe = '';
 		$cible   = $table[ $chemin ] ?? null;
 		if ( null === $cible && preg_match( '#^(/.+?/)((?:feed|amp)/|page/\d+/)$#', $chemin, $m ) && isset( $table[ $m[1] ] ) ) {
