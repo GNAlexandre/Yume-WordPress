@@ -26,6 +26,14 @@ Les documents 02 à 05 décrivent le *pourquoi* ; celui-ci décrit le *quoi exac
 - Pas de build obligatoire : JS « vanilla » ES2019 et scripts WordPress globaux (`wp.element`,
   `wp.apiFetch`…). CSS natif avec variables.
 
+## 0 bis. Règle de livraison (décision de l'équipe)
+
+**Rien n'est poussé sur le site yumenovel.fr sans le « Go » explicite de l'équipe.** Tout le travail
+se fait et se vérifie sur GitHub (branche de travail, puis revue). Concrètement : aucune écriture
+sur le site via le connecteur WordPress.com (lecture seule autorisée pour l'analyse), aucun tag
+`v*` ni release GitHub (une release déclencherait la mise à jour automatique du plugin une fois
+installé), aucun téléversement de zip. La bascule du §8 de `02-plan-refonte.md` n'a lieu qu'après le Go.
+
 ## 1. Arborescence et propriétaires
 
 | Chemin | Propriétaire (module) |
