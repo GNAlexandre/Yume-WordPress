@@ -79,7 +79,7 @@ final class Plan_Report {
 			array( 'Élément', 'Total', 'Détail' ),
 			array(
 				array( 'Pages de l’ancien site', $c['pages']['total'], self::liste_comptes( $c['pages']['par_famille'] ) . ' (statuts : ' . self::liste_comptes( $c['pages']['par_statut'] ) . ')' ),
-				array( 'Articles', $c['articles']['total'], self::liste_comptes( $c['articles']['par_classement'] ) . sprintf( ' ; avec œuvre liée : %d ; sorties sans œuvre : %d ; en « Non classé » : %d', $c['articles']['avec_oeuvre'], $c['articles']['sorties_sans_oeuvre'], $c['articles']['non_classe'] ) ),
+				array( 'Articles', $c['articles']['total'], self::liste_comptes( $c['articles']['par_classement'] ) . sprintf( ' ; avec œuvre liée : %d ; sorties sans œuvre : %d ; en « Non classé » : %d ; brouillons ignorés : %d', $c['articles']['avec_oeuvre'], $c['articles']['sorties_sans_oeuvre'], $c['articles']['non_classe'], $c['articles']['a_ignorer'] ) . ' (statuts : ' . self::liste_comptes( $c['articles']['par_statut'] ) . ')' ),
 				array( 'Œuvres', $c['oeuvres']['total'], self::liste_comptes( $c['oeuvres']['par_type'] ) . ' ; ' . self::liste_comptes( $c['oeuvres']['par_statut'] ) ),
 				array( 'Tomes', $c['tomes']['total'], self::liste_comptes( $c['tomes']['par_nature'] ) . ' ; ' . self::liste_comptes( $c['tomes']['par_statut'] ) ),
 				array( 'Chapitres', $c['chapitres']['total'], sprintf( 'migrés : %d ; planifiés (brouillons) : %d ; %d mots ; %d dialogues ; %d pensées ; %d illustrations ; %d images de navigation supprimées', $c['chapitres']['migres'], $c['chapitres']['planifies'], $c['chapitres']['mots'], $c['chapitres']['dialogues'], $c['chapitres']['pensees'], $c['chapitres']['illustrations'], $c['chapitres']['images_navigation_supprimees'] ) ),
@@ -147,7 +147,7 @@ final class Plan_Report {
 				$a['date'],
 				$a['titre'],
 				implode( ', ', $a['categories_slugs'] ),
-				$a['categorie_cible'],
+				'ignorer' === $a['action'] ? '(ignoré)' : $a['categorie_cible'],
 				$a['oeuvre'] ?? '—',
 				$a['tome'] ?? '—',
 			);

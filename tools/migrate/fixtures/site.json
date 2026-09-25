@@ -1,0 +1,21 @@
+{
+    "site_id": 238001312,
+    "domaine": "yumenovel.fr",
+    "domaines_alias": [
+        "yumenovel.wordpress.com"
+    ],
+    "exporte_le": "2026-09-25 14:27:26",
+    "source": "Extraits courts de l’export (tools/migrate/build-fixtures.php) — jeu d’essai des tests de migration.",
+    "comptes": {
+        "pages": 11,
+        "posts": 5,
+        "categories": 3,
+        "media": 48,
+        "navigations": 1,
+        "template_parts": 1
+    },
+    "contenu_manquant": {
+        "pages": [],
+        "posts": []
+    }
+}

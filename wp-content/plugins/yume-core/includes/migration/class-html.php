@@ -245,6 +245,11 @@ final class Html {
 				$sortie .= $interieur;
 				continue;
 			}
+			// Mise en forme posée sur de la seule ponctuation (« <strong>— </strong> », « <em>...</em> ») : retirée.
+			if ( in_array( $balise, array( 'em', 'strong', 'u', 's' ), true ) && false === strpos( $interieur, '<br>' ) && ! preg_match( '/[\p{L}\p{N}]/u', self::texte( $interieur ) ) ) {
+				$sortie .= $interieur;
+				continue;
+			}
 			if ( 'a' === $balise ) {
 				$href = trim( $enfant->getAttribute( 'href' ) );
 				if ( '' === trim( self::texte( $interieur ) ) && false === strpos( $interieur, '<br>' ) ) {

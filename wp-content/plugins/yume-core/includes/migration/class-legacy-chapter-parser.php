@@ -155,6 +155,7 @@ final class Legacy_Chapter_Parser {
 			'illustrations' => 0,
 			'navigation'    => 0,
 		);
+		$repliques  = array();
 		$debut      = max( $index_titre, $index_credits ) + 1;
 		foreach ( array_slice( $blocs, $debut ) as $bloc ) {
 			$nom = $bloc['blockName'];
@@ -179,6 +180,10 @@ final class Legacy_Chapter_Parser {
 					if ( Html::commence_par_tiret( $texte ) ) {
 						$sortie[] = array( 'paragraphe', Html::normaliser_dialogue( $propre ), array( 'yn-dialogue' ), '' );
 						++$stats['dialogues'];
+						// Plusieurs répliques collées dans le même paragraphe (« … ? — Oui. — Non… »).
+						if ( preg_match( '/[.?!…»]\s*[' . Html::TIRETS . ']\s/u', mb_substr( $texte, 1, null, 'UTF-8' ) ) ) {
+							$repliques[] = mb_substr( $texte, 0, 60, 'UTF-8' );
+						}
 					} elseif ( Html::entierement_italique( $propre ) ) {
 						$sortie[] = array( 'paragraphe', Html::sans_italique( $propre ), array( 'yn-thought' ), '' );
 						++$stats['pensees'];
@@ -201,13 +206,10 @@ final class Legacy_Chapter_Parser {
 				$image = self::image( $bloc, $domaines, $chemins, $medias );
 				if ( 'navigation' === $image['role'] ) {
 					$navigation[] = $image['lien'];
+					$sortie[]     = array( 'navigation', $image );
 					++$stats['navigation'];
 				} elseif ( '' !== $image['url'] ) {
 					$sortie[] = array( 'image', $image );
-					if ( $image['id'] > 0 ) {
-						$illus[] = $image['id'];
-					}
-					++$stats['illustrations'];
 				}
 				continue;
 			}
@@ -238,6 +240,48 @@ final class Legacy_Chapter_Parser {
 				continue;
 			}
 			$avert[] = sprintf( 'Bloc %s ignoré.', $nom );
+		}
+
+		// Pied de page de navigation : après le dernier texte, une image non liée faite sur le même
+		// modèle que les images de navigation (même nom de fichier aux numéros près : couverture
+		// du chapitre suivant, pas encore publié) relève aussi de la navigation. Une vraie
+		// illustration de fin de chapitre est conservée.
+		$dernier_texte = -1;
+		foreach ( $sortie as $i => $element ) {
+			if ( in_array( $element[0], array( 'paragraphe', 'liste' ), true ) ) {
+				$dernier_texte = $i;
+			}
+		}
+		$pied      = array_slice( $sortie, $dernier_texte + 1, null, true );
+		$modeles   = array();
+		foreach ( $pied as $element ) {
+			if ( 'navigation' === $element[0] && '' !== self::modele_fichier( $element[1]['url'] ) ) {
+				$modeles[ self::modele_fichier( $element[1]['url'] ) ] = true;
+			}
+		}
+		foreach ( $pied as $i => $element ) {
+			if ( 'image' === $element[0] && isset( $modeles[ self::modele_fichier( $element[1]['url'] ) ] ) ) {
+				$avert[] = sprintf( 'Image %s non liée dans le pied de navigation : retirée (couverture du chapitre suivant ?).', $element[1]['id'] ? '#' . $element[1]['id'] : $element[1]['url'] );
+				++$stats['navigation'];
+				unset( $sortie[ $i ] );
+			}
+		}
+		$sortie = array_values(
+			array_filter(
+				$sortie,
+				static fn( $e ) => 'navigation' !== $e[0]
+			)
+		);
+		foreach ( $sortie as $element ) {
+			if ( 'image' === $element[0] ) {
+				if ( $element[1]['id'] > 0 ) {
+					$illus[] = $element[1]['id'];
+				}
+				++$stats['illustrations'];
+			}
+		}
+		if ( $repliques ) {
+			$avert[] = sprintf( '%d paragraphe(s) de dialogue réunissant plusieurs répliques (à scinder à la relecture) : « %s… ».', count( $repliques ), implode( '… », « ', array_slice( $repliques, 0, 3 ) ) );
 		}
 
 		// Séparateurs : ni en tête, ni en fin, jamais deux de suite.
@@ -466,6 +510,18 @@ final class Legacy_Chapter_Parser {
 			}
 		}
 		return $morceaux;
+	}
+
+	/**
+	 * Modèle d'un nom de fichier d'image : nom sans chiffres ni paramètres
+	 * (« copie-de-copie-de-sw-27.jpg?w=1024 » → « copie-de-copie-de-sw-.jpg »).
+	 *
+	 * @param string $url URL de l'image.
+	 */
+	private static function modele_fichier( string $url ): string {
+		$nom = strtolower( basename( (string) preg_replace( '/[?#].*$/', '', $url ) ) );
+		$nom = (string) preg_replace( '/-\d+x\d+(?=\.[a-z0-9]+$)/', '', $nom );
+		return '' === $nom ? '' : (string) preg_replace( '/-+/', '-', (string) preg_replace( '/\d+/', '', $nom ) );
 	}
 
 	/**

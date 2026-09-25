@@ -36,9 +36,9 @@ final class Migration_Planner {
 		'gimai-seikatsu'                             => array( 'Gimai' ),
 		'roshidere'                                  => array( 'Roshidere', 'Alya' ),
 		'roshidere-manga'                            => array( 'Roshidere', 'Alya' ),
-		'otonari-no-tenshi-sama'                     => array( 'Otonari', 'The Angel Next Door' ),
+		'otonari-no-tenshi-sama'                     => array( 'Otonari', 'The Angel Next Door', 'Angel Next Door' ),
 		'secrets-of-the-silent-witch'                => array( 'Silent Witch' ),
-		'sukasuka'                                   => array( 'SukaSuka', 'WorldEnd' ),
+		'sukasuka'                                   => array( 'SukaSuka', 'WorldEnd', 'Chtholly' ),
 		'sukamoka'                                   => array( 'SukaMoka' ),
 		'raven-of-the-inner-palace'                  => array( 'Raven of the Inner Palace' ),
 		'survival-in-another-world-with-my-mistress' => array( 'Survival in Another World with My Mistress' ),
@@ -157,7 +157,7 @@ final class Migration_Planner {
 			return 'hub';
 		}
 		$normalise = Html::normaliser( $page['slug'] . ' ' . $page['title'] );
-		if ( '' === trim( $texte ) ) {
+		if ( '' === trim( $texte ) && '' !== Html::normaliser( $page['slug'] ) ) {
 			foreach ( $categories as $slug ) {
 				$cat = Html::normaliser( $slug );
 				if ( '' !== $cat && ( str_contains( $normalise, $cat ) || str_contains( $cat, Html::normaliser( $page['slug'] ) ) ) ) {
@@ -900,7 +900,14 @@ final class Migration_Planner {
 		$plan['navigation_supprimee'] = $source['navigation'];
 		$plan['avertissements']       = $source['avertissements'];
 		foreach ( $source['avertissements'] as $message ) {
-			$this->avertir( 'attention', 'chapitre', sprintf( '« %s » : %s', $source['source_titre'], $message ), $source['source_id'] );
+			$niveau = 'attention';
+			if ( str_starts_with( $message, 'Sous-titre' ) && '' !== (string) $annonce['titre'] ) {
+				$niveau   = 'info';
+				$message .= sprintf( ' Titre de la liste de l’arc retenu : « %s ».', $annonce['titre'] );
+			} elseif ( str_starts_with( $message, 'Image ' ) || str_contains( $message, 'plusieurs répliques' ) ) {
+				$niveau = 'info';
+			}
+			$this->avertir( $niveau, 'chapitre', sprintf( '« %s » : %s', $source['source_titre'], $message ), $source['source_id'] );
 		}
 		if ( $source['slug_incoherent'] ) {
 			$this->avertir( 'attention', 'slug', sprintf( 'Page « %s » publiée sous le slug « %s » (attendu « %s ») : redirection vers %s.', $source['source_titre'], $source['source_slug'], $source['slug_attendu'], $plan['url'] ), $source['source_id'] );
@@ -1248,11 +1255,19 @@ final class Migration_Planner {
 		if ( count( $article['chapitres'] ) > 1 ) {
 			$this->avertir( 'info', 'article', sprintf( 'Article « %s » : sortie groupée de %d chapitres.', $article['titre'], count( $article['chapitres'] ) ), $article['source_id'] );
 		}
+		// Brouillon d'essai (titre ou contenu quasi vide) : laissé tel quel, hors migration.
+		$action = 'reclasser';
+		if ( 'publish' !== $article['status'] && ( mb_strlen( $article['titre'], 'UTF-8' ) <= 3 || ( $article['nb_mots'] ?? 0 ) < 5 ) ) {
+			$action = 'ignorer';
+			$this->avertir( 'attention', 'article', sprintf( 'Brouillon « %s » (%d mot(s)) : brouillon d’essai laissé tel quel, à supprimer à la main si l’équipe le confirme.', $article['titre'], $article['nb_mots'] ?? 0 ), $article['source_id'] );
+		}
 		return array(
 			'source_id'            => $article['source_id'],
 			'slug'                 => $article['slug'],
 			'titre'                => $article['titre'],
 			'date'                 => $article['date'],
+			'status'               => $article['status'],
+			'action'               => $action,
 			'url'                  => $article['lien'],
 			'classement'           => $article['classement'],
 			'type_sortie'          => $article['type_sortie'],
@@ -1712,6 +1727,8 @@ final class Migration_Planner {
 			'articles'       => array(
 				'total'           => count( $plan['articles'] ),
 				'par_classement'  => $compter( $plan['articles'], static fn( $a ) => $a['classement'] ),
+				'par_statut'      => $compter( $plan['articles'], static fn( $a ) => $a['status'] ),
+				'a_ignorer'       => count( array_filter( $plan['articles'], static fn( $a ) => 'ignorer' === $a['action'] ) ),
 				'avec_oeuvre'     => count( array_filter( $plan['articles'], static fn( $a ) => null !== $a['oeuvre'] ) ),
 				'sorties_sans_oeuvre' => count( array_filter( $plan['articles'], static fn( $a ) => 'sortie' === $a['classement'] && null === $a['oeuvre'] ) ),
 				'non_classe'      => count( array_filter( $plan['articles'], static fn( $a ) => in_array( 'non-classe', $a['categories_slugs'], true ) ) ),

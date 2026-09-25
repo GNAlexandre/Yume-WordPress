@@ -139,6 +139,10 @@ final class Legacy_Post_Parser {
 				for ( $i = (int) floor( $res['chapitres'][0] ) + 1; $i <= $fin && $i - $res['chapitres'][0] <= 50; $i++ ) {
 					$res['chapitres'][] = (float) $i;
 				}
+				// Borne finale décimale (« 12 à 16.5 ») : le demi-chapitre fait partie de la sortie.
+				if ( floor( $fin ) !== $fin && $fin - $res['chapitres'][0] <= 50 ) {
+					$res['chapitres'][] = $fin;
+				}
 			}
 			$res['chapitres'] = array_values( array_unique( $res['chapitres'], SORT_REGULAR ) );
 		}
@@ -268,6 +272,7 @@ final class Legacy_Post_Parser {
 			'liens'              => $liens,
 			'equipe'             => $equipe,
 			'contenu_disponible' => null !== $contenu,
+			'nb_mots'            => Html::nombre_mots( $texte ),
 			'avertissements'     => $avert,
 		);
 	}
