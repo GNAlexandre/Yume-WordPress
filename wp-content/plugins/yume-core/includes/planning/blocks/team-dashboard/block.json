@@ -1,0 +1,18 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/team-dashboard",
+	"title": "Espace équipe",
+	"category": "yume",
+	"icon": "groups",
+	"description": "Tableau de bord de l’équipe (connexion requise) : mes tâches, tous les tomes, ajout au planning, retards, rappels et journal.",
+	"keywords": [ "équipe", "planning", "tâches" ],
+	"textdomain": "yume-core",
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

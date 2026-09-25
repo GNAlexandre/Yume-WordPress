@@ -1,0 +1,24 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/oeuvre-infos",
+	"title": "Équipe et liens de l’œuvre",
+	"category": "yume",
+	"icon": "groups",
+	"description": "Cartes « Équipe de traduction » et « Liens » de la fiche d’une œuvre.",
+	"keywords": [
+		"équipe",
+		"liens",
+		"traduction"
+	],
+	"textdomain": "yume-core",
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

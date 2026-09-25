@@ -1,0 +1,10 @@
+/**
+ * Bloc yume/auth-links — disposition des liens (le thème les stylise dans la navigation).
+ */
+
+.yn-auth {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}

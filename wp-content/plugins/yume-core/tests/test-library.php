@@ -1,0 +1,1200 @@
+<?php
+/**
+ * Tests du module bibliothèque : enregistrement des blocs, rendu de chaque bloc avec et sans
+ * données, brouillons exclus, filtres et pagination de la grille, liens (rel, externes),
+ * cache invalidé, JSON-LD et balises rel=prev/next.
+ *
+ * Commande : tools/localenv/test.sh library
+ *
+ * Chaque test part d'une bibliothèque vide (contenus Yume supprimés dans la transaction
+ * annulée à la fin du test) : les résultats ne dépendent pas des données de la base locale.
+ *
+ * @package Yume\Core
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+use function Yume\Core\Library\accrocher_oeuvre_infos;
+use function Yume\Core\Library\balise_jsonld;
+use function Yume\Core\Library\balises_voisins;
+use function Yume\Core\Library\date_courte;
+use function Yume\Core\Library\donnees_structurees;
+use function Yume\Core\Library\duree_lecture;
+use function Yume\Core\Library\est_nouveau;
+use function Yume\Core\Library\index_oeuvres;
+use function Yume\Core\Library\normaliser_filtres;
+use function Yume\Core\Library\renouveler_version;
+use function Yume\Core\Library\sous_titre_tome;
+use function Yume\Core\Library\version_cache;
+
+// Module non chargé (YUME_ONLY_MODULES sans « library ») : rien à tester.
+if ( ! function_exists( 'Yume\Core\Library\rendu_banner' ) ) {
+	return;
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * Aides propres à ces tests (préfixe yume_tl_)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Déclare un test de la bibliothèque : bibliothèque vide au départ, aucune notification
+ * (événements métier), paramètres GET et requête principale restaurés à la fin.
+ *
+ * @param string   $nom   Nom du test.
+ * @param callable $corps Corps du test.
+ */
+function yume_tl_test( string $nom, callable $corps ): void {
+	yume_test(
+		$nom,
+		static function () use ( $corps ) {
+			global $wp_query, $wp_the_query, $post;
+			$get      = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$requete  = $wp_query;
+			$reelle   = $wp_the_query;
+			$post_sav = $post;
+			add_filter( 'yume_core_notifier', '__return_false' );
+			try {
+				yume_tl_vider();
+				$corps();
+			} finally {
+				remove_filter( 'yume_core_notifier', '__return_false' );
+				$_GET         = $get;
+				$wp_query     = $requete; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+				$wp_the_query = $reelle; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+				$post         = $post_sav; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+				renouveler_version();
+			}
+		}
+	);
+}
+
+/**
+ * Supprime (dans la transaction du test) tous les contenus Yume et la bannière du site.
+ */
+function yume_tl_vider(): void {
+	global $wpdb;
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery
+	$ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type IN ('yume_oeuvre', 'yume_tome', 'yume_chapitre')" );
+	if ( $ids ) {
+		$liste = implode( ',', array_map( 'intval', $ids ) );
+		$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE post_id IN ($liste)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DELETE FROM {$wpdb->term_relationships} WHERE object_id IN ($liste)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DELETE FROM {$wpdb->posts} WHERE ID IN ($liste)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery
+	$reglages = get_option( 'yume_reglages', array() );
+	$reglages = is_array( $reglages ) ? $reglages : array();
+	// 0 et non unset : l'assainissement des réglages conserve les clés absentes.
+	$reglages['banniere_id'] = 0;
+	update_option( 'yume_reglages', $reglages );
+	wp_cache_flush();
+	renouveler_version();
+	wp_set_current_user( 0 );
+}
+
+/**
+ * Crée une œuvre publiée avec ses termes.
+ *
+ * @param string $titre  Titre.
+ * @param array  $termes taxonomie => slugs (yume_type, yume_statut, yume_genre).
+ * @param array  $args   Arguments wp_insert_post supplémentaires.
+ */
+function yume_tl_oeuvre( string $titre, array $termes = array(), array $args = array() ): int {
+	$id = yume_factory_post(
+		array_replace_recursive(
+			array(
+				'post_type'    => 'yume_oeuvre',
+				'post_title'   => $titre,
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:paragraph --><p>Synopsis de ' . esc_html( $titre ) . '.</p><!-- /wp:paragraph -->',
+			),
+			$args
+		)
+	);
+	foreach ( $termes as $taxonomie => $slugs ) {
+		foreach ( (array) $slugs as $slug ) {
+			if ( ! term_exists( $slug, $taxonomie ) ) {
+				wp_insert_term( ucfirst( str_replace( '-', ' ', $slug ) ), $taxonomie, array( 'slug' => $slug ) );
+			}
+		}
+		wp_set_object_terms( $id, (array) $slugs, $taxonomie );
+	}
+	return $id;
+}
+
+/**
+ * Date locale « Y-m-d H:i:s » il y a $jours jours.
+ *
+ * @param float $jours Nombre de jours (négatif : futur).
+ */
+function yume_tl_date( float $jours ): string {
+	return wp_date( 'Y-m-d H:i:s', (int) ( time() - $jours * DAY_IN_SECONDS ) );
+}
+
+/**
+ * Crée un tome.
+ *
+ * @param int   $oeuvre_id Œuvre.
+ * @param mixed $numero    Numéro.
+ * @param array $args      Arguments (meta_input, post_status, post_date…).
+ */
+function yume_tl_tome( int $oeuvre_id, $numero, array $args = array() ): int {
+	$nature = $args['meta_input']['yume_nature'] ?? 'tome';
+	return yume_factory_post(
+		array_replace_recursive(
+			array(
+				'post_type'   => 'yume_tome',
+				'post_title'  => get_the_title( $oeuvre_id ) . ' — ' . ( 'arc' === $nature ? 'Arc ' : 'Tome ' ) . $numero,
+				'post_name'   => ( 'arc' === $nature ? 'arc-' : 'tome-' ) . $numero,
+				'post_status' => 'publish',
+				'post_date'   => yume_tl_date( 30 ),
+				'menu_order'  => (int) $numero,
+				'meta_input'  => array(
+					'yume_oeuvre_id' => $oeuvre_id,
+					'yume_numero'    => $numero,
+					'yume_nature'    => $nature,
+				),
+			),
+			$args
+		)
+	);
+}
+
+/**
+ * Crée un chapitre.
+ *
+ * @param int   $tome_id Tome.
+ * @param mixed $numero  Numéro (null : spécial, nature dans $args).
+ * @param array $args    Arguments.
+ */
+function yume_tl_chapitre( int $tome_id, $numero, array $args = array() ): int {
+	$meta = array( 'yume_tome_id' => $tome_id );
+	if ( null !== $numero ) {
+		$meta['yume_numero'] = $numero;
+		$meta['yume_nature'] = 'chapitre';
+	}
+	return yume_factory_post(
+		array_replace_recursive(
+			array(
+				'post_type'    => 'yume_chapitre',
+				'post_title'   => null === $numero ? 'Postface' : 'Chapitre ' . $numero,
+				'post_name'    => null === $numero ? 'postface' : 'chapitre-' . $numero,
+				'post_status'  => 'publish',
+				'post_date'    => get_post_field( 'post_date', $tome_id ),
+				'post_content' => '<!-- wp:paragraph --><p>' . str_repeat( 'Les gremlins chantaient tout autour d’eux. ', 60 ) . '</p><!-- /wp:paragraph -->',
+				'menu_order'   => null === $numero ? 999 : (int) $numero,
+				'meta_input'   => $meta,
+			),
+			$args
+		)
+	);
+}
+
+/**
+ * Crée une pièce jointe image (sans fichier : métadonnées seules).
+ *
+ * @param string $nom     Nom du fichier.
+ * @param string $alt     Texte alternatif.
+ * @param string $legende Légende.
+ */
+function yume_tl_image( string $nom = 'image.jpg', string $alt = '', string $legende = '' ): int {
+	$id = wp_insert_attachment(
+		array(
+			'post_title'     => $nom,
+			'post_mime_type' => 'image/jpeg',
+			'post_status'    => 'inherit',
+			'post_excerpt'   => $legende,
+		),
+		'2026/09/' . $nom
+	);
+	update_post_meta( $id, '_wp_attached_file', '2026/09/' . $nom );
+	update_post_meta(
+		$id,
+		'_wp_attachment_metadata',
+		array(
+			'width'  => 480,
+			'height' => 720,
+			'file'   => '2026/09/' . $nom,
+			'sizes'  => array(),
+		)
+	);
+	if ( '' !== $alt ) {
+		update_post_meta( $id, '_wp_attachment_image_alt', $alt );
+	}
+	return (int) $id;
+}
+
+/**
+ * Rend un bloc de la bibliothèque, avec un contexte postId éventuel.
+ *
+ * @param string $nom     Nom court (« tome-list »).
+ * @param array  $attrs   Attributs.
+ * @param int    $post_id Contenu du contexte (0 : aucun).
+ */
+function yume_tl_rendu( string $nom, array $attrs = array(), int $post_id = 0 ): string {
+	$contexte = $post_id ? array(
+		'postId'   => $post_id,
+		'postType' => get_post_type( $post_id ),
+	) : array();
+	$bloc     = new WP_Block(
+		array(
+			'blockName'    => 'yume/' . $nom,
+			'attrs'        => $attrs,
+			'innerBlocks'  => array(),
+			'innerHTML'    => '',
+			'innerContent' => array(),
+		),
+		$contexte
+	);
+	return (string) $bloc->render();
+}
+
+/**
+ * Fait de $post_id l'objet de la requête principale (page singulière).
+ *
+ * @param int $post_id Contenu.
+ */
+function yume_tl_aller( int $post_id ): void {
+	global $wp_query, $wp_the_query, $post;
+	$wp_query     = new WP_Query( // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+		array(
+			'p'           => $post_id,
+			'post_type'   => get_post_type( $post_id ),
+			'post_status' => array( 'publish', 'draft', 'future' ),
+		)
+	);
+	$wp_the_query = $wp_query; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+	$post         = get_post( $post_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+}
+
+/**
+ * Nombre d'occurrences d'une sous-chaîne.
+ *
+ * @param string $aiguille Sous-chaîne.
+ * @param string $texte    Texte.
+ */
+function yume_tl_compte( string $aiguille, string $texte ): int {
+	return substr_count( $texte, $aiguille );
+}
+
+/**
+ * Extrait le JSON-LD d'une balise <script> et le décode.
+ *
+ * @param string $html Balise.
+ * @return array
+ */
+function yume_tl_jsonld( string $html ): array {
+	yume_assert_true( 1 === preg_match( '#<script type="application/ld\+json"[^>]*>(.*)</script>#s', $html, $m ), 'balise JSON-LD présente' );
+	$donnees = json_decode( $m[1], true );
+	yume_assert_true( is_array( $donnees ), 'JSON valide : ' . json_last_error_msg() );
+	return $donnees;
+}
+
+/**
+ * Nœud du @graph d'un type donné.
+ *
+ * @param array  $document Document JSON-LD.
+ * @param string $type     @type.
+ * @return array
+ * @throws Yume_Test_Failure Si le nœud est absent.
+ */
+function yume_tl_noeud( array $document, string $type ): array {
+	foreach ( $document['@graph'] ?? array() as $noeud ) {
+		if ( ( $noeud['@type'] ?? '' ) === $type ) {
+			return $noeud;
+		}
+	}
+	throw new Yume_Test_Failure( 'nœud ' . $type . ' absent du JSON-LD' );
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * Enregistrement
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'enregistre les 11 blocs du §10 (apiVersion 3, catégorie yume, rendu serveur, style)',
+	static function () {
+		$registre = WP_Block_Type_Registry::get_instance();
+		foreach ( array( 'library-menu', 'banner', 'latest-releases', 'library-grid', 'oeuvre-header', 'oeuvre-infos', 'tome-list', 'tome-header', 'tome-toc', 'chapter-header', 'chapter-nav' ) as $nom ) {
+			$type = $registre->get_registered( 'yume/' . $nom );
+			yume_assert_true( $type instanceof WP_Block_Type, 'yume/' . $nom . ' enregistré' );
+			yume_assert_same( 'yume', $type->category, 'catégorie de ' . $nom );
+			yume_assert_same( 3, (int) $type->api_version, 'apiVersion de ' . $nom );
+			yume_assert_true( is_callable( $type->render_callback ), 'rendu serveur de ' . $nom );
+			yume_assert_true( in_array( 'yume/' . $nom, $GLOBALS['yume_dynamic_blocks'], true ), 'enregistré via yume_register_dynamic_block : ' . $nom );
+			yume_assert_false( (bool) ( $type->supports['html'] ?? true ), 'supports.html = false : ' . $nom );
+			yume_assert_true( count( $type->style_handles ) > 0, 'feuille de style : ' . $nom );
+		}
+		yume_assert_same( 240, $registre->get_registered( 'yume/banner' )->attributes['height']['default'] );
+		yume_assert_same( 6, $registre->get_registered( 'yume/latest-releases' )->attributes['count']['default'] );
+		yume_assert_same( 24, $registre->get_registered( 'yume/library-grid' )->attributes['perPage']['default'] );
+		yume_assert_true( $registre->get_registered( 'yume/library-grid' )->attributes['showFilters']['default'] );
+		yume_assert_true( wp_style_is( 'yume-bibliotheque', 'registered' ), 'feuille commune enregistrée' );
+		yume_assert_true( in_array( 'yume-bibliotheque', $registre->get_registered( 'yume/tome-list' )->style_handles, true ), 'feuille commune déclarée' );
+		yume_assert_true( count( $registre->get_registered( 'yume/library-menu' )->view_script_handles ) > 0, 'script du menu' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * yume/banner
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'banner : rien sans bannière ; image pleine largeur, hauteur réglable et bornée sinon',
+	static function () {
+		yume_assert_same( '', yume_tl_rendu( 'banner' ), 'aucune bannière' );
+
+		$reglages                = (array) get_option( 'yume_reglages', array() );
+		$reglages['banniere_id'] = yume_tl_image( 'banniere.jpg', 'Un nouvel élan pour Yume' );
+		update_option( 'yume_reglages', $reglages );
+
+		$html = yume_tl_rendu( 'banner', array( 'height' => 300 ) );
+		yume_assert_contains( 'class="yn-banner wp-block-yume-banner"', $html );
+		yume_assert_contains( '--yn-banner-hauteur:300px', $html );
+		yume_assert_contains( 'alt="Un nouvel élan pour Yume"', $html );
+		yume_assert_contains( 'fetchpriority="high"', $html );
+		yume_assert_not_contains( 'loading="lazy"', $html );
+		yume_assert_contains( '--yn-banner-hauteur:240px', yume_tl_rendu( 'banner' ), 'hauteur par défaut' );
+		yume_assert_contains( '--yn-banner-hauteur:800px', yume_tl_rendu( 'banner', array( 'height' => 5000 ) ), 'hauteur bornée' );
+
+		$reglages['banniere_id'] = yume_factory_post( array( 'post_type' => 'page' ) );
+		update_option( 'yume_reglages', $reglages );
+		yume_assert_same( '', yume_tl_rendu( 'banner' ), 'un contenu qui n’est pas une image est ignoré' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * yume/latest-releases
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'latest-releases : tri par date, badge « Nouveau » (< 7 j), boutons Lire / PDF / EPUB, brouillons exclus',
+	static function () {
+		yume_assert_contains( 'Aucune sortie pour le moment.', yume_tl_rendu( 'latest-releases' ), 'état vide' );
+
+		$couv   = yume_tl_image( 'couv.jpg' );
+		$oeuvre = yume_tl_oeuvre( 'Grimgar of Fantasy and Ash', array( 'yume_type' => 'light-novel' ) );
+		$t1     = yume_tl_tome(
+			$oeuvre,
+			1,
+			array(
+				'post_date'  => yume_tl_date( 20 ),
+				'meta_input' => array(
+					'yume_lien_pdf'  => 'https://www.clictune.com/pdf1',
+					'yume_lien_epub' => '',
+				),
+			)
+		);
+		$t2     = yume_tl_tome(
+			$oeuvre,
+			2,
+			array(
+				'post_date'  => yume_tl_date( 2 ),
+				'meta_input' => array(
+					'yume_lien_pdf'  => 'https://www.clictune.com/pdf2',
+					'yume_lien_epub' => 'https://www.clictune.com/epub2',
+				),
+			)
+		);
+		set_post_thumbnail( $t2, $couv );
+		$c1 = yume_tl_chapitre( $t2, 1 );
+		yume_tl_chapitre( $t2, 2 );
+		yume_tl_tome( $oeuvre, 3, array( 'post_status' => 'draft' ) );
+		$cachee = yume_tl_oeuvre( 'Œuvre en préparation', array(), array( 'post_status' => 'draft' ) );
+		yume_tl_tome( $cachee, 1, array( 'post_date' => yume_tl_date( 1 ) ) );
+
+		$html = yume_tl_rendu( 'latest-releases' );
+		yume_assert_contains( 'class="yn-releases wp-block-yume-latest-releases"', $html );
+		yume_assert_contains( '<ul class="yn-grid-covers yn-releases__liste">', $html );
+		yume_assert_same( 2, yume_tl_compte( '<li class="yn-releases__item">', $html ), 'deux sorties publiées' );
+		yume_assert_true( strpos( $html, get_permalink( $t2 ) ) < strpos( $html, get_permalink( $t1 ) ), 'la plus récente d’abord' );
+		yume_assert_not_contains( 'tome-3', $html, 'tome brouillon exclu' );
+		yume_assert_not_contains( 'Œuvre en préparation', $html, 'œuvre brouillon exclue' );
+		yume_assert_same( 1, yume_tl_compte( 'yn-chip--new', $html ), 'un seul badge « Nouveau »' );
+		yume_assert_contains( 'alt="Couverture : Grimgar of Fantasy and Ash, Tome 2"', $html, 'texte alternatif de la couverture' );
+		yume_assert_contains( '<span class="yn-cover__texte" aria-hidden="true">Grimgar of Fantasy and Ash · T.1</span>', $html, 'couverture de substitution' );
+		yume_assert_contains( '<h3 class="yn-releases__titre">Grimgar of Fantasy and Ash</h3>', $html );
+		yume_assert_contains( 'Tome 2 · <time datetime="', $html );
+		yume_assert_contains( esc_html( date_courte( (int) get_post_time( 'U', true, $t2 ) ) ) . '</time>', $html, 'date « j M »' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $c1 ) ) . '">Lire', $html, 'Lire : premier chapitre publié' );
+		yume_assert_contains( 'href="https://www.clictune.com/epub2" target="_blank" rel="noopener">EPUB', $html, 'EPUB externe' );
+		yume_assert_contains( '(lien externe, nouvel onglet)', $html, 'indication de lien externe' );
+		yume_assert_same( 2, yume_tl_compte( 'yn-telechargement--pdf', $html ), 'deux PDF' );
+		yume_assert_same( 1, yume_tl_compte( 'yn-telechargement--epub', $html ), 'EPUB absent si lien vide' );
+		yume_assert_same( 1, yume_tl_compte( 'yn-lire', $html ), 'pas de bouton Lire sans chapitre' );
+
+		yume_assert_same( 1, yume_tl_compte( '<li class="yn-releases__item">', yume_tl_rendu( 'latest-releases', array( 'count' => 1 ) ) ), 'nombre limité' );
+	}
+);
+
+yume_tl_test(
+	'latest-releases : un arc de web novel est regroupé, daté de son dernier chapitre et marqué « Arc en cours »',
+	static function () {
+		$wn  = yume_tl_oeuvre( 'Secrets of the Silent Witch', array( 'yume_type' => 'web-novel' ) );
+		$arc = yume_tl_tome(
+			$wn,
+			7,
+			array(
+				'post_date'  => yume_tl_date( 20 ),
+				'meta_input' => array( 'yume_nature' => 'arc' ),
+			)
+		);
+		yume_tl_chapitre( $arc, 1, array( 'post_date' => yume_tl_date( 20 ) ) );
+		$c2 = yume_tl_chapitre( $arc, 2, array( 'post_date' => yume_tl_date( 1 ) ) );
+		yume_tl_chapitre( $arc, 3, array( 'post_status' => 'draft' ) );
+		$ln = yume_tl_oeuvre( 'Raven of the Inner Palace', array( 'yume_type' => 'light-novel' ) );
+		yume_tl_tome( $ln, 6, array( 'post_date' => yume_tl_date( 3 ) ) );
+
+		$html = yume_tl_rendu( 'latest-releases' );
+		yume_assert_same( 2, yume_tl_compte( '<li class="yn-releases__item">', $html ), 'une carte par tome ou arc' );
+		yume_assert_true( strpos( $html, 'Secrets of the Silent Witch' ) < strpos( $html, 'Raven of the Inner Palace' ), 'l’arc est daté de son dernier chapitre' );
+		yume_assert_contains( 'Arc 7 · ch. 2 · <time', $html );
+		yume_assert_contains( 'Arc en cours', $html );
+		yume_assert_same( 2, yume_tl_compte( 'yn-chip--new', $html ), 'les deux sorties ont moins de 7 jours' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $c2 ) ) . '">Lire<span class="yn-visually-hidden"> — Chapitre 2 de Secrets of the Silent Witch, Arc 7</span>', $html, 'Lire : dernier chapitre d’un arc en cours' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * yume/library-grid
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Jeu de données commun aux tests de la grille.
+ *
+ * @return array<string,int>
+ */
+function yume_tl_bibliotheque(): array {
+	$ids = array(
+		'grimgar' => yume_tl_oeuvre(
+			'Grimgar of Fantasy and Ash',
+			array(
+				'yume_type'   => 'light-novel',
+				'yume_statut' => 'en-cours',
+				'yume_genre'  => array( 'fantasy', 'drame' ),
+			),
+			array( 'post_date' => yume_tl_date( 60 ) )
+		),
+		'raven'   => yume_tl_oeuvre(
+			'Raven of the Inner Palace',
+			array(
+				'yume_type'   => 'light-novel',
+				'yume_statut' => 'terminee',
+				'yume_genre'  => 'fantasy',
+			),
+			array( 'post_date' => yume_tl_date( 50 ) )
+		),
+		'manga'   => yume_tl_oeuvre(
+			'Alya Manga',
+			array(
+				'yume_type'   => 'manga',
+				'yume_statut' => 'licenciee',
+			),
+			array( 'post_date' => yume_tl_date( 40 ) )
+		),
+		'witch'   => yume_tl_oeuvre(
+			'Silent Witch',
+			array(
+				'yume_type'   => 'web-novel',
+				'yume_statut' => 'en-pause',
+			),
+			array( 'post_date' => yume_tl_date( 30 ) )
+		),
+	);
+	yume_tl_tome( $ids['grimgar'], 1, array( 'post_date' => yume_tl_date( 5 ) ) );
+	yume_tl_tome( $ids['grimgar'], 2, array( 'post_date' => yume_tl_date( 4 ) ) );
+	yume_tl_oeuvre(
+		'Brouillon caché',
+		array( 'yume_type' => 'light-novel' ),
+		array( 'post_status' => 'draft' )
+	);
+	return $ids;
+}
+
+yume_tl_test(
+	'library-grid : grille de couvertures, badge de statut, compteurs, brouillons exclus',
+	static function () {
+		yume_assert_contains( 'Aucune œuvre publiée pour le moment.', yume_tl_rendu( 'library-grid' ), 'état vide' );
+		$ids  = yume_tl_bibliotheque();
+		$html = yume_tl_rendu( 'library-grid' );
+		yume_assert_contains( 'class="yn-library wp-block-yume-library-grid"', $html );
+		yume_assert_contains( '<ul class="yn-grid-covers yn-library__grille">', $html );
+		yume_assert_same( 4, yume_tl_compte( '<li class="yn-library__item">', $html ) );
+		yume_assert_not_contains( 'Brouillon caché', $html );
+		yume_assert_contains( '>4 œuvres</h2>', $html );
+		yume_assert_contains( 'yn-chip yn-chip--ok yn-statut yn-statut--en-cours yn-library__statut"><span aria-hidden="true">●</span> En cours', $html, 'badge de statut (icône + libellé)' );
+		yume_assert_contains( 'Light novel · 2 tomes', $html, 'type et tomes publiés' );
+		yume_assert_contains( 'Light novels <span class="yn-library__nombre">2<span class="yn-visually-hidden"> œuvres</span>', $html, 'compteur du type' );
+		yume_assert_contains( 'Séries en cours <span class="yn-library__nombre">2', $html, 'en cours + en pause' );
+		yume_assert_contains( 'Licenciées / abandonnées <span class="yn-library__nombre">1', $html );
+		yume_assert_contains( 'Fantasy <span class="yn-library__nombre">2', $html, 'compteur du genre' );
+		yume_assert_true( strpos( $html, 'Grimgar of Fantasy' ) < strpos( $html, 'Silent Witch' ) && strpos( $html, 'Silent Witch' ) < strpos( $html, 'Alya Manga' ) && strpos( $html, 'Alya Manga' ) < strpos( $html, 'Raven' ), 'tri par défaut : dernière sortie' );
+		yume_assert_contains( 'aria-label="Filtres de la bibliothèque"', $html );
+		yume_assert_same( 4, yume_tl_compte( 'aria-current="page"', $html ), 'un filtre actif par groupe (tous + dernières sorties)' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $ids['raven'] ) ) . '"', $html );
+
+		$sans = yume_tl_rendu( 'library-grid', array( 'showFilters' => false ) );
+		yume_assert_not_contains( 'yn-library__filtres', $sans, 'filtres masqués' );
+	}
+);
+
+yume_tl_test(
+	'library-grid : filtres GET type, statut (groupe), genre et tri A → Z ; valeurs inconnues ignorées',
+	static function () {
+		yume_tl_bibliotheque();
+
+		$_GET = array( 'type' => 'manga' );
+		$html = yume_tl_rendu( 'library-grid' );
+		yume_assert_same( 1, yume_tl_compte( '<li class="yn-library__item">', $html ) );
+		yume_assert_contains( 'Alya Manga', $html );
+		yume_assert_contains( 'class="yn-chip yn-library__pastille yn-chip--new is-active" href="http://', $html );
+		yume_assert_true( 1 === preg_match( '#<a class="yn-chip yn-library__pastille yn-chip--new is-active" href="[^"]*type=manga[^"]*" aria-current="page">Manga#', $html ), 'pastille Manga active' );
+		yume_assert_contains( 'Licenciées / abandonnées <span class="yn-library__nombre">1<', $html, 'compteurs à facettes' );
+		yume_assert_not_contains( 'Séries en cours <span', $html, 'groupe sans œuvre du type masqué' );
+
+		$_GET = array( 'statut' => 'licenciee,abandonnee' );
+		$html = yume_tl_rendu( 'library-grid' );
+		yume_assert_same( 1, yume_tl_compte( '<li class="yn-library__item">', $html ) );
+		yume_assert_true( 1 === preg_match( '#aria-current="page">Licenciées / abandonnées#', $html ), 'groupe actif' );
+
+		$_GET = array( 'statut' => 'en-pause' );
+		$html = yume_tl_rendu( 'library-grid' );
+		yume_assert_same( 1, yume_tl_compte( '<li class="yn-library__item">', $html ) );
+		yume_assert_contains( 'Silent Witch', $html );
+		yume_assert_true( 1 === preg_match( '#aria-current="page">En pause#', $html ), 'statut isolé affiché comme filtre actif' );
+
+		$_GET = array( 'genre' => 'fantasy' );
+		$html = yume_tl_rendu( 'library-grid' );
+		yume_assert_same( 2, yume_tl_compte( '<li class="yn-library__item">', $html ) );
+
+		$_GET = array( 'tri' => 'az' );
+		$html = yume_tl_rendu( 'library-grid' );
+		yume_assert_true( strpos( $html, 'Alya Manga' ) < strpos( $html, 'Grimgar' ) && strpos( $html, 'Raven' ) < strpos( $html, 'Silent Witch' ), 'tri alphabétique' );
+		yume_assert_true( 1 === preg_match( '#aria-current="page">A → Z#', $html ) );
+
+		$_GET = array(
+			'type'   => '"><script>alert(1)</script>',
+			'statut' => 'inconnu',
+			'genre'  => 'nimporte',
+		);
+		$html = yume_tl_rendu( 'library-grid' );
+		yume_assert_same( 4, yume_tl_compte( '<li class="yn-library__item">', $html ), 'valeurs inconnues ignorées' );
+		yume_assert_not_contains( '<script>', $html );
+
+		$filtres = normaliser_filtres(
+			array(
+				'statut' => 'licenciee, abandonnee,licenciee',
+				'tri'    => 'AZ',
+			)
+		);
+		yume_assert_same( array( 'abandonnee', 'licenciee' ), $filtres['statuts'] );
+		yume_assert_same( 'az', $filtres['tri'] );
+	}
+);
+
+yume_tl_test(
+	'library-grid : pagination (pg) et état vide avec réinitialisation des filtres',
+	static function () {
+		yume_tl_bibliotheque();
+		$html = yume_tl_rendu( 'library-grid', array( 'perPage' => 3 ) );
+		yume_assert_same( 3, yume_tl_compte( '<li class="yn-library__item">', $html ) );
+		yume_assert_contains( 'class="yn-pagination yn-library__pagination" aria-label="Pages de la bibliothèque"', $html );
+		yume_assert_contains( 'pg=2', $html );
+		yume_assert_contains( '4 œuvres · page 1 sur 2', $html );
+
+		$_GET = array(
+			'pg'  => '2',
+			'tri' => 'az',
+		);
+		$html = yume_tl_rendu( 'library-grid', array( 'perPage' => 3 ) );
+		yume_assert_same( 1, yume_tl_compte( '<li class="yn-library__item">', $html ) );
+		yume_assert_contains( 'Silent Witch', $html );
+		yume_assert_contains( 'page-numbers current">2</span>', $html, 'page courante' );
+		yume_assert_contains( 'tri=az', $html, 'les liens de pagination gardent les filtres' );
+
+		$_GET = array(
+			'type'   => 'manga',
+			'statut' => 'en-cours',
+		);
+		$html = yume_tl_rendu( 'library-grid' );
+		yume_assert_contains( 'Aucune œuvre ne correspond à ces filtres.', $html );
+		yume_assert_contains( 'Réinitialiser les filtres', $html );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * yume/library-menu
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'library-menu : <details> de navigation, compteurs des types et statuts, liens, reprise',
+	static function () {
+		$vide = yume_tl_rendu( 'library-menu' );
+		yume_assert_contains( 'Aucune œuvre publiée pour le moment.', $vide );
+		yume_tl_bibliotheque();
+		$html = yume_tl_rendu( 'library-menu' );
+		yume_assert_true( 0 === strpos( $html, '<details ' ), 'racine <details>' );
+		yume_assert_contains( 'class="yn-library-menu wp-block-yume-library-menu"', $html );
+		yume_assert_contains( '<summary class="wp-block-navigation-item__content yn-library-menu__bouton"><span class="wp-block-navigation-item__label">Bibliothèque</span>', $html );
+		$biblio = yume_url_page( 'bibliotheque' );
+		yume_assert_contains( 'href="' . esc_url( add_query_arg( 'type', 'light-novel', $biblio ) ) . '"><span class="yn-library-menu__nom">Light novels</span> <span class="yn-library-menu__nombre">2<', $html, 'brouillon non compté' );
+		yume_assert_contains( 'Manga</span> <span class="yn-library-menu__nombre">1<', $html );
+		yume_assert_contains( 'Web novels</span> <span class="yn-library-menu__nombre">1<', $html );
+		yume_assert_contains( 'statut=en-cours%2Cen-pause', $html );
+		yume_assert_contains( 'Séries en cours</span> <span class="yn-library-menu__nombre">2<', $html );
+		yume_assert_contains( 'Séries terminées</span> <span class="yn-library-menu__nombre">1<', $html );
+		yume_assert_contains( 'href="' . esc_url( add_query_arg( 'tri', 'az', $biblio ) ) . '"', $html, 'Toutes les œuvres A → Z' );
+		yume_assert_contains( 'href="' . esc_url( yume_url_page( 'compte' ) ) . '" data-yn-reprendre>Reprendre ma lecture', $html, 'visiteur : reprise par le script' );
+
+		wp_set_current_user( yume_factory_user( 'subscriber' ) );
+		$html = yume_tl_rendu( 'library-menu' );
+		yume_assert_contains( 'href="' . esc_url( yume_url_page( 'compte' ) ) . '">Reprendre ma lecture', $html, 'membre : page compte' );
+		yume_assert_not_contains( 'data-yn-reprendre', $html );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Fiche d'une œuvre
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Œuvre complète pour les fiches.
+ */
+function yume_tl_grimgar(): int {
+	$id = yume_tl_oeuvre(
+		'Grimgar of Fantasy and Ash',
+		array(
+			'yume_type'   => 'light-novel',
+			'yume_statut' => 'en-cours',
+			'yume_genre'  => array( 'fantasy', 'isekai' ),
+		),
+		array(
+			'post_content' => '<!-- wp:paragraph --><p>Quand Haruhiro se réveille, il est dans l’obscurité.</p><!-- /wp:paragraph -->',
+			'meta_input'   => array(
+				'yume_titres_alt'        => array( 'Hai to Gensou no Grimgar', '灰と幻想のグリムガル' ),
+				'yume_auteur'            => 'Jyumonji Ao',
+				'yume_illustrateur'      => 'Shirai Eiri',
+				'yume_editeur_vo'        => 'OVERLAP',
+				'yume_nb_tomes_vo'       => 22,
+				'yume_statut_vo'         => 'en_cours',
+				'yume_jours_sortie'      => array( 'dimanche' ),
+				'yume_equipe'            => array(
+					'traduction' => 'Calumi',
+					'relecture'  => 'Angeloids',
+					'edition'    => 'Calumi',
+				),
+				'yume_source_traduction' => 'Édition anglaise officielle (J-Novel Club)',
+				'yume_liens'             => array(
+					array(
+						'label' => 'Fiche Novel-Index',
+						'url'   => 'https://www.novel-index.com/grimgar',
+					),
+				),
+			),
+		)
+	);
+	set_post_thumbnail( $id, yume_tl_image( 'grimgar.jpg' ) );
+	update_post_meta( $id, 'yume_banniere_id', yume_tl_image( 'banniere-grimgar.jpg' ) );
+	return $id;
+}
+
+yume_tl_test(
+	'oeuvre-header : fil d’Ariane, couverture, pastilles, titres alternatifs, fiche technique, synopsis, bannière',
+	static function () {
+		yume_assert_same( '', yume_tl_rendu( 'oeuvre-header' ), 'sans contexte : rien' );
+		$id = yume_tl_grimgar();
+		yume_tl_tome( $id, 1 );
+		yume_tl_tome( $id, 2 );
+		$html = yume_tl_rendu( 'oeuvre-header', array(), $id );
+		yume_assert_contains( 'class="yn-oeuvre-header wp-block-yume-oeuvre-header"', $html );
+		yume_assert_contains( '<h1 class="yn-oeuvre-header__titre">Grimgar of Fantasy and Ash</h1>', $html );
+		yume_assert_contains( 'aria-label="Fil d’Ariane"', $html );
+		yume_assert_contains( '>Light novels</a>', $html, 'type dans le fil d’Ariane' );
+		yume_assert_contains( '<li class="yn-ariane__item" aria-current="page"><span>Grimgar of Fantasy and Ash</span></li>', $html );
+		yume_assert_contains( '<span class="yn-chip yn-chip--info">Light novel</span>', $html );
+		yume_assert_contains( '<span aria-hidden="true">●</span> Traduction en cours', $html );
+		yume_assert_contains( 'genre=fantasy', $html, 'genres liés à la bibliothèque' );
+		yume_assert_contains( '<span lang="ja">灰と幻想のグリムガル</span>', $html, 'langue du titre japonais' );
+		yume_assert_contains( '<dt class="yn-label">Scénario</dt><dd>Jyumonji Ao</dd>', $html );
+		yume_assert_contains( 'OVERLAP · 22 tomes (en cours)', $html );
+		yume_assert_contains( '2 tomes · sorties : dimanche', $html );
+		yume_assert_contains( 'Quand Haruhiro se réveille', $html, 'synopsis' );
+		yume_assert_contains( 'class="yn-fiche-banniere" aria-hidden="true"', $html, 'bannière de l’œuvre en fond' );
+		yume_assert_contains( 'alt="Couverture : Grimgar of Fantasy and Ash"', $html );
+
+		// Le contexte d'un tome ou d'un chapitre mène à son œuvre.
+		$tome = yume_tl_tome( $id, 3 );
+		yume_assert_contains( '<h1 class="yn-oeuvre-header__titre">Grimgar of Fantasy and Ash</h1>', yume_tl_rendu( 'oeuvre-header', array(), $tome ) );
+
+		$brouillon = yume_tl_oeuvre( 'Œuvre <b>secrète</b> & cachée', array(), array( 'post_status' => 'draft' ) );
+		yume_assert_same( '', yume_tl_rendu( 'oeuvre-header', array(), $brouillon ), 'brouillon invisible des visiteurs' );
+		wp_set_current_user( yume_factory_user( 'administrator' ) );
+		$apercu = yume_tl_rendu( 'oeuvre-header', array(), $brouillon );
+		yume_assert_contains( 'Œuvre secrète &amp; cachée</h1>', $apercu, 'aperçu de l’équipe, titre nettoyé et échappé' );
+	}
+);
+
+yume_tl_test(
+	'oeuvre-infos : équipe (rôles regroupés), source, liens externes ; rien sans données',
+	static function () {
+		$vide = yume_tl_oeuvre( 'Sans infos' );
+		yume_assert_same( '', yume_tl_rendu( 'oeuvre-infos', array(), $vide ) );
+		$id   = yume_tl_grimgar();
+		$html = yume_tl_rendu( 'oeuvre-infos', array(), $id );
+		yume_assert_contains( 'class="yn-oeuvre-infos wp-block-yume-oeuvre-infos"', $html );
+		yume_assert_contains( '>Équipe de traduction</h2>', $html );
+		yume_assert_contains( '<b class="yn-oeuvre-infos__nom">Calumi</b> · traduction, édition', $html, 'rôles d’une même personne regroupés' );
+		yume_assert_contains( '<b class="yn-oeuvre-infos__nom">Angeloids</b> · relecture', $html );
+		yume_assert_contains( 'Traduction depuis : Édition anglaise officielle (J-Novel Club). Fan-traduction à but non lucratif.', $html );
+		yume_assert_contains( '<a href="https://www.novel-index.com/grimgar" target="_blank" rel="noopener">Fiche Novel-Index', $html );
+		yume_assert_contains( '(lien externe, nouvel onglet)', $html );
+
+		update_post_meta(
+			$id,
+			'yume_liens',
+			array(
+				array(
+					'label' => 'Piège',
+					'url'   => 'javascript:alert(1)',
+				),
+			)
+		);
+		yume_assert_not_contains( 'javascript:', yume_tl_rendu( 'oeuvre-infos', array(), $id ), 'adresse non http ignorée' );
+	}
+);
+
+yume_tl_test(
+	'oeuvre-infos est inséré après tome-list dans un modèle qui ne le contient pas encore',
+	static function () {
+		$modele          = new WP_Block_Template();
+		$modele->content = '<!-- wp:yume/tome-list /-->';
+		yume_assert_same( array( 'yume/oeuvre-infos' ), accrocher_oeuvre_infos( array(), 'after', 'yume/tome-list', $modele ) );
+		yume_assert_same( array(), accrocher_oeuvre_infos( array(), 'before', 'yume/tome-list', $modele ) );
+		yume_assert_same( array(), accrocher_oeuvre_infos( array(), 'after', 'core/paragraph', $modele ) );
+		$modele->content = '<!-- wp:yume/tome-list /--><!-- wp:yume/oeuvre-infos /-->';
+		yume_assert_same( array(), accrocher_oeuvre_infos( array(), 'after', 'yume/tome-list', $modele ), 'déjà présent' );
+		yume_assert_same( array(), accrocher_oeuvre_infos( array(), 'after', 'yume/tome-list', array( 'name' => 'composition' ) ), 'compositions ignorées' );
+
+		$modele->content = '<!-- wp:yume/tome-list /-->';
+		$modele->slug    = 'single-yume_oeuvre';
+		yume_assert_contains( '<!-- wp:yume/oeuvre-infos /-->', apply_block_hooks_to_content( $modele->content, $modele, 'insert_hooked_blocks' ), 'insertion par l’API des blocs accrochés' );
+	}
+);
+
+yume_tl_test(
+	'tome-list : tomes publiés du plus récent, statistiques, boutons, repli des anciens au-delà de 6',
+	static function () {
+		$id = yume_tl_grimgar();
+		yume_assert_contains( 'Aucun tome publié pour le moment.', yume_tl_rendu( 'tome-list', array(), $id ) );
+		$tomes = array();
+		for ( $n = 1; $n <= 8; $n++ ) {
+			$tomes[ $n ] = yume_tl_tome(
+				$id,
+				$n,
+				array(
+					'post_date'  => yume_tl_date( 40 - $n ),
+					'meta_input' => array( 'yume_lien_pdf' => 'https://www.clictune.com/t' . $n ),
+				)
+			);
+		}
+		yume_tl_tome( $id, 9, array( 'post_status' => 'draft' ) );
+		$c1 = yume_tl_chapitre( $tomes[8], 1 );
+		yume_tl_chapitre( $tomes[8], 2 );
+		yume_tl_chapitre( $tomes[8], null, array( 'meta_input' => array( 'yume_nature' => 'postface' ) ) );
+		yume_tl_chapitre( $tomes[8], 3, array( 'post_status' => 'draft' ) );
+
+		$html = yume_tl_rendu( 'tome-list', array(), $id );
+		yume_assert_contains( 'class="yn-tome-list wp-block-yume-tome-list"', $html );
+		yume_assert_contains( '>Tomes <span class="yn-tome-list__nombre">(8)</span></h2>', $html, 'brouillon exclu du compte' );
+		yume_assert_not_contains( 'tome-9', $html );
+		yume_assert_true( strpos( $html, '>Tome 8<' ) < strpos( $html, '>Tome 7<' ), 'du plus récent au plus ancien' );
+		yume_assert_contains( '<details class="yn-tome-list__anciens">', $html );
+		yume_assert_contains( '>Tomes 1 à 3<', $html, 'libellé du groupe replié' );
+		yume_assert_contains( 'Afficher les 3 tomes précédents', $html );
+		yume_assert_true( strpos( $html, '<details' ) < strpos( $html, '>Tome 3<' ) && strpos( $html, '>Tome 4<' ) < strpos( $html, '<details' ), 'tomes 1 à 3 dans le <details>' );
+		yume_assert_contains( '2 chapitres + postface · ', $html, 'chapitres publiés seulement' );
+		yume_assert_contains( ' mots · ~', $html );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $c1 ) ) . '">Lire en ligne', $html );
+		yume_assert_same( 8, yume_tl_compte( 'yn-telechargement--pdf', $html ) );
+		yume_assert_same( 0, yume_tl_compte( 'yn-telechargement--epub', $html ), 'EPUB vide : pas de bouton' );
+		yume_assert_contains( '<span class="yn-visually-hidden">Publié le </span><time datetime=', $html );
+
+		// Extension par un autre module (progression du lecteur).
+		$filtre = static function ( array $ligne, int $tome_id ) use ( $tomes ): array {
+			if ( $tomes[7] === $tome_id ) {
+				$ligne['classes'][] = 'is-en-cours';
+				$ligne['details'][] = 'vous en êtes au chapitre 3';
+				$ligne['lire']      = '<a class="yn-btn yn-btn--primary yn-btn--sm" href="#reprendre">Reprendre</a><script>x</script>';
+			}
+			return $ligne;
+		};
+		add_filter( 'yume_bibliotheque_ligne_tome', $filtre, 10, 2 );
+		$html = yume_tl_rendu( 'tome-list', array(), $id );
+		remove_filter( 'yume_bibliotheque_ligne_tome', $filtre, 10 );
+		yume_assert_contains( '<li class="yn-tome-list__ligne is-en-cours">', $html );
+		yume_assert_contains( 'vous en êtes au chapitre 3', $html );
+		yume_assert_contains( 'href="#reprendre">Reprendre</a>', $html );
+		yume_assert_not_contains( '<script>', $html, 'HTML du filtre nettoyé' );
+
+		// Six tomes ou moins : pas de repli.
+		$autre = yume_tl_oeuvre( 'Autre' );
+		yume_tl_tome( $autre, 1 );
+		yume_assert_not_contains( '<details', yume_tl_rendu( 'tome-list', array(), $autre ) );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Page d'un tome
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'tome-header : titre, crédits, équivalence, lecture, PDF / EPUB, galerie avec légendes et lien vers l’image',
+	static function () {
+		yume_assert_same( '', yume_tl_rendu( 'tome-header' ) );
+		$id   = yume_tl_grimgar();
+		$i1   = yume_tl_image( 'illus-1.jpg', '', 'Haruhiro au crépuscule' );
+		$i2   = yume_tl_image( 'illus-2.jpg', 'Merry et Shihoru' );
+		$tome = yume_tl_tome(
+			$id,
+			9,
+			array(
+				'meta_input' => array(
+					'yume_lien_pdf'      => 'https://www.clictune.com/pdf9',
+					'yume_lien_epub'     => 'https://www.clictune.com/epub9',
+					'yume_equivalence'   => 'Équivaut au tome 9 de l’édition anglaise.',
+					'yume_credits'       => array(
+						'traduction' => 'Calumi',
+						'relecture'  => 'Angeloids',
+					),
+					'yume_illustrations' => array( $i1, $i2, 999999 ),
+				),
+			)
+		);
+		$c1   = yume_tl_chapitre( $tome, 1 );
+		$html = yume_tl_rendu( 'tome-header', array(), $tome );
+		yume_assert_contains( 'class="yn-tome-header wp-block-yume-tome-header"', $html );
+		yume_assert_contains( '<span class="yn-tome-header__oeuvre">Grimgar of Fantasy and Ash</span><span class="yn-visually-hidden"> — </span><span class="yn-tome-header__libelle">Tome 9</span>', $html );
+		yume_assert_contains( '<dt class="yn-label">Traduction</dt><dd>Calumi</dd>', $html );
+		yume_assert_not_contains( '<dt class="yn-label">Édition</dt>', $html, 'rôle vide omis' );
+		yume_assert_contains( 'Équivaut au tome 9 de l’édition anglaise.', $html );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $c1 ) ) . '">Commencer la lecture', $html );
+		yume_assert_contains( 'href="https://www.clictune.com/pdf9" target="_blank" rel="noopener">PDF', $html );
+		yume_assert_contains( 'href="https://www.clictune.com/epub9" target="_blank" rel="noopener">EPUB', $html );
+		yume_assert_contains( 'Fiche de l’œuvre', $html );
+		yume_assert_contains( 'Illustrations <span class="yn-muted">(2)</span>', $html, 'pièce jointe inexistante ignorée' );
+		yume_assert_contains( '<figcaption class="yn-galerie__legende">Haruhiro au crépuscule</figcaption>', $html );
+		yume_assert_contains( '<figcaption class="yn-galerie__legende">Illustration 2</figcaption>', $html, 'légende de repli' );
+		yume_assert_contains( 'alt="Merry et Shihoru"', $html );
+		yume_assert_contains( 'alt="Illustration 1 — Grimgar of Fantasy and Ash, Tome 9"', $html );
+		yume_assert_contains( 'href="' . esc_url( wp_get_attachment_url( $i1 ) ) . '"', $html, 'lien vers l’image en grand' );
+		yume_assert_contains( 'aria-current="page"><span>Tome 9</span>', $html );
+	}
+);
+
+yume_tl_test(
+	'tome-toc : chapitres publiés (sous-titre, durée) ; planifiés « à venir » seulement pour un arc en cours',
+	static function () {
+		$ln   = yume_tl_oeuvre( 'Light', array( 'yume_type' => 'light-novel' ) );
+		$tome = yume_tl_tome( $ln, 1 );
+		yume_assert_contains( 'Aucun chapitre en ligne pour ce tome.', yume_tl_rendu( 'tome-toc', array(), $tome ) );
+		$c1 = yume_tl_chapitre( $tome, 1, array( 'meta_input' => array( 'yume_sous_titre' => 'La Crête Brumeuse' ) ) );
+		yume_tl_chapitre( $tome, 2, array( 'post_status' => 'draft' ) );
+		$html = yume_tl_rendu( 'tome-toc', array(), $tome );
+		yume_assert_contains( 'class="yn-toc wp-block-yume-tome-toc"', $html );
+		yume_assert_contains( '>Sommaire</h2>', $html );
+		yume_assert_contains( '<a class="yn-toc__lien" href="' . esc_url( get_permalink( $c1 ) ) . '"><span class="yn-toc__numero">Chapitre 1</span><span class="yn-toc__sous-titre">La Crête Brumeuse</span>', $html );
+		yume_assert_contains( 'Temps de lecture :', $html );
+		yume_assert_not_contains( 'Chapitre 2', $html, 'brouillon d’un tome complet masqué' );
+
+		// Le contexte d'un chapitre marque le chapitre courant.
+		yume_assert_contains( 'aria-current="page"', yume_tl_rendu( 'tome-toc', array(), $c1 ) );
+
+		$wn  = yume_tl_oeuvre( 'Web', array( 'yume_type' => 'web-novel' ) );
+		$arc = yume_tl_tome( $wn, 7, array( 'meta_input' => array( 'yume_nature' => 'arc' ) ) );
+		yume_tl_chapitre( $arc, 1 );
+		yume_tl_chapitre(
+			$arc,
+			2,
+			array(
+				'post_status' => 'future',
+				'post_date'   => yume_tl_date( -3 ),
+			)
+		);
+		yume_tl_chapitre( $arc, 3, array( 'post_status' => 'draft' ) );
+		$html = yume_tl_rendu( 'tome-toc', array(), $arc );
+		yume_assert_contains( '<li class="yn-toc__item yn-toc__item--a-venir"><span class="yn-toc__lien"><span class="yn-toc__numero">Chapitre 3</span>', $html, 'planifié non cliquable' );
+		yume_assert_contains( 'À venir', $html );
+		yume_assert_contains( 'Prévu le ' . date_courte( time() + 3 * DAY_IN_SECONDS ), $html, 'chapitre programmé' );
+		yume_assert_contains( '1 chapitre · ~', $html );
+		yume_assert_contains( '2 à venir', $html );
+		yume_assert_same( 1, yume_tl_compte( '<a class="yn-toc__lien"', $html ), 'seul le chapitre publié est un lien' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Lecteur
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'chapter-header : fil d’Ariane œuvre › tome › chapitre, « Chapitre N » en h1, sous-titre, crédits, durée',
+	static function () {
+		yume_assert_same( '', yume_tl_rendu( 'chapter-header' ) );
+		$id   = yume_tl_grimgar();
+		$tome = yume_tl_tome( $id, 7, array( 'meta_input' => array( 'yume_credits' => array( 'traduction' => 'Tome-Trad' ) ) ) );
+		$c1   = yume_tl_chapitre(
+			$tome,
+			1,
+			array(
+				'meta_input' => array(
+					'yume_sous_titre' => 'La Crête Brumeuse',
+					'yume_credits'    => array(
+						'traduction' => 'Angeloids',
+						'relecture'  => 'Calumi',
+					),
+				),
+			)
+		);
+		$html = yume_tl_rendu( 'chapter-header', array(), $c1 );
+		yume_assert_true( 0 === strpos( $html, '<header class="yn-chapter-header wp-block-yume-chapter-header">' ) );
+		yume_assert_contains( '<a href="' . esc_url( get_permalink( $id ) ) . '">Grimgar of Fantasy and Ash</a>', $html );
+		yume_assert_contains( '<a href="' . esc_url( get_permalink( $tome ) ) . '">Tome 7</a>', $html );
+		yume_assert_contains( '<li class="yn-ariane__item" aria-current="page"><span>Chapitre 1</span></li>', $html );
+		yume_assert_contains( '<h1 class="yn-chapter-header__titre">Chapitre 1</h1><p class="yn-subtitle">La Crête Brumeuse</p>', $html );
+		yume_assert_contains( '<span class="yn-credits__role">Traduction</span> · <span class="yn-credits__nom">Angeloids</span>', $html );
+		yume_assert_contains( '<span class="yn-credits__role">Relecture</span> · <span class="yn-credits__nom">Calumi</span>', $html );
+		yume_assert_contains( 'Lecture ~', $html, 'temps de lecture' );
+
+		// Sans crédits propres : ceux du tome.
+		$c2 = yume_tl_chapitre( $tome, 2 );
+		yume_assert_contains( 'Tome-Trad', yume_tl_rendu( 'chapter-header', array(), $c2 ) );
+
+		// Brouillon : invisible pour un visiteur.
+		$c3 = yume_tl_chapitre( $tome, 3, array( 'post_status' => 'draft' ) );
+		yume_assert_same( '', yume_tl_rendu( 'chapter-header', array(), $c3 ) );
+	}
+);
+
+yume_tl_test(
+	'chapter-nav : précédent · sommaire · suivant (rel=prev/next), passage d’un tome à l’autre, libellés explicites',
+	static function () {
+		yume_assert_same( '', yume_tl_rendu( 'chapter-nav' ) );
+		$id = yume_tl_oeuvre( 'Grimgar' );
+		$t1 = yume_tl_tome( $id, 1, array( 'post_date' => yume_tl_date( 10 ) ) );
+		$t2 = yume_tl_tome( $id, 2, array( 'post_date' => yume_tl_date( 5 ) ) );
+		$a1 = yume_tl_chapitre( $t1, 1 );
+		$a2 = yume_tl_chapitre( $t1, 2 );
+		$b1 = yume_tl_chapitre( $t2, 1, array( 'meta_input' => array( 'yume_sous_titre' => 'S’il vous plaît' ) ) );
+		yume_tl_chapitre( $t2, 2, array( 'post_status' => 'draft' ) );
+
+		$html = yume_tl_rendu( 'chapter-nav', array(), $a2 );
+		yume_assert_contains( 'class="yn-chapter-nav wp-block-yume-chapter-nav" aria-label="Chapitres précédent et suivant"', $html );
+		yume_assert_contains( 'rel="prev" href="' . esc_url( get_permalink( $a1 ) ) . '"', $html );
+		yume_assert_contains( '<span class="yn-visually-hidden">Chapitre précédent : </span>Chapitre 1', $html );
+		yume_assert_contains( 'rel="next" href="' . esc_url( get_permalink( $b1 ) ) . '"', $html );
+		yume_assert_contains( '<span class="yn-visually-hidden">Chapitre suivant : </span>Tome 2 · Chapitre 1 · S’il vous plaît', $html, 'changement de tome indiqué' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $t1 ) ) . '"', $html, 'sommaire du tome' );
+		yume_assert_contains( 'Sommaire<span class="yn-chapter-nav__complement"> du tome</span><span class="yn-visually-hidden"> — Tome 1</span>', $html );
+
+		$premier = yume_tl_rendu( 'chapter-nav', array(), $a1 );
+		yume_assert_not_contains( 'rel="prev"', $premier );
+		yume_assert_contains( 'yn-chapter-nav__vide', $premier );
+
+		$dernier = yume_tl_rendu( 'chapter-nav', array(), $b1 );
+		yume_assert_not_contains( 'rel="next"', $dernier, 'chapitre brouillon ignoré' );
+		yume_assert_contains( 'Dernier chapitre disponible', $dernier );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Référencement
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'JSON-LD : BookSeries (œuvre), Book isPartOf (tome), Chapter isPartOf (chapitre), BreadcrumbList, JSON valide',
+	static function () {
+		$id   = yume_tl_grimgar();
+		$tome = yume_tl_tome( $id, 9, array( 'meta_input' => array( 'yume_credits' => array( 'traduction' => 'Calumi & Angeloids' ) ) ) );
+		$c1   = yume_tl_chapitre( $tome, 1, array( 'meta_input' => array( 'yume_sous_titre' => 'La Crête <Brumeuse> & co' ) ) );
+		update_post_meta( $c1, 'yume_temps_lecture', 18 );
+
+		$serie = yume_tl_noeud( yume_tl_jsonld( balise_jsonld( $id ) ), 'BookSeries' );
+		yume_assert_same( 'https://schema.org', donnees_structurees( $id )['@context'] );
+		yume_assert_same( 'Grimgar of Fantasy and Ash', $serie['name'] );
+		yume_assert_same( get_permalink( $id ) . '#oeuvre', $serie['@id'] );
+		yume_assert_same( array( 'Hai to Gensou no Grimgar', '灰と幻想のグリムガル' ), $serie['alternateName'] );
+		yume_assert_same( 'Jyumonji Ao', $serie['author']['name'] );
+		yume_assert_same( 'fr', $serie['inLanguage'] );
+		yume_assert_same( 'Book', $serie['hasPart'][0]['@type'] );
+		yume_assert_same( 9, $serie['hasPart'][0]['position'] );
+		yume_assert_contains( 'Quand Haruhiro', $serie['description'] );
+
+		$doc   = yume_tl_jsonld( balise_jsonld( $tome ) );
+		$livre = yume_tl_noeud( $doc, 'Book' );
+		yume_assert_same( 'BookSeries', $livre['isPartOf']['@type'] );
+		yume_assert_same( get_permalink( $id ) . '#oeuvre', $livre['isPartOf']['@id'] );
+		yume_assert_same( 'https://schema.org/EBook', $livre['bookFormat'] );
+		$traducteurs = wp_list_pluck( $livre['translator'], 'name' );
+		yume_assert_same( array( 'Calumi', 'Angeloids' ), array_slice( $traducteurs, 0, 2 ), 'traducteurs des crédits' );
+		yume_assert_same( 'Organization', end( $livre['translator'] )['@type'], 'puis l’équipe du site' );
+		yume_assert_same( 'Chapter', $livre['hasPart'][0]['@type'] );
+		$ariane = yume_tl_noeud( $doc, 'BreadcrumbList' );
+		yume_assert_same( 3, count( $ariane['itemListElement'] ) );
+		yume_assert_same( 'Tome 9', $ariane['itemListElement'][2]['name'] );
+
+		$balise = balise_jsonld( $c1 );
+		yume_assert_true( 1 === preg_match( '#<script type="application/ld\+json"[^>]*>([^<]*)</script>#', $balise ), 'aucun « < » dans le JSON (JSON_HEX_TAG)' );
+		$chapitre = yume_tl_noeud( yume_tl_jsonld( $balise ), 'Chapter' );
+		yume_assert_same( 'Book', $chapitre['isPartOf']['@type'] );
+		yume_assert_same( get_permalink( $tome ) . '#tome', $chapitre['isPartOf']['@id'] );
+		yume_assert_same( 'BookSeries', $chapitre['isPartOf']['isPartOf']['@type'] );
+		yume_assert_same( 'PT18M', $chapitre['timeRequired'] );
+		yume_assert_same( 1, $chapitre['position'] );
+		yume_assert_contains( 'Chapitre 1 — La Crête', $chapitre['name'] );
+
+		$brouillon = yume_tl_chapitre( $tome, 2, array( 'post_status' => 'draft' ) );
+		yume_assert_same( array(), donnees_structurees( $brouillon ), 'rien pour un brouillon' );
+		yume_assert_same( '', balise_jsonld( yume_factory_post() ), 'rien pour un article' );
+	}
+);
+
+yume_tl_test(
+	'wp_head : <link rel="prev|next"> et JSON-LD sur un chapitre publié ; rien sur un brouillon ni ailleurs',
+	static function () {
+		$id   = yume_tl_oeuvre( 'Grimgar' );
+		$tome = yume_tl_tome( $id, 1 );
+		$c1   = yume_tl_chapitre( $tome, 1 );
+		$c2   = yume_tl_chapitre( $tome, 2 );
+		$c3   = yume_tl_chapitre( $tome, 3 );
+		yume_assert_same( 9, has_action( 'wp_head', 'Yume\\Core\\Library\\afficher_voisins' ) );
+		yume_assert_same( 20, has_action( 'wp_head', 'Yume\\Core\\Library\\afficher_jsonld' ) );
+
+		yume_tl_aller( $c2 );
+		ob_start();
+		Yume\Core\Library\afficher_voisins();
+		Yume\Core\Library\afficher_jsonld();
+		$tete = (string) ob_get_clean();
+		yume_assert_contains( '<link rel="prev" href="' . esc_url( get_permalink( $c1 ) ) . '" />', $tete );
+		yume_assert_contains( '<link rel="next" href="' . esc_url( get_permalink( $c3 ) ) . '" />', $tete );
+		yume_assert_contains( '"@type":"Chapter"', $tete );
+
+		yume_assert_same( '<link rel="next" href="' . esc_url( get_permalink( $c2 ) ) . "\" />\n", balises_voisins( $c1 ), 'premier chapitre : suivant seulement' );
+
+		yume_tl_aller( $tome );
+		ob_start();
+		Yume\Core\Library\afficher_voisins();
+		Yume\Core\Library\afficher_jsonld();
+		$tete = (string) ob_get_clean();
+		yume_assert_not_contains( 'rel="prev"', $tete );
+		yume_assert_contains( '"@type":"Book"', $tete );
+
+		wp_update_post(
+			array(
+				'ID'          => $c2,
+				'post_status' => 'draft',
+			)
+		);
+		yume_tl_aller( $c2 );
+		ob_start();
+		Yume\Core\Library\afficher_voisins();
+		Yume\Core\Library\afficher_jsonld();
+		yume_assert_same( '', (string) ob_get_clean(), 'aperçu d’un brouillon : rien' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Cache
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'cache : versionné, invalidé à la création, au changement de statut, de termes et à la suppression',
+	static function () {
+		$oeuvre = yume_tl_oeuvre( 'Grimgar', array( 'yume_type' => 'light-novel' ) );
+		$t1     = yume_tl_tome( $oeuvre, 1, array( 'post_date' => yume_tl_date( 10 ) ) );
+		yume_assert_same( 1, yume_tl_compte( '<li class="yn-releases__item">', yume_tl_rendu( 'latest-releases' ) ) );
+		$version = version_cache();
+		yume_assert_true( false !== get_transient( 'yume_bib_sorties_' . substr( md5( wp_json_encode( array( 6 ) ) . '|' . $version ), 0, 16 ) ), 'liste mise en cache (transient)' );
+
+		$t2 = yume_tl_tome( $oeuvre, 2, array( 'post_date' => yume_tl_date( 1 ) ) );
+		yume_assert_true( version_cache() !== $version, 'nouvelle version après enregistrement' );
+		yume_assert_same( 2, yume_tl_compte( '<li class="yn-releases__item">', yume_tl_rendu( 'latest-releases' ) ), 'nouveau tome visible' );
+
+		wp_update_post(
+			array(
+				'ID'          => $t2,
+				'post_status' => 'draft',
+			)
+		);
+		yume_assert_same( 1, yume_tl_compte( '<li class="yn-releases__item">', yume_tl_rendu( 'latest-releases' ) ), 'dépublication prise en compte' );
+
+		yume_assert_contains( 'Light novels</span> <span class="yn-library-menu__nombre">1<', yume_tl_rendu( 'library-menu' ) );
+		wp_set_object_terms( $oeuvre, 'manga', 'yume_type' );
+		yume_assert_contains( 'Manga</span> <span class="yn-library-menu__nombre">1<', yume_tl_rendu( 'library-menu' ), 'changement de type pris en compte' );
+
+		wp_delete_post( $t1, true );
+		yume_assert_contains( 'Aucune sortie pour le moment.', yume_tl_rendu( 'latest-releases' ), 'suppression prise en compte' );
+
+		wp_trash_post( $oeuvre );
+		yume_assert_same( array(), index_oeuvres()['oeuvres'], 'œuvre à la corbeille retirée de l’index' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Fonctions utilitaires
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'formats : sous-titre d’un tome, durées, dates françaises, nouveauté',
+	static function () {
+		$id  = yume_tl_oeuvre( 'Secrets of the Silent Witch' );
+		$arc = yume_tl_tome(
+			$id,
+			7,
+			array(
+				'post_title' => 'Secrets of the Silent Witch — Arc 7 : Tournoi d’échec',
+				'meta_input' => array( 'yume_nature' => 'arc' ),
+			)
+		);
+		yume_assert_same( 'Tournoi d’échec', sous_titre_tome( $arc ) );
+		$simple = yume_tl_tome( $id, 1 );
+		yume_assert_same( '', sous_titre_tome( $simple ), 'titre = libellé' );
+		$libre = yume_tl_tome( $id, 12, array( 'post_title' => 'Secrets of the Silent Witch — Le Pays des ombres' ) );
+		yume_assert_same( 'Le Pays des ombres', sous_titre_tome( $libre ), 'titre libre' );
+
+		yume_assert_same( "~18\u{00A0}min", duree_lecture( 18 ) );
+		yume_assert_same( "~5\u{00A0}h\u{00A0}40", duree_lecture( 340 ) );
+		yume_assert_same( "~2\u{00A0}h", duree_lecture( 120 ) );
+		yume_assert_same( '', duree_lecture( 0 ) );
+
+		$ts = (int) ( new DateTimeImmutable( '2026-09-20 12:00:00', wp_timezone() ) )->getTimestamp();
+		yume_assert_same( '20 sept.', date_courte( $ts ) );
+		yume_assert_same( '20 sept. 2026', date_courte( $ts, true ) );
+		yume_assert_same( '1 août', date_courte( (int) ( new DateTimeImmutable( '2026-08-01 12:00:00', wp_timezone() ) )->getTimestamp() ) );
+		yume_assert_true( est_nouveau( time() - 6 * DAY_IN_SECONDS ) );
+		yume_assert_false( est_nouveau( time() - 8 * DAY_IN_SECONDS ) );
+		yume_assert_false( est_nouveau( 0 ) );
+	}
+);

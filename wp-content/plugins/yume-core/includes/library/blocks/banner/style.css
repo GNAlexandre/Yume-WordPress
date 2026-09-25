@@ -1,0 +1,30 @@
+/**
+ * yume/banner — bannière pleine largeur (hauteur réglable, réduite sur mobile), voile du thème.
+ */
+.yn-banner {
+	position: relative;
+	box-sizing: border-box;
+	height: clamp(120px, 24vw, var(--yn-banner-hauteur, 240px));
+	overflow: hidden;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-banner__image {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	object-fit: cover;
+	object-position: center 35%;
+}
+
+.yn-banner::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: var(--yn-voile-image);
+	pointer-events: none;
+}

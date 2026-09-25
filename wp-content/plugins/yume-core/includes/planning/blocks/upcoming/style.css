@@ -1,0 +1,67 @@
+/**
+ * yume/upcoming — structure seulement (couleurs : variables et classes du thème).
+ * Sans carte propre : dans l'accueil, la carte .yn-carte-accueil est fournie par le thème.
+ */
+.yn-upcoming {
+	width: 100%;
+	font-size: 14px;
+}
+
+.yn-upcoming .yn-upcoming__liste {
+	display: grid;
+	grid-template-columns: 110px minmax(0, 1fr) auto;
+	gap: 8px 14px;
+	align-items: center;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-upcoming .yn-upcoming__item {
+	display: grid;
+	grid-column: 1 / -1;
+	grid-template-columns: subgrid;
+	align-items: center;
+	margin: 0;
+}
+
+.yn-upcoming__titre {
+	min-width: 0;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-upcoming__titre b {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-upcoming .yn-upcoming__titre a {
+	text-decoration: none;
+}
+
+.yn-upcoming__titre a:hover b,
+.yn-upcoming__titre a:focus-visible b {
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-upcoming__etat {
+	justify-self: end;
+}
+
+.yn-upcoming__vide {
+	margin: 0;
+}
+
+@media (max-width: 419.98px) {
+	.yn-upcoming .yn-upcoming__liste {
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 4px 12px;
+	}
+
+	.yn-upcoming__item {
+		padding-block: 4px;
+	}
+
+	.yn-upcoming__date {
+		grid-column: 1 / -1;
+	}
+}

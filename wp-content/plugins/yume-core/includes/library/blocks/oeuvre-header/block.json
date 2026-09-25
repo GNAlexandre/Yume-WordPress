@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/oeuvre-header",
+	"title": "En-tête de l’œuvre",
+	"category": "yume",
+	"icon": "id-alt",
+	"description": "Fiche d’une œuvre : couverture, type, statut et genres, titres alternatifs, fiche technique, synopsis ; bannière de l’œuvre en fond.",
+	"keywords": [
+		"œuvre",
+		"fiche",
+		"synopsis"
+	],
+	"textdomain": "yume-core",
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}

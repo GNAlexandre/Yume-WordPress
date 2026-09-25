@@ -1,0 +1,121 @@
+/**
+ * yume/library-grid — filtres en pastilles, compteur, grille de couvertures, pagination.
+ * Couleurs : classes et variables du thème (§15).
+ */
+.yn-library {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.yn-library > *,
+.yn-library .yn-library__filtres {
+	margin: 0;
+}
+
+.yn-library__filtres {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.yn-library__groupe {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+}
+
+.yn-library__legende {
+	flex: 0 0 88px;
+}
+
+.yn-library .yn-library__pastilles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-library .yn-library__pastilles > li {
+	margin: 0;
+}
+
+.yn-library .yn-library__pastille {
+	min-height: 32px;
+	padding: 4px 12px;
+	font-size: 13px;
+	text-decoration: none;
+	transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.yn-library .yn-library__pastille:not(.is-active):hover,
+.yn-library .yn-library__pastille:not(.is-active):focus-visible {
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+	text-decoration: none;
+}
+
+.yn-library .yn-library__pastille.is-active:hover,
+.yn-library .yn-library__pastille.is-active:focus-visible {
+	border-color: var(--yn-accent-survol);
+	background: var(--yn-accent-survol);
+	color: var(--wp--preset--color--accent-texte);
+	text-decoration: none;
+}
+
+.yn-library__nombre {
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+}
+
+.yn-library .yn-library__resume {
+	margin: 0;
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: 0;
+}
+
+.yn-library .yn-library__grille {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	row-gap: 28px;
+}
+
+.yn-library__vide {
+	padding: 32px 24px;
+	border: 1px dashed var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+	text-align: center;
+}
+
+.yn-library__vide p {
+	margin: 0;
+}
+
+.yn-library__vide p + p {
+	margin-top: 12px;
+}
+
+.yn-library__pagination {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+@media (max-width: 599.98px) {
+	.yn-library__groupe {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.yn-library__legende {
+		flex-basis: auto;
+	}
+}

@@ -1,13 +1,20 @@
-# Migration de yumenovel.fr — partie 1 : export et plan
+# Migration de yumenovel.fr — export, plan et exécution
 
-Ce dossier contient l'**analyse** de l'ancien site (WordPress.com, site `238001312`) et le **plan**
-de migration vers les types Yume (contrat technique, docs/06-contrat-technique.md). Rien ici
-n'écrit sur le site distant ni dans la base locale : l'export est obtenu en **lecture seule**,
-le plan est calculé par des classes PHP pures (`wp-content/plugins/yume-core/includes/migration/`).
+Ce dossier contient l'**analyse** de l'ancien site (WordPress.com, site `238001312`), le **plan**
+de migration vers les types Yume (contrat technique, docs/06-contrat-technique.md) et les outils
+locaux qui vérifient son **exécution** de bout en bout. Le code vit dans
+`wp-content/plugins/yume-core/includes/migration/` :
 
-> Rien n'est poussé sur yumenovel.fr sans le « Go » explicite de l'équipe (contrat §0bis). La
-> partie 2 (exécution du plan) lit `plan.json` ; elle ne doit jamais relancer l'analyse sur le
-> site distant.
+- partie 1 — analyse : classes PHP pures (Html, Blocks, Export_Loader, Legacy_*, Migration_Planner,
+  Plan_Report) qui transforment un export en plan JSON ;
+- partie 2 — exécution : Site_Source (lecture de l'ancien contenu dans la base du site),
+  Migration_Runner / Migration_Executor / Migration_Rollback (exécution par lots, annulation),
+  Redirections (301), page **Yume → Migrer**, API REST et commande **`wp yume migrer`** (§ 5 à 9).
+
+> Rien n'est poussé sur yumenovel.fr sans le « Go » explicite de l'équipe (contrat §0bis).
+> L'export se fait en lecture seule ; l'exécution n'a lieu qu'en local jusqu'au Go, puis en
+> production depuis l'administration (Yume → Migrer), où il n'y a **pas** d'export JSON : le plan
+> est recalculé depuis la base par Site_Source, identique à celui de l'export.
 
 ## Contenu
 
@@ -18,6 +25,9 @@ le plan est calculé par des classes PHP pures (`wp-content/plugins/yume-core/in
 | `assemble-export.php` | `export/raw/*.json` → `export/{pages,posts,categories,media,navigations,template-parts,site}.json` | oui |
 | `build-fixtures.php` | `export/` → `fixtures/` (extraits courts) | oui |
 | `plan.php` | `export/` → `export/plan.json`, `export/rapport.md`, `export/redirections.csv` | oui |
+| `seed-local.php` + `lib/class-yume-seed-local.php` | Peuple une base **locale** avec l'ancien site (mêmes ID, mêmes fichiers de médias) | oui |
+| `verifier-local.php` | Contrôles de bout en bout (instantané, comptes, URL, comparaison après annulation) | oui |
+| `bout-en-bout.sh` | Seed → simulation → exécution → 20 anciennes URL en 301 (HTTP) → annulation → base identique | oui |
 
 ## 1. Régénérer l'export (lecture seule)
 
@@ -157,7 +167,7 @@ categories[]       { action: renommer, id, slug_actuel, nom_actuel, slug, nom, d
 pages              conserver[] { id, slug, titre, url, remarques[] }
                    remplacer[] { id, slug, titre, famille (hub|fiche|arc|chapitre|categorie), action: depublier, url, cible (clé) }
                    ignorer[]   { id, statut, titre, raison }
-                   creer[]     { cle, post_title, post_name, parent (cle|""), post_status, post_content (bloc §11), url }
+                   creer[]     { cle, post_title, post_name, parent (cle|null), post_status, post_content (bloc §11 ou texte de base), reglage (page_on_front|page_for_posts|null), url }
 
 redirections[]     { source (chemin ancien), cible (nouvelle URL), code: 301,
                      type: oeuvre|tome|chapitre|hub|categorie, source_id, cle }
@@ -170,13 +180,126 @@ comptes            pages, articles, oeuvres, tomes, chapitres, liens, redirectio
                    medias, avertissements
 ```
 
-### Ordre d'exécution conseillé (partie 2)
+`pages.creer[]` porte aussi `reglage` (`page_on_front` pour « accueil », `page_for_posts` pour
+« actualites », sinon `null`). Les neuf pages créées : les six du §11 (`bibliotheque`, `planning`,
+`equipe`, `publier` sous `equipe`, `compte`, `connexion`), `actualites` (page des articles),
+`mentions-legales` (texte de base factuel : éditeur bénévole, hébergeur WordPress.com /
+Automattic, droits et retrait sur demande, données personnelles, cookies et stockage du
+navigateur) et `accueil` (page d'accueil statique, le thème fournit `front-page.html`).
 
-1. Vérifier `comptes.avertissements.erreur` = 0 et faire valider les points « attention ».
-2. Médias : les pièces jointes existent déjà (même site) ; rien à importer.
-3. Œuvres (`post_name` = `cle`), puis tomes (`yume_oeuvre_id`), puis chapitres
-   (`yume_tome_id`, `yume_oeuvre_id`, `menu_order`) ; rendre l'exécution idempotente avec
-   `yume_source.hash` et les IDs source.
-4. Articles : catégorie cible, terme `yume_oeuvre_liee` ; catégories (renommage, puis
-   `default_category` → Actualités, puis suppression de « Non classé »).
-5. Pages §11 à créer, pages remplacées dépubliées, redirections 301 (`redirections.csv`).
+Une redirection ne vise jamais un contenu non publié : l'ancienne page d'un arc planifié (brouillon,
+ex. arc 8 de Silent Witch) est redirigée vers l'œuvre (information dans les avertissements).
+
+## 5. Exécution (partie 2)
+
+Principe : migration **sur place**, sur le site existant. Les pièces jointes gardent leur ID ; les
+anciennes pages remplacées passent en **brouillon** (jamais supprimées) ; tout est **réversible**.
+
+1. **Simuler** (Yume → Migrer, ou `wp yume migrer --simuler`) : Site_Source lit l'ancien contenu
+   dans la base, Migration_Planner calcule le plan, qui est enregistré (option `yume_migration_plan`,
+   compressée). Rien d'autre n'est écrit. Le rapport affiche comptes, avertissements, **statuts à
+   valider** (hub et fiche contradictoires : Gimai, Roshidere, Otonari, Mikadono, Chiramune, Raven,
+   SukaMoka) avec un choix par œuvre (option `yume_migration_choix`, appliquée à l'exécution), les
+   œuvres, pages et redirections ; téléchargements Markdown, JSON et CSV.
+2. **Exécuter** (confirmation tapée `MIGRER`) : le plan est recalculé depuis la base (un
+   avertissement signale un contenu modifié depuis la simulation), les problèmes bloquants sont
+   vérifiés (erreurs du plan, œuvre déjà présente sans avoir été créée par la migration), puis les
+   étapes s'enchaînent **par lots** de 2 s (page) ou 30 s (WP-CLI), avec reprise à l'élément
+   interrompu :
+
+   | Étape | Effet |
+   | --- | --- |
+   | préparation | sauvegarde des options (`show_on_front`, `page_on_front`, `page_for_posts`, `default_category`, `yume_pages`, `yume_reglages`, `yume_redirections`), des statuts des anciennes pages, des catégories et œuvres liées des articles, des catégories ; empreinte des contenus touchés ; correspondance des médias (par ID, puis par suffixe de `_wp_attached_file`, puis par nom de fichier unique) |
+   | œuvres, tomes, chapitres | création (ou mise à jour) avec les champs et slugs du plan ; `yume_oeuvre_id` sur les tomes, `yume_tome_id` sur les chapitres (le cœur dérive le reste : œuvre du chapitre, mots, caches, terme `yume_oeuvre_liee`) ; images mises en avant et bannières par ID de pièce jointe ; taxonomies type et statut |
+   | catégories, articles | « Yume News » → « Sorties », description d'« Actualités », `default_category` → Actualités ; chaque article reçoit sa catégorie cible et le terme `yume_oeuvre_liee` de son œuvre (jamais créé à la main) ; brouillons d'essai ignorés |
+   | pages | création des 9 pages (ou reprise d'une page existante à la même adresse), option `yume_pages` |
+   | anciennes pages | les 90 pages remplacées passent en brouillon (statut seul, contenu intact) |
+   | réglages | `show_on_front = page`, `page_on_front` = Accueil, `page_for_posts` = Actualités, `banniere_id` (réglage Yume) si vide |
+   | redirections | table 301 (option `yume_redirections`), cibles recalculées sur les contenus créés |
+   | nettoyage | suppression de « Non classé » (articles déjà reclassés) |
+
+   Pendant chaque lot : `add_filter( 'yume_core_notifier', '__return_false' )`, `pre_wp_mail`
+   court-circuité, appels HTTP vers Discord bloqués, filtrage kses suspendu (contenus du site
+   lui-même) ; aucun événement `yume_tome_publie` / `yume_chapitre_publie` n'est émis.
+3. **Annuler la migration** (case à cocher + confirmation, ou `wp yume migrer --annuler`) : retire
+   les redirections ajoutées, recrée « Non classé » sous son ID d'origine, rend aux catégories leurs
+   noms et slugs, restaure catégories et œuvres liées des articles, les options, les statuts (et
+   dates de modification) des anciennes pages, supprime pages, chapitres, tomes et œuvres créés
+   (méta `_yume_migration_cle`), puis compare l'empreinte : la page affiche « contenus revenus à leur
+   état d'origine » ou la liste des différences.
+
+**Idempotence** : chaque contenu créé porte `_yume_migration_cle` (« oeuvre:grimgar-of-fantasy-and-ash »,
+« tome:…/tome-9 », « chapitre:…/arc-4/1 », « page:bibliotheque »), `_yume_source_id` (page ou article
+d'origine) et `_yume_migration_run` ; le journal (option `yume_migration_journal`) garde les
+correspondances source → cible. Une relance (`wp yume migrer --forcer`) met à jour sans doublon, même
+si le journal est perdu.
+
+**Verrou** : une seule exécution à la fois (option `yume_migration_verrou`, insertion atomique ;
+repris après 3 minutes d'inactivité). **Erreur** : l'élément fautif est retenté à la reprise ; on
+peut l'ignorer (« Ignorer l'élément en erreur et continuer », `--ignorer`).
+
+## 6. Redirections 301
+
+Table `yume_redirections` : chemin source normalisé (relatif à l'accueil, minuscules, barre finale)
+→ cible relative. Servie sur `template_redirect` priorité 1 (avant la redirection canonique du cœur,
+celle de WordPress et le modèle 404), en GET/HEAD, avec la chaîne de requête conservée si la cible
+n'en a pas ; `…/page/N/`, `…/feed/` et `…/amp/` d'une source suivent la même redirection. Filtre
+`yume_redirections` pour compléter la table. Export CSV au format d'import de l'extension
+Redirection (`source,target,regex,code`) : bouton « Télécharger les redirections » de la page
+Migrer (table active) ou `redirections.csv` du plan.
+
+## 7. Interfaces
+
+- **Yume → Migrer** (`admin.php?page=yume-migrer`, capacité `manage_options`) : état, simulation et
+  rapport, exécution avec barre de progression et journal annoncé aux lecteurs d'écran, reprise,
+  annulation, redirections actives. Sans JavaScript, chaque envoi du formulaire traite un lot (20 s).
+- **REST** (`manage_options`, nonce `wp_rest`) : `GET /yume/v1/migration` (état),
+  `POST /yume/v1/migration/executer` (`confirmation=MIGRER` pour démarrer, `ignorer`),
+  `POST /yume/v1/migration/annuler` (`confirmation=ANNULER` pour démarrer, `ignorer`).
+- **WP-CLI** : `wp yume migrer [--simuler [--rapport=<f>] [--plan=<f>]] [--annuler] [--etat] [--forcer] [--ignorer] [--yes]`.
+- Filtres : `yume_migration_source_options` (options de Site_Source), `yume_migration_domaines`,
+  `yume_migration_problemes` (problèmes bloquants), `yume_migration_budget` (secondes par lot),
+  `yume_redirections`. Actions : `yume_migration_terminee( $journal, $plan )`,
+  `yume_migration_annulee( $journal )`.
+
+## 8. Source « base » (production) et source « export » (local)
+
+`Site_Source::export( $options )` produit exactement l'entrée d'`Export_Loader` depuis la base :
+pages et articles (statuts publish, future, draft, pending, private ; contenu brut ; extrait rendu
+comme l'API REST ; catégories dans l'ordre de l'API), catégories, pièces jointes (`file` =
+`_wp_attached_file`), navigations, parties de modèle personnalisées ; les contenus créés par la
+migration sont exclus. Sur une base peuplée par `seed-local.php`, **plan(base) == plan(export)**
+(test automatique sur les fixtures, et sur l'export complet avec les options ci-dessous), à
+l'exception des champs documentés : `genere_le`, `source.exporte_le`, `source.site_id`, et selon les
+options `domaine`, `domaines_alias`, `home` (base des liens, ex. `https://yumenovel.fr`) et
+`url_medias` (ex. `https://yumenovel.wordpress.com/wp-content/uploads/`).
+
+## 9. Outils locaux et bout en bout
+
+```sh
+export YUME_WP_PATH=… WP_CLI=… YUME_ENV=migration-locale
+# Ancien site dans une base locale (DESTRUCTIF pour cette base ; refusé hors environnement local)
+tools/localenv/wp.sh eval-file tools/migrate/seed-local.php [dossier-export] [medias=wp-content/uploads-locale] [sans-images]
+# Revue par l'équipe : Yume → Migrer sur http://127.0.0.1:8089 (admin / admin)
+tools/localenv/serve.sh 8089
+# Bout en bout : seed, simulation, exécution, contrôles, 20 anciennes URL en 301 via HTTP, annulation
+YUME_MEDIAS=wp-content/uploads-locale tools/migrate/bout-en-bout.sh 8089   # GARDER=1 : ne pas annuler
+```
+
+Le seed insère pages, articles et navigations **aux mêmes ID** (`import_id`), les catégories aux
+mêmes ID de terme, des pièces jointes factices aux mêmes ID et au même `_wp_attached_file` avec une
+image de substitution générée (GD, proportions d'origine), les parties de modèle personnalisées ; il
+règle le fuseau Europe/Paris et les permaliens `/%year%/%monthnum%/%day%/%postname%/`. L'extrait
+rendu d'un article (export) est posé comme extrait manuel.
+
+Tests : `tools/localenv/test.sh migration` (analyse, source base contre export, exécution,
+idempotence, médias, redirections, annulation exacte, REST, reprise et verrou, administration,
+neutralisation des notifications, bout en bout sur l'export complet s'il est présent).
+
+### Jour J (production, après le Go)
+
+1. Sauvegarde complète ; mise à jour de l'extension et du thème.
+2. Yume → Migrer → **Simuler** ; relire le rapport, régler les statuts à valider.
+3. **Exécuter** (taper MIGRER) ; garder la page ouverte jusqu'à « Migré ».
+4. Activer le thème Yume ; recette (10 anciennes URL en 301, fiches, un chapitre, planning).
+5. En cas de problème : **Annuler la migration** (la page affiche le contrôle d'état d'origine).

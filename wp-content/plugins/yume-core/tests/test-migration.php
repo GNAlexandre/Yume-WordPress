@@ -1,14 +1,19 @@
 <?php
 /**
- * Tests du module migration (partie 1 : analyse de l'ancien site, sans écriture) :
- * utilitaires HTML et blocs, chargeur d'export, analyseurs de hub, de fiche, d'arc, de
- * chapitre et d'article, planificateur et rapport — sur les extraits courts de
- * tools/migrate/fixtures/, puis sur l'export complet s'il est présent (tools/migrate/export/,
- * non versionné : ces derniers tests sont ignorés sinon).
+ * Tests du module migration.
+ *
+ * Partie 1 (analyse, classes pures, sans écriture) : utilitaires HTML et blocs, chargeur
+ * d'export, analyseurs de hub, de fiche, d'arc, de chapitre et d'article, planificateur et
+ * rapport — sur les extraits courts de tools/migrate/fixtures/, puis sur l'export complet
+ * s'il est présent (tools/migrate/export/, non versionné : ces tests sont ignorés sinon).
+ *
+ * Partie 2 (exécution) : la base est peuplée DANS la transaction du test avec l'ancien site
+ * (tools/migrate/lib/class-yume-seed-local.php, sans images), puis source base contre export,
+ * exécution (œuvres, tomes, chapitres, images, taxonomies, articles, pages, options),
+ * idempotence, correspondance des médias, redirections, annulation complète, REST,
+ * administration et neutralisation des notifications. Tout est annulé à la fin de chaque test.
  *
  *   tools/localenv/test.sh migration
- *
- * Aucun test n'écrit en base ni n'appelle le réseau : les classes testées sont pures.
  *
  * @package Yume\Core
  */
@@ -18,6 +23,14 @@ defined( 'ABSPATH' ) || exit;
 use Yume\Core\Migration\Blocks;
 use Yume\Core\Migration\Export_Loader;
 use Yume\Core\Migration\Html;
+use Yume\Core\Migration\Media_Mapper;
+use Yume\Core\Migration\Migration_Admin;
+use Yume\Core\Migration\Migration_Empreinte;
+use Yume\Core\Migration\Migration_Executor;
+use Yume\Core\Migration\Migration_Runner;
+use Yume\Core\Migration\Migration_State;
+use Yume\Core\Migration\Redirections;
+use Yume\Core\Migration\Site_Source;
 use Yume\Core\Migration\Legacy_Arc_Parser;
 use Yume\Core\Migration\Legacy_Chapter_Parser;
 use Yume\Core\Migration\Legacy_Hub_Parser;
@@ -719,10 +732,18 @@ yume_test(
 		yume_assert_same( 'arc', $remplacer[2173] );
 		yume_assert_same( 'chapitre', $remplacer[1548] );
 		$creer = array_column( $plan['pages']['creer'], null, 'post_name' );
-		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion' ), array_keys( $creer ) );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_keys( $creer ) );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_column( $plan['pages']['creer'], 'cle' ) );
 		yume_assert_contains( '<!-- wp:yume/publish-form /-->', $creer['publier']['post_content'] );
 		yume_assert_same( 'equipe', $creer['publier']['parent'] );
 		yume_assert_contains( '<!-- wp:yume/account /-->', $creer['connexion']['post_content'] );
+		yume_assert_same( 'page_for_posts', $creer['actualites']['reglage'] );
+		yume_assert_same( 'page_on_front', $creer['accueil']['reglage'] );
+		yume_assert_same( '', $creer['accueil']['post_content'] );
+		yume_assert_contains( '<!-- wp:heading -->', $creer['mentions-legales']['post_content'] );
+		yume_assert_contains( 'Automattic', $creer['mentions-legales']['post_content'] );
+		yume_assert_contains( 'href="/contactez-nous/"', $creer['mentions-legales']['post_content'] );
+		yume_assert_same( array(), parse_blocks( $creer['mentions-legales']['post_content'] ) === array() ? array( 'vide' ) : array() );
 	}
 );
 
@@ -817,5 +838,675 @@ yume_test(
 		yume_assert_same( count( $plan['redirections'] ), count( array_unique( array_column( $plan['redirections'], 'source' ) ) ) );
 		yume_assert_true( count( $plan['redirections'] ) >= 90 );
 		yume_assert_same( 0, $plan['comptes']['medias']['manquants'] );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Partie 2 : exécution sur une base peuplée dans la transaction du test
+ * -----------------------------------------------------------------------------
+ */
+
+if ( ! class_exists( 'Yume_Seed_Local' ) ) {
+	require_once dirname( __DIR__, 4 ) . '/tools/migrate/lib/class-yume-seed-local.php';
+}
+
+/**
+ * Peuple la base (dans la transaction du test) avec l'ancien site des fixtures, sans images.
+ *
+ * @param string $dossier Dossier d'export (fixtures par défaut).
+ * @return array<string,mixed> Rapport du peuplement.
+ */
+function yume_test_migration_seed( string $dossier = '' ): array {
+	global $wp_rewrite;
+	if ( Yume_Seed_Local::PERMALIENS !== $wp_rewrite->permalink_structure ) {
+		throw new Yume_Test_Failure( 'Permaliens attendus : ' . Yume_Seed_Local::PERMALIENS . ' (tools/localenv/wp.sh les pose à l’installation).' );
+	}
+	return Yume_Seed_Local::executer(
+		'' !== $dossier ? $dossier : yume_test_migration_dossier_fixtures(),
+		array(
+			'images'   => false,
+			'reglages' => false,
+		)
+	);
+}
+
+/**
+ * Accepte l'exécution d'un plan des fixtures (qui contient des erreurs volontaires : pages de
+ * chapitres absentes des extraits).
+ *
+ * @param bool $actif Activer ou retirer le filtre.
+ */
+function yume_test_migration_accepter( bool $actif = true ): void {
+	if ( $actif ) {
+		add_filter( 'yume_migration_problemes', '__return_empty_array' );
+	} else {
+		remove_filter( 'yume_migration_problemes', '__return_empty_array' );
+	}
+}
+
+/**
+ * Simule puis exécute la migration jusqu'au bout.
+ *
+ * @return array<string,mixed> État final.
+ */
+function yume_test_migration_executer(): array {
+	yume_test_migration_accepter();
+	try {
+		Migration_Runner::simuler();
+		Migration_Runner::demarrer_execution();
+		return Migration_Runner::terminer();
+	} finally {
+		yume_test_migration_accepter( false );
+	}
+}
+
+/**
+ * ID du contenu créé pour une clé du plan.
+ *
+ * @param string $type oeuvre, tome, chapitre ou page.
+ * @param string $cle  Clé.
+ */
+function yume_test_migration_id( string $type, string $cle ): int {
+	$id = (int) ( Migration_State::journal()['correspondances'][ $type ][ $cle ] ?? 0 );
+	if ( ! $id ) {
+		throw new Yume_Test_Failure( "Aucun contenu créé pour $type:$cle." );
+	}
+	return $id;
+}
+
+/**
+ * Instantané de la base sur tout ce que la migration peut toucher : contenus (champs et
+ * contenu), métadonnées des contenus d'origine, termes et relations, options de lecture.
+ *
+ * @return array<string,mixed>
+ */
+function yume_test_migration_instantane(): array {
+	global $wpdb;
+	$posts = array();
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery
+	foreach ( $wpdb->get_results( "SELECT ID, post_type, post_status, post_name, post_title, post_excerpt, post_content, post_date, post_date_gmt, post_modified, post_parent, menu_order, post_author FROM {$wpdb->posts} ORDER BY ID", ARRAY_A ) as $ligne ) {
+		$ligne['post_content'] = md5( $ligne['post_content'] );
+		$posts[ $ligne['ID'] ] = $ligne;
+	}
+	$meta = $wpdb->get_results( "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} ORDER BY post_id, meta_key, meta_value", ARRAY_A );
+	$terms = $wpdb->get_results( "SELECT t.term_id, t.name, t.slug, tt.term_taxonomy_id, tt.taxonomy, tt.description, tt.parent FROM {$wpdb->terms} t INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_id = t.term_id ORDER BY t.term_id", ARRAY_A );
+	$rel   = $wpdb->get_results( "SELECT object_id, term_taxonomy_id FROM {$wpdb->term_relationships} ORDER BY object_id, term_taxonomy_id", ARRAY_A );
+	// phpcs:enable
+	$options = array();
+	foreach ( array( 'show_on_front', 'page_on_front', 'page_for_posts', 'default_category', 'yume_pages', 'yume_reglages', 'yume_redirections', 'sticky_posts' ) as $option ) {
+		$valeur             = get_option( $option, '__absente__' );
+		$options[ $option ] = is_scalar( $valeur ) ? (string) $valeur : $valeur;
+	}
+	return compact( 'posts', 'meta', 'terms', 'rel', 'options' );
+}
+
+/**
+ * Premières différences entre deux instantanés (message lisible).
+ *
+ * @param array $a Instantané avant.
+ * @param array $b Instantané après.
+ */
+function yume_test_migration_diff( array $a, array $b ): string {
+	$diff = array();
+	foreach ( $a as $partie => $valeurs ) {
+		$avant = array_map( 'wp_json_encode', (array) $valeurs );
+		$apres = array_map( 'wp_json_encode', (array) ( $b[ $partie ] ?? array() ) );
+		foreach ( array_diff_assoc( $avant, $apres ) as $cle => $v ) {
+			$diff[] = "$partie/$cle avant : $v ; après : " . ( $apres[ $cle ] ?? '(absent)' );
+		}
+		foreach ( array_diff_key( $apres, $avant ) as $cle => $v ) {
+			$diff[] = "$partie/$cle en trop : $v";
+		}
+	}
+	return implode( "\n", array_slice( $diff, 0, 12 ) );
+}
+
+yume_test(
+	'Source base : l’ancien site peuplé depuis les fixtures donne le même plan que l’export (hors champs documentés)',
+	function () {
+		$seed = yume_test_migration_seed();
+		yume_assert_same( 11, $seed['comptes']['pages'] );
+		yume_assert_same( 5, $seed['ids_conserves'] - 11, 'ID d’origine des articles' );
+		$options = array(
+			'genere_le'   => '2026-01-01T00:00:00Z',
+			'date_import' => '2026-01-01 00:00:00',
+		);
+		$export  = Site_Source::export(
+			array(
+				'domaine'        => 'yumenovel.fr',
+				'domaines_alias' => array( 'yumenovel.wordpress.com' ),
+				'home'           => 'https://yumenovel.fr',
+				'url_medias'     => 'https://yumenovel.wordpress.com/wp-content/uploads/',
+			)
+		);
+		yume_assert_same( array( 11, 5, 3, 48, 1, 1 ), array( count( $export['pages'] ), count( $export['posts'] ), count( $export['categories'] ), count( $export['media'] ), count( $export['navigations'] ), count( $export['template_parts'] ) ) );
+		yume_assert_same( 'pub/twentytwentyfour//header', $export['template_parts'][0]['id'] );
+		$fichiers = array();
+		foreach ( yume_test_migration_fixtures()['media'] as $m ) {
+			$fichiers[ $m['id'] ] = '' !== $m['file'] ? $m['file'] : Media_Mapper::suffixe( $m['source_url'] );
+		}
+		yume_assert_same( $fichiers, array_column( $export['media'], 'file', 'id' ), 'mêmes ID et même _wp_attached_file' );
+		$base = ( new Migration_Planner( $export, $options ) )->plan();
+		$ref  = ( new Migration_Planner( yume_test_migration_fixtures(), $options ) )->plan();
+		foreach ( array( 'exporte_le', 'site_id' ) as $champ ) {
+			unset( $base['source'][ $champ ], $ref['source'][ $champ ] );
+		}
+		yume_assert_same( wp_json_encode( $ref ), wp_json_encode( $base ), 'plan(base) == plan(export)' );
+
+		// Les contenus créés par la migration ne sont jamais relus comme « ancien site ».
+		yume_factory_post(
+			array(
+				'post_type'  => 'page',
+				'post_name'  => 'bibliotheque',
+				'meta_input' => array( Site_Source::META_CLE => 'page:bibliotheque' ),
+			)
+		);
+		yume_assert_same( 11, count( Site_Source::export()['pages'] ) );
+	}
+);
+
+yume_test(
+	'Exécution : œuvres, tomes, chapitres créés avec les métadonnées du cœur, slugs du plan, images et taxonomies',
+	function () {
+		yume_test_migration_seed();
+		$publies = did_action( 'yume_tome_publie' ) + did_action( 'yume_chapitre_publie' );
+		$etat    = yume_test_migration_executer();
+		yume_assert_same( 'migre', $etat['statut'], (string) $etat['erreur'] );
+		$plan = Migration_State::plan();
+		yume_assert_same( count( $plan['oeuvres'] ), (int) $etat['comptes']['oeuvres_creees'] );
+		yume_assert_same( count( $plan['tomes'] ), (int) $etat['comptes']['tomes_crees'] );
+		yume_assert_same( count( $plan['chapitres'] ), (int) $etat['comptes']['chapitres_crees'] );
+
+		$grimgar = yume_test_migration_id( 'oeuvre', 'grimgar-of-fantasy-and-ash' );
+		$post    = get_post( $grimgar );
+		yume_assert_same( 'yume_oeuvre', $post->post_type );
+		yume_assert_same( 'grimgar-of-fantasy-and-ash', $post->post_name );
+		yume_assert_same( 'publish', $post->post_status );
+		yume_assert_same( 2222, (int) get_post_thumbnail_id( $grimgar ), 'couverture par ID de pièce jointe' );
+		yume_assert_same( 2206, (int) get_post_meta( $grimgar, 'yume_banniere_id', true ) );
+		yume_assert_same( array( 'light-novel' ), wp_get_object_terms( $grimgar, 'yume_type', array( 'fields' => 'slugs' ) ) );
+		yume_assert_same( array( 'en-cours' ), wp_get_object_terms( $grimgar, 'yume_statut', array( 'fields' => 'slugs' ) ) );
+		yume_assert_same( 2209, (int) get_post_meta( $grimgar, Migration_Executor::META_SOURCE, true ) );
+		yume_assert_same( 'oeuvre:grimgar-of-fantasy-and-ash', get_post_meta( $grimgar, Migration_Executor::META_CLE, true ) );
+		yume_assert_same( home_url( '/oeuvres/grimgar-of-fantasy-and-ash/' ), get_permalink( $grimgar ) );
+
+		$tome9 = yume_test_migration_id( 'tome', 'grimgar-of-fantasy-and-ash/tome-9' );
+		yume_assert_same( $grimgar, (int) get_post_meta( $tome9, 'yume_oeuvre_id', true ) );
+		yume_assert_same( 'tome-9', get_post( $tome9 )->post_name );
+		yume_assert_same( 2553, (int) get_post_thumbnail_id( $tome9 ) );
+		yume_assert_contains( 'clictune.com', (string) get_post_meta( $tome9, 'yume_lien_pdf', true ) );
+		yume_assert_same( home_url( '/oeuvres/grimgar-of-fantasy-and-ash/tome-9/' ), get_permalink( $tome9 ) );
+		yume_assert_same( $tome9, url_to_postid( home_url( '/oeuvres/grimgar-of-fantasy-and-ash/tome-9/' ) ) );
+		yume_assert_same( 9, count( yume_get_tomes( $grimgar ) ) );
+
+		$sw       = yume_test_migration_id( 'oeuvre', 'secrets-of-the-silent-witch' );
+		$arc4     = yume_test_migration_id( 'tome', 'secrets-of-the-silent-witch/arc-4' );
+		$chapitre = yume_test_migration_id( 'chapitre', 'secrets-of-the-silent-witch/arc-4/1' );
+		yume_assert_same( $arc4, (int) get_post_meta( $chapitre, 'yume_tome_id', true ) );
+		yume_assert_same( $sw, (int) get_post_meta( $chapitre, 'yume_oeuvre_id', true ), 'yume_oeuvre_id dérivé par le cœur' );
+		yume_assert_same( 1548, (int) get_post_meta( $chapitre, Migration_Executor::META_SOURCE, true ) );
+		yume_assert_same( 'chapitre-1', get_post( $chapitre )->post_name );
+		yume_assert_same( 'publish', get_post_status( $chapitre ) );
+		yume_assert_contains( 'yn-dialogue', get_post( $chapitre )->post_content );
+		yume_assert_same( 'migration', get_post_meta( $chapitre, 'yume_source', true )['format'] ?? '' );
+		yume_assert_true( (int) get_post_meta( $chapitre, 'yume_nb_mots', true ) > 0 );
+		yume_assert_same( home_url( '/lire/secrets-of-the-silent-witch/arc-4/1/' ), get_permalink( $chapitre ) );
+		yume_assert_same( $chapitre, url_to_postid( home_url( '/lire/secrets-of-the-silent-witch/arc-4/1/' ) ) );
+
+		$planifie = yume_test_migration_id( 'chapitre', 'secrets-of-the-silent-witch/arc-7/15' );
+		yume_assert_same( 'draft', get_post_status( $planifie ) );
+
+		// Aucun événement de publication pendant la migration (contenus anciens, notifier faux).
+		yume_assert_same( $publies, did_action( 'yume_tome_publie' ) + did_action( 'yume_chapitre_publie' ) );
+		yume_assert_same( 'ignore', get_post_meta( $tome9, '_yume_publie_notifie', true ) );
+		// Terme yume_oeuvre_liee né avec l'œuvre (synchronisation du cœur), jamais créé à la main.
+		$terme = (int) get_post_meta( $grimgar, '_yume_terme_lie', true );
+		yume_assert_true( $terme > 0 );
+		yume_assert_same( 'grimgar-of-fantasy-and-ash', get_term( $terme, 'yume_oeuvre_liee' )->slug );
+	}
+);
+
+yume_test(
+	'Exécution : articles reclassés (Sorties / Actualités, œuvre liée), catégories, pages §11, options, anciennes pages',
+	function () {
+		yume_test_migration_seed();
+		$etat = yume_test_migration_executer();
+		yume_assert_same( 'migre', $etat['statut'], (string) $etat['erreur'] );
+
+		$sorties = get_term( 775285387, 'category' );
+		yume_assert_same( 'sorties', $sorties->slug );
+		yume_assert_same( 'Sorties', $sorties->name );
+		yume_assert_same( array( 775285387 ), wp_get_object_terms( 2564, 'category', array( 'fields' => 'ids' ) ) );
+		yume_assert_same( array( 'secrets-of-the-silent-witch' ), wp_get_object_terms( 2564, 'yume_oeuvre_liee', array( 'fields' => 'slugs' ) ) );
+		yume_assert_same( array( 'grimgar-of-fantasy-and-ash' ), wp_get_object_terms( 2555, 'yume_oeuvre_liee', array( 'fields' => 'slugs' ) ) );
+		yume_assert_same( array( 3402 ), wp_get_object_terms( 1712, 'category', array( 'fields' => 'ids' ) ) );
+		yume_assert_same( array(), wp_get_object_terms( 1712, 'yume_oeuvre_liee', array( 'fields' => 'ids' ) ) );
+		yume_assert_false( get_term( 6325, 'category' ) instanceof WP_Term, '« Non classé » supprimée' );
+		yume_assert_same( 3402, (int) get_option( 'default_category' ) );
+
+		$pages = get_option( 'yume_pages' );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_keys( $pages ) );
+		yume_assert_same( (int) $pages['equipe'], (int) get_post( $pages['publier'] )->post_parent );
+		yume_assert_same( home_url( '/equipe/publier/' ), get_permalink( $pages['publier'] ) );
+		yume_assert_same( home_url( '/equipe/publier/' ), yume_url_page( 'publier' ) );
+		yume_assert_same( '<!-- wp:yume/library-grid /-->', get_post( $pages['bibliotheque'] )->post_content );
+		yume_assert_contains( 'Automattic', get_post( $pages['mentions-legales'] )->post_content );
+		yume_assert_same( 'page', get_option( 'show_on_front' ) );
+		yume_assert_same( (int) $pages['accueil'], (int) get_option( 'page_on_front' ) );
+		yume_assert_same( (int) $pages['actualites'], (int) get_option( 'page_for_posts' ) );
+		yume_assert_same( 1341, (int) yume_setting( 'banniere_id' ) );
+
+		// Anciennes pages remplacées en brouillon, institutionnelles et ignorées intactes.
+		foreach ( array( 12, 66, 550, 1548, 2072, 2173, 2209, 2417, 2558 ) as $id ) {
+			yume_assert_same( 'draft', get_post_status( $id ), "page $id" );
+		}
+		yume_assert_same( 'publish', get_post_status( 143 ) );
+		yume_assert_same( 'draft', get_post_status( 151 ) );
+		yume_assert_same( 'draft', get_post_status( 205 ), 'brouillon d’essai laissé tel quel' );
+	}
+);
+
+yume_test(
+	'Idempotence : relancer l’exécution met à jour sans créer de doublon ; une nouvelle exécution est refusée',
+	function () {
+		yume_test_migration_seed();
+		yume_test_migration_executer();
+		$avant = Migration_State::journal()['correspondances'];
+		$compte = static function (): array {
+			$n = array();
+			foreach ( array( 'yume_oeuvre', 'yume_tome', 'yume_chapitre', 'page' ) as $type ) {
+				$n[ $type ] = array_sum( array_map( 'intval', (array) wp_count_posts( $type ) ) );
+			}
+			$n['termes'] = (int) wp_count_terms( array( 'taxonomy' => 'yume_oeuvre_liee', 'hide_empty' => false ) );
+			return $n;
+		};
+		$nombres = $compte();
+		try {
+			Migration_Runner::demarrer_execution();
+			throw new Yume_Test_Failure( 'Une deuxième exécution sans --forcer aurait dû être refusée.' );
+		} catch ( RuntimeException $e ) {
+			yume_assert_contains( 'déjà faite', $e->getMessage() );
+		}
+		Migration_Runner::demarrer_execution( array( 'forcer' => true ) );
+		$etat = Migration_Runner::terminer();
+		yume_assert_same( 'migre', $etat['statut'] );
+		yume_assert_same( $nombres, $compte(), 'aucun doublon' );
+		yume_assert_same( $avant, Migration_State::journal()['correspondances'], 'mêmes contenus' );
+		yume_assert_same( count( Migration_State::plan()['oeuvres'] ), (int) $etat['comptes']['oeuvres_mises_a_jour'] );
+		yume_assert_false( isset( $etat['comptes']['oeuvres_creees'] ) );
+		// Contenus retrouvés par leur méta même si le journal est perdu.
+		$journal                    = Migration_State::journal();
+		$journal['correspondances'] = Migration_State::journal_defaut()['correspondances'];
+		Migration_State::enregistrer_journal( $journal );
+		Migration_Runner::demarrer_execution( array( 'forcer' => true ) );
+		Migration_Runner::terminer();
+		yume_assert_same( $nombres, $compte(), 'aucun doublon sans journal' );
+	}
+);
+
+yume_test(
+	'Médias : correspondance par ID, puis par suffixe de _wp_attached_file ; contenu réécrit ; couverture retrouvée',
+	function () {
+		yume_test_migration_seed();
+		$avert   = array();
+		$fichier = (string) get_post_meta( 2222, '_wp_attached_file', true );
+		yume_assert_true( '' !== $fichier );
+		yume_assert_same( 2222, Media_Mapper::trouver( 2222, $fichier, $avert ) );
+		yume_assert_same( '2024/10/logo.png', Media_Mapper::suffixe( 'https://yumenovel.wordpress.com/wp-content/uploads/2024/10/logo.png?w=300' ) );
+
+		// La pièce jointe 2222 disparaît et revient sous un autre ID avec le même fichier.
+		wp_delete_attachment( 2222, true );
+		$nouveau = wp_insert_attachment(
+			array(
+				'post_mime_type' => 'image/jpeg',
+				'post_title'     => 'Couverture',
+				'post_status'    => 'inherit',
+			),
+			false
+		);
+		update_post_meta( $nouveau, '_wp_attached_file', $fichier );
+		$avert = array();
+		yume_assert_same( $nouveau, Media_Mapper::trouver( 2222, $fichier, $avert ) );
+		yume_assert_contains( 'retrouvé sous l’ID', implode( ' ', $avert ) );
+		yume_assert_same( 0, Media_Mapper::trouver( 999999, '2020/01/absent.png', $avert ) );
+
+		// ID occupé par un autre fichier : le suffixe l'emporte.
+		$autre = yume_factory_post( array( 'post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => 'image/png' ) );
+		update_post_meta( $autre, '_wp_attached_file', '2024/01/autre.png' );
+		yume_assert_same( $nouveau, Media_Mapper::trouver( $autre, $fichier, $avert ) );
+
+		// Réécriture d'un bloc image.
+		$contenu = Blocks::image( 2222, 'https://yumenovel.wordpress.com/wp-content/uploads/' . $fichier );
+		$remappe = Media_Mapper::remapper_contenu( $contenu, array( 2222 => $nouveau ) );
+		yume_assert_contains( '"id":' . $nouveau, $remappe );
+		yume_assert_contains( 'wp-image-' . $nouveau . '"', $remappe );
+		yume_assert_contains( (string) wp_get_attachment_url( $nouveau ), $remappe );
+		yume_assert_same( $contenu, Media_Mapper::remapper_contenu( $contenu, array( 2222 => 2222 ) ) );
+
+		// Exécution d'un plan venu de l'export (URL des médias connues) : la couverture de
+		// Grimgar pointe vers la pièce jointe retrouvée par son fichier.
+		$etat          = Migration_State::etat_defaut();
+		$etat['statut'] = 'en_cours';
+		$etat['etape'] = 'preparer';
+		$etat['run']   = 'test';
+		$moteur        = new Migration_Executor( yume_test_migration_plan(), Migration_State::journal_defaut(), $etat );
+		$retablir      = Migration_Runner::neutraliser_notifications();
+		try {
+			yume_assert_true( $moteur->avancer( 600.0 ), (string) $moteur->etat()['erreur'] );
+		} finally {
+			$retablir();
+		}
+		$journal = $moteur->journal();
+		yume_assert_same( $nouveau, (int) $journal['medias'][2222] );
+		yume_assert_same( 2553, (int) $journal['medias'][2553], 'ID conservé quand il existe' );
+		yume_assert_same( $nouveau, (int) get_post_thumbnail_id( (int) $journal['correspondances']['oeuvre']['grimgar-of-fantasy-and-ash'] ) );
+	}
+);
+
+yume_test(
+	'Redirections : table des 301 après exécution, cibles réelles, pagination et flux, requête conservée, CSV Redirection',
+	function () {
+		yume_test_migration_seed();
+		yume_test_migration_executer();
+		$plan  = Migration_State::plan();
+		$table = Redirections::table();
+		yume_assert_same( count( $plan['redirections'] ), count( $table ) );
+		$attendu = array(
+			'/grimgar-of-fantasy-and-ash-ln/'                => '/oeuvres/grimgar-of-fantasy-and-ash/',
+			'/arc-7-tournoi-dechec-silent-witch/'            => '/oeuvres/secrets-of-the-silent-witch/arc-7/',
+			'/secrets-of-the-silent-witch-t-3-chapitre-1-2/' => '/lire/secrets-of-the-silent-witch/arc-4/1/',
+			'/yume-ln/'                                      => '/bibliotheque/?type=light-novel',
+			'/category/yume-news/'                           => '/category/sorties/',
+			'/category/non-classe/'                          => '/category/actualites/',
+		);
+		foreach ( $attendu as $source => $cible ) {
+			yume_assert_same( home_url( $cible ), Redirections::resoudre( $source ), "redirection de $source" );
+		}
+		yume_assert_same( home_url( '/oeuvres/grimgar-of-fantasy-and-ash/' ), Redirections::resoudre( '/Grimgar-Of-Fantasy-And-Ash-LN' ) );
+		yume_assert_same( home_url( '/category/sorties/page/2/' ), Redirections::resoudre( '/category/yume-news/page/2/' ) );
+		yume_assert_same( home_url( '/category/sorties/feed/' ), Redirections::resoudre( '/category/yume-news/feed/' ) );
+		yume_assert_same( home_url( '/oeuvres/grimgar-of-fantasy-and-ash/?utm_source=x' ), Redirections::resoudre( '/grimgar-of-fantasy-and-ash-ln/?utm_source=x', 'utm_source=x' ) );
+		yume_assert_same( home_url( '/bibliotheque/?type=light-novel' ), Redirections::resoudre( '/yume-ln/', 'a=1' ) );
+		yume_assert_same( null, Redirections::resoudre( '/a-propos/' ) );
+		yume_assert_same( null, Redirections::resoudre( '/' ) );
+		// Chaque cible répond (contenu publié, page ou catégorie existante).
+		foreach ( $table as $source => $cible ) {
+			$chemin = (string) wp_parse_url( $cible, PHP_URL_PATH );
+			if ( str_starts_with( $chemin, '/category/' ) ) {
+				yume_assert_true( get_term_by( 'slug', trim( substr( $chemin, 10 ), '/' ), 'category' ) instanceof WP_Term, "catégorie de $source" );
+				continue;
+			}
+			yume_assert_true( url_to_postid( home_url( $chemin ) ) > 0, "cible de $source : $cible" );
+		}
+		$csv = Redirections::csv( $table );
+		yume_assert_contains( "source,target,regex,code\n", $csv );
+		yume_assert_contains( "\"/grimgar-of-fantasy-and-ash-ln/\",\"/oeuvres/grimgar-of-fantasy-and-ash/\",0,301\n", $csv );
+	}
+);
+
+yume_test(
+	'Annulation : supprime ce que la migration a créé et restaure pages, articles, catégories, options (base identique)',
+	function () {
+		yume_test_migration_seed();
+		$avant = yume_test_migration_instantane();
+		yume_test_migration_executer();
+		yume_assert_true( Migration_State::journal()['empreinte'] !== array() );
+		Migration_Runner::demarrer_annulation();
+		$etat = Migration_Runner::terminer();
+		yume_assert_same( 'annule', $etat['statut'], (string) $etat['erreur'] );
+		yume_assert_same( array(), $etat['controle']['differences'], 'contrôle par empreinte' );
+		yume_assert_true( $etat['controle']['verifie'] );
+		$apres = yume_test_migration_instantane();
+		// Seules les options d'état de la migration elle-même peuvent différer (elles ne sont pas dans l'instantané).
+		yume_assert_same( '', yume_test_migration_diff( $avant, $apres ), 'différences' );
+		yume_assert_same( $avant, $apres );
+		yume_assert_same( 'Non classé', get_term( 6325, 'category' )->name );
+		yume_assert_same( 'yume-news', get_term( 775285387, 'category' )->slug );
+		yume_assert_same( null, Redirections::resoudre( '/grimgar-of-fantasy-and-ash-ln/' ) );
+		// Une nouvelle simulation puis exécution sont de nouveau possibles.
+		yume_assert_same( 'migre', yume_test_migration_executer()['statut'] );
+	}
+);
+
+yume_test(
+	'Neutralisation : pendant un lot, aucun événement de publication, aucun e-mail, aucun appel Discord',
+	function () {
+		$retablir = Migration_Runner::neutraliser_notifications();
+		try {
+			yume_assert_false( apply_filters( 'yume_core_notifier', true, get_post( yume_factory_post() ), 'yume_tome_publie' ) );
+			yume_assert_false( wp_mail( 'equipe@example.test', 'Sujet', 'Corps' ) );
+			$reponse = wp_remote_post( 'https://discord.com/api/webhooks/1/abc', array( 'body' => '{}' ) );
+			yume_assert_true( is_wp_error( $reponse ) && 'yume_migration' === $reponse->get_error_code() );
+			yume_assert_false( has_filter( 'content_save_pre', 'wp_filter_post_kses' ) );
+		} finally {
+			$retablir();
+		}
+		yume_assert_true( apply_filters( 'yume_core_notifier', true, get_post( yume_factory_post() ), 'yume_tome_publie' ) );
+	}
+);
+
+yume_test(
+	'REST : manage_options exigé, confirmation « MIGRER », exécution en plusieurs lots, annulation confirmée',
+	function () {
+		yume_test_migration_seed();
+		Migration_Runner::simuler();
+		$admin   = yume_factory_user( 'administrator' );
+		$editeur = yume_factory_user( 'yume_editeur' );
+		yume_assert_same( 401, yume_rest( 'GET', '/yume/v1/migration' )->get_status() );
+		yume_assert_same( 403, yume_rest( 'POST', '/yume/v1/migration/executer', array( 'confirmation' => 'MIGRER' ), $editeur )->get_status() );
+		yume_assert_same( 'non_migre', yume_rest( 'GET', '/yume/v1/migration', array(), $admin )->get_data()['statut'] );
+		yume_assert_same( 400, yume_rest( 'POST', '/yume/v1/migration/executer', array( 'confirmation' => 'migrer' ), $admin )->get_status() );
+		yume_assert_same( 'non_migre', Migration_State::etat()['statut'] );
+
+		$budget = static fn() => 0.0;
+		add_filter( 'yume_migration_budget', $budget );
+		yume_test_migration_accepter();
+		try {
+			$reponse = yume_rest( 'POST', '/yume/v1/migration/executer', array( 'confirmation' => 'MIGRER' ), $admin );
+			yume_assert_same( 200, $reponse->get_status(), wp_json_encode( $reponse->get_data() ) );
+			$lots = 1;
+			while ( ! $reponse->get_data()['termine'] && $lots < 2000 ) {
+				$reponse = yume_rest( 'POST', '/yume/v1/migration/executer', array(), $admin );
+				yume_assert_same( 200, $reponse->get_status(), wp_json_encode( $reponse->get_data() ) );
+				yume_assert_same( '', $reponse->get_data()['erreur'] );
+				++$lots;
+			}
+			yume_assert_true( $lots > 10, 'exécution par lots' );
+			yume_assert_same( 'migre', $reponse->get_data()['statut'] );
+			yume_assert_same( 100, $reponse->get_data()['pourcentage'] );
+			yume_assert_same( 409, yume_rest( 'POST', '/yume/v1/migration/executer', array( 'confirmation' => 'MIGRER' ), $admin )->get_status() );
+
+			yume_assert_same( 400, yume_rest( 'POST', '/yume/v1/migration/annuler', array(), $admin )->get_status() );
+			$reponse = yume_rest( 'POST', '/yume/v1/migration/annuler', array( 'confirmation' => 'ANNULER' ), $admin );
+			while ( ! $reponse->get_data()['termine'] && $lots < 4000 ) {
+				$reponse = yume_rest( 'POST', '/yume/v1/migration/annuler', array(), $admin );
+				++$lots;
+			}
+			yume_assert_same( 'annule', $reponse->get_data()['statut'] );
+			yume_assert_same( array(), $reponse->get_data()['controle']['differences'] );
+		} finally {
+			remove_filter( 'yume_migration_budget', $budget );
+			yume_test_migration_accepter( false );
+		}
+	}
+);
+
+yume_test(
+	'Reprise : une exécution interrompue (verrou, erreur) reprend au même élément ; l’élément en erreur peut être ignoré',
+	function () {
+		yume_test_migration_seed();
+		yume_test_migration_accepter();
+		$budget = static fn() => 0.0;
+		add_filter( 'yume_migration_budget', $budget );
+		try {
+			Migration_Runner::simuler();
+			Migration_Runner::demarrer_execution();
+			Migration_Runner::lot();
+			Migration_Runner::lot();
+			$etat = Migration_State::etat();
+			yume_assert_same( 'en_cours', $etat['statut'] );
+			yume_assert_same( 'oeuvres', $etat['etape'] );
+			yume_assert_same( 1, $etat['curseur'] );
+			yume_assert_same( 2, $etat['progression']['fait'] );
+
+			// Verrou pris par un autre lot : refus explicite (409), rien ne bouge.
+			add_option( Migration_State::OPTION_VERROU, time() . '|autre', '', false );
+			try {
+				Migration_Runner::lot();
+				throw new Yume_Test_Failure( 'Le verrou aurait dû bloquer le lot.' );
+			} catch ( RuntimeException $e ) {
+				yume_assert_same( 409, $e->getCode() );
+			}
+			delete_option( Migration_State::OPTION_VERROU );
+			// Verrou abandonné (requête tuée par l'hébergeur) : repris après VERROU_DUREE secondes.
+			add_option( Migration_State::OPTION_VERROU, ( time() - Migration_State::VERROU_DUREE - 5 ) . '|ancien', '', false );
+			$etat = Migration_Runner::lot();
+			yume_assert_same( '', $etat['erreur'] );
+			yume_assert_false( get_option( Migration_State::OPTION_VERROU ), 'verrou rendu après le lot' );
+			$jeton = Migration_State::verrouiller();
+			yume_assert_true( '' !== $jeton );
+			yume_assert_same( '', Migration_State::verrouiller(), 'un seul verrou à la fois' );
+			Migration_State::deverrouiller( $jeton );
+
+			// Avance jusqu'au dernier tome de Grimgar (aucun chapitre n'en dépend).
+			$garde = 0;
+			while ( ! ( 'tomes' === $etat['etape'] && 8 === (int) $etat['curseur'] ) && $garde++ < 100 ) {
+				$etat = Migration_Runner::lot();
+			}
+			yume_assert_same( 'grimgar-of-fantasy-and-ash/tome-9', Migration_State::plan()['tomes'][8]['cle'] );
+
+			// Erreur sur un élément : l'état garde l'erreur et le curseur ; « ignorer » passe à la suite.
+			add_filter( 'wp_insert_post_empty_content', '__return_true' );
+			$etat = Migration_Runner::lot();
+			remove_filter( 'wp_insert_post_empty_content', '__return_true' );
+			yume_assert_contains( 'Tomes', $etat['erreur'] );
+			yume_assert_same( 8, $etat['curseur'] );
+			yume_assert_same( $etat, Migration_State::etat(), 'erreur et curseur enregistrés' );
+			$etat = Migration_Runner::lot( array( 'ignorer' => true ) );
+			yume_assert_same( '', $etat['erreur'] );
+			yume_assert_same( 1, (int) $etat['comptes']['ignores'] );
+			remove_filter( 'yume_migration_budget', $budget );
+			$etat = Migration_Runner::terminer();
+			yume_assert_same( 'migre', $etat['statut'] );
+			yume_assert_false( isset( Migration_State::journal()['correspondances']['tome']['grimgar-of-fantasy-and-ash/tome-9'] ) );
+			yume_assert_same( 8, count( yume_get_tomes( yume_test_migration_id( 'oeuvre', 'grimgar-of-fantasy-and-ash' ) ) ) );
+		} finally {
+			remove_filter( 'yume_migration_budget', $budget );
+			yume_test_migration_accepter( false );
+		}
+	}
+);
+
+yume_test(
+	'Administration : page Yume → Migrer (rapport, statuts à valider, confirmation), choix de statut appliqué',
+	function () {
+		yume_test_migration_seed();
+		$admin = yume_factory_user( 'administrator' );
+		wp_set_current_user( $admin );
+		ob_start();
+		Migration_Admin::afficher();
+		$html = (string) ob_get_clean();
+		yume_assert_contains( 'Migrer l’ancien site', $html );
+		yume_assert_contains( 'Lancez d’abord une simulation', $html );
+		yume_assert_contains( 'name="action" value="yume_migration_simuler"', $html );
+
+		Migration_Runner::simuler();
+		ob_start();
+		Migration_Admin::afficher();
+		$html = (string) ob_get_clean();
+		yume_assert_contains( 'Comptes', $html );
+		yume_assert_contains( 'Grimgar of Fantasy and Ash', $html );
+		yume_assert_contains( '/grimgar-of-fantasy-and-ash-ln/', $html );
+		yume_assert_contains( 'Erreurs (à corriger avant d’exécuter)', $html );
+		yume_assert_contains( 'Exécution impossible', $html, 'les fixtures ont des erreurs volontaires' );
+		yume_test_migration_accepter();
+		ob_start();
+		Migration_Admin::afficher();
+		$html = (string) ob_get_clean();
+		yume_test_migration_accepter( false );
+		yume_assert_contains( 'Tapez MIGRER pour confirmer', $html );
+		yume_assert_contains( 'data-yume-form="executer"', $html );
+		yume_assert_contains( 'yume_migration_telecharger', $html );
+
+		// Statuts à valider (export complet : Gimai, Roshidere, Otonari, Mikadono, Chiramune, Raven, SukaMoka).
+		$complet = yume_test_migration_plan_complet();
+		if ( null !== $complet ) {
+			$cles = array_column( Migration_Admin::statuts_a_valider( $complet ), 'cle' );
+			foreach ( array( 'gimai-seikatsu', 'roshidere', 'otonari-no-tenshi-sama', 'mikadono-sanshimai-wa-angai-choroi', 'chitose-is-in-the-ramune-bottle', 'raven-of-the-inner-palace', 'sukamoka' ) as $cle ) {
+				yume_assert_true( in_array( $cle, $cles, true ), "statut à valider : $cle" );
+			}
+		}
+
+		// Choix de l'équipe appliqué à l'exécution.
+		Migration_State::enregistrer_choix( array( 'grimgar-of-fantasy-and-ash' => 'terminee' ) );
+		wp_set_current_user( 0 );
+		yume_test_migration_executer();
+		yume_assert_same( array( 'terminee' ), wp_get_object_terms( yume_test_migration_id( 'oeuvre', 'grimgar-of-fantasy-and-ash' ), 'yume_statut', array( 'fields' => 'slugs' ) ) );
+
+		wp_set_current_user( $admin );
+		ob_start();
+		Migration_Admin::afficher();
+		$html = (string) ob_get_clean();
+		yume_assert_contains( 'Migré le', $html );
+		yume_assert_contains( 'Annuler la migration', $html );
+		yume_assert_contains( 'Redirections actives', $html );
+		yume_assert_not_contains( 'Tapez MIGRER pour confirmer', $html );
+	}
+);
+
+yume_test(
+	'Plan : une redirection ne vise jamais un tome ou un chapitre non publié (arc planifié → œuvre)',
+	function () {
+		$plan = yume_test_migration_plan_complet();
+		if ( null === $plan ) {
+			return; // Export complet absent.
+		}
+		$urls = array();
+		foreach ( array_merge( $plan['oeuvres'], $plan['tomes'], $plan['chapitres'] ) as $e ) {
+			$urls[ $e['url'] ] = $e['post']['post_status'];
+		}
+		foreach ( $plan['redirections'] as $r ) {
+			if ( isset( $urls[ $r['cible'] ] ) ) {
+				yume_assert_same( 'publish', $urls[ $r['cible'] ], 'cible de ' . $r['source'] );
+			}
+		}
+		$cibles = array_column( $plan['redirections'], 'cible', 'source' );
+		yume_assert_same( '/oeuvres/secrets-of-the-silent-witch/', $cibles['/arc-8-la-vie-nocturne-silent-witch/'] );
+		yume_assert_same( 92, count( $plan['redirections'] ) );
+		yume_assert_same( 9, count( $plan['pages']['creer'] ) );
+	}
+);
+
+yume_test(
+	'Bout en bout (export complet, dans la transaction) : 15 œuvres, 55 tomes, 81 chapitres, 92 redirections, annulation exacte',
+	function () {
+		$dossier = dirname( __DIR__, 4 ) . '/tools/migrate/export';
+		if ( ! is_readable( $dossier . '/pages.json' ) ) {
+			return; // Export complet absent : voir tools/migrate/README.md.
+		}
+		yume_test_migration_seed( $dossier );
+		$avant = yume_test_migration_instantane();
+		Migration_Runner::simuler();
+		yume_assert_same( array(), Migration_Executor::problemes( Migration_State::plan() ) );
+		Migration_Runner::demarrer_execution();
+		$etat = Migration_Runner::terminer();
+		yume_assert_same( 'migre', $etat['statut'], (string) $etat['erreur'] );
+		$c = $etat['comptes'];
+		yume_assert_same( array( 15, 55, 81, 181, 9, 90, 92 ), array( $c['oeuvres_creees'], $c['tomes_crees'], $c['chapitres_crees'], $c['articles_reclasses'], $c['pages_creees'], $c['pages_depubliees'], $c['redirections'] ) );
+		yume_assert_same( 15, (int) wp_count_posts( 'yume_oeuvre' )->publish );
+		yume_assert_same( array( 53, 2 ), array( (int) wp_count_posts( 'yume_tome' )->publish, (int) wp_count_posts( 'yume_tome' )->draft ) );
+		yume_assert_same( array( 63, 18 ), array( (int) wp_count_posts( 'yume_chapitre' )->publish, (int) wp_count_posts( 'yume_chapitre' )->draft ) );
+		foreach ( Redirections::table() as $source => $cible ) {
+			$chemin = (string) wp_parse_url( $cible, PHP_URL_PATH );
+			if ( ! str_starts_with( $chemin, '/category/' ) ) {
+				yume_assert_true( url_to_postid( home_url( $chemin ) ) > 0, "cible de $source : $cible" );
+			}
+		}
+		Migration_Runner::demarrer_annulation();
+		$etat = Migration_Runner::terminer();
+		yume_assert_same( 'annule', $etat['statut'], (string) $etat['erreur'] );
+		yume_assert_same( array(), $etat['controle']['differences'] );
+		yume_assert_same( '', yume_test_migration_diff( $avant, yume_test_migration_instantane() ) );
 	}
 );

@@ -1,0 +1,34 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/latest-releases",
+	"title": "Dernières sorties",
+	"category": "yume",
+	"icon": "book-alt",
+	"description": "Couvertures des derniers tomes et arcs publiés : badge « Nouveau », date, boutons Lire, PDF et EPUB. Sans carte propre.",
+	"keywords": [
+		"sorties",
+		"accueil",
+		"tomes"
+	],
+	"textdomain": "yume-core",
+	"attributes": {
+		"count": {
+			"type": "number",
+			"default": 6,
+			"label": "Nombre de sorties"
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [
+			"wide",
+			"full"
+		]
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}

@@ -1,0 +1,30 @@
+/**
+ * yume/latest-releases — grille des dernières sorties (sans carte propre : la section
+ * « Dernières sorties » et la grille .yn-grid-covers viennent du thème).
+ */
+.yn-releases {
+	width: 100%;
+}
+
+.yn-releases .yn-releases__liste {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	row-gap: 24px;
+}
+
+.yn-releases__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+/* Trois boutons (Lire, PDF, EPUB) tiennent sur une ligne dans la grille de six colonnes. */
+.yn-releases__actions .yn-btn--sm {
+	padding-inline: 10px;
+}
+
+.yn-releases__vide {
+	margin: 0;
+}

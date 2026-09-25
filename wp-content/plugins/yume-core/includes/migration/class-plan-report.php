@@ -177,7 +177,7 @@ final class Plan_Report {
 		}
 		$md .= "\n### À créer (contrat §11)\n\n";
 		foreach ( $plan['pages']['creer'] as $p ) {
-			$md .= sprintf( "- %s : `%s` → `%s`\n", $p['post_title'], $p['url'], trim( $p['post_content'] ) );
+			$md .= sprintf( "- %s : `%s` → %s\n", $p['post_title'], $p['url'], self::resume_contenu_page( $p ) );
 		}
 
 		$md    .= "\n## Redirections 301\n\n";
@@ -200,6 +200,26 @@ final class Plan_Report {
 			$md .= "\n";
 		}
 		return $md;
+	}
+
+	/**
+	 * Résumé du contenu d'une page à créer : bloc dynamique, rôle de lecture ou texte de base.
+	 *
+	 * @param array $page Page du plan (pages.creer[]).
+	 */
+	public static function resume_contenu_page( array $page ): string {
+		$contenu = trim( (string) $page['post_content'] );
+		$roles   = array(
+			'page_on_front'  => 'page d’accueil (modèle front-page du thème)',
+			'page_for_posts' => 'page des articles',
+		);
+		if ( '' === $contenu ) {
+			return $roles[ $page['reglage'] ?? '' ] ?? 'page vide';
+		}
+		if ( preg_match( '#^<!-- wp:[a-z0-9/-]+ (?:\{.*\} )?/-->$#', $contenu ) ) {
+			return '`' . $contenu . '`';
+		}
+		return sprintf( 'texte de base (%d mots)', Html::nombre_mots( Html::texte( $contenu ) ) );
 	}
 
 	/**

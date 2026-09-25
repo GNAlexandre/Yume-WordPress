@@ -1,0 +1,159 @@
+/**
+ * yume/oeuvre-header — en-tête de la fiche d'une œuvre (maquette Oeuvre).
+ *
+ * Dans le modèle « Œuvre » du thème, l'en-tête et le bloc yume/oeuvre-actions partagent une
+ * même grille (.yn-fiche__principal) : la couverture occupe la colonne de gauche sur toute la
+ * hauteur, les boutons d'action s'alignent sous le synopsis. Ailleurs, le bloc est sa propre grille.
+ */
+.yn-oeuvre-header,
+.yn-fiche__principal:has(> .yn-oeuvre-header) {
+	display: grid;
+	grid-template-columns: 220px minmax(0, 1fr);
+	grid-template-rows: auto auto auto auto 1fr;
+	grid-template-areas:
+		"ariane ariane"
+		"couverture tete"
+		"couverture details"
+		"couverture actions"
+		"couverture .";
+	column-gap: 32px;
+	row-gap: 14px;
+	align-items: start;
+}
+
+.yn-fiche__principal > .yn-oeuvre-header {
+	display: contents;
+}
+
+.yn-fiche__principal:has(> .yn-oeuvre-header) > * {
+	grid-column: 1 / -1;
+	margin: 0;
+}
+
+.yn-fiche__principal:has(> .yn-oeuvre-header) > .yn-oeuvre-actions {
+	grid-area: actions;
+	margin-top: 6px;
+}
+
+.yn-oeuvre-header > * {
+	margin: 0;
+}
+
+.yn-oeuvre-header__ariane {
+	grid-area: ariane;
+	margin-bottom: 2px;
+}
+
+.yn-oeuvre-header__couverture {
+	grid-area: couverture;
+}
+
+.yn-oeuvre-header__couverture .yn-cover {
+	font-size: 18px;
+}
+
+.yn-oeuvre-header__tete,
+.yn-oeuvre-header__details {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+
+.yn-oeuvre-header__tete {
+	grid-area: tete;
+}
+
+.yn-oeuvre-header__details {
+	grid-area: details;
+}
+
+.yn-oeuvre-header__tete > *,
+.yn-oeuvre-header__details > * {
+	margin: 0;
+}
+
+.yn-oeuvre-header__pastilles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.yn-oeuvre-header__genres a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.yn-oeuvre-header__genres a:hover,
+.yn-oeuvre-header__genres a:focus-visible {
+	color: var(--wp--preset--color--texte-fort);
+	text-decoration: underline;
+}
+
+.yn-oeuvre-header__titre {
+	font-size: clamp(30px, 1.2rem + 2.2vw, 44px);
+	line-height: 1.1;
+	text-wrap: balance;
+}
+
+.yn-oeuvre-header__alternatifs {
+	font-size: 15px;
+	line-height: 1.5;
+}
+
+.yn-oeuvre-header__synopsis {
+	max-width: 720px;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-oeuvre-header__synopsis > * {
+	margin: 0;
+}
+
+.yn-oeuvre-header__synopsis > * + * {
+	margin-top: 0.8em;
+}
+
+/* Mobile : couverture réduite à côté du titre, fiche et synopsis en pleine largeur. */
+@media (max-width: 699.98px) {
+	.yn-oeuvre-header,
+	.yn-fiche__principal:has(> .yn-oeuvre-header) {
+		grid-template-columns: 112px minmax(0, 1fr);
+		grid-template-rows: auto auto auto auto;
+		grid-template-areas:
+			"ariane ariane"
+			"couverture tete"
+			"details details"
+			"actions actions";
+		column-gap: 16px;
+	}
+
+	.yn-oeuvre-header__couverture .yn-cover {
+		padding: 8px;
+		font-size: 13px;
+	}
+
+	.yn-oeuvre-header__titre {
+		font-size: clamp(24px, 6.4vw, 30px);
+	}
+
+	.yn-oeuvre-header__tete {
+		gap: 10px;
+		align-self: center;
+	}
+
+	.yn-oeuvre-header__pastilles {
+		gap: 6px;
+	}
+
+	.yn-oeuvre-header .yn-fiche-technique {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* Bureau : la carte de planning (colonne du thème) s'aligne sur la couverture, sous le fil d'Ariane. */
+@media (min-width: 1000px) {
+	.yn-fiche__grille:has(.yn-oeuvre-header__ariane) > .yn-fiche__cote {
+		padding-top: calc(13px * 1.5 + 16px);
+	}
+}

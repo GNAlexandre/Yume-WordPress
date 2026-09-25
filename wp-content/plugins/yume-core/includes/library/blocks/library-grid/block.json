@@ -1,0 +1,39 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/library-grid",
+	"title": "Grille de la bibliothèque",
+	"category": "yume",
+	"icon": "grid-view",
+	"description": "Toutes les œuvres publiées : filtres par type, statut et genre, tri (dernières sorties ou A → Z), grille de couvertures, pagination.",
+	"keywords": [
+		"bibliothèque",
+		"œuvres",
+		"catalogue"
+	],
+	"textdomain": "yume-core",
+	"attributes": {
+		"perPage": {
+			"type": "number",
+			"default": 24,
+			"label": "Œuvres par page"
+		},
+		"showFilters": {
+			"type": "boolean",
+			"default": true,
+			"label": "Afficher les filtres"
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [
+			"wide",
+			"full"
+		]
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}

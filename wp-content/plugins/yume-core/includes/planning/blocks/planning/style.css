@@ -1,0 +1,374 @@
+/**
+ * yume/planning — structure seulement (couleurs : variables et classes du thème).
+ * Bureau : tableau ; sous 900 px : une carte par tome.
+ */
+.yn-planning {
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+}
+
+.yn-planning > * {
+	margin: 0;
+}
+
+.yn-planning p {
+	margin: 0;
+}
+
+/* En-tête : présentation à gauche, filtres à droite. */
+.yn-planning__tete {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: flex-end;
+	gap: 16px 24px;
+}
+
+.yn-planning__intro {
+	display: flex;
+	flex: 1 1 420px;
+	flex-direction: column;
+	gap: 8px;
+	max-width: 660px;
+}
+
+.yn-planning__filtres {
+	display: flex;
+	flex: 0 1 auto;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+}
+
+.yn-planning .yn-planning__groupe {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-planning .yn-planning__groupe + .yn-planning__groupe {
+	padding-left: 10px;
+	border-left: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-planning li {
+	margin: 0;
+}
+
+.yn-planning a.yn-planning__filtre,
+.yn-planning a.yn-btn {
+	min-height: 28px;
+	text-decoration: none;
+}
+
+a.yn-planning__filtre:hover {
+	background: var(--wp--preset--color--selection);
+}
+
+a.yn-planning__filtre[aria-current="true"] {
+	background: var(--wp--preset--color--accent);
+	border-color: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-planning__flux {
+	display: flex;
+	gap: 8px;
+}
+
+.yn-planning__actif {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+}
+
+/* Chiffres clés. */
+.yn-planning__chiffres {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.yn-planning__chiffre {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 16px 20px;
+}
+
+.yn-planning__valeur {
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 26px;
+	font-weight: 800;
+	line-height: 1.15;
+}
+
+.yn-planning__chiffre--warn .yn-planning__valeur {
+	color: var(--wp--preset--color--avertissement);
+}
+
+/* Tableau. */
+.yn-planning__tableau {
+	overflow: hidden;
+}
+
+.yn-planning__table {
+	width: 100%;
+	margin: 0;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+
+.yn-planning__table th,
+.yn-planning__table td {
+	padding: 16px 12px;
+	border: 0;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	text-align: left;
+	vertical-align: middle;
+}
+
+.yn-planning__table th:first-child,
+.yn-planning__table td:first-child {
+	padding-left: 20px;
+}
+
+.yn-planning__table th:last-child,
+.yn-planning__table td:last-child {
+	padding-right: 20px;
+}
+
+.yn-planning__table tbody tr:last-child > * {
+	border-bottom: 0;
+}
+
+.yn-planning__table thead th {
+	padding-top: 12px;
+	padding-bottom: 12px;
+	font-weight: 500;
+}
+
+.yn-planning__table thead th:nth-child(1) { width: 22%; }
+.yn-planning__table thead th:nth-child(2),
+.yn-planning__table thead th:nth-child(3),
+.yn-planning__table thead th:nth-child(4) { width: 14%; }
+.yn-planning__table thead th:nth-child(5) { width: 11%; }
+.yn-planning__table thead th:nth-child(6) { width: 16%; }
+.yn-planning__table thead th:nth-child(7) { width: 9%; }
+
+.yn-planning__table tbody th {
+	font-weight: 400;
+}
+
+.yn-planning__oeuvre {
+	display: block;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1.3;
+}
+
+.yn-planning .yn-planning__oeuvre a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.yn-planning .yn-planning__oeuvre a:hover,
+.yn-planning .yn-planning__oeuvre a:focus-visible {
+	color: var(--wp--preset--color--accent);
+	text-decoration: underline;
+}
+
+.yn-planning__tome {
+	display: block;
+	font-size: 13px;
+}
+
+.yn-planning__etape {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 12px;
+	line-height: 1.3;
+}
+
+.yn-planning__etape .yn-bar {
+	height: 8px;
+	border-radius: 4px;
+}
+
+.yn-planning__table .yn-chip {
+	white-space: normal;
+}
+
+.yn-planning__vide {
+	padding: 20px;
+}
+
+/* Journal et légende. */
+.yn-planning__bas {
+	display: grid;
+	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+	gap: 24px;
+	align-items: start;
+}
+
+.yn-planning__journal,
+.yn-planning__legende {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 20px;
+}
+
+.yn-planning__journal > h2,
+.yn-planning__legende > h2 {
+	margin: 0;
+}
+
+.yn-planning .yn-journal {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-journal li {
+	display: flex;
+	gap: 12px;
+	align-items: baseline;
+	margin: 0;
+}
+
+.yn-journal time {
+	flex: 0 0 120px;
+	font-size: 13px;
+}
+
+.yn-journal b {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-planning .yn-planning__legende ul {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 14px;
+}
+
+.yn-planning__legende li {
+	margin: 0;
+}
+
+@media (max-width: 1099.98px) {
+	.yn-planning__chiffres {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 899.98px) {
+	.yn-planning__filtres {
+		justify-content: flex-start;
+	}
+
+	.yn-planning__table,
+	.yn-planning__table tbody {
+		display: block;
+	}
+
+	.yn-planning__table thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.yn-planning__table tbody tr {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 12px;
+		padding: 16px;
+		border-bottom: 1px solid var(--wp--preset--color--filet);
+	}
+
+	.yn-planning__table tbody tr:last-child {
+		border-bottom: 0;
+	}
+
+	.yn-planning__table tbody th,
+	.yn-planning__table tbody td,
+	.yn-planning__table tbody th:first-child,
+	.yn-planning__table tbody td:first-child,
+	.yn-planning__table tbody td:last-child {
+		display: block;
+		padding: 0;
+		border: 0;
+		min-width: 0;
+	}
+
+	.yn-planning__table tbody th {
+		grid-column: 1 / -1;
+	}
+
+	.yn-planning__table td[data-label]::before {
+		content: attr(data-label);
+		display: block;
+		margin-bottom: 4px;
+		color: var(--wp--preset--color--texte-faible);
+		font-family: var(--wp--preset--font-family--mono);
+		font-size: 10px;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.yn-planning__bas {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 599.98px) {
+	.yn-planning {
+		gap: 20px;
+	}
+
+	.yn-planning__chiffres {
+		gap: 12px;
+	}
+
+	.yn-planning__chiffre {
+		padding: 12px 14px;
+	}
+
+	.yn-planning__valeur {
+		font-size: 21px;
+	}
+
+	.yn-planning .yn-planning__groupe + .yn-planning__groupe {
+		padding-left: 0;
+		border-left: 0;
+	}
+
+	.yn-journal li {
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.yn-journal time {
+		flex-basis: auto;
+	}
+}

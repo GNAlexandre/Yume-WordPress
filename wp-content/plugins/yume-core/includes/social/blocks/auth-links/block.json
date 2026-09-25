@@ -1,0 +1,17 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/auth-links",
+	"title": "Liens de compte",
+	"category": "yume",
+	"icon": "admin-network",
+	"description": "« Connexion » ou « Mon compte » (et « Espace équipe » pour l’équipe). À placer dans la navigation.",
+	"keywords": [ "connexion", "compte", "navigation" ],
+	"textdomain": "yume-core",
+	"supports": {
+		"html": false,
+		"reusable": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

@@ -48,29 +48,58 @@ final class Migration_Planner {
 		'agents-of-the-four-seasons-dance-of-spring' => array( 'Agents of the four seasons' ),
 	);
 
-	/** Pages créées par la migration (contrat §11). */
+	/**
+	 * Pages créées par la migration : clé de l'option yume_pages => ( slug, clé du parent,
+	 * titre, bloc dynamique ou '' pour un contenu propre à la page, réglage de lecture visé ).
+	 * Les six premières sont celles du contrat §11 ; « actualites » devient la page des
+	 * articles, « accueil » la page d'accueil (le thème fournit front-page.html) et
+	 * « mentions-legales » reçoit un texte de base (visé par le pied de page du thème).
+	 */
 	public const PAGES_A_CREER = array(
-		'bibliotheque' => array( 'bibliotheque', '', 'Bibliothèque', 'yume/library-grid' ),
-		'planning'     => array( 'planning', '', 'Planning', 'yume/planning' ),
-		'equipe'       => array( 'equipe', '', 'Espace équipe', 'yume/team-dashboard' ),
-		'publier'      => array( 'publier', 'equipe', 'Publier un tome', 'yume/publish-form' ),
-		'compte'       => array( 'compte', '', 'Mon compte', 'yume/account' ),
-		'connexion'    => array( 'connexion', '', 'Connexion', 'yume/account' ),
+		'bibliotheque'     => array( 'bibliotheque', '', 'Bibliothèque', 'yume/library-grid', '' ),
+		'planning'         => array( 'planning', '', 'Planning', 'yume/planning', '' ),
+		'equipe'           => array( 'equipe', '', 'Espace équipe', 'yume/team-dashboard', '' ),
+		'publier'          => array( 'publier', 'equipe', 'Publier un tome', 'yume/publish-form', '' ),
+		'compte'           => array( 'compte', '', 'Mon compte', 'yume/account', '' ),
+		'connexion'        => array( 'connexion', '', 'Connexion', 'yume/account', '' ),
+		'actualites'       => array( 'actualites', '', 'Actualités', '', 'page_for_posts' ),
+		'mentions-legales' => array( 'mentions-legales', '', 'Mentions légales', '', '' ),
+		'accueil'          => array( 'accueil', '', 'Accueil', '', 'page_on_front' ),
 	);
 
-	/** Export normalisé. */
+	/**
+	 * Export normalisé.
+	 *
+	 * @var array<string,mixed>
+	 */
 	private array $export;
 
-	/** Options (genere_le, avancement_planning). */
+	/**
+	 * Options (genere_le, avancement_planning).
+	 *
+	 * @var array<string,mixed>
+	 */
 	private array $options;
 
-	/** Domaines du site (liens internes). */
+	/**
+	 * Domaines du site (liens internes).
+	 *
+	 * @var string[]
+	 */
 	private array $domaines;
 
-	/** Médias de l'export, par ID. */
+	/**
+	 * Médias de l'export, par ID.
+	 *
+	 * @var array<int,array<string,mixed>>
+	 */
 	private array $medias = array();
 
-	/** Avertissements du plan. */
+	/**
+	 * Avertissements du plan.
+	 *
+	 * @var array<int,array<string,mixed>>
+	 */
 	private array $avertissements = array();
 
 	/**
@@ -496,7 +525,7 @@ final class Migration_Planner {
 			if ( count( $ids ) < 2 ) {
 				continue;
 			}
-			usort( $ids, static fn( $a, $b ) => ( 'light-novel' === $fiches[ $b ]['type'] ) <=> ( 'light-novel' === $fiches[ $a ]['type'] ) ?: $a <=> $b );
+			usort( $ids, static fn( $a, $b ) => ( ( 'light-novel' === $fiches[ $b ]['type'] ) <=> ( 'light-novel' === $fiches[ $a ]['type'] ) ) ? ( ( 'light-novel' === $fiches[ $b ]['type'] ) <=> ( 'light-novel' === $fiches[ $a ]['type'] ) ) : $a <=> $b );
 			foreach ( array_slice( $ids, 1 ) as $id ) {
 				$suffixe                = $suffixes[ $fiches[ $id ]['type'] ] ?? array( (string) $id, (string) $id );
 				$fiches[ $id ]['slug']  = $slug . '-' . $suffixe[0];
@@ -1060,7 +1089,7 @@ final class Migration_Planner {
 	 * @param array $fiches    Fiches par clé d'œuvre.
 	 */
 	private function completer_tomes_depuis_articles( array &$articles, array $oeuvres, array &$tomes, array $chapitres, array $fiches ): void {
-		uasort( $articles, static fn( $a, $b ) => strcmp( $a['date'], $b['date'] ) ?: $a['source_id'] <=> $b['source_id'] );
+		uasort( $articles, static fn( $a, $b ) => 0 !== strcmp( $a['date'], $b['date'] ) ? strcmp( $a['date'], $b['date'] ) : $a['source_id'] <=> $b['source_id'] );
 		foreach ( $articles as $id => $article ) {
 			$cle = $this->tome_de_article( $article, $oeuvres, $tomes );
 			$articles[ $id ]['tome_cle'] = $cle;
@@ -1351,10 +1380,18 @@ final class Migration_Planner {
 				'cible'   => $cible['cle'] ?? null,
 			);
 		}
+		$slugs_occupes = array();
+		foreach ( $pages as $id => $page ) {
+			if ( 'institutionnelle' !== $familles[ $id ] && 0 === (int) $page['parent'] && '' !== $page['slug'] ) {
+				$slugs_occupes[ $page['slug'] ] = $id;
+			}
+		}
 		foreach ( self::PAGES_A_CREER as $cle => $def ) {
-			list( $slug, $parent, $titre, $bloc ) = $def;
+			list( $slug, $parent, $titre, $bloc, $reglage ) = $def;
 			if ( in_array( $slug, $slugs_conserves, true ) ) {
 				$this->avertir( 'erreur', 'pages', sprintf( 'La page à créer « %s » entre en conflit avec une page conservée.', $slug ) );
+			} elseif ( '' === $parent && isset( $slugs_occupes[ $slug ] ) ) {
+				$this->avertir( 'attention', 'pages', sprintf( 'La page à créer « %s » porte le slug de la page %d, remplacée ou ignorée : elle recevra un slug suffixé.', $slug, $slugs_occupes[ $slug ] ), $slugs_occupes[ $slug ] );
 			}
 			$plan['creer'][] = array(
 				'cle'          => $cle,
@@ -1362,11 +1399,55 @@ final class Migration_Planner {
 				'post_name'    => $slug,
 				'parent'       => '' !== $parent ? $parent : null,
 				'post_status'  => 'publish',
-				'post_content' => Blocks::dynamique( $bloc ),
+				'post_content' => '' !== $bloc ? Blocks::dynamique( $bloc ) : self::contenu_page( $cle ),
+				'reglage'      => '' !== $reglage ? $reglage : null,
 				'url'          => '/' . ( '' !== $parent ? $parent . '/' : '' ) . $slug . '/',
 			);
 		}
 		return $plan;
+	}
+
+	/**
+	 * Contenu d'une page créée sans bloc dynamique : l'accueil et la page des articles restent
+	 * vides (le thème fournit leur modèle) ; les mentions légales reçoivent un texte de base,
+	 * factuel, que l'équipe complète dans l'éditeur.
+	 *
+	 * @param string $cle Clé de la page (option yume_pages).
+	 */
+	public static function contenu_page( string $cle ): string {
+		if ( 'mentions-legales' !== $cle ) {
+			return '';
+		}
+		$sections = array(
+			'Éditeur du site'                  => array(
+				'Yume Novel est un site de traductions de fans animé bénévolement par une équipe de passionnés de light novels, de web novels et de mangas. Il n’est rattaché à aucune maison d’édition.',
+				'Pour toute demande, écrivez-nous depuis la page <a href="/contactez-nous/">Contactez-nous</a> ou sur notre serveur Discord.',
+			),
+			'Hébergement'                      => array(
+				'Le site est hébergé par WordPress.com, service exploité par Automattic Inc., 60 29th Street #343, San Francisco, CA 94110, États-Unis.',
+			),
+			'Œuvres, traductions et droits'    => array(
+				'Les œuvres présentées appartiennent à leurs auteurs, illustrateurs et éditeurs. Les traductions publiées ici sont des traductions de fans, proposées gratuitement pour faire découvrir des œuvres inédites en français.',
+				'Lorsqu’une œuvre est licenciée en France, sa traduction est arrêtée et les fichiers concernés sont retirés. Un ayant droit peut demander le retrait d’un contenu depuis la page <a href="/contactez-nous/">Contactez-nous</a> : la demande est traitée au plus vite.',
+				'Certains liens de téléchargement passent par des services tiers (raccourcisseurs de liens, hébergeurs de fichiers) qui appliquent leurs propres conditions.',
+			),
+			'Données personnelles'             => array(
+				'Le site ne recueille que les données nécessaires à son fonctionnement : nom d’utilisateur et adresse e-mail pour un compte lecteur ou un commentaire, favoris, notes, alertes et progression de lecture. Ces données ne sont ni vendues ni cédées.',
+				'Depuis la page <a href="/compte/">Mon compte</a>, vous pouvez exporter vos données ou supprimer votre compte. Pour toute autre demande, contactez-nous.',
+			),
+			'Cookies et stockage du navigateur' => array(
+				'Le site utilise des cookies techniques (connexion à un compte) et le stockage local du navigateur pour mémoriser vos préférences de lecture (thème, taille du texte) et votre progression. Yume Novel ne dépose aucun cookie publicitaire.',
+				'L’hébergeur peut établir des statistiques de fréquentation agrégées.',
+			),
+		);
+		$blocs = array();
+		foreach ( $sections as $titre => $paragraphes ) {
+			$blocs[] = Blocks::titre( Html::attr( $titre ), 2 );
+			foreach ( $paragraphes as $paragraphe ) {
+				$blocs[] = Blocks::paragraphe( $paragraphe );
+			}
+		}
+		return Blocks::assembler( $blocs );
 	}
 
 	/**
@@ -1408,7 +1489,10 @@ final class Migration_Planner {
 						$this->avertir( 'erreur', 'redirection', sprintf( 'Page « %s » : aucune cible de redirection.', $page['title'] ), $id );
 						break;
 					}
-					$url = 'oeuvre' === $cible['type'] ? $oeuvres[ $cible['cle'] ]['url'] : ( 'tome' === $cible['type'] ? $tomes[ $cible['cle'] ]['url'] : $chapitres[ $cible['cle'] ]['url'] );
+					$url = $this->url_publiee( $cible, $oeuvres, $tomes, $chapitres );
+					if ( $url !== $this->url_element( $cible, $oeuvres, $tomes, $chapitres ) ) {
+						$this->avertir( 'info', 'redirection', sprintf( 'Page « %s » : « %s » n’est pas publié, redirection vers %s.', $page['title'], $this->url_element( $cible, $oeuvres, $tomes, $chapitres ), $url ), $id );
+					}
 					$ajouter( $chemin, $url, $cible['type'], $id, $cible['cle'] );
 					break;
 				case 'hub':
@@ -1431,6 +1515,55 @@ final class Migration_Planner {
 		}
 		ksort( $redirections );
 		return array_values( $redirections );
+	}
+
+	/**
+	 * URL d'un élément du plan (œuvre, tome ou chapitre).
+	 *
+	 * @param array $cible     { type, cle }.
+	 * @param array $oeuvres   Œuvres.
+	 * @param array $tomes     Tomes.
+	 * @param array $chapitres Chapitres.
+	 */
+	private function url_element( array $cible, array $oeuvres, array $tomes, array $chapitres ): string {
+		if ( 'oeuvre' === $cible['type'] ) {
+			return $oeuvres[ $cible['cle'] ]['url'];
+		}
+		return 'tome' === $cible['type'] ? $tomes[ $cible['cle'] ]['url'] : $chapitres[ $cible['cle'] ]['url'];
+	}
+
+	/**
+	 * URL publique la plus proche d'un élément : l'élément s'il est publié, sinon son tome
+	 * publié, sinon son œuvre (un tome ou un chapitre planifié reste en brouillon, et une
+	 * redirection vers un brouillon aboutirait à une erreur 404).
+	 *
+	 * @param array $cible     { type, cle }.
+	 * @param array $oeuvres   Œuvres.
+	 * @param array $tomes     Tomes.
+	 * @param array $chapitres Chapitres.
+	 */
+	private function url_publiee( array $cible, array $oeuvres, array $tomes, array $chapitres ): string {
+		if ( 'chapitre' === $cible['type'] ) {
+			$chapitre = $chapitres[ $cible['cle'] ];
+			if ( 'publish' === $chapitre['post']['post_status'] ) {
+				return $chapitre['url'];
+			}
+			$cible = array(
+				'type' => 'tome',
+				'cle'  => $chapitre['tome'],
+			);
+		}
+		if ( 'tome' === $cible['type'] ) {
+			$tome = $tomes[ $cible['cle'] ];
+			if ( 'publish' === $tome['post']['post_status'] ) {
+				return $tome['url'];
+			}
+			$cible = array(
+				'type' => 'oeuvre',
+				'cle'  => $tome['oeuvre'],
+			);
+		}
+		return $oeuvres[ $cible['cle'] ]['url'];
 	}
 
 	/**

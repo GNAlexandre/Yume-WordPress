@@ -1,0 +1,19 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/oeuvre-actions",
+	"title": "Actions de l’œuvre",
+	"category": "yume",
+	"icon": "heart",
+	"description": "Reprendre la lecture, Favori (compteur), Note par étoiles (moyenne) et Alerte de sortie. Visiteur : invitation à se connecter.",
+	"keywords": [ "favori", "note", "alerte", "reprendre" ],
+	"textdomain": "yume-core",
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"html": false,
+		"multiple": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

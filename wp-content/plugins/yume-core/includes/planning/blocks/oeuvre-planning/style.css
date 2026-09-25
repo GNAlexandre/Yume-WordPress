@@ -1,0 +1,58 @@
+/**
+ * yume/oeuvre-planning — structure seulement (couleurs : variables et classes du thème).
+ */
+.yn-oeuvre-planning {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 20px;
+}
+
+.yn-oeuvre-planning > * {
+	margin: 0;
+}
+
+.yn-oeuvre-planning__tome {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+}
+
+.yn-oeuvre-planning .yn-oeuvre-planning__etapes {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 13px;
+}
+
+.yn-oeuvre-planning .yn-oeuvre-planning__etapes li {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+}
+
+.yn-oeuvre-planning__ligne {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.yn-oeuvre-planning__etat {
+	display: flex;
+}
+
+.yn-oeuvre-planning__autres {
+	font-size: 13px;
+}
+
+.yn-oeuvre-planning .yn-oeuvre-planning__lien {
+	font-size: 13px;
+	text-decoration: none;
+}
+
+.yn-oeuvre-planning .yn-oeuvre-planning__lien:hover {
+	text-decoration: underline;
+}

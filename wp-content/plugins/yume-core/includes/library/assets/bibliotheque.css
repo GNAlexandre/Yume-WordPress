@@ -1,0 +1,192 @@
+/**
+ * Bibliothèque — éléments communs aux blocs (poignée « yume-bibliotheque ») :
+ * fil d'Ariane, fiche technique, bannière d'œuvre en fond d'en-tête, couvertures,
+ * icônes. Structure uniquement : les couleurs viennent des variables du thème (§15).
+ */
+
+/* Icônes SVG décoratives. */
+.yn-icone {
+	flex-shrink: 0;
+	vertical-align: -0.15em;
+}
+
+.yn-telechargement {
+	gap: 5px;
+}
+
+.yn-telechargement .yn-icone--externe {
+	opacity: 0.8;
+}
+
+/* Couverture de substitution : le titre reste au-dessus du dégradé. */
+.yn-cover__texte {
+	position: relative;
+	overflow-wrap: anywhere;
+}
+
+/* Fil d'Ariane. */
+.yn-ariane {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.yn-ariane .yn-ariane__liste {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-ariane .yn-ariane__item {
+	margin: 0;
+}
+
+.yn-ariane__item + .yn-ariane__item::before {
+	content: "›";
+	content: "›" / "";
+	margin-inline: 8px;
+}
+
+.yn-ariane__item[aria-current] {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+/* Fiche technique : intitulé en surtitre, valeur dessous. */
+.yn-fiche-technique {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	gap: 12px 16px;
+	max-width: 760px;
+	margin: 0;
+}
+
+.yn-fiche-technique__item {
+	min-width: 0;
+	margin: 0;
+}
+
+.yn-fiche-technique dt {
+	display: block;
+}
+
+.yn-fiche-technique dd {
+	margin: 2px 0 0;
+	color: var(--wp--preset--color--texte);
+}
+
+/*
+ * Bannière de l'œuvre en fond de l'en-tête de fiche : elle couvre la bande du modèle du thème
+ * (.yn-fiche__entete) quand elle existe, sinon le bloc lui-même ; un voile aux couleurs du
+ * thème garde le texte lisible (Nuit comme Papier).
+ */
+.yn-fiche__entete:has(.yn-fiche-banniere),
+.yn-oeuvre-header:has(> .yn-fiche-banniere),
+.yn-tome-header:has(> .yn-fiche-banniere) {
+	position: relative;
+	isolation: isolate;
+}
+
+.yn-fiche__entete:has(.yn-fiche-banniere) {
+	overflow: hidden;
+}
+
+/* Dans la bande du thème, c'est la bande entière (et non le bloc) qui porte la bannière. */
+.yn-fiche__entete .yn-oeuvre-header:has(> .yn-fiche-banniere),
+.yn-fiche__entete .yn-tome-header:has(> .yn-fiche-banniere) {
+	position: static;
+	isolation: auto;
+}
+
+.yn-fiche-banniere {
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.yn-fiche-banniere__image {
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	object-fit: cover;
+	object-position: center 30%;
+}
+
+.yn-fiche-banniere::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(180deg, color-mix(in srgb, var(--wp--preset--color--bande) 78%, transparent) 0%, color-mix(in srgb, var(--wp--preset--color--fond) 90%, transparent) 55%, var(--wp--preset--color--fond) 100%);
+}
+
+/* Grilles de couvertures : cartes (lien couverture + titre, métadonnées, actions). */
+.yn-releases .yn-releases__item,
+.yn-library .yn-library__item {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	margin: 0;
+}
+
+.yn-releases .yn-releases__lien,
+.yn-library .yn-library__lien {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	color: inherit;
+	text-decoration: none;
+}
+
+.yn-releases .yn-releases__lien:hover,
+.yn-library .yn-library__lien:hover {
+	text-decoration: none;
+}
+
+.yn-releases .yn-releases__titre,
+.yn-library .yn-library__titre {
+	display: -webkit-box;
+	margin: 0;
+	overflow: hidden;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.3;
+	letter-spacing: 0;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+}
+
+.yn-releases .yn-releases__lien:hover .yn-releases__titre,
+.yn-releases .yn-releases__lien:focus-visible .yn-releases__titre,
+.yn-library .yn-library__lien:hover .yn-library__titre,
+.yn-library .yn-library__lien:focus-visible .yn-library__titre {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.yn-releases .yn-releases__meta,
+.yn-library .yn-library__meta {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+/* Pastille posée sur une couverture : fond de carte pour rester lisible sur l'image. */
+.yn-library__item .yn-cover > .yn-chip:not(.yn-chip--new),
+.yn-releases__item .yn-cover > .yn-chip:not(.yn-chip--new) {
+	background: var(--wp--preset--color--carte);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yn-icone {
+		transition: none !important;
+	}
+}

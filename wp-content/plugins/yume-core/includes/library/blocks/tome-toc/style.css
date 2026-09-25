@@ -1,0 +1,118 @@
+/**
+ * yume/tome-toc — sommaire du tome : une carte, une ligne par chapitre (numéro, sous-titre,
+ * temps de lecture) ; chapitres à venir non cliquables.
+ */
+.yn-toc {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.yn-toc > * {
+	margin: 0;
+}
+
+.yn-toc__tete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 4px 16px;
+}
+
+.yn-toc__tete > * {
+	margin: 0;
+}
+
+.yn-toc__titre {
+	font-size: var(--wp--preset--font-size--grand);
+}
+
+.yn-toc__resume {
+	font-size: 14px;
+}
+
+.yn-toc .yn-toc__liste {
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	list-style: none;
+}
+
+.yn-toc .yn-toc__item {
+	margin: 0;
+}
+
+.yn-toc .yn-toc__item + .yn-toc__item {
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-toc .yn-toc__lien {
+	display: grid;
+	grid-template-columns: 130px minmax(0, 1fr) auto;
+	gap: 16px;
+	align-items: center;
+	padding: 12px 20px;
+	color: var(--wp--preset--color--texte);
+	text-decoration: none;
+}
+
+.yn-toc a.yn-toc__lien:hover,
+.yn-toc a.yn-toc__lien:focus-visible {
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+	text-decoration: none;
+}
+
+.yn-toc a.yn-toc__lien:focus-visible {
+	outline-offset: -2px;
+}
+
+.yn-toc__numero {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-toc__sous-titre {
+	min-width: 0;
+}
+
+.yn-toc__duree {
+	font-size: 13px;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.yn-toc__item.is-current .yn-toc__lien {
+	background: var(--wp--preset--color--selection);
+	box-shadow: inset 3px 0 0 var(--wp--preset--color--accent);
+}
+
+.yn-toc__item--a-venir .yn-toc__lien,
+.yn-toc__item--a-venir .yn-toc__numero {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-toc__vide {
+	margin: 0;
+	padding: 20px;
+}
+
+@media (max-width: 599.98px) {
+	.yn-toc .yn-toc__lien {
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 2px 12px;
+		padding: 12px 16px;
+	}
+
+	.yn-toc__sous-titre {
+		grid-column: 1;
+		grid-row: 2;
+		font-size: 14px;
+	}
+
+	.yn-toc__duree {
+		grid-column: 2;
+		grid-row: 1 / span 2;
+	}
+}

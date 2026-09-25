@@ -1,0 +1,30 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/tome-toc",
+	"title": "Sommaire du tome",
+	"category": "yume",
+	"icon": "editor-ol",
+	"description": "Chapitres publiés du tome avec sous-titres et temps de lecture ; chapitres à venir d’un arc en cours.",
+	"keywords": [
+		"sommaire",
+		"chapitres",
+		"tome"
+	],
+	"textdomain": "yume-core",
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false,
+		"align": [
+			"wide"
+		]
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}

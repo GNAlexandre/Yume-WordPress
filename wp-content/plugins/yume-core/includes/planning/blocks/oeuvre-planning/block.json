@@ -1,0 +1,17 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/oeuvre-planning",
+	"title": "Planning de l’œuvre",
+	"category": "yume",
+	"icon": "clock",
+	"description": "Carte « Planning de l’œuvre » de la fiche : tome en préparation, étapes, responsables, état.",
+	"keywords": [ "planning", "œuvre", "avancement" ],
+	"textdomain": "yume-core",
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"html": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}
