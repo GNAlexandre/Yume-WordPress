@@ -295,12 +295,15 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte |
 | `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
 | `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) |
-| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion / Inscription » ou « Mon compte » (+ « Espace équipe » si capacité) ; placé dans `core/navigation` |
+| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion » (la page connexion propose aussi l'inscription) ou « Mon compte » (+ « Espace équipe » si capacité) ; placé dans `core/navigation` |
 | `yume/theme-toggle` | **thème** | — | `.yn-theme-toggle` | Bascule Nuit ↔ Papier (`aria-pressed`, `[data-yn-theme-toggle]`) |
 
 Les blocs posés dans le modèle `page-large` (planning, compte, équipe, publication) commencent leurs
 titres au `<h2>` : le modèle affiche déjà le titre de la page en `<h1>`. `yume/library-grid` accepte
-les paramètres GET `type`, `statut`, `genre` et `tri`.
+les paramètres GET `type`, `statut` (`slug[,slug…]`), `genre`, `tri` (`recent` par défaut, `az`) et `pg`
+(pagination) ; filtre `yume_bibliotheque_groupes_statuts`. `yume/latest-releases` affiche une carte par
+tome, datée par ses chapitres pour un arc ou un web novel. Filtre `yume_bibliotheque_ligne_tome` : le
+module lecteurs y ajoute la progression personnelle sur les lignes de `yume/tome-list`.
 
 ## 11. Pages créées par la migration (option `yume_pages` : clé → ID)
 
@@ -312,6 +315,9 @@ les paramètres GET `type`, `statut`, `genre` et `tri`.
 | `publier` | `equipe/publier` (page enfant) | `yume/publish-form` |
 | `compte` | `compte` | `yume/account` |
 | `connexion` | `connexion` | formulaire de connexion/inscription rendu par `yume/account` quand déconnecté |
+| `actualites` | `actualites` | page des articles (`page_for_posts`) |
+| `mentions-legales` | `mentions-legales` | texte de base à compléter par l'équipe |
+| `accueil` | `accueil` | page d'accueil statique (`page_on_front`), rendue par `front-page.html` |
 
 Pages supplémentaires : `actualites` (slug `actualites`, page des articles) et `mentions-legales`
 (visée par le pied de page). Réglages de lecture : `show_on_front = page`, `page_on_front` = une page
@@ -336,7 +342,13 @@ l'interface entre l'analyse et l'exécution. Pendant l'exécution : `add_filter(
 | `POST, DELETE /moi/favoris/(?P<oeuvre>\d+)` | lecteurs | connecté |
 | `PUT /moi/notes/(?P<oeuvre>\d+)` | lecteurs | connecté ; `note` 1–5, 0 = retirer |
 | `PUT /moi/alertes/(?P<oeuvre>\d+)` | lecteurs | connecté ; `frequence` immediat/hebdo/jamais |
-| `GET /moi/export`, `DELETE /moi` | lecteurs | connecté (RGPD) |
+| `GET /moi/export`, `DELETE /moi` | lecteurs | connecté (RGPD) ; `DELETE` exige `confirmation=SUPPRIMER` et `mot_de_passe`, refusé pour l'équipe et les administrateurs |
+| `POST /planning/tomes` | planning | `yume_maj_planning_tous` — ajoute un tome brouillon au planning (œuvre, nature, numéro, titre, responsables, date cible) ; 409 si doublon |
+| `GET /planning/journal?format=rss` | planning | public — flux RSS du journal |
+| `GET /migration`, `POST /migration/executer`, `POST /migration/annuler` | migration | `manage_options` ; `confirmation=MIGRER` / `ANNULER`, exécution par lots, reprise (`ignorer`) |
+
+Précisions : `PUT /moi/alertes/{oeuvre}` répond 409 si l'œuvre n'est pas en favori ; `PUT /moi/reglages`
+accepte `reinitialiser` ; `GET /moi/progression?oeuvre=` renvoie `url`, `url_reprise` (`#yn-p-N`) et `titre`.
 
 ## 13. Tables (préfixe `{$wpdb->prefix}yume_`)
 
@@ -348,8 +360,18 @@ l'interface entre l'analyse et l'exécution. Pendant l'exécution : `add_filter(
 | `planning_journal` | `id` BIGINT AI, `tome_id`, `user_id`, `champ` VARCHAR(40), `ancien` TEXT, `nouveau` TEXT, `public` TINYINT, `created_at` ; KEY tome_id, KEY created_at | planning |
 | `notifications` | `id` AI, `destinataire` VARCHAR(190), `user_id`, `sujet` VARCHAR(255), `html` LONGTEXT, `contexte` VARCHAR(60), `statut` VARCHAR(10) DEFAULT 'attente', `tentatives` TINYINT, `created_at`, `envoye_le` ; KEY statut | planning |
 
+`planning_journal.champ` contient aussi des événements (`creation`, `publie`, `chapitre_publie`,
+`rappel`, `signalement`, `digest` ; `tome_id` 0 pour le digest). `notifications.statut` ∈ `attente`,
+`envoi` (transitoire), `envoye`, `echec`.
+
+Méta utilisateur : `yume_reglages` (`{size, lh, font, width, bgAlpha, theme}`) et `yume_alertes`
+(`{sorties, hebdo, commentaires}` booléens). Méta internes : `_yume_alerte_envoyee` (tome ou chapitre
+notifié aux lecteurs), `_yume_migration_cle`, `_yume_source_id`, `_yume_migration_run` ; options
+`yume_redirections`, `yume_migration_*` ; actions `yume_migration_terminee`, `yume_migration_annulee`.
+
 `dbDelta` : deux espaces après `PRIMARY KEY`, une colonne par ligne. Le SQL doit fonctionner
-sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développement local).
+sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développement local). Les tests tournent sur les deux moteurs
+(`YUME_DB_ENGINE=mysql` en local pour MariaDB).
 
 ## 14. Stockage navigateur (clés `localStorage`)
 
@@ -362,6 +384,10 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 API du thème pour les autres scripts : `window.ynTheme.set( 'nuit'|'papier'|'sepia' )` si elle existe
 (sinon poser l'attribut et `localStorage['yn.theme']`) ; événement `document` `yn:theme`
 (`detail.theme`) à chaque changement ; classe `html.yn-js` quand JavaScript est actif.
+
+Ancre de reprise : `#yn-p-N` (paragraphe numéroté à partir de 1) dans l'URL d'un chapitre ; le lecteur y
+défile directement. Elle est produite par la REST, la page compte, `yume/oeuvre-actions`,
+`yume/resume-reading` et les lignes de tome.
 
 Attribut `html[data-yn-theme]` = `nuit` (défaut) \| `papier` \| `sepia`, posé avant le premier rendu
 par un script en ligne du thème (pas de flash). Variables du lecteur, posées sur `.yn-reader` :
