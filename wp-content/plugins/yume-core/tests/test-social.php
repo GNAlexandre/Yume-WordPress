@@ -1414,13 +1414,13 @@ yume_test(
 		$u                      = yume_ts_membre();
 		$equipe                 = get_userdata( yume_ts_membre( 'yume_editeur' ) );
 		wp_set_current_user( $u );
-		$base    = array(
+		$base   = array(
 			'_yn_nonce'     => wp_create_nonce( 'yume_compte_profil' ),
 			'yn_retour'     => url_compte(),
 			'yn_mdp_actuel' => 'secret-123',
 		);
-		$url     = '';
-		$envois  = yume_ts_emails(
+		$url    = '';
+		$envois = yume_ts_emails(
 			static function () use ( $base, $equipe, &$url ) {
 				$url = yume_ts_post( array_merge( $base, array( 'yn_email' => $equipe->user_email ) ), static fn() => yume_ts_redirection( 'Yume\Core\Social\traiter_profil' ) );
 			}
@@ -1621,7 +1621,17 @@ yume_test(
 						'comment_approved' => 1,
 					)
 				);
-				\Yume\Core\Social\notifier_reponse( get_comment( (int) get_comments( array( 'parent' => $parent, 'number' => 1, 'fields' => 'ids' ) )[0] ) );
+				\Yume\Core\Social\notifier_reponse(
+					get_comment(
+						(int) get_comments(
+							array(
+								'parent' => $parent,
+								'number' => 1,
+								'fields' => 'ids',
+							)
+						)[0]
+					)
+				);
 			}
 		);
 		yume_assert_true( count( $envois ) >= 1 );

@@ -79,10 +79,10 @@ $yume_engrenage = '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 
 // Compte ou connexion dans la barre (maquette Lecteur : une seule barre ; l'en-tête du
 // gabarit est alors masqué par la feuille de style du bloc).
 if ( is_user_logged_in() ) {
-	$yume_membre      = wp_get_current_user();
-	$yume_url_compte  = function_exists( '\Yume\Core\Social\url_compte' ) ? \Yume\Core\Social\url_compte() : admin_url( 'profile.php' );
-	$yume_nom_membre  = (string) $yume_membre->display_name;
-	$yume_initiale    = '' !== $yume_nom_membre ? mb_strtoupper( mb_substr( $yume_nom_membre, 0, 1 ) ) : '?';
+	$yume_membre     = wp_get_current_user();
+	$yume_url_compte = function_exists( '\Yume\Core\Social\url_compte' ) ? \Yume\Core\Social\url_compte() : admin_url( 'profile.php' );
+	$yume_nom_membre = (string) $yume_membre->display_name;
+	$yume_initiale   = '' !== $yume_nom_membre ? mb_strtoupper( mb_substr( $yume_nom_membre, 0, 1 ) ) : '?';
 	/* translators: %s : pseudo du membre. */
 	$yume_lien_compte = '<a class="yn-reader-tools__compte yn-reader-tools__compte--membre" href="' . esc_url( $yume_url_compte ) . '" aria-label="' . esc_attr( sprintf( __( 'Mon compte (%s)', 'yume-core' ), $yume_nom_membre ) ) . '" title="' . esc_attr__( 'Mon compte', 'yume-core' ) . '"><span aria-hidden="true">' . esc_html( $yume_initiale ) . '</span></a>';
 } else {

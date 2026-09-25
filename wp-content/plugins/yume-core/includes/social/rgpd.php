@@ -201,6 +201,7 @@ function anonymiser_commentaires_membre( int $user_id ): int {
 			'user_id'              => 0,
 		);
 		/** This filter is documented in wp-includes/comment.php */
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtre du cœur.
 		if ( true !== apply_filters( 'wp_anonymize_comment', true, $commentaire, $anonyme ) ) {
 			continue;
 		}

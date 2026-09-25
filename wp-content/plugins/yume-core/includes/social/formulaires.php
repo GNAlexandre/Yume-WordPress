@@ -295,26 +295,32 @@ function prevenir_adresse_prise( int $user_id, string $contexte ): bool {
 	if ( 'inscription' === $contexte ) {
 		$texte = sprintf(
 			/* translators: 1 : nom du site, 2 : lien de connexion. */
-			__( "Bonjour,
+			__(
+				'Bonjour,
 
-Quelqu’un vient de demander la création d’un compte %1\$s avec cette adresse e-mail. Aucun nouveau compte n’a été créé : cette adresse est déjà associée à votre compte.
+Quelqu’un vient de demander la création d’un compte %1$s avec cette adresse e-mail. Aucun nouveau compte n’a été créé : cette adresse est déjà associée à votre compte.
 
 Si c’était vous et que vous avez oublié votre mot de passe, utilisez « Mot de passe oublié » :
 
-%2\$s
+%2$s
 
-Sinon, ignorez simplement ce message.", 'yume-core' ),
+Sinon, ignorez simplement ce message.',
+				'yume-core'
+			),
 			$site,
 			url_connexion() . '#yn-oubli'
 		);
 	} else {
 		$texte = sprintf(
 			/* translators: %s : nom du site. */
-			__( "Bonjour,
+			__(
+				'Bonjour,
 
 Quelqu’un a demandé à utiliser cette adresse e-mail pour un autre compte %s. La demande a été refusée : cette adresse reste associée à votre compte et rien n’a été modifié.
 
-Vous n’avez rien à faire.", 'yume-core' ),
+Vous n’avez rien à faire.',
+				'yume-core'
+			),
 			$site
 		);
 	}

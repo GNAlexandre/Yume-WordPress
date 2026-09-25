@@ -249,17 +249,17 @@ function amorcer_caches_planning( array $ids ): void {
  * @param bool   $a_venir     Seulement les tomes à paraître.
  * @param int    $seuil_pub   Horodatage : publiés récents depuis (0 : aucun).
  * @param int    $responsable Membre responsable (0 : tous).
- * @param bool   $public      Vue publique.
+ * @param bool   $vue_publique      Vue publique.
  * @return array<int,array<string,mixed>>
  */
-function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $etat_voulu, bool $a_venir, int $seuil_pub, int $responsable, bool $public ): array {
+function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $etat_voulu, bool $a_venir, int $seuil_pub, int $responsable, bool $vue_publique ): array {
 	$lignes = array();
 	foreach ( $ids as $id ) {
 		$o = yume_get_oeuvre_id( $id );
 		if ( $oeuvre_id && $o !== $oeuvre_id ) {
 			continue;
 		}
-		if ( $public && ( ! $o || 'publish' !== get_post_status( $o ) ) ) {
+		if ( $vue_publique && ( ! $o || 'publish' !== get_post_status( $o ) ) ) {
 			continue;
 		}
 		if ( '' !== $type && type_oeuvre( $o ) !== $type ) {
@@ -272,7 +272,7 @@ function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $et
 			}
 		}
 		$ligne = ligne_tome( $id );
-		if ( $public && 'publie' !== $ligne['etat'] && oeuvre_arretee( $o ) ) {
+		if ( $vue_publique && 'publie' !== $ligne['etat'] && oeuvre_arretee( $o ) ) {
 			continue;
 		}
 		if ( 'publie' === $ligne['etat'] ) {

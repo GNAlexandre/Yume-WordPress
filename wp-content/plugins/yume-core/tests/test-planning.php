@@ -1894,7 +1894,16 @@ yume_tp_test(
 				yume_assert_false( user_can( $d['calumi'], get_post_type_object( 'yume_tome' )->cap->create_posts ), 'un traducteur ne crée pas de tome' );
 				yume_assert_true( user_can( $d['editeur'], get_post_type_object( 'yume_tome' )->cap->create_posts ), 'un éditeur crée un tome' );
 
-				$avant = count( get_posts( array( 'post_type' => 'yume_tome', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids' ) ) );
+				$avant = count(
+					get_posts(
+						array(
+							'post_type'   => 'yume_tome',
+							'post_status' => 'any',
+							'numberposts' => -1,
+							'fields'      => 'ids',
+						)
+					)
+				);
 				$r     = yume_rest(
 					'POST',
 					'/wp/v2/tomes',
@@ -1916,7 +1925,19 @@ yume_tp_test(
 					$d['calumi']
 				);
 				yume_assert_same( 403, $r->get_status(), 'création refusée au traducteur' );
-				yume_assert_same( $avant, count( get_posts( array( 'post_type' => 'yume_tome', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids' ) ) ) );
+				yume_assert_same(
+					$avant,
+					count(
+						get_posts(
+							array(
+								'post_type'   => 'yume_tome',
+								'post_status' => 'any',
+								'numberposts' => -1,
+								'fields'      => 'ids',
+							)
+						)
+					)
+				);
 				yume_assert_not_contains( 'Tome 42', (string) wp_json_encode( yume_get_planning() ) );
 
 				// Tome dont le traducteur est l'auteur (données anciennes) : méta de planning refusées.
@@ -2078,7 +2099,7 @@ yume_tp_test(
 				} finally {
 					remove_filter( 'yume_core_notifier', '__return_false' );
 				}
-				$apres  = $mesure();
+				$apres = $mesure();
 				yume_assert_true( $apres - $base <= 3, sprintf( 'requêtes : %d pour 7 tomes, %d pour 13 tomes', $base, $apres ) );
 
 				// Les comptes groupés valent ceux calculés tome par tome.

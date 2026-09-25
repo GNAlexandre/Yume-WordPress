@@ -299,7 +299,7 @@ function mettre_a_jour( int $tome_id, array $saisie, int $user_id, array $option
 		return $propre;
 	}
 
-	$avant  = donnees_tome( $tome_id );
+	$avant = donnees_tome( $tome_id );
 	if ( ! $options['forcer'] && array_key_exists( 'etape', $propre ) ) {
 		$controle = controler_etape( $tome_id, $avant['etape'], $propre['etape'], $user_id );
 		if ( is_wp_error( $controle ) ) {

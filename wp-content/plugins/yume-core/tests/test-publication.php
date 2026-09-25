@@ -656,7 +656,7 @@ yume_test(
 yume_test(
 	'service : plusieurs chapitres d’un tome déjà annoncé = une seule annonce qui les cite tous',
 	yume_tpub(
-		function ( $ctx ) {
+		function () {
 			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
 			list( $tome, $ids ) = yume_tpub_tome_annonce( yume_tpub_oeuvre( 'Grimgar annoncé' ), array( 21, 22, 23 ) );
 			$vus                = array();
@@ -1319,16 +1319,30 @@ yume_test(
 	function () {
 		add_filter( 'yume_core_notifier', '__return_false', 99 );
 		try {
-			$oeuvre = yume_factory_post( array( 'post_type' => 'yume_oeuvre', 'post_title' => 'Œuvre slug admin' ) );
+			$oeuvre = yume_factory_post(
+				array(
+					'post_type'  => 'yume_oeuvre',
+					'post_title' => 'Œuvre slug admin',
+				)
+			);
 			$tome   = yume_factory_post(
 				array(
 					'post_type'   => 'yume_tome',
 					'post_status' => 'draft',
 					'post_title'  => 'Œuvre slug admin — Tome 12',
-					'meta_input'  => array( 'yume_oeuvre_id' => $oeuvre, 'yume_nature' => 'tome', 'yume_numero' => 12 ),
+					'meta_input'  => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_nature'    => 'tome',
+						'yume_numero'    => 12,
+					),
 				)
 			);
-			wp_update_post( array( 'ID' => $tome, 'post_status' => 'publish' ) );
+			wp_update_post(
+				array(
+					'ID'          => $tome,
+					'post_status' => 'publish',
+				)
+			);
 			yume_assert_same( 'tome-12', get_post( $tome )->post_name );
 
 			$garde = yume_factory_post(
@@ -1336,10 +1350,19 @@ yume_test(
 					'post_type'  => 'yume_tome',
 					'post_title' => 'Œuvre slug admin — Tome 13',
 					'post_name'  => 'oeuvre-slug-admin-tome-13',
-					'meta_input' => array( 'yume_oeuvre_id' => $oeuvre, 'yume_nature' => 'tome', 'yume_numero' => 13 ),
+					'meta_input' => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_nature'    => 'tome',
+						'yume_numero'    => 13,
+					),
 				)
 			);
-			wp_update_post( array( 'ID' => $garde, 'post_excerpt' => 'maj' ) );
+			wp_update_post(
+				array(
+					'ID'           => $garde,
+					'post_excerpt' => 'maj',
+				)
+			);
 			yume_assert_same( 'oeuvre-slug-admin-tome-13', get_post( $garde )->post_name );
 		} finally {
 			remove_filter( 'yume_core_notifier', '__return_false', 99 );

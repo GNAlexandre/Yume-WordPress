@@ -39,7 +39,7 @@ function args_type_tome( $args, $post_type ) {
 		return $args;
 	}
 	$caps                 = isset( $args['capabilities'] ) && is_array( $args['capabilities'] ) ? $args['capabilities'] : array();
-	$caps['create_posts']   = 'yume_maj_planning_tous';
+	$caps['create_posts'] = 'yume_maj_planning_tous';
 	$args['capabilities'] = $caps;
 	return $args;
 }

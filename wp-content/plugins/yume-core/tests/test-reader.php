@@ -603,6 +603,6 @@ yume_test(
 	function () {
 		$js = (string) file_get_contents( YUME_CORE_DIR . 'includes/reader/blocks/reader-tools/view.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 		yume_assert_contains( 'getBoundingClientRect().bottom - limite >= SEUIL_VISIBLE', $js, 'MET-7' );
-		yume_assert_contains( "config.reglages ? { theme: theme } : Object.assign( copie( enVigueur ), { theme: theme } )", $js, 'MET-8' );
+		yume_assert_contains( 'config.reglages ? { theme: theme } : Object.assign( copie( enVigueur ), { theme: theme } )', $js, 'MET-8' );
 	}
 );

@@ -822,15 +822,15 @@ function slug_tome_a_la_mise_en_ligne( $data, $postarr ) {
 		|| ! is_callable( array( $service, 'slug_a_poser' ) ) ) {
 		return $data;
 	}
-	$id      = (int) ( $postarr['ID'] ?? 0 );
-	$actuel  = $id ? get_post( $id ) : null;
-	$numero  = $id ? get_post_meta( $id, 'yume_numero', true ) : '';
+	$id     = (int) ( $postarr['ID'] ?? 0 );
+	$actuel = $id ? get_post( $id ) : null;
+	$numero = $id ? get_post_meta( $id, 'yume_numero', true ) : '';
 	if ( ! $actuel instanceof \WP_Post || '' === $numero || null === $numero ) {
 		return $data;
 	}
-	$candidat              = clone $actuel;
-	$candidat->post_name   = (string) $data['post_name'];
-	$candidat->post_title  = wp_unslash( (string) $data['post_title'] );
+	$candidat             = clone $actuel;
+	$candidat->post_name  = (string) $data['post_name'];
+	$candidat->post_title = wp_unslash( (string) $data['post_title'] );
 	if ( $service::slug_a_poser( $candidat ) ) {
 		$data['post_name'] = $service::slug_tome_existant( $id );
 	}
