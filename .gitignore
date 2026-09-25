@@ -1,0 +1,23 @@
+# Dépendances et builds
+node_modules/
+vendor/
+!wp-content/plugins/yume-core/lib/**/vendor/
+dist/
+build/
+*.zip
+
+# Environnements locaux
+*.sqlite
+*.sqlite-journal
+.ht.sqlite
+databases/
+.wp-env.override.json
+.env
+
+# Fichiers sources privés (DOCX de travail, exports du site)
+tools/fixtures/private/
+tools/migrate/export/
+
+# Système
+.DS_Store
+Thumbs.db

@@ -1,0 +1,358 @@
+# 06 · Contrat technique (référence commune des développeurs)
+
+Ce document fige les **noms, formats et interfaces partagés** entre les modules du plugin
+`yume-core` et le thème `yume`. Toute évolution d'un élément listé ici se fait ici d'abord.
+Les documents 02 à 05 décrivent le *pourquoi* ; celui-ci décrit le *quoi exactement*.
+
+## 0. Principes
+
+- PHP ≥ 8.1, WordPress ≥ 6.6 (testé sur 7.1). Aucune dépendance Composer à l'exécution, sauf la
+  bibliothèque Plugin Update Checker **vendorisée** dans `yume-core/lib/plugin-update-checker/`.
+- Site **mono-langue français** : chaînes sources directement en français,
+  `__( 'Texte', 'yume-core' )` (plugin) et `__( 'Texte', 'yume' )` (thème).
+- Espaces de noms PHP : `Yume\Core\<Module>` (classes, fonctions internes). Fonctions publiques
+  inter-modules préfixées `yume_` dans l'espace global, déclarées dans `includes/<module>/api.php`
+  et protégées par `if ( ! function_exists( … ) )` seulement si c'est utile ; jamais redéclarées ailleurs.
+- **Un module = un dossier** `includes/<module>/` avec un point d'entrée `module.php` chargé par
+  `yume-core.php`. Au chargement du fichier, un module **n'appelle aucune fonction d'un autre
+  module** : il accroche des hooks. Les appels inter-modules se font dans des callbacks (`init` ou
+  plus tard) et testent `function_exists()` quand le module appelé est optionnel.
+- Sécurité : toute route REST a un `permission_callback` réel ; toute écriture front passe par la
+  REST (nonce `wp_rest` envoyé en `X-WP-Nonce`) ou par un formulaire avec `wp_nonce_field`. Échapper
+  à la sortie (`esc_html`, `esc_attr`, `esc_url`, `wp_kses_post`), assainir à l'entrée.
+- Accessibilité : vrais `<button>`/`<a href>`/`<label>`, focus visible, `aria-*` sur les contrôles
+  icône seuls, contrastes ≥ 4,5:1. Tout le front fonctionne sans JavaScript sauf les outils de
+  lecture (réglages, marque-page) et les formulaires dynamiques de l'équipe.
+- Pas de build obligatoire : JS « vanilla » ES2019 et scripts WordPress globaux (`wp.element`,
+  `wp.apiFetch`…). CSS natif avec variables.
+
+## 1. Arborescence et propriétaires
+
+| Chemin | Propriétaire (module) |
+| --- | --- |
+| `wp-content/plugins/yume-core/yume-core.php`, `includes/blocks-support.php`, `assets/editor/`, `tests/runner.php`, `tests/helpers.php` | socle (déjà écrit, ne pas modifier sans nécessité) |
+| `includes/core/`, `tests/test-core.php`, `uninstall.php` | **core** |
+| `includes/import/`, `includes/publication/`, `tests/test-import.php`, `tests/test-publication.php`, `tools/docx2chapters/`, `tools/fixtures/*.docx` (synthétiques) | **import + publication** |
+| `includes/planning/`, `tests/test-planning.php` | **planning** (planning, équipe, rappels, notifications) |
+| `includes/reader/`, `includes/social/`, `tests/test-reader.php`, `tests/test-social.php` | **lecture + lecteurs** |
+| `includes/library/`, `tests/test-library.php` | **bibliothèque** (blocs d'affichage) |
+| `includes/migration/`, `tests/test-migration.php`, `tools/migrate/` | **migration** |
+| `includes/updater/`, `lib/`, `tests/test-updater.php`, `.github/`, `tools/localenv/` (hors wp.sh/test.sh), `tools/playground/`, `phpcs.xml.dist`, `docs/guide-equipe.md`, `docs/guide-developpeur.md` | **outillage** |
+| `wp-content/themes/yume/` | **thème** |
+
+Chaque module range ses fichiers statiques dans `includes/<module>/assets/` et ses blocs dans
+`includes/<module>/blocks/<nom>/`.
+
+## 2. Hooks du socle
+
+| Hook | Type | Rôle |
+| --- | --- | --- |
+| `yume_core_register_content` | action | Déclenché à l'activation avant l'installation ; **core** y enregistre aussi ses types de contenu (en plus de `init`) pour que le flush des règles les connaisse. |
+| `yume_core_install` | action | Création/mise à jour des tables (`dbDelta`), rôles, options par défaut. Idempotent. Appelé à l'activation et quand `YUME_CORE_VERSION` change. |
+| `yume_core_deactivate` | action | Nettoyage des tâches planifiées (`wp_clear_scheduled_hook`). |
+
+## 3. Types de contenu, taxonomies, URL (module core)
+
+| Type | Libellé | URL publique | `supports` | Statuts utilisés |
+| --- | --- | --- | --- | --- |
+| `yume_oeuvre` | Œuvre / Œuvres | `/oeuvres/{slug}/` ; archive `/oeuvres/` | title, editor, excerpt, thumbnail, comments, custom-fields, revisions | publish, draft |
+| `yume_tome` | Tome / Tomes | `/oeuvres/{oeuvre}/{slug-tome}/` (slug du tome ex. `tome-9`, `arc-7`) | title, editor, excerpt, thumbnail, comments, custom-fields, page-attributes | **draft = planifié non sorti**, future = programmé, publish = sorti |
+| `yume_chapitre` | Chapitre / Chapitres | `/lire/{oeuvre}/{slug-tome}/{numero}/` ; spéciaux `…/{slug}/` (ex. `postface`) | title, editor, comments, custom-fields, page-attributes (menu_order = ordre dans le tome) | draft, future, publish |
+
+Tous `show_in_rest => true`, `rest_base` = `oeuvres`, `tomes`, `chapitres`. `capability_type`
+`array( 'yume_oeuvre', 'yume_oeuvres' )` (idem tome/chapitre) avec `map_meta_cap => true`.
+Le titre d'un tome est lisible seul (« Grimgar of Fantasy and Ash — Tome 9 ») ; celui d'un chapitre
+aussi (« Chapitre 1 — La Crête Brumeuse »).
+
+Taxonomies (sur `yume_oeuvre`, `show_in_rest`, hiérarchiques pour type/statut) :
+
+| Taxonomie | Termes créés à l'installation (slug : nom) |
+| --- | --- |
+| `yume_type` | `light-novel` : Light novel · `web-novel` : Web novel · `manga` : Manga |
+| `yume_statut` | `en-cours` : En cours · `terminee` : Terminée · `en-pause` : En pause · `licenciee` : Licenciée · `abandonnee` : Abandonnée |
+| `yume_genre` | (libre, non hiérarchique) |
+
+Taxonomie `yume_oeuvre_liee` (non hiérarchique, sur `post`) : slug = slug de l'œuvre ; relie les
+articles d'actualité à une œuvre. Termes créés/synchronisés automatiquement avec les œuvres.
+
+## 4. Métadonnées (toutes `register_post_meta`, `show_in_rest`, `single => true`)
+
+Préfixe `yume_`. Types JSON Schema entre parenthèses. Les objets et tableaux sont déclarés avec
+un `schema` REST complet.
+
+**`yume_oeuvre`** : `yume_titres_alt` (array<string>) · `yume_auteur` (string) ·
+`yume_illustrateur` (string) · `yume_editeur_vo` (string) · `yume_nb_tomes_vo` (integer) ·
+`yume_statut_vo` (string enum `en_cours`,`termine`) · `yume_jours_sortie` (array<string> parmi
+`lundi`…`dimanche`) · `yume_liens` (array<object{label:string,url:string}>) ·
+`yume_source_traduction` (string, ex. « Édition anglaise officielle (J-Novel Club) ») ·
+`yume_banniere_id` (integer, pièce jointe) · `yume_equipe` (object{traduction:string,relecture:string,edition:string}) ·
+caches en lecture seule pour l'API : `yume_note_moyenne` (number) · `yume_nb_notes` (integer) ·
+`yume_nb_favoris` (integer) · `yume_derniere_sortie` (string, date `Y-m-d H:i:s` GMT du dernier tome/chapitre publié).
+
+**`yume_tome`** : `yume_oeuvre_id` (integer, obligatoire) · `yume_numero` (number, ex. 9, 26.5) ·
+`yume_nature` (string enum `tome`,`arc`,`ex`,`bonus`,`chapitres`) · `yume_lien_pdf` (string url) ·
+`yume_lien_epub` (string url) · `yume_equivalence` (string) · `yume_illustrations` (array<integer>) ·
+`yume_credits` (object{traduction,relecture,edition}) · **planning** : `yume_etape` (string enum
+`a_faire`,`traduction`,`relecture`,`edition`,`publie`) · `yume_avancement`
+(object{traduction:int 0-100, relecture:int, edition:int}) · `yume_responsables`
+(object{traduction:int user_id, relecture:int, edition:int}) · `yume_date_cible` (string `Y-m-d`) ·
+`yume_bloque` (boolean) · `yume_bloque_raison` (string) · `yume_derniere_maj` (string `Y-m-d H:i:s` GMT) ·
+`yume_maj_par` (integer) · `yume_note_equipe` (string, **jamais exposé publiquement** :
+`auth_callback` = capacité `yume_maj_planning`) · `yume_nb_chapitres` (integer, cache).
+
+**`yume_chapitre`** : `yume_tome_id` (integer) · `yume_oeuvre_id` (integer, dénormalisé) ·
+`yume_numero` (number ; 0 pour prologue) · `yume_sous_titre` (string) · `yume_nature` (string enum
+`chapitre`,`prologue`,`interlude`,`epilogue`,`postface`,`bonus`,`illustrations`) ·
+`yume_credits` (object{traduction,relecture,edition}) · `yume_nb_mots` (integer) ·
+`yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}).
+
+## 5. Rôles et capacités (module core, à l'installation)
+
+Capacités propres : `yume_maj_planning` (ses tomes), `yume_maj_planning_tous`, `yume_publier`,
+`yume_gerer_equipe`, `yume_reglages`, `yume_voir_equipe` (accès à /equipe/).
+Capacités de types : `edit_yume_oeuvres`, `edit_others_yume_oeuvres`, `publish_yume_oeuvres`,
+`delete_yume_oeuvres`, … (idem `yume_tomes`, `yume_chapitres`).
+
+| Rôle | Nom affiché | Capacités |
+| --- | --- | --- |
+| `subscriber` | Lecteur (renommé) | `read` |
+| `yume_traducteur`, `yume_relecteur`, `yume_graphiste` | Traducteur, Relecteur, Graphiste | `read`, `upload_files`, `yume_voir_equipe`, `yume_maj_planning`, `edit_yume_tomes` |
+| `yume_editeur` | Éditeur Yume | les précédentes + `yume_publier`, `yume_maj_planning_tous`, toutes les capacités des 3 types (y compris others/publish/delete), `edit_posts`, `publish_posts`, `edit_published_posts`, `moderate_comments`, `manage_categories` |
+| `yume_gerant` | Gérant | `yume_editeur` + `yume_gerer_equipe`, `yume_reglages`, `edit_others_posts`, `delete_others_posts`, `list_users` |
+| `administrator` | — | tout, y compris toutes les capacités `yume_*` |
+
+Fonction utilitaire : `yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool`
+(vrai si `yume_maj_planning_tous`, ou `yume_maj_planning` et l'utilisateur est un des responsables).
+
+## 6. Réglages (module core)
+
+Option unique `yume_reglages` (tableau), page *Yume → Réglages* (capacité `yume_reglages`),
+lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
+
+| Clé | Défaut | Utilisée par |
+| --- | --- | --- |
+| `discord_webhook_sorties` | `''` | planning (annonce des sorties) |
+| `discord_webhook_equipe` | `''` | planning (rappels) |
+| `rappel_jours_sans_maj` | `14` | planning |
+| `rappel_heure` | `9` | planning (heure locale Europe/Paris) |
+| `digest_jour` | `1` (lundi, 0 = dimanche) | planning |
+| `emails_lecteurs` | `true` | social |
+| `banniere_id` | `0` | bibliothèque (bloc bannière), thème |
+| `kofi_url` | `https://ko-fi.com/ynovel` | thème |
+| `discord_invite` | `https://discord.gg/tuMB3rmmWB` | thème |
+| `twitter_url` | `https://x.com/Roshidere_FR` | thème |
+| `jours_sortie` | `['mercredi','samedi','dimanche']` | planning |
+| `modele_annonce` | `Le {nature} {numero} de {oeuvre} est disponible !` | publication |
+| `github_repo` | `GNAlexandre/Yume-WordPress` | updater |
+| `maj_auto` | `true` | updater |
+
+Les modules peuvent ajouter des champs à la page via le filtre
+`yume_reglages_champs` (tableau de `array( 'key', 'label', 'type' => text|url|number|checkbox|select|media|textarea, 'section', 'options', 'description' )`).
+
+## 6 bis. Administration
+
+Menu de premier niveau **Yume** (slug `yume`, icône `dashicons-book-alt`, capacité `edit_yume_tomes`)
+créé par **core**. Les types `yume_oeuvre`, `yume_tome`, `yume_chapitre` y apparaissent
+(`show_in_menu => 'yume'`). Sous-menus : *Réglages* (core, `yume-reglages`), *Migrer* (migration,
+`yume-migrer`, capacité `manage_options`), *Publier un tome* (publication, lien vers la page
+`/equipe/publier/`). Les autres modules ajoutent leurs sous-pages avec `add_submenu_page( 'yume', … )`
+sur `admin_menu` priorité ≥ 20.
+
+## 7. API PHP partagée (signatures figées)
+
+**core** (`includes/core/api.php`) :
+
+```php
+yume_setting( string $key, $default = null );
+yume_get_tomes( int $oeuvre_id, array $args = array() ): array;      // WP_Post[] ; args: status ('publish'|'any'), order ('ASC'|'DESC' sur yume_numero), nature
+yume_get_chapitres( int $tome_id, array $args = array() ): array;    // WP_Post[] triés par menu_order puis yume_numero ; args: status
+yume_get_oeuvre_id( int $post_id ): int;                              // œuvre d'un tome ou chapitre (ou elle-même)
+yume_get_tome_id( int $chapitre_id ): int;
+yume_chapitre_voisin( int $chapitre_id, string $sens ): ?WP_Post;     // 'prev'|'next', traverse les tomes publiés de l'œuvre
+yume_get_cover_id( int $post_id ): int;                               // couverture du tome, sinon de l'œuvre, sinon 0
+yume_libelle_tome( int $tome_id, bool $court = false ): string;       // « Tome 9 », « Arc 7 », court : « T.9 »
+yume_libelle_chapitre( int $chapitre_id ): string;                    // « Chapitre 3 », « Postface »
+yume_types(): array; yume_statuts(): array; yume_natures_tome(): array; yume_etapes(): array; // slug => libellé
+yume_liens_telechargement( int $tome_id ): array;                     // ['pdf'=>url|'' , 'epub'=>url|'']
+yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool;
+yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','compte','connexion' → URL de la page (option yume_pages)
+```
+
+**planning** (`includes/planning/api.php`) :
+
+```php
+yume_planning_etat( int $tome_id ): string;         // 'publie'|'bloque'|'en_retard'|'a_lheure' (en_retard : date_cible < aujourd'hui, ou derniere_maj > rappel_jours_sans_maj jours)
+yume_get_planning( array $args = array() ): array;  // lignes : ['tome_id','oeuvre_id','oeuvre','tome','etape','avancement','responsables'=>[etape=>['id','nom']], 'date_cible','etat','derniere_maj','url_oeuvre']
+                                                    // args: 'oeuvre_id', 'type' (slug yume_type), 'etat', 'a_venir' (bool, exclut publie), 'limit', 'inclure_publies_depuis' (jours, défaut 14)
+yume_journal_planning( int $tome_id, int $user_id, string $champ, $ancien, $nouveau ): void;
+yume_queue_email( $destinataire, string $sujet, string $html, string $contexte = '' ): void; // user_id ou e-mail ; envoi par lot (cron), gabarit HTML Yume
+yume_discord( string $canal, string $texte, array $embeds = array() ): bool;                 // canal 'sorties'|'equipe'
+```
+
+**social** (`includes/social/api.php`) :
+
+```php
+yume_get_progression( int $user_id, int $oeuvre_id = 0 ): array;   // oeuvre_id=0 : toutes, triées par updated_at desc ; ligne : ['oeuvre_id','chapitre_id','tome_id','paragraphe','pourcentage','updated_at']
+yume_is_favori( int $user_id, int $oeuvre_id ): bool;
+yume_get_abonnes( int $oeuvre_id, string $frequence = 'immediat' ): array; // user_id[]
+yume_get_note( int $user_id, int $oeuvre_id ): int;                        // 0 si aucune
+```
+
+**import** : `Yume\Core\Import\Docx_Converter::convert_file( string $path, array $options = array() ): Yume\Core\Import\Result`
+et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces classes n'utilisent
+**aucune** fonction WordPress (réutilisées par l'outil en ligne de commande). Voir §9.
+
+## 8. Événements métier (actions)
+
+| Action | Arguments | Émise par | Écoutée par |
+| --- | --- | --- | --- |
+| `yume_tome_publie` | `int $tome_id` | publication (et core sur `transition_post_status` d'un tome vers `publish`, une seule fois par tome : meta `_yume_publie_notifie`) | planning (étape `publie`, 100 %, journal, Discord), social (e-mails aux abonnés), core (cache `yume_derniere_sortie`) |
+| `yume_chapitre_publie` | `int $chapitre_id` | core (`transition_post_status` d'un chapitre publié isolément, hors publication de tome) | social (abonnés), planning (Discord) |
+| `yume_planning_mis_a_jour` | `int $tome_id, array $changements, int $user_id` | planning | — |
+| `yume_publication_preparee` | `int $tome_id, array $rapport` | publication | — |
+
+Pour ne pas notifier chaque chapitre d'un tome publié en bloc, publication définit la constante
+d'exécution `yume_publication_en_cours` via `did_action`/drapeau statique ; core n'émet
+`yume_chapitre_publie` que si le tome parent était déjà publié avant.
+
+## 9. Contenu d'un chapitre (import → stockage → rendu)
+
+Le contenu est stocké en **blocs Gutenberg** (modifiable dans l'éditeur) avec ces classes :
+
+| Élément source | Bloc | Classe |
+| --- | --- | --- |
+| Paragraphe narratif | `core/paragraph` | (aucune) |
+| Dialogue (puce « — » Word, ou paragraphe commençant par « — ») | `core/paragraph` | `yn-dialogue` (texte commençant par « — » + espace insécable) |
+| Pensée (style « Pensée ») | `core/paragraph` | `yn-thought` |
+| Paragraphe centré | `core/paragraph` avec `"align":"center"` | `yn-center` |
+| Séparateur de scène (`***`, `* * *`, `◇`, ligne vide multiple) | `core/separator` | `yn-scene-break` |
+| Illustration | `core/image` (`sizeSlug` large, id de pièce jointe) | `yn-illustration` |
+| Sous-titre du chapitre | **métadonnée** `yume_sous_titre`, pas dans le contenu | — |
+| Note de bas de page | appel `<sup class="yn-note"><a href="#yn-note-n" id="yn-ref-n">n</a></sup>` + `core/list` final classe `yn-notes` | |
+
+Le titre (« Chapitre 1 ») et le sous-titre sont rendus par le bloc `yume/chapter-header`, pas par
+le contenu. Résultat d'import (`Result`) : `chapters` (liste de
+`['numero'=>?float,'nature'=>string,'titre'=>string,'sous_titre'=>string,'blocks'=>string (markup
+de blocs, images référencées par un jeton {{yume-image:<cle>}}),'nb_mots'=>int]`), `front_images`
+(images avant le premier chapitre), `images` (`cle => ['nom'=>…,'mime'=>…,'chemin_zip'=>…]`),
+`warnings` (string[]), `stats` (array).
+
+## 10. Blocs dynamiques (nom, propriétaire, attributs, classe racine)
+
+Enregistrés avec `yume_register_dynamic_block()` ; catégorie `yume` ; `supports.html=false`,
+`supports.align` si pertinent. Le rendu renvoie une chaîne vide (ou un message discret en éditeur)
+quand le contexte manque. La classe racine est toujours présente pour que le thème et les tests
+s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context['postId']`.
+
+| Bloc | Module | Attributs | Racine | Contenu |
+| --- | --- | --- | --- | --- |
+| `yume/library-menu` | bibliothèque | — | `.yn-library-menu` | Bouton « Bibliothèque ▾ » + panneau (`<details>` accessible) : types et statuts avec compteurs, « Toutes les œuvres A → Z », « Reprendre ma lecture » |
+| `yume/banner` | bibliothèque | `height` (number, 240) | `.yn-banner` | Image `banniere_id` pleine largeur (bannière actuelle du site) |
+| `yume/latest-releases` | bibliothèque | `count` (number, 6) | `.yn-releases` | Grille de couvertures des derniers tomes/chapitres publiés : badge « Nouveau » (< 7 j), titre, libellé, date, boutons Lire / PDF / EPUB |
+| `yume/library-grid` | bibliothèque | `perPage` (24), `showFilters` (true) | `.yn-library` | Filtres (GET `type`, `statut`, `tri` = recent/az) + grille de couvertures avec badge de statut |
+| `yume/oeuvre-header` | bibliothèque | — | `.yn-oeuvre-header` | Couverture, badges, titres alternatifs, fiche (auteur, illustrateur, éditeur VO, traduit), synopsis |
+| `yume/tome-list` | bibliothèque | — | `.yn-tome-list` | Tomes publiés de l'œuvre (couverture, libellé, nb chapitres, date, Lire / PDF / EPUB) |
+| `yume/tome-header` | bibliothèque | — | `.yn-tome-header` | Couverture, libellé, crédits, équivalence, boutons PDF / EPUB, galerie d'illustrations |
+| `yume/tome-toc` | bibliothèque | — | `.yn-toc` | Sommaire du tome (chapitres + temps de lecture) |
+| `yume/chapter-header` | bibliothèque | — | `.yn-chapter-header` | Fil d'Ariane, « Chapitre N », sous-titre, crédits, temps de lecture |
+| `yume/chapter-nav` | bibliothèque | — | `.yn-chapter-nav` | Précédent · Sommaire · Suivant (liens `rel=prev/next`) |
+| `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
+| `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent |
+| `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
+| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal |
+| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) |
+| `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture : progression, sommaire, marque-page, thème, panneau Paramètres |
+| `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte |
+| `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`) ; rien s'il n'y a rien |
+| `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) |
+| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion / Inscription » ou « Mon compte » (+ « Espace équipe » si capacité) |
+
+## 11. Pages créées par la migration (option `yume_pages` : clé → ID)
+
+| Clé | Slug | Contenu |
+| --- | --- | --- |
+| `bibliotheque` | `bibliotheque` | `yume/library-grid` |
+| `planning` | `planning` | `yume/planning` |
+| `equipe` | `equipe` | `yume/team-dashboard` |
+| `publier` | `equipe/publier` (page enfant) | `yume/publish-form` |
+| `compte` | `compte` | `yume/account` |
+| `connexion` | `connexion` | formulaire de connexion/inscription rendu par `yume/account` quand déconnecté |
+
+Page d'accueil : le thème fournit `front-page.html` (pas de page statique nécessaire).
+
+## 12. REST `yume/v1`
+
+| Méthode et route | Module | Permission |
+| --- | --- | --- |
+| `GET /planning` | planning | public (champs publics uniquement) |
+| `PATCH /tomes/(?P<id>\d+)/planning` | planning | `yume_user_can_edit_planning` |
+| `GET /planning/journal` | planning | public (sans notes d'équipe) |
+| `POST /publications/analyse` | publication | `yume_publier` — multipart `source` (DOCX/EPUB) → rapport sans rien créer |
+| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) |
+| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres |
+| `GET /moi` | lecteurs | connecté |
+| `GET, PUT /moi/reglages` | lecture | connecté |
+| `GET, PUT /moi/progression` | lecture | connecté |
+| `POST, DELETE /moi/favoris/(?P<oeuvre>\d+)` | lecteurs | connecté |
+| `PUT /moi/notes/(?P<oeuvre>\d+)` | lecteurs | connecté ; `note` 1–5, 0 = retirer |
+| `PUT /moi/alertes/(?P<oeuvre>\d+)` | lecteurs | connecté ; `frequence` immediat/hebdo/jamais |
+| `GET /moi/export`, `DELETE /moi` | lecteurs | connecté (RGPD) |
+
+## 13. Tables (préfixe `{$wpdb->prefix}yume_`)
+
+| Table | Colonnes | Module |
+| --- | --- | --- |
+| `favoris` | `user_id` BIGINT, `oeuvre_id` BIGINT, `frequence` VARCHAR(10) DEFAULT 'immediat', `created_at` DATETIME ; PK (user_id, oeuvre_id), KEY oeuvre_id | social |
+| `notes` | `user_id`, `oeuvre_id`, `note` TINYINT, `updated_at` ; PK (user_id, oeuvre_id) | social |
+| `progression` | `user_id`, `oeuvre_id`, `tome_id`, `chapitre_id`, `paragraphe` INT, `pourcentage` TINYINT, `updated_at` ; PK (user_id, oeuvre_id) | lecture |
+| `planning_journal` | `id` BIGINT AI, `tome_id`, `user_id`, `champ` VARCHAR(40), `ancien` TEXT, `nouveau` TEXT, `public` TINYINT, `created_at` ; KEY tome_id, KEY created_at | planning |
+| `notifications` | `id` AI, `destinataire` VARCHAR(190), `user_id`, `sujet` VARCHAR(255), `html` LONGTEXT, `contexte` VARCHAR(60), `statut` VARCHAR(10) DEFAULT 'attente', `tentatives` TINYINT, `created_at`, `envoye_le` ; KEY statut | planning |
+
+`dbDelta` : deux espaces après `PRIMARY KEY`, une colonne par ligne. Le SQL doit fonctionner
+sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développement local).
+
+## 14. Stockage navigateur (clés `localStorage`)
+
+| Clé | Contenu | Propriétaire |
+| --- | --- | --- |
+| `yn.theme` | `nuit` \| `papier` \| `sepia` | thème (bascule d'en-tête) et lecture (panneau) |
+| `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
+| `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
+
+Attribut `html[data-yn-theme]` = `nuit` (défaut) \| `papier` \| `sepia`, posé avant le premier rendu
+par un script en ligne du thème (pas de flash). Variables du lecteur, posées sur `.yn-reader` :
+`--yn-size` (px), `--yn-lh`, `--yn-font`, `--yn-width` (ch), `--yn-bg-alpha`.
+
+## 15. Design tokens (thème, `theme.json`)
+
+Couleurs (slug → CSS `var(--wp--preset--color--<slug>)`), valeurs du thème Nuit ; les thèmes
+`papier` et `sepia` redéfinissent ces variables sous `html[data-yn-theme="…"]` :
+
+`fond` #1b1231 · `bande` #241740 · `carte` #2d1f4f · `filet` #4a3b6e · `bordure` #7f6aa8 ·
+`texte-fort` #fff8fb · `texte` #ebe3f2 · `texte-faible` #b7a9cc · `accent` #f3a6c8 ·
+`accent-texte` #2a1240 · `accent-2` #f7c59f · `selection` #3a2a63 · `succes` #8fd6a3 ·
+`avertissement` #f4c069 · `erreur` #ff8f7e.
+Papier : `fond` #fdf8fa · `bande` #f6eef3 · `carte` #ffffff · `filet` #e8d9e2 · `bordure` #8a6f9e ·
+`texte-fort` #2a1240 · `texte` #2a1240 · `texte-faible` #5e4a73 · `accent` #c2437e · `accent-texte` #ffffff ·
+`accent-2` #b8642a · `selection` #f3e6ee · `succes` #2f7d5e · `avertissement` #8f5a1b · `erreur` #a63328.
+Sépia : comme Papier avec `fond` #f4ead9, `bande` #efe2cc, `carte` #fbf4e6, `filet` #e2d3b8, `texte` et `texte-fort` #3a2233, `texte-faible` #6b5443.
+
+Familles (slug → `var(--wp--preset--font-family--<slug>)`) : `titres` Outfit · `corps` Nunito Sans ·
+`mono` IBM Plex Mono · `lecture` Literata. Polices **auto-hébergées** dans le thème (woff2).
+Espacements : `--wp--preset--spacing--10…60` = 4, 8, 12, 16, 24, 32 px (slugs 10,20,30,40,50,60).
+Rayons : variables `--yn-radius` 6px, `--yn-radius-card` 10px (déclarées par le thème).
+Classes utilitaires partagées définies par le **thème** et utilisables par les blocs :
+`.yn-btn`, `.yn-btn--primary`, `.yn-btn--sm`, `.yn-chip`, `.yn-chip--ok|--warn|--err|--info|--new`,
+`.yn-card`, `.yn-cover` (couverture 2/3 avec dégradé de substitution), `.yn-label` (surtitre mono),
+`.yn-muted`, `.yn-grid-covers`, `.yn-visually-hidden`, `.yn-bar` (barre de progression, `<span style="--v:62%">`).
+Les blocs peuvent embarquer leur propre CSS **structurelle** (grille, disposition) dans leur
+`style.css`, en n'utilisant que ces variables et classes pour les couleurs.
+
+## 16. Tests et environnement local
+
+- `tools/localenv/wp.sh` et `tools/localenv/test.sh` : WP-CLI et tests sur le WordPress local
+  (`YUME_WP_PATH`, `YUME_ENV` = base SQLite isolée). Chaque module écrit `tests/test-<module>.php`
+  avec `yume_test()` et les assertions de `tests/helpers.php` ; chaque test tourne dans une
+  transaction annulée.
+- Variable `YUME_ONLY_MODULES=core,planning` (local uniquement) pour ne charger que certains modules.
+- `php -l` sur chaque fichier modifié ; aucune notice PHP dans `wp-content/debug.log` pendant les tests.
