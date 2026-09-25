@@ -914,8 +914,18 @@ final class Service {
 		}
 		$statut     = $immediat ? 'publish' : 'future';
 		$deja_sorti = 'publish' === $tome->post_status;
+		$a_publier  = array_values(
+			array_filter(
+				yume_get_chapitres( $tome_id, array( 'status' => array( 'draft', 'pending', 'future' ) ) ),
+				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true )
+			)
+		);
+		// Tome déjà en ligne qui reçoit plusieurs chapitres d'un coup (tome migré avec ses seuls
+		// PDF/EPUB mis en lecture en ligne, nouveaux chapitres en bloc) : une seule sortie, et
+		// non un événement yume_chapitre_publie (e-mails, Discord) par chapitre.
+		$groupe = $deja_sorti && $immediat && count( $a_publier ) > 1;
 
-		if ( ! $deja_sorti ) {
+		if ( ! $deja_sorti || $groupe ) {
 			/**
 			 * Une publication de tome commence : core n'émet aucun événement de sortie pendant
 			 * celle-ci (le module publication émet yume_tome_publie une fois tout publié).
@@ -926,10 +936,8 @@ final class Service {
 		}
 
 		$publies = 0;
-		foreach ( yume_get_chapitres( $tome_id, array( 'status' => array( 'draft', 'pending', 'future' ) ) ) as $chapitre ) {
-			if ( get_post_meta( $chapitre->ID, self::META_RETIRE, true ) ) {
-				continue;
-			}
+		$premier = 0;
+		foreach ( $a_publier as $chapitre ) {
 			$ok = wp_update_post(
 				array(
 					'ID'            => (int) $chapitre->ID,
@@ -942,6 +950,7 @@ final class Service {
 			);
 			if ( ! is_wp_error( $ok ) ) {
 				++$publies;
+				$premier = $premier ? $premier : (int) $chapitre->ID;
 			}
 		}
 		if ( ! $deja_sorti ) {
@@ -969,6 +978,16 @@ final class Service {
 			 * @param int $tome_id Tome.
 			 */
 			do_action( 'yume_tome_publie', $tome_id );
+		} elseif ( $groupe && $publies > 0 && 'publish' === get_post_status( $tome_id ) ) {
+			$notifie = (string) get_post_meta( $tome_id, self::META_NOTIFIE, true );
+			if ( '' === $notifie || 'ignore' === $notifie ) {
+				// Tome jamais annoncé comme sortie (migration, PDF/EPUB seuls) : c'est sa sortie
+				// en lecture en ligne. Voir contrat §8.
+				do_action( 'yume_tome_publie', $tome_id );
+			} else {
+				/** This action is documented in includes/core/events.php */
+				do_action( 'yume_chapitre_publie', $premier );
+			}
 		}
 
 		$meta = get_post_meta( $tome_id, self::META, true );

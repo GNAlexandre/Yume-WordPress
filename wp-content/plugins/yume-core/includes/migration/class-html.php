@@ -174,9 +174,9 @@ final class Html {
 	 * @param string $html Fragment HTML (UTF-8).
 	 */
 	private static function racine_dom( string $html ): ?\DOMElement {
-		$doc     = new \DOMDocument( '1.0', 'UTF-8' );
-		$ancien  = libxml_use_internal_errors( true );
-		$charge  = $doc->loadHTML(
+		$doc    = new \DOMDocument( '1.0', 'UTF-8' );
+		$ancien = libxml_use_internal_errors( true );
+		$charge = $doc->loadHTML(
 			'<?xml encoding="UTF-8"?><!DOCTYPE html><html><head><meta charset="utf-8"></head><body><div id="yume-racine">' . $html . '</div></body></html>',
 			LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING
 		);
@@ -215,6 +215,8 @@ final class Html {
 		} while ( $avant !== $sortie );
 		return trim( $sortie );
 	}
+
+	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- propriétés de l'API DOM (childNodes, nodeValue, nodeName).
 
 	/**
 	 * Sérialise récursivement les enfants d'un nœud selon les règles de nettoyer_inline().
@@ -286,7 +288,7 @@ final class Html {
 	 * Parcourt l'arbre en comptant les caractères significatifs selon qu'ils sont en italique.
 	 *
 	 * @param \DOMNode $noeud     Nœud.
-	 * @param bool     $italique  Un ancêtre est-il en italique ?
+	 * @param bool     $italique  Vrai si un ancêtre est en italique.
 	 * @param array    $compte    Compteurs (par référence).
 	 */
 	private static function parcourir_italique( \DOMNode $noeud, bool $italique, array &$compte ): void {
@@ -300,6 +302,7 @@ final class Html {
 			}
 		}
 	}
+	// phpcs:enable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 
 	/**
 	 * Le fragment est-il entièrement en italique (hors ponctuation et blancs) ?

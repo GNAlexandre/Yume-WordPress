@@ -26,7 +26,7 @@ use function Yume\Core\Core\termes_taxonomie;
  * @param mixed  $default Valeur de repli.
  * @return mixed
  */
-function yume_setting( string $key, $default = null ) {
+function yume_setting( string $key, $default = null ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound -- signature figée par le contrat (§7).
 	$reglages = get_option( 'yume_reglages', array() );
 	if ( is_array( $reglages ) && array_key_exists( $key, $reglages ) ) {
 		return $reglages[ $key ];
@@ -41,10 +41,10 @@ function yume_setting( string $key, $default = null ) {
 /**
  * Tomes d'une œuvre, triés par numéro.
  *
- * @param int                  $oeuvre_id ID de l'œuvre.
- * @param array<string,mixed>  $args      status ('publish' par défaut | 'any' | liste), order ('ASC'|'DESC'
- *                                        sur yume_numero ; les tomes sans numéro restent à la fin),
- *                                        nature (slug ou liste de slugs de yume_natures_tome()).
+ * @param int                 $oeuvre_id ID de l'œuvre.
+ * @param array<string,mixed> $args      status ('publish' par défaut | 'any' | liste), order ('ASC'|'DESC'
+ *                                       sur yume_numero ; les tomes sans numéro restent à la fin),
+ *                                       nature (slug ou liste de slugs de yume_natures_tome()).
  * @return WP_Post[]
  */
 function yume_get_tomes( int $oeuvre_id, array $args = array() ): array {

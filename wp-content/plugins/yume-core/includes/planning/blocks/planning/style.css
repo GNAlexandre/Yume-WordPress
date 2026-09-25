@@ -209,6 +209,16 @@ a.yn-planning__filtre[aria-current="true"] {
 	white-space: normal;
 }
 
+/* Raison d'un blocage trop longue pour la pastille : sous la pastille, en texte discret. */
+.yn-planning__raison {
+	display: block;
+	max-width: 24ch;
+	margin-top: 6px;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
 .yn-planning__vide {
 	padding: 20px;
 }

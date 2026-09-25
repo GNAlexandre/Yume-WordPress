@@ -4,7 +4,7 @@
  * résolution des URL, unicité des slugs par œuvre et par tome, métadonnées et schémas REST,
  * API §7, événements §8, réglages, synchronisation des termes, administration.
  *
- *   tools/localenv/test.sh core
+ * Commande : tools/localenv/test.sh core
  *
  * @package Yume\Core
  */
@@ -71,9 +71,9 @@ function yume_tc_tome( int $oeuvre_id, $numero, array $args = array() ): int {
 /**
  * Crée un chapitre publié d'un tome.
  *
- * @param int    $tome_id Tome.
- * @param mixed  $numero  Numéro (null pour un spécial).
- * @param array  $args    Arguments supplémentaires.
+ * @param int   $tome_id Tome.
+ * @param mixed $numero  Numéro (null pour un spécial).
+ * @param array $args    Arguments supplémentaires.
  */
 function yume_tc_chapitre( int $tome_id, $numero, array $args = array() ): int {
 	$meta = array( 'yume_tome_id' => $tome_id );
@@ -101,11 +101,14 @@ function yume_tc_chapitre( int $tome_id, $numero, array $args = array() ): int {
  * @return array<string,mixed>
  */
 function yume_tc_parse( string $url ): array {
-	$sauve                  = array(
+	// Valeurs brutes sauvegardées puis restaurées telles quelles (aucune sortie ni usage).
+	// phpcs:disable WordPress.Security.ValidatedSanitizedInput
+	$sauve = array(
 		'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? null,
 		'PHP_SELF'    => $_SERVER['PHP_SELF'] ?? null,
 		'PATH_INFO'   => $_SERVER['PATH_INFO'] ?? null,
 	);
+	// phpcs:enable WordPress.Security.ValidatedSanitizedInput
 	$chemin                 = (string) wp_parse_url( $url, PHP_URL_PATH );
 	$requete                = (string) wp_parse_url( $url, PHP_URL_QUERY );
 	$_SERVER['REQUEST_URI'] = $chemin . ( '' !== $requete ? '?' . $requete : '' );
@@ -158,6 +161,24 @@ function yume_tc_ecouter( string $action, callable $code ): array {
 }
 
 /**
+ * Exécute $code sans événements métier (§8) : filtre yume_core_notifier à faux, comme la
+ * migration. Sert aux jeux de données qui publient des tomes datés de maintenant quand le
+ * test ne porte pas sur les événements : sinon le planning applique légitimement le §8
+ * (étape « publie », avancements à 100) et fausse les valeurs vérifiées.
+ *
+ * @param callable $code Code à exécuter.
+ * @return mixed Valeur renvoyée par $code.
+ */
+function yume_tc_sans_evenements( callable $code ) {
+	add_filter( 'yume_core_notifier', '__return_false', 99 );
+	try {
+		return $code();
+	} finally {
+		remove_filter( 'yume_core_notifier', '__return_false', 99 );
+	}
+}
+
+/**
  * Oublie les contenus publiés « pendant cette requête » (simule une nouvelle requête).
  */
 function yume_tc_nouvelle_requete(): void {
@@ -203,7 +224,7 @@ yume_test(
 			yume_assert_true( $objet->show_in_rest );
 			yume_assert_same( 'yume', $objet->show_in_menu );
 			yume_assert_true( $objet->map_meta_cap );
-			yume_assert_same( 'edit_' . $rest_base === 'edit_oeuvres' ? 'edit_yume_oeuvres' : $objet->cap->edit_posts, $objet->cap->edit_posts );
+			yume_assert_same( 'edit_oeuvres' === 'edit_' . $rest_base ? 'edit_yume_oeuvres' : $objet->cap->edit_posts, $objet->cap->edit_posts );
 			yume_assert_true( post_type_supports( $type, 'custom-fields' ), "$type supporte custom-fields" );
 			yume_assert_true( post_type_supports( $type, 'comments' ), "$type supporte comments" );
 		}
@@ -542,48 +563,50 @@ yume_test(
 yume_test(
 	'segment d’œuvre faux, ancien slug, raccourcis /lire/ : résolus puis marqués non canoniques',
 	function () {
+		// Numéro improbable : le test ne dépend pas des tomes déjà présents dans la base (un
+		// vrai « tome-7 » publié ailleurs rendrait le slug ambigu).
 		flush_rewrite_rules( false );
-		$o    = yume_tc_oeuvre( 'Raven of the Inner Palace' );
-		$t    = yume_tc_tome( $o, 7 );
+		$o    = yume_tc_oeuvre( 'Segment faux (test)' );
+		$t    = yume_tc_tome( $o, 7913 );
 		$c    = yume_tc_chapitre( $t, 4 );
 		$slug = get_post_field( 'post_name', $o );
 
-		$qv = yume_tc_parse( home_url( '/oeuvres/mauvaise-oeuvre/tome-7/' ) );
-		yume_assert_same( $t, (int) $qv['p'], 'slug de tome unique : retrouvé malgré le mauvais segment' );
+		$qv = yume_tc_parse( home_url( '/oeuvres/mauvaise-oeuvre/tome-7913/' ) );
+		yume_assert_same( $t, (int) ( $qv['p'] ?? 0 ), 'slug de tome unique : retrouvé malgré le mauvais segment' );
 		yume_assert_same( 1, (int) $qv['yume_non_canonique'] );
 
-		$qv = yume_tc_parse( home_url( '/lire/' . $slug . '/tome-7/' ) );
-		yume_assert_same( $t, (int) $qv['p'] );
+		$qv = yume_tc_parse( home_url( '/lire/' . $slug . '/tome-7913/' ) );
+		yume_assert_same( $t, (int) ( $qv['p'] ?? 0 ) );
 		yume_assert_same( 'yume_tome', $qv['post_type'] );
 		yume_assert_same( 1, (int) $qv['yume_non_canonique'] );
 
 		$qv = yume_tc_parse( home_url( '/lire/' . $slug . '/' ) );
-		yume_assert_same( $o, (int) $qv['p'] );
+		yume_assert_same( $o, (int) ( $qv['p'] ?? 0 ) );
 
-		$qv = yume_tc_parse( home_url( '/lire/' . $slug . '/tome-7/04/' ) );
-		yume_assert_same( $c, (int) $qv['p'], 'numéro non normalisé' );
+		$qv = yume_tc_parse( home_url( '/lire/' . $slug . '/tome-7913/04/' ) );
+		yume_assert_same( $c, (int) ( $qv['p'] ?? 0 ), 'numéro non normalisé' );
 		yume_assert_same( 1, (int) $qv['yume_non_canonique'] );
 
-		$qv = yume_tc_parse( home_url( '/lire/' . $slug . '/tome-7/' . get_post_field( 'post_name', $c ) . '/' ) );
-		yume_assert_same( $c, (int) $qv['p'], 'chapitre numéroté désigné par son slug' );
+		$qv = yume_tc_parse( home_url( '/lire/' . $slug . '/tome-7913/' . get_post_field( 'post_name', $c ) . '/' ) );
+		yume_assert_same( $c, (int) ( $qv['p'] ?? 0 ), 'chapitre numéroté désigné par son slug' );
 		yume_assert_same( 1, (int) $qv['yume_non_canonique'] );
 
 		// Renommage de l'œuvre : l'ancien slug mène au tome.
 		wp_update_post(
 			array(
 				'ID'        => $o,
-				'post_name' => 'raven-nouveau',
+				'post_name' => 'segment-faux-renomme',
 			)
 		);
-		yume_assert_same( home_url( '/oeuvres/raven-nouveau/tome-7/' ), get_permalink( $t ) );
-		$qv = yume_tc_parse( home_url( '/oeuvres/' . $slug . '/tome-7/' ) );
-		yume_assert_same( $t, (int) $qv['p'] );
+		yume_assert_same( home_url( '/oeuvres/segment-faux-renomme/tome-7913/' ), get_permalink( $t ) );
+		$qv = yume_tc_parse( home_url( '/oeuvres/' . $slug . '/tome-7913/' ) );
+		yume_assert_same( $t, (int) ( $qv['p'] ?? 0 ) );
 		yume_assert_same( 1, (int) $qv['yume_non_canonique'] );
 
 		// Inconnu : 404.
-		$qv = yume_tc_parse( home_url( '/oeuvres/raven-nouveau/tome-99/' ) );
+		$qv = yume_tc_parse( home_url( '/oeuvres/segment-faux-renomme/tome-7999/' ) );
 		yume_assert_same( '404', $qv['error'] ?? '' );
-		$q = yume_tc_requete( home_url( '/lire/raven-nouveau/tome-7/99/' ) );
+		$q = yume_tc_requete( home_url( '/lire/segment-faux-renomme/tome-7913/99/' ) );
 		yume_assert_true( $q->is_404() );
 	}
 );
@@ -611,18 +634,18 @@ yume_test(
 		yume_assert_same( $slug, $qv['yume_oeuvre'] ?? '' );
 
 		$qv = yume_tc_parse( home_url( "/oeuvres/$slug/tome-1/feed/" ) );
-		yume_assert_same( $t, (int) $qv['p'] );
+		yume_assert_same( $t, (int) ( $qv['p'] ?? 0 ) );
 		yume_assert_same( 'feed', $qv['feed'] );
 
 		$qv = yume_tc_parse( home_url( "/oeuvres/$slug/tome-1/comment-page-2/" ) );
-		yume_assert_same( $t, (int) $qv['p'] );
+		yume_assert_same( $t, (int) ( $qv['p'] ?? 0 ) );
 		yume_assert_same( '2', (string) $qv['cpage'] );
 
 		$qv = yume_tc_parse( home_url( "/oeuvres/$slug/tome-1/embed/" ) );
 		yume_assert_same( 'true', (string) $qv['embed'] );
 
 		$qv = yume_tc_parse( home_url( "/lire/$slug/tome-1/2/comment-page-3/" ) );
-		yume_assert_same( $c, (int) $qv['p'] );
+		yume_assert_same( $c, (int) ( $qv['p'] ?? 0 ) );
 		yume_assert_same( '3', (string) $qv['cpage'] );
 
 		$qv = yume_tc_parse( home_url( "/lire/$slug/tome-1/2/trackback/" ) );
@@ -752,19 +775,21 @@ yume_test(
 		$admin  = yume_factory_user( 'administrator' );
 		$trad   = yume_factory_user( 'yume_traducteur' );
 		$o      = yume_tc_oeuvre( 'REST' );
-		$t      = yume_tc_tome(
-			$o,
-			26.5,
-			array(
-				'meta_input' => array(
-					'yume_note_equipe' => 'Secret de l’équipe',
-					'yume_avancement'  => array(
-						'traduction' => 100,
-						'relecture'  => 62,
-						'edition'    => 0,
+		$t      = yume_tc_sans_evenements(
+			static fn(): int => yume_tc_tome(
+				$o,
+				26.5,
+				array(
+					'meta_input' => array(
+						'yume_note_equipe' => 'Secret de l’équipe',
+						'yume_avancement'  => array(
+							'traduction' => 100,
+							'relecture'  => 62,
+							'edition'    => 0,
+						),
+						'yume_lien_pdf'    => 'https://clictune.example/pdf',
 					),
-					'yume_lien_pdf'    => 'https://clictune.example/pdf',
-				),
+				)
 			)
 		);
 		$public = yume_rest( 'GET', '/wp/v2/tomes/' . $t );
@@ -893,7 +918,7 @@ yume_test(
 		update_post_meta( $o, 'yume_statut_vo', 'fini' );
 		yume_assert_same( '', get_post_meta( $o, 'yume_statut_vo', true ) );
 
-		$t = yume_tc_tome( $o, 1 );
+		$t = yume_tc_sans_evenements( static fn(): int => yume_tc_tome( $o, 1 ) );
 		update_post_meta( $t, 'yume_date_cible', '2026-02-30' );
 		yume_assert_same( '', get_post_meta( $t, 'yume_date_cible', true ) );
 		update_post_meta( $t, 'yume_date_cible', '2026-09-27' );
@@ -1817,29 +1842,35 @@ yume_test(
 yume_test(
 	'tri des listes d’administration (SQL portable)',
 	function () {
-		$a   = yume_tc_oeuvre( 'Zeta tri' );
-		$b   = yume_tc_oeuvre( 'Alpha tri' );
-		$t1  = yume_tc_tome(
-			$a,
-			10,
-			array(
-				'meta_input' => array(
-					'yume_etape'      => 'edition',
-					'yume_date_cible' => '2026-10-01',
+		$a = yume_tc_oeuvre( 'Zeta tri' );
+		$b = yume_tc_oeuvre( 'Alpha tri' );
+
+		list( $t1, $t2, $t3 ) = yume_tc_sans_evenements(
+			static fn(): array => array(
+				yume_tc_tome(
+					$a,
+					10,
+					array(
+						'meta_input' => array(
+							'yume_etape'      => 'edition',
+							'yume_date_cible' => '2026-10-01',
+						),
+					)
+				),
+				yume_tc_tome( $a, 2, array( 'meta_input' => array( 'yume_etape' => 'traduction' ) ) ),
+				yume_tc_tome(
+					$b,
+					1,
+					array(
+						'meta_input' => array(
+							'yume_etape'      => 'a_faire',
+							'yume_date_cible' => '2026-09-28',
+						),
+					)
 				),
 			)
 		);
-		$t2  = yume_tc_tome( $a, 2, array( 'meta_input' => array( 'yume_etape' => 'traduction' ) ) );
-		$t3  = yume_tc_tome(
-			$b,
-			1,
-			array(
-				'meta_input' => array(
-					'yume_etape'      => 'a_faire',
-					'yume_date_cible' => '2026-09-28',
-				),
-			)
-		);
+
 		$ids = static function ( string $tri, string $ordre = 'ASC' ) use ( $a, $b ): array {
 			$q                                   = new WP_Query(
 				array(
@@ -1867,10 +1898,15 @@ yume_test(
 		yume_assert_same( array( $t3, $t2, $t1 ), $ids( 'yume_etape' ), 'ordre des étapes ' . $GLOBALS['yume_tc_derniere_requete'] );
 		yume_assert_same( array( $t3, $t1, $t2 ), $ids( 'yume_date_cible' ), 'sans date en dernier' );
 
-		$c1 = yume_tc_chapitre( $t1, 2 );
-		$c2 = yume_tc_chapitre( $t3, 5 );
-		$c3 = yume_tc_chapitre( $t1, 1 );
-		$q  = new WP_Query(
+		list( $c1, $c2, $c3 ) = yume_tc_sans_evenements(
+			static fn(): array => array(
+				yume_tc_chapitre( $t1, 2 ),
+				yume_tc_chapitre( $t3, 5 ),
+				yume_tc_chapitre( $t1, 1 ),
+			)
+		);
+
+		$q = new WP_Query(
 			array(
 				'post_type'      => 'yume_chapitre',
 				'posts_per_page' => -1,

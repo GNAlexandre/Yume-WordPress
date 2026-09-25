@@ -190,7 +190,7 @@ function traiter_notification( int $post_id ): void {
 }
 
 /**
- * wp_after_insert_post : émission des événements en attente.
+ * Sur wp_after_insert_post : émission des événements en attente.
  *
  * @param int $post_id ID.
  */
@@ -216,7 +216,7 @@ add_action( 'added_post_meta', __NAMESPACE__ . '\\rattachement_enregistre', 30, 
 add_action( 'updated_post_meta', __NAMESPACE__ . '\\rattachement_enregistre', 30, 3 );
 
 /**
- * yume_tome_publie (priorité 0) : quel que soit l'émetteur (core ou publication), le tome est
+ * Sur yume_tome_publie (priorité 0) : quel que soit l'émetteur (core ou publication), le tome est
  * marqué comme notifié pour ne jamais l'être deux fois.
  *
  * @param int $tome_id ID du tome.
@@ -230,7 +230,7 @@ function marquer_tome_publie( $tome_id ): void {
 add_action( 'yume_tome_publie', __NAMESPACE__ . '\\marquer_tome_publie', 0 );
 
 /**
- * yume_tome_publie (core) : cache yume_derniere_sortie de l'œuvre et nombre de chapitres.
+ * Sur yume_tome_publie (core) : cache yume_derniere_sortie de l'œuvre et nombre de chapitres.
  *
  * @param int $tome_id ID du tome.
  */

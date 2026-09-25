@@ -63,6 +63,17 @@
 	border-top: 1px solid var(--wp--preset--color--filet);
 }
 
+/* Progression du lecteur connecté (filtre yume_bibliotheque_ligne_tome, module lecteurs) :
+   tome en cours mis en avant, comme la maquette Oeuvre. */
+.yn-tome-list .yn-tome-list__ligne--lecture {
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-tome-list__progression {
+	font-size: 12px;
+	white-space: nowrap;
+}
+
 .yn-tome-list__couverture {
 	display: block;
 	width: 72px;

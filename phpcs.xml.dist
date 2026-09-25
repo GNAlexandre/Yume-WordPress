@@ -28,6 +28,8 @@
 	<exclude-pattern>*/dist/*</exclude-pattern>
 	<exclude-pattern>*/build/*</exclude-pattern>
 	<exclude-pattern>tools/fixtures/*</exclude-pattern>
+	<!-- Fichier de traduction au format de WordPress (nom et tableau imposés). -->
+	<exclude-pattern>tools/preprod/langues/*</exclude-pattern>
 	<exclude-pattern>*.asset.php</exclude-pattern>
 
 	<arg name="extensions" value="php"/>

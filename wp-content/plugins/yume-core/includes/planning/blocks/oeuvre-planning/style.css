@@ -56,3 +56,9 @@
 .yn-oeuvre-planning .yn-oeuvre-planning__lien:hover {
 	text-decoration: underline;
 }
+
+/* Pastille d'état avec une raison de blocage longue : retour à la ligne dans la carte. */
+.yn-oeuvre-planning .yn-chip {
+	max-width: 100%;
+	white-space: normal;
+}

@@ -822,6 +822,24 @@ yume_test(
 		yume_assert_same( $page, redirection_connexion( $page, $page, $lecteur ) );
 		yume_assert_same( url_compte(), redirection_connexion( 'https://ailleurs.example/', 'https://ailleurs.example/', $lecteur ), 'hôte externe refusé' );
 		yume_assert_same( admin_url(), redirection_connexion( admin_url(), '', $editeur ), 'équipe inchangée' );
+
+		// Traducteur (sans accès à la rédaction) : espace équipe plutôt que le profil de wp-admin.
+		$traducteur = get_userdata( yume_factory_user( 'yume_traducteur' ) );
+		yume_assert_same( admin_url( 'profile.php' ), redirection_connexion( admin_url( 'profile.php' ), '', $traducteur ), 'sans page équipe : défaut de WordPress' );
+		$pages           = get_option( 'yume_pages' );
+		$pages['equipe'] = yume_factory_post(
+			array(
+				'post_type'    => 'page',
+				'post_title'   => 'Équipe',
+				'post_name'    => 'equipe-' . wp_rand( 1, 99999 ),
+				'post_content' => '<!-- wp:yume/team-dashboard /-->',
+			)
+		);
+		update_option( 'yume_pages', $pages );
+		yume_assert_same( yume_url_page( 'equipe' ), redirection_connexion( admin_url( 'profile.php' ), '', $traducteur ) );
+		yume_assert_same( yume_url_page( 'equipe' ), redirection_connexion( admin_url( 'profile.php' ), admin_url(), $traducteur ) );
+		yume_assert_same( $page, redirection_connexion( $page, $page, $traducteur ), 'page demandée respectée' );
+		yume_assert_same( admin_url(), redirection_connexion( admin_url(), '', $editeur ), 'éditeur : tableau de bord' );
 	}
 );
 
@@ -1221,5 +1239,100 @@ yume_test(
 		yume_assert_not_contains( 'Espace équipe', $lecteur );
 		yume_assert_contains( 'Espace équipe', $equipe );
 		yume_assert_contains( 'Mon compte', $equipe );
+	}
+);
+
+yume_test(
+	'fiche œuvre : progression du membre sur les lignes de tome (En cours · %, Reprendre #yn-p-N, lu ✓, Relire)',
+	function () {
+		if ( ! function_exists( '\Yume\Core\Reader\enregistrer_progression' ) || ! WP_Block_Type_Registry::get_instance()->is_registered( 'yume/tome-list' ) ) {
+			return; // Modules lecture ou bibliothèque absents (YUME_ONLY_MODULES).
+		}
+		add_filter( 'yume_core_notifier', '__return_false' );
+		try {
+			$oeuvre = yume_factory_post(
+				array(
+					'post_type'  => 'yume_oeuvre',
+					'post_title' => 'Progression ' . wp_rand( 1, 999999 ),
+				)
+			);
+			$tomes  = array();
+			$chaps  = array();
+			foreach ( array( 1, 2, 3 ) as $n ) {
+				$tomes[ $n ] = yume_factory_post(
+					array(
+						'post_type'  => 'yume_tome',
+						'post_title' => 'Tome ' . $n,
+						'post_name'  => 'tome-' . $n,
+						'meta_input' => array(
+							'yume_oeuvre_id' => $oeuvre,
+							'yume_numero'    => $n,
+							'yume_nature'    => 'tome',
+						),
+					)
+				);
+				foreach ( array( 1, 2, 3, 4 ) as $i ) {
+					$chaps[ $n ][ $i ] = yume_factory_post(
+						array(
+							'post_type'    => 'yume_chapitre',
+							'post_title'   => 'Chapitre ' . $i,
+							'post_name'    => 'chapitre-' . $i,
+							'menu_order'   => $i,
+							'post_content' => '<!-- wp:paragraph --><p>Texte.</p><!-- /wp:paragraph -->',
+							'meta_input'   => array(
+								'yume_tome_id' => $tomes[ $n ],
+								'yume_numero'  => $i,
+								'yume_nature'  => 'chapitre',
+								'yume_nb_mots' => 1000,
+							),
+						)
+					);
+				}
+			}
+		} finally {
+			remove_filter( 'yume_core_notifier', '__return_false' );
+		}
+		$rendu = static function () use ( $oeuvre ): string {
+			wp_cache_flush();
+			return (string) yume_ts_sur( $oeuvre, static fn() => yume_render_block( 'yume/tome-list' ) );
+		};
+
+		// Visiteur, puis membre sans position : lignes inchangées.
+		$visiteur = $rendu();
+		yume_assert_contains( 'Lire en ligne', $visiteur );
+		yume_assert_not_contains( 'Reprendre', $visiteur );
+		$membre = yume_ts_membre();
+		wp_set_current_user( $membre );
+		yume_assert_not_contains( 'yn-tome-list__ligne--', $rendu() );
+
+		// Tome 2, chapitre 3, à mi-chapitre, paragraphe 11 (index 10) : 2,5 chapitres sur 4.
+		\Yume\Core\Reader\enregistrer_progression( $membre, $chaps[2][3], 10, 50 );
+		$html = $rendu();
+		wp_set_current_user( 0 );
+		yume_assert_same( 1, substr_count( $html, 'yn-tome-list__ligne--lecture' ), 'une seule ligne mise en avant' );
+		yume_assert_contains( 'En cours · 63 %', $html, 'avancement du tome pondéré par les mots' );
+		yume_assert_contains( 'vous en êtes au chapitre 3', $html );
+		yume_assert_contains( esc_url( get_permalink( $chaps[2][3] ) . '#yn-p-11' ), $html, 'Reprendre vers le paragraphe retenu' );
+		yume_assert_same( 1, substr_count( $html, '>Reprendre<' ) );
+		yume_assert_same( 1, substr_count( $html, 'yn-tome-list__ligne--lu' ), 'tome 1 lu' );
+		yume_assert_contains( '4 chapitres · lu ✓', $html );
+		yume_assert_contains( esc_url( get_permalink( $chaps[1][1] ) ), $html, 'Relire : premier chapitre du tome 1' );
+		yume_assert_same( 1, substr_count( $html, '>Relire<' ) );
+		yume_assert_same( 1, substr_count( $html, '>Lire en ligne<' ), 'tome 3 inchangé' );
+		yume_assert_true( strpos( $html, 'yn-tome-list__ligne--lecture' ) < strpos( $html, 'yn-tome-list__ligne--lu' ), 'du plus récent au plus ancien' );
+
+		// Dernier chapitre du tome terminé : le tome passe en « lu ».
+		\Yume\Core\Reader\enregistrer_progression( $membre, $chaps[2][4], 30, 100 );
+		wp_set_current_user( $membre );
+		$html = $rendu();
+		wp_set_current_user( 0 );
+		yume_assert_same( 2, substr_count( $html, 'yn-tome-list__ligne--lu' ) );
+		yume_assert_not_contains( 'yn-tome-list__ligne--lecture', $html );
+
+		// Un autre membre ne voit pas cette progression.
+		wp_set_current_user( yume_ts_membre() );
+		$autre = $rendu();
+		wp_set_current_user( 0 );
+		yume_assert_not_contains( 'lu ✓', $autre );
 	}
 );

@@ -123,11 +123,16 @@ function yume_uninstall_purger(): void {
 	foreach ( $options as $option ) {
 		delete_option( (string) $option );
 	}
+	// Méta utilisateur publiques (yume_reglages, yume_alertes) et internes (_yume_email_en_attente).
 	$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s", $wpdb->esc_like( 'yume_' ) . '%' )
+		$wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s OR meta_key LIKE %s", $wpdb->esc_like( 'yume_' ) . '%', $wpdb->esc_like( '_yume_' ) . '%' )
 	);
 	$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_yume_' ) . '%' )
+	);
+	// Méta internes des commentaires (_yume_reponse_notifiee).
+	$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->prepare( "DELETE FROM {$wpdb->commentmeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_yume_' ) . '%' )
 	);
 	wp_cache_flush();
 }

@@ -633,6 +633,26 @@ yume_tp_test(
 				yume_assert_false( in_array( $recent, $ids, true ) );
 				$ids = array_column( yume_get_planning( array( 'public' => false ) ), 'tome_id' );
 				yume_assert_true( in_array( $cache, $ids, true ) && in_array( $prive, $ids, true ), 'visibles pour l’équipe' );
+
+				// Série abandonnée ou licenciée : ses tomes à paraître sortent du planning public.
+				$arretee = yume_tp_oeuvre( 'Série arrêtée' );
+				wp_set_object_terms( $arretee, 'abandonnee', 'yume_statut' );
+				$attente = yume_tp_tome( $arretee, 3 );
+				$sorti   = yume_tp_tome(
+					$arretee,
+					2,
+					array(
+						'yume_etape'        => 'publie',
+						'yume_derniere_maj' => yume_tp_gmt( -2 ),
+					),
+					'publish'
+				);
+				$ids     = array_column( yume_get_planning(), 'tome_id' );
+				yume_assert_false( in_array( $attente, $ids, true ), 'tome à paraître d’une série abandonnée masqué' );
+				yume_assert_true( in_array( $sorti, $ids, true ), 'sortie récente conservée' );
+				yume_assert_true( in_array( $attente, array_column( yume_get_planning( array( 'public' => false ) ), 'tome_id' ), true ), 'visible pour l’équipe' );
+				wp_set_object_terms( $arretee, 'en-cours', 'yume_statut' );
+				yume_assert_true( in_array( $attente, array_column( yume_get_planning(), 'tome_id' ), true ), 'série reprise' );
 			}
 		);
 	}

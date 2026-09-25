@@ -164,7 +164,7 @@ function renommer_abonne_init(): void {
 add_action( 'init', __NAMESPACE__ . '\\renommer_abonne_init', 1 );
 
 /**
- * translate_user_role() ne connaît pas « Lecteur » : le nom est rendu tel quel.
+ * La fonction translate_user_role() ne connaît pas « Lecteur » : le nom est rendu tel quel.
  *
  * @param string $traduction Traduction.
  * @param string $texte      Texte original.

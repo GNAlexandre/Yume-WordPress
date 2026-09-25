@@ -334,7 +334,8 @@ function enregistrer_oeuvre( $post_id ): void {
 	ecrire_meta( $post_id, 'yume_auteur', san_texte( saisie( 'auteur' ) ) );
 	ecrire_meta( $post_id, 'yume_illustrateur', san_texte( saisie( 'illustrateur' ) ) );
 	ecrire_meta( $post_id, 'yume_editeur_vo', san_texte( saisie( 'editeur_vo' ) ) );
-	ecrire_meta( $post_id, 'yume_nb_tomes_vo', san_entier( saisie( 'nb_tomes_vo' ) ) ?: '' );
+	$nb_tomes = san_entier( saisie( 'nb_tomes_vo' ) );
+	ecrire_meta( $post_id, 'yume_nb_tomes_vo', $nb_tomes ? $nb_tomes : '' );
 	ecrire_meta( $post_id, 'yume_statut_vo', san_enum( saisie( 'statut_vo' ), array( 'en_cours', 'termine' ) ) );
 	ecrire_meta( $post_id, 'yume_source_traduction', san_texte( saisie( 'source_traduction' ) ) );
 	ecrire_meta( $post_id, 'yume_jours_sortie', san_jours( (array) saisie( 'jours_sortie' ) ) );

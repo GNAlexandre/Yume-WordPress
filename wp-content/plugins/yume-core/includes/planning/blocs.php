@@ -96,6 +96,23 @@ function texte_etat( array $ligne ): string {
 }
 
 /**
+ * Cellule « État » du tableau public : pastille, avec la raison d'un blocage dans la pastille
+ * si elle est courte (« Bloqué · relecteur manquant »), sinon en texte discret sous la pastille
+ * (une raison longue ne déforme pas la colonne).
+ *
+ * @param array $ligne Ligne.
+ */
+function cellule_etat( array $ligne ): string {
+	if ( 'bloque' !== $ligne['etat'] || '' === $ligne['bloque_raison'] ) {
+		return pastille( $ligne['etat'] );
+	}
+	if ( mb_strlen( $ligne['bloque_raison'] ) <= 32 ) {
+		return pastille( $ligne['etat'], texte_etat( $ligne ) );
+	}
+	return pastille( $ligne['etat'] ) . '<span class="yn-planning__raison">' . esc_html( $ligne['bloque_raison'] ) . '</span>';
+}
+
+/**
  * Barre de progression décorative (le pourcentage est écrit à côté).
  *
  * @param int    $pct      Pourcentage.
@@ -545,7 +562,7 @@ function rendu_planning( array $attributs ): string {
 				$sortie = esc_html( date_cible_lisible( $l['date_cible'], 'en_retard' === $l['etat'] ) );
 			}
 			$html .= '<td role="cell" data-label="' . esc_attr__( 'Sortie prévue', 'yume-core' ) . '">' . $sortie . '</td>';
-			$html .= '<td role="cell" data-label="' . esc_attr__( 'État', 'yume-core' ) . '">' . pastille( $l['etat'], 'bloque' === $l['etat'] ? texte_etat( $l ) : '' ) . '</td>';
+			$html .= '<td role="cell" data-label="' . esc_attr__( 'État', 'yume-core' ) . '">' . cellule_etat( $l ) . '</td>';
 			$html .= '<td role="cell" data-label="' . esc_attr__( 'Dernière maj', 'yume-core' ) . '"><span class="yn-muted">' . esc_html( il_y_a( (int) $l['ts_activite'] ) ) . '</span></td>';
 			$html .= '</tr>';
 		}

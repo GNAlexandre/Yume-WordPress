@@ -1582,6 +1582,18 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 	border-radius: var(--yn-radius-card);
 }
 
+/* Couverture (image portrait) : entière, centrée, à hauteur limitée. Le bloc pose
+   object-fit: cover en style en ligne, d'où !important. */
+.yn-article__image.yn-article__image--portrait img {
+	display: block;
+	width: auto;
+	max-width: 100%;
+	height: auto;
+	max-height: 480px;
+	margin-inline: auto;
+	object-fit: contain !important;
+}
+
 .yn-article__pied {
 	margin-block-start: 40px !important;
 	padding-top: 20px;
@@ -1905,6 +1917,12 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 .yn-commentaires .must-log-in {
 	color: var(--wp--preset--color--texte-faible);
 	font-size: 13px;
+}
+
+/* Liens dans une phrase (« Se déconnecter »…) : soulignés, la couleur seule ne suffit pas. */
+.yn-commentaires :is(.comment-notes, .logged-in-as, .must-log-in) a {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
 }
 
 .yn-commentaires .required {

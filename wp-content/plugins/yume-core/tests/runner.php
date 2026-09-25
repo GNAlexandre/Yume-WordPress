@@ -2,7 +2,7 @@
 /**
  * Lanceur de tests Yume, exécuté dans WordPress via WP-CLI :
  *
- *   wp eval-file wp-content/plugins/yume-core/tests/runner.php [module ...]
+ * Commande : wp eval-file wp-content/plugins/yume-core/tests/runner.php [module ...].
  *
  * Charge tests/test-*.php (ou seulement ceux des modules passés en argument), exécute chaque
  * test dans une transaction annulée à la fin, et sort avec un code non nul en cas d'échec.

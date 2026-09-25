@@ -2,7 +2,7 @@
 #
 #   syntaxe      php -l sur PHP 8.1, 8.2, 8.3 et 8.4 (plugin, bibliothèque vendorisée, thème, outils),
 #                blueprints Playground régénérés depuis tools/playground/demo.php
-#   normes       PHPCS : WordPress-Extra + WordPress-Docs + phpcs.xml.dist (non bloquant, voir plus bas)
+#   normes       PHPCS : WordPress-Extra + WordPress-Docs + phpcs.xml.dist (bloquant : zéro écart)
 #   tests        WordPress fr_FR + SQLite monté comme tools/localenv, puis tests/runner.php
 #   archives     dist/yume-core.zip et dist/yume.zip en artefacts téléchargeables
 #
@@ -53,10 +53,8 @@ jobs:
     name: Normes de code (PHPCS)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # Non bloquant pendant la construction de la v2 : les écarts apparaissent en annotations sur
-    # la pull request et le job peut échouer sans faire échouer la CI. À passer à false (ou à
-    # supprimer) dès que phpcs ne signale plus rien : voir docs/guide-developpeur.md, « Conventions ».
-    continue-on-error: true
+    # Bloquant : phpcs ne signale plus rien sur le dépôt (erreurs et avertissements). Les écarts
+    # apparaissent aussi en annotations sur la pull request. Voir docs/guide-developpeur.md.
     steps:
       - uses: actions/checkout@v4
 

@@ -33,6 +33,35 @@ function type_oeuvre( int $oeuvre_id ): string {
 }
 
 /**
+ * La traduction de l'œuvre est-elle arrêtée (série abandonnée ou licenciée) ? Ses tomes
+ * encore à paraître n'ont pas leur place dans le planning public.
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function oeuvre_arretee( int $oeuvre_id ): bool {
+	if ( ! $oeuvre_id || ! taxonomy_exists( 'yume_statut' ) ) {
+		return false;
+	}
+	/**
+	 * Statuts d'œuvre (slugs yume_statut) dont les tomes à paraître sont masqués du planning
+	 * public (ils restent dans l'espace équipe).
+	 *
+	 * @param string[] $statuts Défaut : abandonnee, licenciee.
+	 */
+	$arretes = (array) apply_filters( 'yume_planning_statuts_arretes', array( 'abandonnee', 'licenciee' ) );
+	$termes  = get_the_terms( $oeuvre_id, 'yume_statut' );
+	if ( ! is_array( $termes ) || ! $termes ) {
+		return false;
+	}
+	foreach ( $termes as $terme ) {
+		if ( in_array( $terme->slug, $arretes, true ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Ligne complète (usage interne et équipe) du planning d'un tome.
  *
  * @param int $tome_id Tome.
@@ -176,6 +205,9 @@ function lignes_planning( array $args = array() ): array {
 			}
 		}
 		$ligne = ligne_tome( $id );
+		if ( $public && 'publie' !== $ligne['etat'] && oeuvre_arretee( $o ) ) {
+			continue;
+		}
 		if ( 'publie' === $ligne['etat'] ) {
 			if ( $a_venir || ! $seuil_pub || ts_gmt( $ligne['date_sortie'] ) < $seuil_pub ) {
 				continue;

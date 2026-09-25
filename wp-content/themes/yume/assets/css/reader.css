@@ -176,7 +176,8 @@
 	color: var(--wp--preset--color--accent);
 }
 
-/* Illustrations pleine largeur de colonne. */
+/* Illustrations : largeur de la colonne au plus, sans agrandir les petites images
+   (ornements, cartes de moins de 400 px), centrées. */
 figure.yn-illustration,
 .yn-reader figure.yn-illustration {
 	margin: 2em 0;
@@ -186,7 +187,8 @@ figure.yn-illustration,
 figure.yn-illustration img,
 .yn-reader figure.yn-illustration img {
 	display: block;
-	width: 100%;
+	width: auto;
+	max-width: 100%;
 	height: auto;
 	margin-inline: auto;
 	border-radius: 8px;

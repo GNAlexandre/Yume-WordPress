@@ -90,9 +90,11 @@ add_action( 'init', __NAMESPACE__ . '\\verifier_schema', 98 );
 function recurrences( $recurrences ): array {
 	$recurrences = (array) $recurrences;
 	if ( ! isset( $recurrences[ RECURRENCE_ENVOI ] ) ) {
+		// Le filtre peut s'exécuter avant init (Plugin Update Checker planifie ses vérifications
+		// sur plugins_loaded) : pas de traduction avant init, sinon notice de chargement précoce.
 		$recurrences[ RECURRENCE_ENVOI ] = array(
 			'interval' => 5 * MINUTE_IN_SECONDS,
-			'display'  => __( 'Toutes les 5 minutes (Yume)', 'yume-core' ),
+			'display'  => did_action( 'init' ) ? __( 'Toutes les 5 minutes (Yume)', 'yume-core' ) : 'Toutes les 5 minutes (Yume)',
 		);
 	}
 	return $recurrences;

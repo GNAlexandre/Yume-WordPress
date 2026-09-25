@@ -110,16 +110,16 @@ final class Migration_Planner {
 	 *                       'date_import' (« Y-m-d H:i:s » de yume_source.importe_le).
 	 */
 	public function __construct( array $export, array $options = array() ) {
-		$this->export  = Export_Loader::normaliser( $export );
-		$maintenant    = gmdate( 'Y-m-d\TH:i:s\Z' );
-		$this->options = array_merge(
+		$this->export   = Export_Loader::normaliser( $export );
+		$maintenant     = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$this->options  = array_merge(
 			array(
 				'genere_le'   => $maintenant,
 				'date_import' => gmdate( 'Y-m-d H:i:s' ),
 			),
 			$options
 		);
-		$site          = $this->export['site'];
+		$site           = $this->export['site'];
 		$this->domaines = array_values(
 			array_unique(
 				array_map(
@@ -296,8 +296,8 @@ final class Migration_Planner {
 		$par_chemin    = array();
 		$fiche_par_cle = array();
 		foreach ( $fiches as $id => $fiche ) {
-			$oeuvres[ $fiche['slug'] ]       = $this->plan_oeuvre( $fiche );
-			$fiche_par_cle[ $fiche['slug'] ] = $fiche;
+			$oeuvres[ $fiche['slug'] ]                    = $this->plan_oeuvre( $fiche );
+			$fiche_par_cle[ $fiche['slug'] ]              = $fiche;
 			$par_chemin[ $this->chemin( $pages[ $id ] ) ] = array(
 				'type' => 'oeuvre',
 				'cle'  => $fiche['slug'],
@@ -339,7 +339,7 @@ final class Migration_Planner {
 			foreach ( $arc['avertissements'] as $message ) {
 				$this->avertir( 'attention', 'arc', $message, $id );
 			}
-			$plan_tome = $this->plan_tome_arc( $oeuvres[ $oeuvre ], $fiche_par_cle[ $oeuvre ], $arc, $arc_fiche );
+			$plan_tome                 = $this->plan_tome_arc( $oeuvres[ $oeuvre ], $fiche_par_cle[ $oeuvre ], $arc, $arc_fiche );
 			$par_chemin[ $chemin_arc ] = array(
 				'type' => 'tome',
 				'cle'  => $plan_tome['cle'],
@@ -388,13 +388,13 @@ final class Migration_Planner {
 				continue;
 			}
 			$this->avertir( 'attention', 'chapitre', sprintf( 'Page « %s » absente de la liste de l’arc %d : ajoutée en fin d’arc.', $source['source_titre'], $source['tome_numero'] ), $id );
-			$annonce   = array(
+			$annonce                                      = array(
 				'numero' => $source['numero'],
 				'titre'  => $source['sous_titre'],
 			);
-			$plan_chap = $this->plan_chapitre_page( $oeuvre, $tomes[ $cle_t ], $source, $annonce, count( $tomes[ $cle_t ]['chapitres'] ) + 1 );
-			$chapitres[ $plan_chap['cle'] ]  = $plan_chap;
-			$tomes[ $cle_t ]['chapitres'][] = $plan_chap['cle'];
+			$plan_chap                                    = $this->plan_chapitre_page( $oeuvre, $tomes[ $cle_t ], $source, $annonce, count( $tomes[ $cle_t ]['chapitres'] ) + 1 );
+			$chapitres[ $plan_chap['cle'] ]               = $plan_chap;
+			$tomes[ $cle_t ]['chapitres'][]               = $plan_chap['cle'];
 			$par_chemin[ $this->chemin( $pages[ $id ] ) ] = array(
 				'type' => 'chapitre',
 				'cle'  => $plan_chap['cle'],
@@ -402,7 +402,7 @@ final class Migration_Planner {
 		}
 
 		// 6. Articles : classement, œuvre liée, dates et liens des tomes.
-		$index = Legacy_Post_Parser::index_oeuvres(
+		$index    = Legacy_Post_Parser::index_oeuvres(
 			array_map(
 				static fn( $o ) => array(
 					'cle'        => $o['cle'],
@@ -474,7 +474,7 @@ final class Migration_Planner {
 		$chapitres = array_values( $chapitres );
 		$medias    = $this->plan_medias( $oeuvres, $tomes, $chapitres );
 
-		$plan = array(
+		$plan            = array(
 			'version'        => self::VERSION,
 			'genere_le'      => (string) $this->options['genere_le'],
 			'source'         => array(
@@ -717,24 +717,24 @@ final class Migration_Planner {
 			),
 			'thumbnail_id'   => 0,
 			'meta'           => array(
-				'yume_numero'       => $numero,
-				'yume_nature'       => $nature,
-				'yume_lien_pdf'     => '',
-				'yume_lien_epub'    => '',
-				'yume_equivalence'  => '',
+				'yume_numero'        => $numero,
+				'yume_nature'        => $nature,
+				'yume_lien_pdf'      => '',
+				'yume_lien_epub'     => '',
+				'yume_equivalence'   => '',
 				'yume_illustrations' => array(),
-				'yume_credits'      => array(
+				'yume_credits'       => array(
 					'traduction' => '',
 					'relecture'  => '',
 					'edition'    => '',
 				),
-				'yume_etape'        => 'publie',
-				'yume_avancement'   => array(
+				'yume_etape'         => 'publie',
+				'yume_avancement'    => array(
 					'traduction' => 100,
 					'relecture'  => 100,
 					'edition'    => 100,
 				),
-				'yume_nb_chapitres' => 0,
+				'yume_nb_chapitres'  => 0,
 			),
 			'date_source'    => '',
 			'liens'          => array(),
@@ -752,23 +752,23 @@ final class Migration_Planner {
 	 * @return array<string,mixed>
 	 */
 	private function plan_tome_fiche( array $fiche, array $tome ): array {
-		$plan                    = $this->tome_base( $fiche['slug'], $fiche['titre'], $tome['nature'], $tome['numero'] );
-		$plan['source']          = array(
+		$plan                           = $this->tome_base( $fiche['slug'], $fiche['titre'], $tome['nature'], $tome['numero'] );
+		$plan['source']                 = array(
 			'type'  => 'fiche',
 			'id'    => $fiche['source_id'],
 			'bloc'  => $tome['bloc_index'],
 			'url'   => $fiche['source_url'],
 			'texte' => $tome['libelle_source'],
 		);
-		$plan['thumbnail_id']    = $tome['couverture_id'];
+		$plan['thumbnail_id']           = $tome['couverture_id'];
 		$plan['meta']['yume_lien_pdf']  = $tome['lien_pdf'];
 		$plan['meta']['yume_lien_epub'] = $tome['lien_epub'];
-		$plan['liens']           = $tome['liens'];
-		$plan['couverture_url']  = $tome['couverture_url'];
+		$plan['liens']                  = $tome['liens'];
+		$plan['couverture_url']         = $tome['couverture_url'];
 
 		$contenu = array();
 		if ( null !== $tome['chapitres_plage'] ) {
-			$plage                   = sprintf( 'Chapitres %s à %s', Legacy_Oeuvre_Parser::numero_fr( $tome['chapitres_plage']['de'] ), Legacy_Oeuvre_Parser::numero_fr( $tome['chapitres_plage']['a'] ) );
+			$plage                        = sprintf( 'Chapitres %s à %s', Legacy_Oeuvre_Parser::numero_fr( $tome['chapitres_plage']['de'] ), Legacy_Oeuvre_Parser::numero_fr( $tome['chapitres_plage']['a'] ) );
 			$plan['post']['post_excerpt'] = $plage;
 			$plan['chapitres_plage']      = $tome['chapitres_plage'];
 			$contenu[]                    = Blocks::paragraphe( Html::attr( $plage . '.' ) );
@@ -829,17 +829,17 @@ final class Migration_Planner {
 	 * @return array<string,mixed>
 	 */
 	private function plan_tome_arc( array $oeuvre, array $fiche, array $arc, ?array $arc_fiche ): array {
-		$plan                   = $this->tome_base( $oeuvre['cle'], $oeuvre['post']['post_title'], 'arc', (float) $arc['numero'], ' : ' . $arc['titre'] );
-		$plan['source']         = array(
+		$plan                             = $this->tome_base( $oeuvre['cle'], $oeuvre['post']['post_title'], 'arc', (float) $arc['numero'], ' : ' . $arc['titre'] );
+		$plan['source']                   = array(
 			'type'  => 'arc',
 			'id'    => $arc['source_id'],
 			'slug'  => $arc['source_slug'],
 			'url'   => $arc['source_url'],
 			'texte' => $arc['source_titre'],
 		);
-		$plan['titre_arc']      = $arc['titre'];
-		$plan['thumbnail_id']   = $arc_fiche['couverture_id'] ?? $arc['image_id'];
-		$plan['couverture_url'] = $arc_fiche['couverture_url'] ?? '';
+		$plan['titre_arc']                = $arc['titre'];
+		$plan['thumbnail_id']             = $arc_fiche['couverture_id'] ?? $arc['image_id'];
+		$plan['couverture_url']           = $arc_fiche['couverture_url'] ?? '';
 		$plan['post']['post_content']     = $arc['contenu'];
 		$plan['meta']['yume_equivalence'] = $arc['equivalence'];
 		$plan['meta']['yume_lien_pdf']    = $arc['lien_pdf'];
@@ -903,19 +903,19 @@ final class Migration_Planner {
 	 * @return array<string,mixed>
 	 */
 	private function plan_chapitre_page( string $oeuvre, array $tome, array $source, array $annonce, int $ordre ): array {
-		$numero     = $source['numero'] ?? $annonce['numero'];
-		$sous_titre = '' !== $source['sous_titre'] ? $source['sous_titre'] : (string) $annonce['titre'];
-		$plan       = $this->chapitre_base( $oeuvre, $tome, $numero, $source['nature'], $sous_titre, $ordre );
-		$plan['source'] = array(
+		$numero                             = $source['numero'] ?? $annonce['numero'];
+		$sous_titre                         = '' !== $source['sous_titre'] ? $source['sous_titre'] : (string) $annonce['titre'];
+		$plan                               = $this->chapitre_base( $oeuvre, $tome, $numero, $source['nature'], $sous_titre, $ordre );
+		$plan['source']                     = array(
 			'type'  => 'page',
 			'id'    => $source['source_id'],
 			'slug'  => $source['source_slug'],
 			'url'   => $source['source_url'],
 			'titre' => $source['source_titre'],
 		);
-		$plan['post']['post_status']  = 'publish' === $source['status'] ? 'publish' : 'draft';
-		$plan['post']['post_date']    = $source['date'];
-		$plan['post']['post_content'] = $source['contenu'];
+		$plan['post']['post_status']        = 'publish' === $source['status'] ? 'publish' : 'draft';
+		$plan['post']['post_date']          = $source['date'];
+		$plan['post']['post_content']       = $source['contenu'];
 		$plan['meta']['yume_credits']       = $source['credits'];
 		$plan['meta']['yume_nb_mots']       = $source['nb_mots'];
 		$plan['meta']['yume_temps_lecture'] = $source['temps_lecture'];
@@ -924,10 +924,10 @@ final class Migration_Planner {
 			'hash'       => $source['hash'],
 			'importe_le' => (string) $this->options['date_import'],
 		);
-		$plan['illustrations'] = $source['illustrations'];
-		$plan['stats']         = $source['stats'];
-		$plan['navigation_supprimee'] = $source['navigation'];
-		$plan['avertissements']       = $source['avertissements'];
+		$plan['illustrations']              = $source['illustrations'];
+		$plan['stats']                      = $source['stats'];
+		$plan['navigation_supprimee']       = $source['navigation'];
+		$plan['avertissements']             = $source['avertissements'];
 		foreach ( $source['avertissements'] as $message ) {
 			$niveau = 'attention';
 			if ( str_starts_with( $message, 'Sous-titre' ) && '' !== (string) $annonce['titre'] ) {
@@ -1088,10 +1088,10 @@ final class Migration_Planner {
 	 * @param array $chapitres Chapitres.
 	 * @param array $fiches    Fiches par clé d'œuvre.
 	 */
-	private function completer_tomes_depuis_articles( array &$articles, array $oeuvres, array &$tomes, array $chapitres, array $fiches ): void {
+	private function completer_tomes_depuis_articles( array &$articles, array $oeuvres, array &$tomes, array $chapitres, array $fiches ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- signature commune des étapes du plan.
 		uasort( $articles, static fn( $a, $b ) => 0 !== strcmp( $a['date'], $b['date'] ) ? strcmp( $a['date'], $b['date'] ) : $a['source_id'] <=> $b['source_id'] );
 		foreach ( $articles as $id => $article ) {
-			$cle = $this->tome_de_article( $article, $oeuvres, $tomes );
+			$cle                         = $this->tome_de_article( $article, $oeuvres, $tomes );
 			$articles[ $id ]['tome_cle'] = $cle;
 			if ( null === $cle ) {
 				if ( 'sortie' === $article['classement'] && null !== $article['oeuvre'] && in_array( $article['type_sortie'], array( 'tome', 'tome_relie' ), true ) ) {
@@ -1105,9 +1105,9 @@ final class Migration_Planner {
 					$articles[ $id ]['tome_cle'] = null;
 					continue;
 				}
-				$oeuvre = $oeuvres[ $article['oeuvre'] ];
-				$nature = $article['tome_ex'] ? 'ex' : 'tome';
-				$plan   = $this->tome_base( $oeuvre['cle'], $oeuvre['post']['post_title'], $nature, $article['tome_ex'] ? null : $article['tome'] );
+				$oeuvre               = $oeuvres[ $article['oeuvre'] ];
+				$nature               = $article['tome_ex'] ? 'ex' : 'tome';
+				$plan                 = $this->tome_base( $oeuvre['cle'], $oeuvre['post']['post_title'], $nature, $article['tome_ex'] ? null : $article['tome'] );
 				$plan['source']       = array(
 					'type'  => 'article',
 					'id'    => $id,
@@ -1329,8 +1329,8 @@ final class Migration_Planner {
 	 * @param array $hubs       Hubs analysés.
 	 * @return array<string,array>
 	 */
-	private function plan_pages( array $pages, array $familles, array $par_chemin, array $hubs ): array {
-		$plan = array(
+	private function plan_pages( array $pages, array $familles, array $par_chemin, array $hubs ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- signature commune des étapes du plan.
+		$plan            = array(
 			'conserver' => array(),
 			'remplacer' => array(),
 			'ignorer'   => array(),
@@ -1360,8 +1360,8 @@ final class Migration_Planner {
 				continue;
 			}
 			if ( 'ignoree' === $famille ) {
-				$vide                = '' === trim( Html::texte( (string) $page['content'] ) );
-				$plan['ignorer'][]   = array(
+				$vide              = '' === trim( Html::texte( (string) $page['content'] ) );
+				$plan['ignorer'][] = array(
 					'id'     => $id,
 					'statut' => $page['status'],
 					'titre'  => $page['title'],
@@ -1369,7 +1369,7 @@ final class Migration_Planner {
 				);
 				continue;
 			}
-			$cible = $par_chemin[ $chemin ] ?? null;
+			$cible               = $par_chemin[ $chemin ] ?? null;
 			$plan['remplacer'][] = array(
 				'id'      => $id,
 				'slug'    => $page['slug'],
@@ -1419,19 +1419,19 @@ final class Migration_Planner {
 			return '';
 		}
 		$sections = array(
-			'Éditeur du site'                  => array(
+			'Éditeur du site'                   => array(
 				'Yume Novel est un site de traductions de fans animé bénévolement par une équipe de passionnés de light novels, de web novels et de mangas. Il n’est rattaché à aucune maison d’édition.',
 				'Pour toute demande, écrivez-nous depuis la page <a href="/contactez-nous/">Contactez-nous</a> ou sur notre serveur Discord.',
 			),
-			'Hébergement'                      => array(
+			'Hébergement'                       => array(
 				'Le site est hébergé par WordPress.com, service exploité par Automattic Inc., 60 29th Street #343, San Francisco, CA 94110, États-Unis.',
 			),
-			'Œuvres, traductions et droits'    => array(
+			'Œuvres, traductions et droits'     => array(
 				'Les œuvres présentées appartiennent à leurs auteurs, illustrateurs et éditeurs. Les traductions publiées ici sont des traductions de fans, proposées gratuitement pour faire découvrir des œuvres inédites en français.',
 				'Lorsqu’une œuvre est licenciée en France, sa traduction est arrêtée et les fichiers concernés sont retirés. Un ayant droit peut demander le retrait d’un contenu depuis la page <a href="/contactez-nous/">Contactez-nous</a> : la demande est traitée au plus vite.',
 				'Certains liens de téléchargement passent par des services tiers (raccourcisseurs de liens, hébergeurs de fichiers) qui appliquent leurs propres conditions.',
 			),
-			'Données personnelles'             => array(
+			'Données personnelles'              => array(
 				'Le site ne recueille que les données nécessaires à son fonctionnement : nom d’utilisateur et adresse e-mail pour un compte lecteur ou un commentaire, favoris, notes, alertes et progression de lecture. Ces données ne sont ni vendues ni cédées.',
 				'Depuis la page <a href="/compte/">Mon compte</a>, vous pouvez exporter vos données ou supprimer votre compte. Pour toute autre demande, contactez-nous.',
 			),
@@ -1440,7 +1440,7 @@ final class Migration_Planner {
 				'L’hébergeur peut établir des statistiques de fréquentation agrégées.',
 			),
 		);
-		$blocs = array();
+		$blocs    = array();
 		foreach ( $sections as $titre => $paragraphes ) {
 			$blocs[] = Blocks::titre( Html::attr( $titre ), 2 );
 			foreach ( $paragraphes as $paragraphe ) {
@@ -1823,7 +1823,7 @@ final class Migration_Planner {
 	 * @return array<string,mixed>
 	 */
 	private function comptes( array $plan, array $familles, array $export ): array {
-		$compter = static function ( array $liste, callable $cle ): array {
+		$compter    = static function ( array $liste, callable $cle ): array {
 			$c = array();
 			foreach ( $liste as $e ) {
 				$k       = (string) $cle( $e );
@@ -1858,13 +1858,13 @@ final class Migration_Planner {
 				'par_statut'  => $compter( $export['pages'], static fn( $p ) => $p['status'] ),
 			),
 			'articles'       => array(
-				'total'           => count( $plan['articles'] ),
-				'par_classement'  => $compter( $plan['articles'], static fn( $a ) => $a['classement'] ),
-				'par_statut'      => $compter( $plan['articles'], static fn( $a ) => $a['status'] ),
-				'a_ignorer'       => count( array_filter( $plan['articles'], static fn( $a ) => 'ignorer' === $a['action'] ) ),
-				'avec_oeuvre'     => count( array_filter( $plan['articles'], static fn( $a ) => null !== $a['oeuvre'] ) ),
-				'sorties_sans_oeuvre' => count( array_filter( $plan['articles'], static fn( $a ) => 'sortie' === $a['classement'] && null === $a['oeuvre'] ) ),
-				'non_classe'      => count( array_filter( $plan['articles'], static fn( $a ) => in_array( 'non-classe', $a['categories_slugs'], true ) ) ),
+				'total'                => count( $plan['articles'] ),
+				'par_classement'       => $compter( $plan['articles'], static fn( $a ) => $a['classement'] ),
+				'par_statut'           => $compter( $plan['articles'], static fn( $a ) => $a['status'] ),
+				'a_ignorer'            => count( array_filter( $plan['articles'], static fn( $a ) => 'ignorer' === $a['action'] ) ),
+				'avec_oeuvre'          => count( array_filter( $plan['articles'], static fn( $a ) => null !== $a['oeuvre'] ) ),
+				'sorties_sans_oeuvre'  => count( array_filter( $plan['articles'], static fn( $a ) => 'sortie' === $a['classement'] && null === $a['oeuvre'] ) ),
+				'non_classe'           => count( array_filter( $plan['articles'], static fn( $a ) => in_array( 'non-classe', $a['categories_slugs'], true ) ) ),
 				'par_categorie_source' => $compter( $export['posts'], static fn( $p ) => implode( '+', $p['categories'] ) ),
 			),
 			'oeuvres'        => array(
@@ -1873,20 +1873,20 @@ final class Migration_Planner {
 				'par_statut' => $compter( $plan['oeuvres'], static fn( $o ) => $o['termes']['yume_statut'][0] ),
 			),
 			'tomes'          => array(
-				'total'       => count( $plan['tomes'] ),
-				'par_nature'  => $compter( $plan['tomes'], static fn( $t ) => $t['meta']['yume_nature'] ),
-				'par_statut'  => $compter( $plan['tomes'], static fn( $t ) => $t['post']['post_status'] ),
-				'par_oeuvre'  => $par_oeuvre,
+				'total'      => count( $plan['tomes'] ),
+				'par_nature' => $compter( $plan['tomes'], static fn( $t ) => $t['meta']['yume_nature'] ),
+				'par_statut' => $compter( $plan['tomes'], static fn( $t ) => $t['post']['post_status'] ),
+				'par_oeuvre' => $par_oeuvre,
 			),
 			'chapitres'      => array(
-				'total'      => count( $plan['chapitres'] ),
-				'migres'     => count( array_filter( $plan['chapitres'], static fn( $c ) => 'page' === $c['source']['type'] ) ),
-				'planifies'  => count( array_filter( $plan['chapitres'], static fn( $c ) => 'annonce' === $c['source']['type'] ) ),
-				'par_tome'   => $compter( $plan['chapitres'], static fn( $c ) => $c['tome'] ),
-				'mots'       => array_sum( array_map( static fn( $c ) => (int) $c['meta']['yume_nb_mots'], $plan['chapitres'] ) ),
-				'dialogues'  => array_sum( array_map( static fn( $c ) => (int) ( $c['stats']['dialogues'] ?? 0 ), $plan['chapitres'] ) ),
-				'pensees'    => array_sum( array_map( static fn( $c ) => (int) ( $c['stats']['pensees'] ?? 0 ), $plan['chapitres'] ) ),
-				'illustrations' => array_sum( array_map( static fn( $c ) => count( $c['illustrations'] ), $plan['chapitres'] ) ),
+				'total'                        => count( $plan['chapitres'] ),
+				'migres'                       => count( array_filter( $plan['chapitres'], static fn( $c ) => 'page' === $c['source']['type'] ) ),
+				'planifies'                    => count( array_filter( $plan['chapitres'], static fn( $c ) => 'annonce' === $c['source']['type'] ) ),
+				'par_tome'                     => $compter( $plan['chapitres'], static fn( $c ) => $c['tome'] ),
+				'mots'                         => array_sum( array_map( static fn( $c ) => (int) $c['meta']['yume_nb_mots'], $plan['chapitres'] ) ),
+				'dialogues'                    => array_sum( array_map( static fn( $c ) => (int) ( $c['stats']['dialogues'] ?? 0 ), $plan['chapitres'] ) ),
+				'pensees'                      => array_sum( array_map( static fn( $c ) => (int) ( $c['stats']['pensees'] ?? 0 ), $plan['chapitres'] ) ),
+				'illustrations'                => array_sum( array_map( static fn( $c ) => count( $c['illustrations'] ), $plan['chapitres'] ) ),
 				'images_navigation_supprimees' => array_sum( array_map( static fn( $c ) => count( $c['navigation_supprimee'] ), $plan['chapitres'] ) ),
 			),
 			'liens'          => array(
@@ -1897,9 +1897,9 @@ final class Migration_Planner {
 			'redirections'   => count( $plan['redirections'] ),
 			'pages_plan'     => array_map( 'count', $plan['pages'] ),
 			'medias'         => array(
-				'exportes'  => count( $export['media'] ),
+				'exportes'   => count( $export['media'] ),
 				'references' => count( $plan['medias']['references'] ),
-				'manquants' => count( $plan['medias']['manquants'] ),
+				'manquants'  => count( $plan['medias']['manquants'] ),
 			),
 			'avertissements' => $compter( $plan['avertissements'], static fn( $a ) => $a['niveau'] ),
 		);

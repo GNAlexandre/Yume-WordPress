@@ -3,7 +3,7 @@
  * Assemble l'export du site yumenovel.fr à partir des réponses brutes du connecteur
  * WordPress.com (opérations en lecture seule list / get), rangées dans export/raw/.
  *
- *   php tools/migrate/assemble-export.php [dossier-export]
+ * Commande : php tools/migrate/assemble-export.php [dossier-export]
  *
  * Chaque fichier raw/<operation>__<clé>.json contient :
  *   { "operation": "pages.get", "tool": "wpcom-mcp-content-authoring", "params": {...}, "response": {...} }
@@ -78,9 +78,9 @@ foreach ( glob( $yume_raw . '/*.json' ) as $yume_fichier ) {
 /**
  * Fusionne la liste (métadonnées complètes) et les réponses get (contenu brut).
  *
- * @param array  $liste   Éléments de la liste, par ID.
- * @param array  $details Réponses get, par ID.
- * @param array  $champs  Champs à conserver.
+ * @param array $liste   Éléments de la liste, par ID.
+ * @param array $details Réponses get, par ID.
+ * @param array $champs  Champs à conserver.
  * @return array<int,array<string,mixed>>
  */
 function yume_export_fusion( array $liste, array $details, array $champs ): array {
@@ -162,12 +162,12 @@ $yume_sans_contenu = array(
 );
 
 $yume_site = array(
-	'site_id'           => 238001312,
-	'domaine'           => 'yumenovel.fr',
-	'domaines_alias'    => array( 'yumenovel.wordpress.com' ),
-	'exporte_le'        => $yume_dates ? gmdate( 'Y-m-d H:i:s', max( $yume_dates ) ) : null,
-	'source'            => 'Connecteur WordPress.com (lecture seule : pages.list/get, posts.list/get, categories.list, media.list, navigation.list, template-parts.list)',
-	'comptes'           => array(
+	'site_id'          => 238001312,
+	'domaine'          => 'yumenovel.fr',
+	'domaines_alias'   => array( 'yumenovel.wordpress.com' ),
+	'exporte_le'       => $yume_dates ? gmdate( 'Y-m-d H:i:s', max( $yume_dates ) ) : null,
+	'source'           => 'Connecteur WordPress.com (lecture seule : pages.list/get, posts.list/get, categories.list, media.list, navigation.list, template-parts.list)',
+	'comptes'          => array(
 		'pages'          => count( $yume_pages ),
 		'posts'          => count( $yume_posts ),
 		'categories'     => count( $yume_categories ),
@@ -175,7 +175,7 @@ $yume_site = array(
 		'navigations'    => count( $yume_navigations ),
 		'template_parts' => count( $yume_parts ),
 	),
-	'contenu_manquant'  => $yume_sans_contenu,
+	'contenu_manquant' => $yume_sans_contenu,
 );
 
 $yume_sorties = array(

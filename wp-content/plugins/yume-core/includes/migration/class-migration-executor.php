@@ -896,9 +896,26 @@ final class Migration_Executor extends Migration_Moteur {
 	}
 
 	/**
-	 * Réglages : page d'accueil, page des articles, bannière du site.
+	 * Réglages : page d'accueil, page des articles (12 par page), bannière du site, inscription
+	 * des lecteurs (« Tout le monde peut s'inscrire », rôle par défaut Lecteur). Les valeurs
+	 * d'origine sont sauvegardées à la préparation et restaurées par l'annulation.
 	 */
 	private function reglages(): void {
+		// L'inscription en façade (page connexion, module lecteurs) dépend de ces deux réglages.
+		if ( '1' !== (string) get_option( 'users_can_register' ) ) {
+			update_option( 'users_can_register', 1 );
+			$this->noter_option( 'users_can_register' );
+		}
+		if ( 'subscriber' !== get_option( 'default_role' ) ) {
+			update_option( 'default_role', 'subscriber' );
+			$this->noter_option( 'default_role' );
+		}
+		// Actualités, catégories et recherche en grilles de 2 ou 3 colonnes : 12 par page.
+		if ( 12 !== (int) get_option( 'posts_per_page' ) ) {
+			update_option( 'posts_per_page', 12 );
+			$this->noter_option( 'posts_per_page' );
+		}
+
 		$pages = (array) ( $this->journal['correspondances']['page'] ?? array() );
 		foreach ( (array) ( $this->plan['pages']['creer'] ?? array() ) as $p ) {
 			$reglage = (string) ( $p['reglage'] ?? '' );

@@ -176,7 +176,7 @@ function supprimer_terme( int $oeuvre_id ): void {
 }
 
 /**
- * wp_after_insert_post : synchronise le terme d'une œuvre créée, renommée ou restaurée.
+ * Sur wp_after_insert_post : synchronise le terme d'une œuvre créée, renommée ou restaurée.
  *
  * @param int      $post_id ID.
  * @param \WP_Post $post    Contenu.

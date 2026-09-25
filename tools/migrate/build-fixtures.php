@@ -3,7 +3,7 @@
  * Régénère les jeux d'essai de la migration (tools/migrate/fixtures/) à partir de l'export
  * complet (tools/migrate/export/, non versionné).
  *
- *   php tools/migrate/build-fixtures.php
+ * Commande : php tools/migrate/build-fixtures.php
  *
  * Les fixtures sont des EXTRAITS COURTS : pages métier complètes (hub, fiches, arcs, pages
  * institutionnelles) mais chapitres réduits à quelques paragraphes (en-tête, quelques
@@ -31,9 +31,20 @@ $yume_pages = array(
 	2209 => 'complet', // Fiche Grimgar (LN) : 9 tomes, 18 liens ClicTune.
 	2072 => 'complet', // ARC 4 (6 chapitres traduits).
 	2173 => 'complet', // ARC 7 (15 annoncés, 8 traduits).
-	1548 => array( 'debut' => 9, 'fin' => 3 ),                                  // T.4 ch. 1 : slug incohérent.
-	2417 => array( 'debut' => 5, 'fin' => 3, 'citations' => 1 ),                // T.7 ch. 3 : sous-titre « ****** », citation.
-	2558 => array( 'debut' => 7, 'fin' => 4, 'pensees' => 1 ),                  // T.7 ch. 8 : image finale non liée.
+	1548 => array(
+		'debut' => 9,
+		'fin'   => 3,
+	),                                  // T.4 ch. 1 : slug incohérent.
+	2417 => array(
+		'debut'     => 5,
+		'fin'       => 3,
+		'citations' => 1,
+	),                // T.7 ch. 3 : sous-titre « ****** », citation.
+	2558 => array(
+		'debut'   => 7,
+		'fin'     => 4,
+		'pensees' => 1,
+	),                  // T.7 ch. 8 : image finale non liée.
 );
 
 /** Articles repris (contenu complet : ce sont des annonces courtes). */

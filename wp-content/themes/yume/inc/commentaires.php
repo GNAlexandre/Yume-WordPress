@@ -42,7 +42,7 @@ function yume_theme_champs_commentaire( $champs ) {
 	);
 
 	if ( isset( $champs['cookies'] ) ) {
-		$coche              = empty( $commentateur['comment_author_email'] ) ? '' : ' checked';
+		$coche               = empty( $commentateur['comment_author_email'] ) ? '' : ' checked';
 		$nouveaux['cookies'] = sprintf(
 			'<p class="comment-form-cookies-consent"><input id="wp-comment-cookies-consent" name="wp-comment-cookies-consent" type="checkbox" value="yes"%1$s> <label for="wp-comment-cookies-consent">%2$s</label></p>',
 			$coche,
@@ -63,7 +63,7 @@ add_filter( 'comment_form_default_fields', 'yume_theme_champs_commentaire' );
 function yume_theme_formulaire_commentaire( $reglages ) {
 	$requis = (bool) get_option( 'require_name_email' );
 
-	$reglages['title_reply']          = esc_html__( 'Laisser un commentaire', 'yume' );
+	$reglages['title_reply'] = esc_html__( 'Laisser un commentaire', 'yume' );
 	/* translators: %s : auteur du commentaire auquel on répond. */
 	$reglages['title_reply_to']       = esc_html__( 'Répondre à %s', 'yume' );
 	$reglages['cancel_reply_link']    = esc_html__( 'Annuler la réponse', 'yume' );

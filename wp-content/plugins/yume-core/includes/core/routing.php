@@ -523,7 +523,7 @@ function filtre_request( $qv ) {
 add_filter( 'request', __NAMESPACE__ . '\\filtre_request', 5 );
 
 /**
- * parse_query : résolution des autres requêtes (url_to_postid(), new WP_Query( … )).
+ * Sur parse_query : résolution des autres requêtes (url_to_postid(), new WP_Query( … )).
  *
  * @param \WP_Query $query Requête.
  */
@@ -730,7 +730,7 @@ function garantir_slug( int $post_id ): void {
 }
 
 /**
- * wp_after_insert_post : vérification du slug des tomes et chapitres.
+ * Sur wp_after_insert_post : vérification du slug des tomes et chapitres.
  *
  * @param int $post_id ID.
  */

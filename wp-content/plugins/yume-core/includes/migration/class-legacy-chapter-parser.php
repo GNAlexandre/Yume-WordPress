@@ -112,9 +112,9 @@ final class Legacy_Chapter_Parser {
 		if ( $premier >= 0 && ( $index_credits < 0 || $premier < $index_credits ) ) {
 			$bloc = $blocs[ $premier ];
 			if ( in_array( $bloc['blockName'], array( 'core/paragraph', 'core/heading' ), true ) ) {
-				$texte    = Html::texte( (string) $bloc['innerHTML'] );
-				$en_tete  = self::est_centre( $bloc ) || 'core/heading' === $bloc['blockName'] || self::est_gras( (string) $bloc['innerHTML'] );
-				$court    = mb_strlen( $texte, 'UTF-8' ) <= 200;
+				$texte   = Html::texte( (string) $bloc['innerHTML'] );
+				$en_tete = self::est_centre( $bloc ) || 'core/heading' === $bloc['blockName'] || self::est_gras( (string) $bloc['innerHTML'] );
+				$court   = mb_strlen( $texte, 'UTF-8' ) <= 200;
 				if ( $en_tete && $court && ! Html::est_separateur_texte( $texte ) ) {
 					$index_titre = $premier;
 				}
@@ -252,8 +252,8 @@ final class Legacy_Chapter_Parser {
 				$dernier_texte = $i;
 			}
 		}
-		$pied      = array_slice( $sortie, $dernier_texte + 1, null, true );
-		$modeles   = array();
+		$pied    = array_slice( $sortie, $dernier_texte + 1, null, true );
+		$modeles = array();
 		foreach ( $pied as $element ) {
 			if ( 'navigation' === $element[0] && '' !== self::modele_fichier( $element[1]['url'] ) ) {
 				$modeles[ self::modele_fichier( $element[1]['url'] ) ] = true;

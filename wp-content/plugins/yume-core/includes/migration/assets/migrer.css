@@ -264,6 +264,17 @@
 	.yume-migrer__table td {
 		display: table-cell;
 	}
+
+	/* Tableaux larges (statuts à valider, œuvres) : défilement dans le tableau, jamais de la page. */
+	.yume-migrer__table {
+		display: block;
+		max-width: 100%;
+		overflow-x: auto;
+	}
+
+	.yume-migrer__table select {
+		max-width: 100%;
+	}
 }
 
 .yume-migrer__defilement:focus-visible {

@@ -14,6 +14,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable Universal.Files.SeparateFunctionsFromOO.Mixed -- socle de test en un seul fichier (exception et assertions).
+
 /** Exception levée par une assertion échouée. */
 class Yume_Test_Failure extends Exception {}
 
@@ -22,14 +24,14 @@ $GLOBALS['yume_tests'] = array();
 /**
  * Déclare un test.
  *
- * @param string   $name Nom lisible.
- * @param callable $fn   Corps du test.
+ * @param string   $name  Nom lisible.
+ * @param callable $corps Corps du test.
  */
-function yume_test( string $name, callable $fn ): void {
+function yume_test( string $name, callable $corps ): void {
 	$GLOBALS['yume_tests'][] = array(
 		'module' => $GLOBALS['yume_tests_current_file'] ?? 'misc',
 		'name'   => $name,
-		'fn'     => $fn,
+		'fn'     => $corps,
 	);
 }
 
@@ -47,6 +49,7 @@ function yume_test_export( $v ): string {
  * @param mixed  $expected Attendu.
  * @param mixed  $actual   Obtenu.
  * @param string $msg      Message.
+ * @throws Yume_Test_Failure Assertion échouée.
  */
 function yume_assert_same( $expected, $actual, string $msg = '' ): void {
 	if ( $expected !== $actual ) {
@@ -58,6 +61,7 @@ function yume_assert_same( $expected, $actual, string $msg = '' ): void {
  * @param mixed  $expected Attendu.
  * @param mixed  $actual   Obtenu.
  * @param string $msg      Message.
+ * @throws Yume_Test_Failure Assertion échouée.
  */
 function yume_assert_equals( $expected, $actual, string $msg = '' ): void {
 	if ( $expected != $actual ) { // phpcs:ignore Universal.Operators.StrictComparisons
@@ -68,6 +72,7 @@ function yume_assert_equals( $expected, $actual, string $msg = '' ): void {
 /**
  * @param mixed  $value Valeur.
  * @param string $msg   Message.
+ * @throws Yume_Test_Failure Assertion échouée.
  */
 function yume_assert_true( $value, string $msg = '' ): void {
 	if ( true !== $value ) {
@@ -78,6 +83,7 @@ function yume_assert_true( $value, string $msg = '' ): void {
 /**
  * @param mixed  $value Valeur.
  * @param string $msg   Message.
+ * @throws Yume_Test_Failure Assertion échouée.
  */
 function yume_assert_false( $value, string $msg = '' ): void {
 	if ( false !== $value ) {
@@ -89,10 +95,11 @@ function yume_assert_false( $value, string $msg = '' ): void {
  * @param string $needle   Sous-chaîne attendue.
  * @param string $haystack Texte.
  * @param string $msg      Message.
+ * @throws Yume_Test_Failure Assertion échouée.
  */
 function yume_assert_contains( string $needle, string $haystack, string $msg = '' ): void {
 	if ( false === strpos( $haystack, $needle ) ) {
-		throw new Yume_Test_Failure( trim( $msg . "\n  « " . $needle . " » absent de : " . yume_test_export( $haystack ) ) );
+		throw new Yume_Test_Failure( trim( $msg . "\n  « " . $needle . ' » absent de : ' . yume_test_export( $haystack ) ) );
 	}
 }
 
@@ -100,10 +107,11 @@ function yume_assert_contains( string $needle, string $haystack, string $msg = '
  * @param string $needle   Sous-chaîne interdite.
  * @param string $haystack Texte.
  * @param string $msg      Message.
+ * @throws Yume_Test_Failure Assertion échouée.
  */
 function yume_assert_not_contains( string $needle, string $haystack, string $msg = '' ): void {
 	if ( false !== strpos( $haystack, $needle ) ) {
-		throw new Yume_Test_Failure( trim( $msg . "\n  « " . $needle . " » présent dans : " . yume_test_export( $haystack ) ) );
+		throw new Yume_Test_Failure( trim( $msg . "\n  « " . $needle . ' » présent dans : ' . yume_test_export( $haystack ) ) );
 	}
 }
 
@@ -111,6 +119,7 @@ function yume_assert_not_contains( string $needle, string $haystack, string $msg
  * Crée un article/entrée et renvoie son ID.
  *
  * @param array $args Arguments wp_insert_post (post_type, post_title, meta_input, …).
+ * @throws Yume_Test_Failure Création impossible.
  */
 function yume_factory_post( array $args = array() ): int {
 	static $n = 0;
@@ -136,6 +145,7 @@ function yume_factory_post( array $args = array() ): int {
  * Crée un utilisateur avec un rôle et renvoie son ID.
  *
  * @param string $role Rôle.
+ * @throws Yume_Test_Failure Création impossible.
  */
 function yume_factory_user( string $role = 'subscriber' ): int {
 	static $n = 0;
@@ -232,6 +242,6 @@ function yume_tests_run(): bool {
 		}
 	}
 	echo "\n" . implode( "\n", $errors ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput
-	echo sprintf( "%d réussi(s), %d échec(s)\n", $pass, $fail ); // phpcs:ignore WordPress.Security.EscapeOutput
+	printf( "%d réussi(s), %d échec(s)\n", $pass, $fail ); // phpcs:ignore WordPress.Security.EscapeOutput
 	return 0 === $fail;
 }

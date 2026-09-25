@@ -163,7 +163,7 @@ final class Plan_Report {
 		foreach ( $plan['pages']['conserver'] as $p ) {
 			$md .= sprintf( "- %s (`%s`)%s\n", $p['titre'], $p['url'], $p['remarques'] ? ' — ' . implode( ' ', $p['remarques'] ) : '' );
 		}
-		$md .= "\n### Remplacées (dépubliées après migration)\n\n";
+		$md         .= "\n### Remplacées (dépubliées après migration)\n\n";
 		$par_famille = array();
 		foreach ( $plan['pages']['remplacer'] as $p ) {
 			$par_famille[ $p['famille'] ][] = $p;

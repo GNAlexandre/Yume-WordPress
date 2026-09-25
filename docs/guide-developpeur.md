@@ -21,6 +21,7 @@ tools/localenv/                   WordPress local SQLite (setup.sh, wp.sh, test.
 tools/build/                      lint.sh (php -l), zip.sh (archives installables)
 tools/playground/                 blueprints WordPress Playground + contenu de démonstration
 tools/docx2chapters/, tools/migrate/   outils en ligne de commande (import DOCX, migration)
+tools/preprod/                    préproduction locale (MariaDB) construite de zéro + parcours Playwright
 .github/workflows/                ci.yml (intégration continue), release.yml (publication)
 phpcs.xml.dist                    normes de code
 docs/, design/                    documentation, maquettes validées (design/maquettes/*.dc.html)
@@ -116,13 +117,13 @@ composer global require wp-coding-standards/wpcs:"^3.1" phpcompatibility/phpcomp
 ```
 
 `phpcs.xml.dist` impose les préfixes `yume`/`Yume`, les domaines `yume-core`/`yume`, PHP 8.1+,
-déclare les capacités Yume (contrat §5) et exclut `lib/`, `vendor/` et `tools/fixtures/`. Les tests
+déclare les capacités Yume (contrat §5) et exclut `lib/`, `vendor/`, `tools/fixtures/` et `tools/preprod/langues/`. Les tests
 et les outils en ligne de commande ont des exceptions ciblées (sortie console, requêtes directes).
 
-**PHPCS n'est pas bloquant pour l'instant** (`continue-on-error: true` dans `ci.yml`) : les écarts
-apparaissent en annotations sur les pull requests sans empêcher la fusion. Objectif : zéro écart sur
-les fichiers modifiés par chaque PR, puis passer le job en bloquant (supprimer la ligne
-`continue-on-error`) quand `phpcs` ne signale plus rien sur la branche principale.
+**PHPCS est bloquant** : `phpcs` ne signale plus aucune erreur ni aucun avertissement sur le dépôt,
+et le job « Normes de code » de `ci.yml` échoue au premier écart (aussi annoté sur la pull request).
+Lancer `phpcs` (ou `phpcbf` pour les corrections automatiques) avant de pousser. Une exception
+justifiée se note sur la ligne concernée (`// phpcs:ignore Règle -- raison`).
 
 ## 5. Le contrat technique
 
@@ -139,7 +140,7 @@ l'implémenter. Ne jamais redéclarer une fonction `yume_*` d'un autre module.
 | Job | Contenu |
 | --- | --- |
 | Syntaxe PHP 8.1 / 8.2 / 8.3 / 8.4 | `tools/build/lint.sh` ; blueprints Playground à jour (`construire.php --verifier`) |
-| Normes de code | PHPCS, annotations sur la PR (non bloquant, voir §4) |
+| Normes de code | PHPCS, annotations sur la PR (bloquant, voir §4) |
 | Tests WordPress (PHP 8.1 et 8.4) | `tools/localenv/setup.sh --source wp-cli --langue fr_FR --bloquer-http`, puis `wp eval-file wp-content/plugins/yume-core/tests/runner.php` ; contrôle de `debug.log` |
 | Archives | `tools/build/zip.sh`, artefact `yume-archives-<version>-<n°>` (à décompresser : il contient `yume-core.zip`, `yume.zip`, `SHA256SUMS`) |
 

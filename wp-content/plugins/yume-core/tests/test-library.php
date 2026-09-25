@@ -792,6 +792,15 @@ yume_tl_test(
 		$modele->content = '<!-- wp:yume/tome-list /-->';
 		$modele->slug    = 'single-yume_oeuvre';
 		yume_assert_contains( '<!-- wp:yume/oeuvre-infos /-->', apply_block_hooks_to_content( $modele->content, $modele, 'insert_hooked_blocks' ), 'insertion par l’API des blocs accrochés' );
+
+		// Modèle « Œuvre » du thème : le bloc y est placé explicitement (colonne de droite, après
+		// les commentaires) ; l'insertion automatique s'efface, sans doublon.
+		if ( 'yume' === get_stylesheet() ) {
+			$theme = get_block_template( 'yume//single-yume_oeuvre' );
+			yume_assert_true( $theme instanceof WP_Block_Template, 'modèle single-yume_oeuvre du thème' );
+			yume_assert_same( 1, substr_count( $theme->content, 'wp:yume/oeuvre-infos' ), 'un seul yume/oeuvre-infos dans le modèle du thème' );
+			yume_assert_true( strpos( $theme->content, 'wp:yume/oeuvre-infos' ) > strpos( $theme->content, 'yn-fiche__commentaires' ), 'après les commentaires' );
+		}
 	}
 );
 

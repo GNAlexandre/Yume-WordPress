@@ -716,3 +716,16 @@
 		padding: 0 16px 16px;
 	}
 }
+
+/* Une pastille longue (raison d'un blocage saisie par l'équipe) passe à la ligne au lieu de
+   déborder de sa carte (et d'élargir la page) ou d'écraser le titre du tome à côté. */
+.yn-team .yn-chip {
+	max-width: 100%;
+	white-space: normal;
+}
+
+.yn-team__tache-tete .yn-chip,
+.yn-team__details > summary .yn-chip {
+	flex-shrink: 1;
+	max-width: 45%;
+}

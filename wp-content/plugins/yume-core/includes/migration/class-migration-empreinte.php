@@ -26,6 +26,9 @@ final class Migration_Empreinte {
 		'yume_pages',
 		'yume_reglages',
 		'yume_redirections',
+		'users_can_register',
+		'default_role',
+		'posts_per_page',
 	);
 
 	/** Types dont le nombre de contenus est contrôlé. */

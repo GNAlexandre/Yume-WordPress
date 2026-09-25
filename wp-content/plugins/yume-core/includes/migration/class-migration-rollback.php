@@ -359,7 +359,10 @@ final class Migration_Rollback extends Migration_Moteur {
 		$adoptee = $this->journal['modifications']['pages_adoptees'][ $id ] ?? null;
 		if ( is_array( $adoptee ) ) {
 			if ( get_post( $id ) ) {
-				$wpdb->update( $wpdb->posts, array( 'post_content' => (string) $adoptee['post_content'] ), array( 'ID' => $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				// Contenu restauré tel quel, sans filtre ni révision.
+				// phpcs:disable WordPress.DB.DirectDatabaseQuery
+				$wpdb->update( $wpdb->posts, array( 'post_content' => (string) $adoptee['post_content'] ), array( 'ID' => $id ) );
+				// phpcs:enable WordPress.DB.DirectDatabaseQuery
 				clean_post_cache( $id );
 				self::changer_statut( $id, (string) $adoptee['post_status'], (string) $adoptee['post_modified'] );
 			}

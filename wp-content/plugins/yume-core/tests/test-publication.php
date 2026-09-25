@@ -407,6 +407,74 @@ yume_test(
 );
 
 yume_test(
+	'service : tome déjà en ligne (migré, PDF/EPUB seuls) : ses chapitres sortent en une seule sortie',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre   = yume_tpub_oeuvre( 'Tome migré' );
+			$ancienne = gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS );
+			// Tome migré : publié il y a un mois, sans chapitre, jamais annoncé (notifications coupées).
+			add_filter( 'yume_core_notifier', '__return_false' );
+			$tome = yume_factory_post(
+				array(
+					'post_type'     => 'yume_tome',
+					'post_title'    => 'Tome migré — Tome 10',
+					'post_name'     => 'tome-10',
+					'post_status'   => 'publish',
+					'post_date'     => get_date_from_gmt( $ancienne ),
+					'post_date_gmt' => $ancienne,
+					'meta_input'    => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_numero'    => 10,
+						'yume_nature'    => 'tome',
+					),
+				)
+			);
+			remove_filter( 'yume_core_notifier', '__return_false' );
+			yume_assert_same( 'ignore', get_post_meta( $tome, '_yume_publie_notifie', true ) );
+
+			$chapitres = array();
+			$suivre    = static function ( $id ) use ( &$chapitres ) {
+				$chapitres[] = (int) $id;
+			};
+			add_action( 'yume_chapitre_publie', $suivre, 1 );
+			try {
+				$r = yume_tpub_preparer( $ctx, $oeuvre );
+				yume_assert_same( $tome, (int) $r['tome']['id'], 'tome migré réutilisé' );
+				yume_assert_same( 'publish', get_post_status( $tome ), 'le tome reste en ligne pendant la préparation' );
+				$sortie = Service::publier( $tome, 'maintenant' );
+				yume_assert_same( 13, $sortie['chapitres'] );
+				yume_assert_same( array( $tome ), $ctx->emis, 'une seule sortie : yume_tome_publie' );
+				yume_assert_same( array(), $chapitres, 'aucun événement par chapitre' );
+				yume_assert_same( $ancienne, get_post_field( 'post_date_gmt', $tome ), 'date du tome conservée' );
+				yume_assert_true( 'ignore' !== get_post_meta( $tome, '_yume_publie_notifie', true ) );
+
+				// Tome déjà annoncé qui reçoit d'autres chapitres en bloc : un seul yume_chapitre_publie.
+				foreach ( yume_get_chapitres( $tome ) as $i => $chapitre ) {
+					if ( $i >= 11 ) {
+						wp_update_post(
+							array(
+								'ID'          => $chapitre->ID,
+								'post_status' => 'draft',
+							)
+						);
+					}
+				}
+				unset( $GLOBALS['wp_actions']['yume_publication_en_cours'] );
+				$ctx->emis = array();
+				$chapitres = array();
+				$sortie    = Service::publier( $tome, 'maintenant' );
+				yume_assert_same( 2, $sortie['chapitres'] );
+				yume_assert_same( array(), $ctx->emis );
+				yume_assert_same( 1, count( $chapitres ), 'un seul événement pour les chapitres ajoutés' );
+			} finally {
+				remove_action( 'yume_chapitre_publie', $suivre, 1 );
+			}
+		}
+	)
+);
+
+yume_test(
 	'service : publication programmée (future), aucune émission, date passée refusée',
 	yume_tpub(
 		function ( $ctx ) {

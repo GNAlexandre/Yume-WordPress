@@ -15,7 +15,12 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-start;
-	gap: 10px;
+	gap: 8px;
+}
+
+/* Les quatre actions tiennent sur une ligne à côté de la carte planning (maquette Oeuvre). */
+.yn-oeuvre-actions__ligne .yn-btn {
+	padding-inline: 14px;
 }
 
 .yn-oeuvre-actions__ligne > * {

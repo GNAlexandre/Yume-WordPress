@@ -126,6 +126,34 @@ function yume_theme_image_de_substitution( $contenu, $bloc, $instance = null ) {
 add_filter( 'render_block_core/post-featured-image', 'yume_theme_image_de_substitution', 10, 3 );
 
 /**
+ * Image en tête d'article ou de page (classe yn-article__image) au format portrait, le plus
+ * souvent la couverture d'un tome : classe yn-article__image--portrait, pour l'afficher entière
+ * (centrée, hauteur limitée) au lieu d'en garder une bande recadrée en largeur.
+ *
+ * @param string   $contenu  Rendu du bloc.
+ * @param array    $bloc     Bloc analysé.
+ * @param WP_Block $instance Instance du bloc (contexte postId).
+ * @return string
+ */
+function yume_theme_image_portrait( $contenu, $bloc, $instance = null ) {
+	if ( '' === trim( (string) $contenu ) || ! str_contains( (string) ( $bloc['attrs']['className'] ?? '' ), 'yn-article__image' ) ) {
+		return $contenu;
+	}
+	$post_id  = ( $instance instanceof WP_Block && isset( $instance->context['postId'] ) ) ? (int) $instance->context['postId'] : (int) get_the_ID();
+	$image_id = $post_id > 0 ? (int) get_post_thumbnail_id( $post_id ) : 0;
+	$meta     = $image_id ? wp_get_attachment_metadata( $image_id ) : false;
+	if ( ! is_array( $meta ) || empty( $meta['width'] ) || empty( $meta['height'] ) || (int) $meta['height'] <= (int) $meta['width'] ) {
+		return $contenu;
+	}
+	$processeur = new WP_HTML_Tag_Processor( (string) $contenu );
+	if ( $processeur->next_tag( 'figure' ) ) {
+		$processeur->add_class( 'yn-article__image--portrait' );
+	}
+	return $processeur->get_updated_html();
+}
+add_filter( 'render_block_core/post-featured-image', 'yume_theme_image_portrait', 10, 3 );
+
+/**
  * Titre des résultats de recherche en français, quelle que soit la langue installée :
  * « Résultats pour « terme » ».
  *
@@ -201,8 +229,8 @@ function yume_theme_type_de_contenu( $contenu, $bloc ) {
 		'yume_tome'     => __( 'Tome', 'yume' ),
 		'yume_chapitre' => __( 'Chapitre', 'yume' ),
 	);
-	$objet   = get_post_type_object( $type );
-	$libelle = $libelles[ $type ] ?? ( $objet ? $objet->labels->singular_name : '' );
+	$objet    = get_post_type_object( $type );
+	$libelle  = $libelles[ $type ] ?? ( $objet ? $objet->labels->singular_name : '' );
 	if ( '' === $libelle ) {
 		return '';
 	}

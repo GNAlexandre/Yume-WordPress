@@ -47,7 +47,7 @@ function installer_reglages(): void {
 }
 
 /**
- * yume_core_install : types enregistrés, termes, rôles, réglages, termes des œuvres.
+ * Sur yume_core_install : types enregistrés, termes, rôles, réglages, termes des œuvres.
  */
 function installer(): void {
 	enregistrer_contenu();

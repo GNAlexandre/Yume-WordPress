@@ -24,3 +24,4 @@ require_once __DIR__ . '/formulaires.php';
 require_once __DIR__ . '/alertes.php';
 require_once __DIR__ . '/blocs.php';
 require_once __DIR__ . '/compte.php';
+require_once __DIR__ . '/lignes-tomes.php';

@@ -51,21 +51,21 @@ final class Export_Loader {
 	public static function depuis_dossier( string $dossier ): array {
 		$dossier = rtrim( $dossier, '/\\' );
 		if ( ! is_dir( $dossier ) ) {
-			throw new \RuntimeException( sprintf( 'Dossier d’export introuvable : %s', $dossier ) );
+			throw new \RuntimeException( sprintf( 'Dossier d’export introuvable : %s', $dossier ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message pour la ligne de commande (classe sans WordPress).
 		}
 		$export = array();
 		foreach ( self::FICHIERS as $cle => $fichier ) {
 			$chemin = $dossier . '/' . $fichier;
 			if ( ! is_readable( $chemin ) ) {
 				if ( in_array( $cle, array( 'pages', 'posts' ), true ) ) {
-					throw new \RuntimeException( sprintf( 'Fichier obligatoire manquant : %s', $chemin ) );
+					throw new \RuntimeException( sprintf( 'Fichier obligatoire manquant : %s', $chemin ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message pour la ligne de commande (classe sans WordPress).
 				}
 				$export[ $cle ] = array();
 				continue;
 			}
-			$donnees = json_decode( (string) file_get_contents( $chemin ), true );
+			$donnees = json_decode( (string) file_get_contents( $chemin ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
 			if ( ! is_array( $donnees ) ) {
-				throw new \RuntimeException( sprintf( 'JSON invalide : %s (%s)', $chemin, json_last_error_msg() ) );
+				throw new \RuntimeException( sprintf( 'JSON invalide : %s (%s)', $chemin, json_last_error_msg() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message pour la ligne de commande (classe sans WordPress).
 			}
 			$export[ $cle ] = $donnees;
 		}

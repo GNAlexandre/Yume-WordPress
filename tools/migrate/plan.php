@@ -2,7 +2,7 @@
 /**
  * Génère le plan de migration à partir de l'export de l'ancien site.
  *
- *   tools/localenv/wp.sh eval-file tools/migrate/plan.php [dossier-export]
+ * Commande : tools/localenv/wp.sh eval-file tools/migrate/plan.php [dossier-export]
  *
  * Lit tools/migrate/export/ (ou le dossier passé en argument) et écrit dans ce même dossier :
  *   - plan.json         : plan complet (structure décrite dans tools/migrate/README.md) ;
@@ -47,7 +47,7 @@ foreach ( $yume_sorties as $yume_nom => $yume_contenu ) {
 	file_put_contents( $yume_dossier . '/' . $yume_nom, $yume_contenu ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 }
 
-$yume_c = $yume_plan['comptes'];
+$yume_c       = $yume_plan['comptes'];
 $yume_message = sprintf(
 	'Plan écrit dans %s : %d œuvres, %d tomes, %d chapitres (%d migrés, %d planifiés), %d articles, %d redirections, avertissements : %s.',
 	$yume_dossier,

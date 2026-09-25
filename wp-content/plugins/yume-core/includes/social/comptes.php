@@ -51,13 +51,24 @@ add_action( 'admin_init', __NAMESPACE__ . '\\rediriger_administration', 1 );
 
 /**
  * Après la connexion : un lecteur revient à la page d'origine, ou à son compte si aucune
- * n'est demandée (ou si c'était l'administration).
+ * n'est demandée (ou si c'était l'administration). Un membre de l'équipe sans accès à la
+ * rédaction (traducteur, relecteur, graphiste) arrive sur l'espace équipe au lieu du profil
+ * de wp-admin quand aucune page n'est demandée.
  *
  * @param string             $redirection URL calculée par WordPress.
  * @param string             $demandee    URL demandée (redirect_to).
  * @param \WP_User|\WP_Error $user        Utilisateur connecté.
  */
 function redirection_connexion( $redirection, $demandee, $user ): string {
+	if ( $user instanceof \WP_User && ! est_lecteur( $user ) && ! user_can( $user, 'edit_posts' ) && user_can( $user, 'yume_voir_equipe' ) && page_enregistree( 'equipe' ) ) {
+		// Traducteur, relecteur, graphiste : sans destination précise, l'espace équipe plutôt
+		// que la page de profil de wp-admin (destination par défaut de WordPress).
+		$demandee = (string) $demandee;
+		if ( '' === $demandee || in_array( untrailingslashit( $demandee ), array( untrailingslashit( admin_url() ), admin_url( 'profile.php' ) ), true ) ) {
+			return yume_url_page( 'equipe' );
+		}
+		return (string) $redirection;
+	}
 	if ( ! $user instanceof \WP_User || ! est_lecteur( $user ) ) {
 		return (string) $redirection;
 	}

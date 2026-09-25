@@ -310,7 +310,7 @@ final class Migration_Admin {
 			data-operation="<?php echo esc_attr( $etat['operation'] ); ?>">
 			<h1><?php esc_html_e( 'Migrer l’ancien site', 'yume-core' ); ?></h1>
 			<p class="yume-migrer__intro">
-				<?php esc_html_e( 'La migration transforme les pages de l’ancien site (fiches, arcs, chapitres) en œuvres, tomes et chapitres Yume, reclasse les articles, crée les pages Yume et installe les redirections 301. Elle se fait sur place : les images gardent leur identifiant, les anciennes pages passent en brouillon (rien n’est supprimé) et tout peut être annulé.', 'yume-core' ); ?>
+				<?php esc_html_e( 'La migration transforme les pages de l’ancien site (fiches, arcs, chapitres) en œuvres, tomes et chapitres Yume, reclasse les articles, crée les pages Yume, ouvre les inscriptions des lecteurs (rôle Lecteur) et installe les redirections 301. Elle se fait sur place : les images gardent leur identifiant, les anciennes pages passent en brouillon (rien n’est supprimé) et tout peut être annulé.', 'yume-core' ); ?>
 			</p>
 			<?php self::notice(); ?>
 			<?php self::carte_etat( $etat ); ?>
@@ -889,7 +889,7 @@ final class Migration_Admin {
 				<?php self::reprise( 'yume_migration_annuler', $resume, __( 'Reprendre l’annulation', 'yume-core' ) ); ?>
 			<?php else : ?>
 				<?php $autres = self::contenus_ajoutes_depuis(); ?>
-				<p><?php esc_html_e( 'L’annulation supprime les œuvres, tomes, chapitres et pages créés par la migration, remet les anciennes pages en ligne, restaure les catégories des articles, les réglages de lecture et les options, et retire les redirections.', 'yume-core' ); ?></p>
+				<p><?php esc_html_e( 'L’annulation supprime les œuvres, tomes, chapitres et pages créés par la migration, remet les anciennes pages en ligne, restaure les catégories des articles, les réglages de lecture, d’inscription et les options, et retire les redirections.', 'yume-core' ); ?></p>
 				<?php if ( $autres ) : ?>
 					<div class="notice notice-warning inline"><p>
 						<?php

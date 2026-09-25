@@ -246,7 +246,7 @@ final class Legacy_Oeuvre_Parser {
 	 * @return array<string,mixed>
 	 */
 	private static function infos( array $blocs ): array {
-		$infos = array(
+		$infos      = array(
 			'titres_alt'   => array(),
 			'auteur'       => '',
 			'illustrateur' => '',
@@ -435,7 +435,7 @@ final class Legacy_Oeuvre_Parser {
 				continue;
 			}
 			if ( 'core/paragraph' === $nom ) {
-				$texte = Html::texte( (string) $bloc['innerHTML'] );
+				$texte  = Html::texte( (string) $bloc['innerHTML'] );
 				$entete = self::entete_tome( $texte );
 				if ( null !== $entete && mb_strlen( $texte, 'UTF-8' ) <= 20 ) {
 					$fermer();
@@ -447,8 +447,8 @@ final class Legacy_Oeuvre_Parser {
 				continue;
 			}
 			if ( 'core/image' === $nom && 0 === $courant['couverture_id'] ) {
-				$html                     = (string) $bloc['innerHTML'];
-				$courant['couverture_id'] = (int) ( $bloc['attrs']['id'] ?? ( preg_match( '/wp-image-(\d+)/', $html, $m ) ? $m[1] : 0 ) );
+				$html                      = (string) $bloc['innerHTML'];
+				$courant['couverture_id']  = (int) ( $bloc['attrs']['id'] ?? ( preg_match( '/wp-image-(\d+)/', $html, $m ) ? $m[1] : 0 ) );
 				$courant['couverture_url'] = preg_match( '/<img\s[^>]*src="([^"]+)"/i', $html, $m ) ? Html::decoder( $m[1] ) : '';
 			} elseif ( 'core/buttons' === $nom ) {
 				self::liens_boutons( $bloc, $courant, $avert );
@@ -606,8 +606,8 @@ final class Legacy_Oeuvre_Parser {
 			if ( null === $element ) {
 				continue;
 			}
-			$element['barre'] = $barre;
-			$barres          += $barre ? 1 : 0;
+			$element['barre']   = $barre;
+			$barres            += $barre ? 1 : 0;
 			$tome['sommaire'][] = $element;
 		}
 		if ( $tome['sommaire'] && count( $tome['sommaire'] ) === $barres ) {
