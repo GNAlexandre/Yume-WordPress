@@ -3,7 +3,7 @@ node_modules/
 vendor/
 !wp-content/plugins/yume-core/lib/**/vendor/
 dist/
-build/
+/build/
 *.zip
 
 # Environnements locaux

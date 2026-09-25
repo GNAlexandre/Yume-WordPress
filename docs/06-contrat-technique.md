@@ -80,6 +80,13 @@ Taxonomies (sur `yume_oeuvre`, `show_in_rest`, hiérarchiques pour type/statut) 
 | `yume_statut` | `en-cours` : En cours · `terminee` : Terminée · `en-pause` : En pause · `licenciee` : Licenciée · `abandonnee` : Abandonnée |
 | `yume_genre` | (libre, non hiérarchique) |
 
+Les taxonomies `yume_type`, `yume_statut`, `yume_genre` ne sont **pas interrogeables en façade** (pas
+d'archives de termes, pas de modèle `taxonomy-*`) : leurs liens mènent à `/bibliotheque/?type=…`,
+`?statut=…`, `?genre=…`. Redirections 301 supplémentaires : `/lire/{oeuvre}/{tome}/` → tome,
+`/lire/{oeuvre}/` → œuvre. Slugs : un slug de tome numérique devient `tome-N`, un chapitre
+`chapitre-N` (`chapitre-12-5` pour 12.5), les spéciaux prennent leur libellé (`postface`) ; les mots
+réservés (`feed`, `embed`, `page`, `comment-page-N`) reçoivent `-2`.
+
 Taxonomie `yume_oeuvre_liee` (non hiérarchique, sur `post`) : slug = slug de l'œuvre ; relie les
 articles d'actualité à une œuvre. Termes créés/synchronisés automatiquement avec les œuvres.
 
@@ -112,7 +119,11 @@ caches en lecture seule pour l'API : `yume_note_moyenne` (number) · `yume_nb_no
 `yume_numero` (number ; 0 pour prologue) · `yume_sous_titre` (string) · `yume_nature` (string enum
 `chapitre`,`prologue`,`interlude`,`epilogue`,`postface`,`bonus`,`illustrations`) ·
 `yume_credits` (object{traduction,relecture,edition}) · `yume_nb_mots` (integer) ·
-`yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}).
+`yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}) — `format` ∈ `docx`, `epub`, `migration`.
+
+Les clés `yume_*` sont protégées (absentes de la boîte « Champs personnalisés »). Les caches
+(`yume_note_moyenne`, `yume_nb_notes`, `yume_nb_favoris`, `yume_derniere_sortie`, `yume_nb_chapitres`)
+sont en lecture seule via `/wp/v2` : les modules les écrivent avec `update_post_meta`.
 
 ## 5. Rôles et capacités (module core, à l'installation)
 
@@ -126,7 +137,7 @@ Capacités de types : `edit_yume_oeuvres`, `edit_others_yume_oeuvres`, `publish_
 | `subscriber` | Lecteur (renommé) | `read` |
 | `yume_traducteur`, `yume_relecteur`, `yume_graphiste` | Traducteur, Relecteur, Graphiste | `read`, `upload_files`, `yume_voir_equipe`, `yume_maj_planning`, `edit_yume_tomes` |
 | `yume_editeur` | Éditeur Yume | les précédentes + `yume_publier`, `yume_maj_planning_tous`, toutes les capacités des 3 types (y compris others/publish/delete), `edit_posts`, `publish_posts`, `edit_published_posts`, `moderate_comments`, `manage_categories` |
-| `yume_gerant` | Gérant | `yume_editeur` + `yume_gerer_equipe`, `yume_reglages`, `edit_others_posts`, `delete_others_posts`, `list_users` |
+| `yume_gerant` | Gérant | `yume_editeur` + `yume_gerer_equipe`, `yume_reglages`, `edit_others_posts`, `delete_posts`, `delete_published_posts`, `delete_others_posts`, `list_users` |
 | `administrator` | — | tout, y compris toutes les capacités `yume_*` |
 
 Fonction utilitaire : `yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool`
@@ -154,8 +165,10 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `github_repo` | `GNAlexandre/Yume-WordPress` | updater |
 | `maj_auto` | `true` | updater |
 
+`yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
-`yume_reglages_champs` (tableau de `array( 'key', 'label', 'type' => text|url|number|checkbox|select|media|textarea, 'section', 'options', 'description' )`).
+`yume_reglages_champs` (types en plus : `checkboxes` ; clés facultatives `default`, `min`, `max`,
+`step`, `placeholder`, `sanitize`) et des sections via `yume_reglages_sections` (tableau de `array( 'key', 'label', 'type' => text|url|number|checkbox|select|media|textarea, 'section', 'options', 'description' )`).
 
 ## 6 bis. Administration
 
@@ -219,6 +232,14 @@ et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces 
 | `yume_planning_mis_a_jour` | `int $tome_id, array $changements, int $user_id` | planning | — |
 | `yume_publication_preparee` | `int $tome_id, array $rapport` | publication | — |
 
+Émission : core note la transition sur `transition_post_status` mais émet sur `wp_after_insert_post`
+(les méta arrivent après le statut en REST). Aucune émission par core pendant
+`did_action( 'yume_publication_en_cours' )` (publication émet elle-même `yume_tome_publie` après avoir
+tout publié), avec `WP_IMPORTING`, pour un contenu daté de plus de 2 jours, ou si le filtre
+`yume_core_notifier` renvoie faux (la migration l'utilise). `yume_chapitre_publie` exige que le tome
+ait été publié au moins 15 minutes avant (`yume_delai_publication_groupee`). Une sortie programmée
+(`future`) est émise par core au passage à `publish`.
+
 Pour ne pas notifier chaque chapitre d'un tome publié en bloc, publication définit la constante
 d'exécution `yume_publication_en_cours` via `did_action`/drapeau statique ; core n'émet
 `yume_chapitre_publie` que si le tome parent était déjà publié avant.
@@ -254,26 +275,32 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 
 | Bloc | Module | Attributs | Racine | Contenu |
 | --- | --- | --- | --- | --- |
-| `yume/library-menu` | bibliothèque | — | `.yn-library-menu` | Bouton « Bibliothèque ▾ » + panneau (`<details>` accessible) : types et statuts avec compteurs, « Toutes les œuvres A → Z », « Reprendre ma lecture » |
+| `yume/library-menu` | bibliothèque | — | `.yn-library-menu` | `<details class="yn-library-menu">` dont le `<summary>` porte aussi `wp-block-navigation-item__content` (placé dans `core/navigation`, enveloppé d'un `<li>`) ; panneau en absolu sous le summary au-dessus de 1360 px, en ligne dans le menu mobile (`.is-menu-open`) : types et statuts avec compteurs, « Toutes les œuvres A → Z », « Reprendre ma lecture » |
 | `yume/banner` | bibliothèque | `height` (number, 240) | `.yn-banner` | Image `banniere_id` pleine largeur (bannière actuelle du site) |
-| `yume/latest-releases` | bibliothèque | `count` (number, 6) | `.yn-releases` | Grille de couvertures des derniers tomes/chapitres publiés : badge « Nouveau » (< 7 j), titre, libellé, date, boutons Lire / PDF / EPUB |
+| `yume/latest-releases` | bibliothèque | `count` (number, 6) | `.yn-releases` | Sans carte propre ; `.yn-grid-covers` + `.yn-cover`. Grille de couvertures des derniers tomes/chapitres publiés : badge « Nouveau » (< 7 j), titre, libellé, date, boutons Lire / PDF / EPUB |
 | `yume/library-grid` | bibliothèque | `perPage` (24), `showFilters` (true) | `.yn-library` | Filtres (GET `type`, `statut`, `tri` = recent/az) + grille de couvertures avec badge de statut |
 | `yume/oeuvre-header` | bibliothèque | — | `.yn-oeuvre-header` | Couverture, badges, titres alternatifs, fiche (auteur, illustrateur, éditeur VO, traduit), synopsis |
+| `yume/oeuvre-infos` | bibliothèque | — | `.yn-oeuvre-infos` | Cartes « Équipe de traduction » (`yume_equipe`, `yume_source_traduction`) et « Liens » (`yume_liens`) de la maquette Oeuvre |
 | `yume/tome-list` | bibliothèque | — | `.yn-tome-list` | Tomes publiés de l'œuvre (couverture, libellé, nb chapitres, date, Lire / PDF / EPUB) |
 | `yume/tome-header` | bibliothèque | — | `.yn-tome-header` | Couverture, libellé, crédits, équivalence, boutons PDF / EPUB, galerie d'illustrations |
 | `yume/tome-toc` | bibliothèque | — | `.yn-toc` | Sommaire du tome (chapitres + temps de lecture) |
 | `yume/chapter-header` | bibliothèque | — | `.yn-chapter-header` | Fil d'Ariane, « Chapitre N », sous-titre, crédits, temps de lecture |
 | `yume/chapter-nav` | bibliothèque | — | `.yn-chapter-nav` | Précédent · Sommaire · Suivant (liens `rel=prev/next`) |
-| `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
+| `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Sans carte propre (le thème fournit la carte). Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
 | `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent |
 | `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
 | `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal |
 | `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) |
 | `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture : progression, sommaire, marque-page, thème, panneau Paramètres |
 | `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte |
-| `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`) ; rien s'il n'y a rien |
+| `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
 | `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) |
-| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion / Inscription » ou « Mon compte » (+ « Espace équipe » si capacité) |
+| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion / Inscription » ou « Mon compte » (+ « Espace équipe » si capacité) ; placé dans `core/navigation` |
+| `yume/theme-toggle` | **thème** | — | `.yn-theme-toggle` | Bascule Nuit ↔ Papier (`aria-pressed`, `[data-yn-theme-toggle]`) |
+
+Les blocs posés dans le modèle `page-large` (planning, compte, équipe, publication) commencent leurs
+titres au `<h2>` : le modèle affiche déjà le titre de la page en `<h1>`. `yume/library-grid` accepte
+les paramètres GET `type`, `statut`, `genre` et `tri`.
 
 ## 11. Pages créées par la migration (option `yume_pages` : clé → ID)
 
@@ -286,7 +313,12 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `compte` | `compte` | `yume/account` |
 | `connexion` | `connexion` | formulaire de connexion/inscription rendu par `yume/account` quand déconnecté |
 
-Page d'accueil : le thème fournit `front-page.html` (pas de page statique nécessaire).
+Pages supplémentaires : `actualites` (slug `actualites`, page des articles) et `mentions-legales`
+(visée par le pied de page). Réglages de lecture : `show_on_front = page`, `page_on_front` = une page
+« Accueil » (le thème fournit `front-page.html`), `page_for_posts` = la page `actualites`.
+Le format du plan de migration (`plan.json` v1) est décrit dans `tools/migrate/README.md` : c'est
+l'interface entre l'analyse et l'exécution. Pendant l'exécution : `add_filter( 'yume_core_notifier',
+'__return_false' )`, ne pas créer les termes `yume_oeuvre_liee` à la main (ils naissent avec les œuvres).
 
 ## 12. REST `yume/v1`
 
@@ -327,6 +359,10 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 | `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
 | `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
 
+API du thème pour les autres scripts : `window.ynTheme.set( 'nuit'|'papier'|'sepia' )` si elle existe
+(sinon poser l'attribut et `localStorage['yn.theme']`) ; événement `document` `yn:theme`
+(`detail.theme`) à chaque changement ; classe `html.yn-js` quand JavaScript est actif.
+
 Attribut `html[data-yn-theme]` = `nuit` (défaut) \| `papier` \| `sepia`, posé avant le premier rendu
 par un script en ligne du thème (pas de flash). Variables du lecteur, posées sur `.yn-reader` :
 `--yn-size` (px), `--yn-lh`, `--yn-font`, `--yn-width` (ch), `--yn-bg-alpha`.
@@ -341,9 +377,12 @@ Couleurs (slug → CSS `var(--wp--preset--color--<slug>)`), valeurs du thème Nu
 `accent-texte` #2a1240 · `accent-2` #f7c59f · `selection` #3a2a63 · `succes` #8fd6a3 ·
 `avertissement` #f4c069 · `erreur` #ff8f7e.
 Papier : `fond` #fdf8fa · `bande` #f6eef3 · `carte` #ffffff · `filet` #e8d9e2 · `bordure` #8a6f9e ·
-`texte-fort` #2a1240 · `texte` #2a1240 · `texte-faible` #5e4a73 · `accent` #c2437e · `accent-texte` #ffffff ·
-`accent-2` #b8642a · `selection` #f3e6ee · `succes` #2f7d5e · `avertissement` #8f5a1b · `erreur` #a63328.
-Sépia : comme Papier avec `fond` #f4ead9, `bande` #efe2cc, `carte` #fbf4e6, `filet` #e2d3b8, `texte` et `texte-fort` #3a2233, `texte-faible` #6b5443.
+`texte-fort` #2a1240 · `texte` #2a1240 · `texte-faible` #5e4a73 · `accent` #b23a71 · `accent-texte` #ffffff ·
+`accent-2` #9d5524 · `selection` #f3e6ee · `succes` #2c7457 · `avertissement` #8f5a1b · `erreur` #a63328
+(valeurs assombries pour tenir 4,5:1).
+Sépia : comme Papier avec `fond` #f4ead9, `bande` #efe2cc, `carte` #fbf4e6, `filet` #e2d3b8, `texte` et `texte-fort` #3a2233, `texte-faible` #6b5443, `accent` #a8356a, `accent-2` #93501f, `succes` #286c51, `avertissement` #85541a.
+Variables de thème supplémentaires : `--yn-accent-survol`, `--yn-degrade-couverture`, `--yn-voile-image`.
+Feuilles : `themes/yume/assets/css/yume.css` et `assets/css/reader.css` (chargées en façade et dans l'éditeur).
 
 Familles (slug → `var(--wp--preset--font-family--<slug>)`) : `titres` Outfit · `corps` Nunito Sans ·
 `mono` IBM Plex Mono · `lecture` Literata. Polices **auto-hébergées** dans le thème (woff2).
