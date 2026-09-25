@@ -1,0 +1,177 @@
+# Intégration continue de Yume Novel.
+#
+#   syntaxe      php -l sur PHP 8.1, 8.2, 8.3 et 8.4 (plugin, bibliothèque vendorisée, thème, outils),
+#                blueprints Playground régénérés depuis tools/playground/demo.php
+#   normes       PHPCS : WordPress-Extra + WordPress-Docs + phpcs.xml.dist (non bloquant, voir plus bas)
+#   tests        WordPress fr_FR + SQLite monté comme tools/localenv, puis tests/runner.php
+#   archives     dist/yume-core.zip et dist/yume.zip en artefacts téléchargeables
+#
+# Déclenché à chaque push de branche et à chaque pull request ; appelé aussi par release.yml
+# avant toute publication. Documentation : docs/guide-developpeur.md.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
+jobs:
+  syntaxe:
+    name: Syntaxe PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+
+      - name: php -l (erreurs et dépréciations)
+        run: tools/build/lint.sh
+
+      - name: Blueprints Playground à jour (tools/playground/demo.php)
+        if: ${{ matrix.php == '8.3' }}
+        run: php tools/playground/construire.php --verifier
+
+  normes:
+    name: Normes de code (PHPCS)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Non bloquant pendant la construction de la v2 : les écarts apparaissent en annotations sur
+    # la pull request et le job peut échouer sans faire échouer la CI. À passer à false (ou à
+    # supprimer) dès que phpcs ne signale plus rien : voir docs/guide-developpeur.md, « Conventions ».
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: cs2pr
+
+      - name: Installer WordPress Coding Standards
+        run: |
+          composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require --no-interaction --no-progress \
+            "wp-coding-standards/wpcs:^3.1" "phpcompatibility/phpcompatibility-wp:^2.1"
+          composer global config bin-dir --absolute --quiet >> "$GITHUB_PATH"
+
+      - name: PHPCS
+        run: phpcs -q --no-colors --report-full --report-checkstyle=phpcs-rapport.xml
+
+      - name: Annotations sur la pull request
+        if: ${{ always() && hashFiles('phpcs-rapport.xml') != '' }}
+        run: cs2pr --graceful-warnings phpcs-rapport.xml
+
+  tests:
+    name: Tests WordPress (PHP ${{ matrix.php }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.4']
+    env:
+      YUME_ENV: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sqlite3, pdo_sqlite, zip, intl, gd, mbstring, dom, xml, xmlreader
+          ini-values: memory_limit=512M
+          coverage: none
+          tools: wp-cli
+
+      # Même montage que tools/localenv : WordPress téléchargé en français par WP-CLI, intégration
+      # SQLite clonée depuis WordPress/sqlite-database-integration, plugin et thème en liens
+      # symboliques vers ce dépôt, requêtes HTTP sortantes bloquées (aucun appel réel pendant les tests).
+      - name: Installer WordPress (fr_FR, SQLite)
+        run: >-
+          tools/localenv/setup.sh
+          --dossier "$RUNNER_TEMP/localenv"
+          --source wp-cli
+          --langue fr_FR
+          --bloquer-http
+
+      - name: WordPress installé
+        run: |
+          . "$RUNNER_TEMP/localenv/env.sh"
+          tools/localenv/wp.sh core version --extra
+          tools/localenv/wp.sh eval 'printf( "Langue %s, base %s, PHP %s\n", get_locale(), DB_ENGINE, PHP_VERSION );'
+          tools/localenv/wp.sh plugin get yume-core --fields=name,status,version
+          tools/localenv/wp.sh theme get yume --fields=name,status,version
+
+      - name: Tests (wp eval-file wp-content/plugins/yume-core/tests/runner.php)
+        run: |
+          . "$RUNNER_TEMP/localenv/env.sh"
+          tools/localenv/wp.sh eval-file wp-content/plugins/yume-core/tests/runner.php
+
+      # Contrat §16 : aucune notice PHP pendant les tests. Les messages qui concernent Yume font
+      # échouer le job ; les autres (cœur de WordPress, WP-CLI) sont seulement signalés.
+      - name: Journal PHP (debug.log)
+        if: ${{ always() }}
+        run: |
+          journal="$RUNNER_TEMP/localenv/wp/wp-content/debug.log"
+          if [ ! -s "$journal" ]; then
+            echo "debug.log vide."
+            exit 0
+          fi
+          cat "$journal"
+          motif='PHP (Fatal error|Parse error|Warning|Notice|Deprecated)|called incorrectly|is deprecated'
+          yume='plugins/yume-core/|themes/yume/|yume_|yume/|Yume\\|yume-core'
+          if grep -E "$motif" "$journal" | grep -qE "$yume"; then
+            echo "::error::Notices ou erreurs PHP liées à Yume dans debug.log (voir ci-dessus)."
+            exit 1
+          fi
+          if grep -qE "$motif" "$journal"; then
+            echo "::warning::debug.log contient des messages PHP hors Yume (voir ci-dessus)."
+          fi
+
+  archives:
+    name: Archives yume-core.zip et yume.zip
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: syntaxe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: zip
+          coverage: none
+          tools: none
+
+      - name: Construire
+        id: zip
+        run: tools/build/zip.sh
+
+      # L'artefact téléchargé est lui-même une archive : la décompresser pour obtenir les deux zips.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yume-archives-${{ steps.zip.outputs.version_plugin }}-${{ github.run_number }}
+          path: |
+            dist/yume-core.zip
+            dist/yume.zip
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,39 @@
+<!-- wp:template-part {"slug":"header","tagName":"header","className":"yn-site-header"} /-->
+
+<!-- wp:group {"tagName":"main","className":"yn-main yn-article","layout":{"type":"constrained"}} -->
+<main class="wp-block-group yn-main yn-article"><!-- wp:group {"tagName":"article","align":"full","className":"yn-article__corps","layout":{"type":"constrained"}} -->
+<article class="wp-block-group alignfull yn-article__corps"><!-- wp:group {"align":"full","className":"yn-entete-page","layout":{"type":"constrained"}} -->
+<div class="wp-block-group alignfull yn-entete-page"><!-- wp:post-terms {"term":"category","separator":" · ","className":"yn-label"} /-->
+
+<!-- wp:post-title {"level":1} /-->
+
+<!-- wp:group {"className":"yn-meta","layout":{"type":"flex","flexWrap":"wrap"}} -->
+<div class="wp-block-group yn-meta"><!-- wp:post-date {"format":"j F Y"} /-->
+
+<!-- wp:post-author-name /--></div>
+<!-- /wp:group --></div>
+<!-- /wp:group -->
+
+<!-- wp:post-featured-image {"align":"wide","className":"yn-article__image"} /-->
+
+<!-- wp:post-content {"className":"yn-contenu-article","layout":{"type":"constrained"}} /-->
+
+<!-- wp:group {"className":"yn-article__pied","layout":{"type":"flex","orientation":"vertical"}} -->
+<div class="wp-block-group yn-article__pied"><!-- wp:post-terms {"term":"yume_oeuvre_liee","prefix":"Œuvre : "} /-->
+
+<!-- wp:post-terms {"term":"post_tag","prefix":"Étiquettes : "} /--></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"tagName":"nav","className":"yn-navigation-articles","ariaLabel":"Articles voisins","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between"}} -->
+<nav class="wp-block-group yn-navigation-articles" aria-label="Articles voisins"><!-- wp:post-navigation-link {"type":"previous","label":"Article précédent","showTitle":true,"arrow":"arrow"} /-->
+
+<!-- wp:post-navigation-link {"label":"Article suivant","showTitle":true,"arrow":"arrow"} /--></nav>
+<!-- /wp:group --></article>
+<!-- /wp:group -->
+
+<!-- wp:group {"tagName":"section","className":"yn-section-commentaires","layout":{"type":"constrained"}} -->
+<section class="wp-block-group yn-section-commentaires"><!-- wp:pattern {"slug":"yume/commentaires"} /--></section>
+<!-- /wp:group --></main>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","tagName":"footer","className":"yn-site-footer"} /-->

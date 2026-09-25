@@ -1,0 +1,302 @@
+/**
+ * Thème Yume — typographie du lecteur en ligne (docs/04 §4.4, contrat §9 et §14).
+ *
+ * Le conteneur .yn-reader (groupe du modèle « Chapitre ») est piloté par des variables
+ * posées par le panneau de réglages de l'extension :
+ *   --yn-size      taille du texte (px)            défaut 18px
+ *   --yn-lh        interligne (sans unité)          défaut 1.6
+ *   --yn-font      famille de police                défaut Literata (preset « lecture »)
+ *   --yn-width     largeur de colonne (ch)          défaut 68ch
+ *   --yn-bg-alpha  opacité du fond de la colonne    défaut .93
+ *
+ * Les couleurs suivent le thème actif (html[data-yn-theme] = nuit | papier | sepia) via
+ * les variables --wp--preset--color--* ; aucune couleur n'est codée en dur ici.
+ * Les classes de contenu (.yn-dialogue, .yn-thought…) sont aussi stylées hors du
+ * conteneur pour que l'éditeur de chapitres les affiche comme en façade.
+ */
+
+.yn-reader {
+	--yn-ink: var(--wp--preset--color--texte);
+	--yn-ink-fort: var(--wp--preset--color--texte-fort);
+	--yn-paper: var(--wp--preset--color--fond);
+	--yn-rule: var(--wp--preset--color--filet);
+
+	box-sizing: content-box;
+	max-width: var(--yn-width, 68ch);
+	margin-inline: auto;
+	padding: clamp(24px, 4vw, 48px) 0 clamp(24px, 3vw, 40px);
+	background: var(--yn-paper);
+	background: color-mix(in srgb, var(--yn-paper) calc(var(--yn-bg-alpha, 0.93) * 100%), transparent);
+	color: var(--yn-ink);
+	font-family: var(--yn-font, var(--wp--preset--font-family--lecture));
+	font-size: var(--yn-size, 18px);
+	line-height: var(--yn-lh, 1.6);
+	text-align: justify;
+	-webkit-hyphens: auto;
+	hyphens: auto;
+	hyphenate-limit-chars: 6 3 3;
+	text-wrap: pretty;
+	overflow-wrap: break-word;
+	font-variant-numeric: oldstyle-nums;
+	font-kerning: normal;
+}
+
+@media (min-width: 782px) {
+	.yn-reader {
+		padding-inline: clamp(24px, 3vw, 40px);
+		border-radius: var(--yn-radius-card, 10px);
+	}
+}
+
+/* Les éléments d'interface placés dans le lecteur gardent la police et l'alignement du site. */
+.yn-reader :where(.yn-chapter-header, .yn-chapter-nav, .yn-reader-tools, nav, button, .yn-btn, .yn-chip, .yn-label) {
+	font-family: var(--wp--preset--font-family--corps);
+	-webkit-hyphens: manual;
+	hyphens: manual;
+	text-align: initial;
+}
+
+.yn-reader > * {
+	margin-block: 0;
+}
+
+.yn-reader > * + * {
+	margin-block-start: 1.6em;
+}
+
+/* Titres du chapitre (rendus par yume/chapter-header). */
+.yn-reader h1 {
+	margin: 0;
+	color: var(--yn-ink-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 2.2em;
+	font-weight: 800;
+	line-height: 1.1;
+	text-align: center;
+	text-wrap: balance;
+	-webkit-hyphens: manual;
+	hyphens: manual;
+}
+
+.yn-reader h2.yn-subtitle,
+.yn-reader .yn-subtitle {
+	margin: 0.4em 0 1.6em;
+	padding-bottom: 0.4em;
+	border-bottom: 1px solid var(--yn-rule);
+	color: var(--yn-ink-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 1.25em;
+	font-weight: 700;
+	line-height: 1.25;
+	text-align: center;
+	text-wrap: balance;
+	-webkit-hyphens: manual;
+	hyphens: manual;
+}
+
+/* Texte du chapitre. */
+.yn-reader .wp-block-post-content {
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.yn-reader .wp-block-post-content > *,
+.yn-reader .wp-block-post-content > * + * {
+	margin-block: 0 0.8em;
+}
+
+.yn-reader p {
+	margin: 0 0 0.8em;
+}
+
+.yn-reader :where(h2, h3, h4):not(.yn-subtitle) {
+	margin: 1.6em 0 0.6em;
+	color: var(--yn-ink-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	line-height: 1.25;
+	text-align: left;
+	-webkit-hyphens: manual;
+	hyphens: manual;
+}
+
+.yn-reader h2:not(.yn-subtitle) {
+	font-size: 1.3em;
+}
+
+.yn-reader h3 {
+	font-size: 1.15em;
+}
+
+.yn-reader a:where(:not(.yn-btn):not(.wp-element-button)) {
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+}
+
+.yn-reader blockquote {
+	margin: 1.2em 0;
+	padding-inline-start: 1.2em;
+	border-inline-start: 3px solid var(--wp--preset--color--accent);
+	font-style: italic;
+}
+
+/* Dialogues : tiret cadratin en retrait suspendu. */
+.yn-dialogue,
+.yn-reader .yn-dialogue {
+	padding-left: 1.4em;
+	text-indent: -1.4em;
+}
+
+/* Pensées : italique, retrait à gauche. */
+.yn-thought,
+.yn-reader .yn-thought {
+	padding-left: 2.2em;
+	font-style: italic;
+}
+
+.yn-thought em,
+.yn-thought i {
+	font-style: normal;
+}
+
+/* Paragraphes centrés. */
+.yn-center,
+.yn-reader .yn-center,
+.yn-reader .has-text-align-center {
+	text-align: center;
+	text-indent: 0;
+	-webkit-hyphens: manual;
+	hyphens: manual;
+}
+
+/* Séparateur de scène (core/separator.yn-scene-break) : ornement sakura, défini aussi dans yume.css. */
+.yn-reader .wp-block-separator.yn-scene-break,
+.yn-reader hr.yn-scene-break {
+	margin: 2em auto;
+	color: var(--wp--preset--color--accent);
+}
+
+/* Illustrations pleine largeur de colonne. */
+figure.yn-illustration,
+.yn-reader figure.yn-illustration {
+	margin: 2em 0;
+	text-align: center;
+}
+
+figure.yn-illustration img,
+.yn-reader figure.yn-illustration img {
+	display: block;
+	width: 100%;
+	height: auto;
+	margin-inline: auto;
+	border-radius: 8px;
+}
+
+figure.yn-illustration figcaption,
+.yn-reader figure.yn-illustration figcaption {
+	margin-top: 0.6em;
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 0.75em;
+	text-align: center;
+}
+
+/* Notes de bas de page : appel et liste finale. */
+.yn-note {
+	font-size: 0.72em;
+	line-height: 0;
+	vertical-align: super;
+}
+
+.yn-note a {
+	padding: 0 0.15em;
+	color: var(--wp--preset--color--accent);
+	font-family: var(--wp--preset--font-family--corps);
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.yn-note a:hover,
+.yn-note a:focus-visible {
+	text-decoration: underline;
+}
+
+.yn-notes,
+.yn-reader .yn-notes {
+	margin: 2.4em 0 0;
+	padding: 1em 0 0 1.4em;
+	border-top: 1px solid var(--yn-rule, var(--wp--preset--color--filet));
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 0.85em;
+	line-height: 1.5;
+	text-align: left;
+	-webkit-hyphens: manual;
+	hyphens: manual;
+}
+
+.yn-notes li {
+	margin-bottom: 0.5em;
+	padding-inline-start: 0.2em;
+	scroll-margin-top: 80px;
+}
+
+.yn-notes li:target {
+	border-radius: 4px;
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+	outline: 4px solid var(--wp--preset--color--selection);
+}
+
+.yn-note a:target {
+	border-radius: 3px;
+	background: var(--wp--preset--color--selection);
+}
+
+/* Navigation de fin de chapitre (rendue par yume/chapter-nav). */
+.yn-reader .yn-chapter-nav {
+	margin-block-start: 2.4em;
+	font-size: 15px;
+	line-height: 1.4;
+}
+
+/* Page de lecture : colonne centrée, gouttières. */
+.yume-lecture .yn-lecture {
+	padding-inline: var(--yn-gouttiere, 16px);
+}
+
+.yume-lecture .yn-lecture > .yn-lecture__commentaires {
+	padding-inline: 0;
+}
+
+@media (max-width: 599.98px) {
+	.yn-reader {
+		padding-top: 20px;
+		font-size: var(--yn-size, 17px);
+		text-align: justify;
+	}
+
+	.yn-reader h1 {
+		font-size: 1.9em;
+	}
+
+	.yn-dialogue,
+	.yn-reader .yn-dialogue {
+		padding-left: 1.1em;
+		text-indent: -1.1em;
+	}
+
+	.yn-thought,
+	.yn-reader .yn-thought {
+		padding-left: 1.4em;
+	}
+}
+
+@media print {
+	.yn-reader {
+		max-width: none;
+		padding: 0;
+		background: none;
+		color: #000;
+		font-size: 12pt;
+	}
+}

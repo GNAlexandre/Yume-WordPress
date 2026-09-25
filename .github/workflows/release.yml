@@ -1,0 +1,118 @@
+# Publication d'une version de Yume Novel.
+#
+# Déclenché par un tag vX.Y.Z (ou vX.Y.Z-suffixe pour une préversion) :
+#   1. vérifie le tag : format, versions du plugin (en-tête et YUME_CORE_VERSION) et du thème
+#      identiques au tag, et, pour une version stable, commit présent sur la branche par défaut ;
+#   2. rejoue toute la CI (ci.yml) ;
+#   3. construit dist/yume-core.zip et dist/yume.zip et crée la release GitHub avec ces deux
+#      archives (+ SHA256SUMS).
+#
+# Les sites équipés de yume-core vérifient la dernière release toutes les 12 heures et installent
+# la mise à jour (automatiquement si « Mises à jour automatiques » est coché dans Yume → Réglages).
+# Une préversion (v2.1.0-beta.1) est publiée comme « pre-release » : les sites l'ignorent.
+#
+# Règle de l'équipe (docs/06-contrat-technique.md §0 bis) : aucun tag v* sans le « Go » explicite.
+# Procédure complète : docs/guide-developpeur.md, « Publier une version ».
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verifier:
+    name: Tag et versions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+      preversion: ${{ steps.tag.outputs.preversion }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: zip
+          coverage: none
+          tools: none
+
+      - name: Format du tag
+        id: tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          if ! printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Tag « $TAG » invalide : attendu vX.Y.Z ou vX.Y.Z-suffixe (ex. v2.1.0, v2.1.0-beta.1)."
+            exit 1
+          fi
+          preversion=false
+          case "$version" in *-*) preversion=true ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "preversion=$preversion" >> "$GITHUB_OUTPUT"
+          echo "Version $version (préversion : $preversion)"
+
+      - name: Versions du plugin et du thème identiques au tag
+        run: tools/build/zip.sh --version-attendue "${{ steps.tag.outputs.version }}"
+
+      - name: Version stable publiée depuis la branche par défaut
+        if: ${{ steps.tag.outputs.preversion == 'false' }}
+        env:
+          BRANCHE: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch --no-tags origin "$BRANCHE"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$BRANCHE"; then
+            echo "::error::Le tag ${{ github.ref_name }} ne pointe pas sur un commit de $BRANCHE : une version stable se publie depuis $BRANCHE (utiliser un suffixe -beta.N pour tester une autre branche)."
+            exit 1
+          fi
+
+  ci:
+    name: CI
+    needs: verifier
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  publier:
+    name: Release GitHub
+    needs: [verifier, ci]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: zip
+          coverage: none
+          tools: none
+
+      - name: Construire les archives
+        run: tools/build/zip.sh --version-attendue "${{ needs.verifier.outputs.version }}"
+
+      - name: Créer la release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Yume Novel ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/yume-core.zip
+            dist/yume.zip
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          prerelease: ${{ needs.verifier.outputs.preversion == 'true' }}
+          make_latest: ${{ needs.verifier.outputs.preversion == 'true' && 'false' || 'true' }}

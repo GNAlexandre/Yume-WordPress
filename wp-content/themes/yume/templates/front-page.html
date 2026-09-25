@@ -1,0 +1,83 @@
+<!-- wp:template-part {"slug":"header","tagName":"header","className":"yn-site-header"} /-->
+
+<!-- wp:yume/banner {"align":"full"} /-->
+
+<!-- wp:group {"tagName":"main","className":"yn-main yn-accueil","layout":{"type":"constrained"}} -->
+<main class="wp-block-group yn-main yn-accueil"><!-- wp:group {"tagName":"section","align":"wide","className":"yn-section","layout":{"type":"default"}} -->
+<section class="wp-block-group alignwide yn-section"><!-- wp:group {"className":"yn-section__tete","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between"}} -->
+<div class="wp-block-group yn-section__tete"><!-- wp:heading {"className":"yn-section__titre"} -->
+<h2 class="wp-block-heading yn-section__titre">Dernières sorties</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"className":"yn-section__lien yn-lien-sorties"} -->
+<p class="yn-section__lien yn-lien-sorties"><a href="/bibliotheque/?tri=recent">Toutes les sorties <span aria-hidden="true">→</span></a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:yume/latest-releases {"count":6} /--></section>
+<!-- /wp:group -->
+
+<!-- wp:group {"tagName":"section","align":"wide","className":"yn-accueil__duo","layout":{"type":"grid","columnCount":2,"minimumColumnWidth":"320px"}} -->
+<section class="wp-block-group alignwide yn-accueil__duo"><!-- wp:group {"className":"yn-card yn-carte-accueil","layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} -->
+<div class="wp-block-group yn-card yn-carte-accueil"><!-- wp:group {"className":"yn-section__tete","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between"}} -->
+<div class="wp-block-group yn-section__tete"><!-- wp:heading {"className":"yn-carte-accueil__titre"} -->
+<h2 class="wp-block-heading yn-carte-accueil__titre">Prochaines sorties</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"className":"yn-section__lien yn-lien-planning"} -->
+<p class="yn-section__lien yn-lien-planning"><a href="/planning/">Planning complet <span aria-hidden="true">→</span></a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:yume/upcoming {"count":3} /--></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"yn-card yn-carte-accueil","layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} -->
+<div class="wp-block-group yn-card yn-carte-accueil"><!-- wp:group {"className":"yn-section__tete","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between"}} -->
+<div class="wp-block-group yn-section__tete"><!-- wp:heading {"className":"yn-carte-accueil__titre"} -->
+<h2 class="wp-block-heading yn-carte-accueil__titre">Actualités</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"className":"yn-section__lien yn-lien-actualites"} -->
+<p class="yn-section__lien yn-lien-actualites"><a href="/actualites/">Toutes<span class="yn-visually-hidden"> les actualités</span> <span aria-hidden="true">→</span></a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:query {"queryId":1,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false},"className":"yn-actus-mini"} -->
+<div class="wp-block-query yn-actus-mini"><!-- wp:post-template -->
+<!-- wp:post-date {"format":"j M","className":"yn-label"} /-->
+
+<!-- wp:post-title {"level":3,"isLink":true,"className":"yn-actus-mini__titre"} /-->
+<!-- /wp:post-template -->
+
+<!-- wp:query-no-results -->
+<!-- wp:paragraph {"className":"yn-muted"} -->
+<p class="yn-muted">Aucune actualité pour le moment.</p>
+<!-- /wp:paragraph -->
+<!-- /wp:query-no-results --></div>
+<!-- /wp:query --></div>
+<!-- /wp:group --></section>
+<!-- /wp:group -->
+
+<!-- wp:group {"tagName":"section","align":"wide","className":"yn-card yn-bandeau-reprise","layout":{"type":"flex","flexWrap":"wrap","verticalAlignment":"center"}} -->
+<section class="wp-block-group alignwide yn-card yn-bandeau-reprise"><!-- wp:yume/resume-reading {"layout":"bandeau"} /-->
+
+<!-- wp:group {"className":"yn-bandeau-reprise__repli","layout":{"type":"default"}} -->
+<div class="wp-block-group yn-bandeau-reprise__repli"><!-- wp:paragraph {"className":"yn-label"} -->
+<p class="yn-label">Communauté</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"className":"yn-bandeau-reprise__titre"} -->
+<p class="yn-bandeau-reprise__titre">Discutez des sorties avec l’équipe et les autres lecteurs</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:buttons -->
+<div class="wp-block-buttons"><!-- wp:button {"className":"is-style-yn-secondaire yn-lien-discord"} -->
+<div class="wp-block-button is-style-yn-secondaire yn-lien-discord"><a class="wp-block-button__link wp-element-button" href="https://discord.gg/tuMB3rmmWB">Rejoindre le Discord</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons --></section>
+<!-- /wp:group --></main>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","tagName":"footer","className":"yn-site-footer"} /-->

@@ -1,0 +1,20 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/theme-toggle",
+	"title": "Bascule de thème",
+	"category": "theme",
+	"icon": "admin-appearance",
+	"description": "Bouton qui alterne entre le thème Nuit et le thème Papier ; le choix est mémorisé dans le navigateur du lecteur.",
+	"keywords": [ "thème", "sombre", "clair", "nuit", "papier" ],
+	"textdomain": "yume",
+	"attributes": {},
+	"supports": {
+		"html": false,
+		"reusable": false,
+		"className": true,
+		"customClassName": true
+	},
+	"editorScript": "file:./editor.js",
+	"render": "file:./render.php"
+}

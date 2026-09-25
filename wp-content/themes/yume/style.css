@@ -1,0 +1,23 @@
+/*
+Theme Name:        Yume
+Theme URI:         https://github.com/GNAlexandre/Yume-WordPress
+Description:       Thème bloc de Yume Novel (fan-traductions françaises de light novels) : direction « Crépuscule sakura », thème Nuit par défaut, thèmes de lecture Papier et Sépia, lecteur en ligne, bibliothèque et planning fournis par l'extension Yume Core.
+Version:           2.0.0-dev
+Requires at least: 6.6
+Tested up to:      7.1
+Requires PHP:      8.1
+Author:            Yume Novel
+Author URI:        https://yumenovel.fr
+License:           GPL-2.0-or-later
+License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain:       yume
+Update URI:        https://github.com/GNAlexandre/Yume-WordPress
+Tags:              block-themes, full-site-editing, dark, blog, one-column, wide-blocks, custom-colors, custom-logo, editor-style, threaded-comments, translation-ready
+*/
+
+/*
+ * Les styles du thème ne sont pas dans ce fichier : ils sont chargés depuis
+ * assets/css/yume.css (interface, classes utilitaires, thèmes Papier et Sépia)
+ * et assets/css/reader.css (typographie du lecteur), en façade comme dans l'éditeur.
+ * Les jetons de conception (couleurs, polices, espacements) vivent dans theme.json.
+ */
