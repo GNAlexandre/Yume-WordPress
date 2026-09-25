@@ -1313,3 +1313,36 @@ yume_test(
 		}
 	)
 );
+
+yume_test(
+	'MET-5 : un tome brouillon publié depuis l’administration reçoit « tome-12 » ; un tome déjà en ligne garde son adresse',
+	function () {
+		add_filter( 'yume_core_notifier', '__return_false', 99 );
+		try {
+			$oeuvre = yume_factory_post( array( 'post_type' => 'yume_oeuvre', 'post_title' => 'Œuvre slug admin' ) );
+			$tome   = yume_factory_post(
+				array(
+					'post_type'   => 'yume_tome',
+					'post_status' => 'draft',
+					'post_title'  => 'Œuvre slug admin — Tome 12',
+					'meta_input'  => array( 'yume_oeuvre_id' => $oeuvre, 'yume_nature' => 'tome', 'yume_numero' => 12 ),
+				)
+			);
+			wp_update_post( array( 'ID' => $tome, 'post_status' => 'publish' ) );
+			yume_assert_same( 'tome-12', get_post( $tome )->post_name );
+
+			$garde = yume_factory_post(
+				array(
+					'post_type'  => 'yume_tome',
+					'post_title' => 'Œuvre slug admin — Tome 13',
+					'post_name'  => 'oeuvre-slug-admin-tome-13',
+					'meta_input' => array( 'yume_oeuvre_id' => $oeuvre, 'yume_nature' => 'tome', 'yume_numero' => 13 ),
+				)
+			);
+			wp_update_post( array( 'ID' => $garde, 'post_excerpt' => 'maj' ) );
+			yume_assert_same( 'oeuvre-slug-admin-tome-13', get_post( $garde )->post_name );
+		} finally {
+			remove_filter( 'yume_core_notifier', '__return_false', 99 );
+		}
+	}
+);

@@ -449,6 +449,13 @@ function envoyer_lot( int $taille = 0 ): array {
 		if ( 1 !== (int) $pris ) {
 			continue;
 		}
+		// Alerte de sortie dont le contenu n'est plus publié entre-temps : abandonnée.
+		if ( preg_match( '/^alerte_sortie_(\d+)$/', (string) $ligne->contexte, $m ) && 'publish' !== get_post_status( (int) $m[1] ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->update( $table, array( 'statut' => 'echec' ), array( 'id' => (int) $ligne->id ), array( '%s' ), array( '%d' ) );
+			++$bilan['abandons'];
+			continue;
+		}
 		$email = (string) $ligne->destinataire;
 		if ( (int) $ligne->user_id > 0 ) {
 			$user = get_userdata( (int) $ligne->user_id );

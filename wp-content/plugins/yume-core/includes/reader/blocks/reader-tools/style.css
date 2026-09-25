@@ -72,7 +72,7 @@ html:not(.yn-js) .yn-reader-tools__toast {
 	line-height: 1.25;
 }
 
-.yn-reader-tools__retour {
+.yn-reader-tools .yn-reader-tools__retour {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
@@ -85,7 +85,7 @@ html:not(.yn-js) .yn-reader-tools__toast {
 	white-space: nowrap;
 }
 
-.yn-reader-tools__retour:hover {
+.yn-reader-tools .yn-reader-tools__retour:hover {
 	color: var(--wp--preset--color--accent);
 }
 
@@ -301,7 +301,7 @@ html[data-yn-theme="sepia"] .yn-reader-tools__theme--sepia {
 	gap: 12px;
 }
 
-.yn-reader-panel__titre {
+.yn-reader-panel .yn-reader-panel__titre {
 	margin: 0;
 	color: var(--wp--preset--color--texte-fort);
 	font-family: var(--wp--preset--font-family--titres);

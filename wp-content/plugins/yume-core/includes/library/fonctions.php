@@ -114,6 +114,10 @@ function est_visible( $post ): bool {
 	if ( ! $post instanceof \WP_Post ) {
 		return false;
 	}
+	// Visibilité héritée : un tome ou un chapitre dont un parent est masqué l'est aussi.
+	if ( function_exists( '\\Yume\\Core\\Core\\hierarchie_visible' ) && ! \Yume\Core\Core\hierarchie_visible( $post ) ) {
+		return false;
+	}
 	switch ( $post->post_status ) {
 		case 'publish':
 			return true;

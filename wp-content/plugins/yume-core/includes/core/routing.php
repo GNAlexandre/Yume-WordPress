@@ -808,6 +808,37 @@ function garantir_slug( int $post_id ): void {
 }
 
 /**
+ * Un tome qui passe en ligne (publié ou programmé) depuis l'administration, avec un slug vide
+ * ou tiré de son titre, reçoit le slug du contrat (« tome-10 », « arc-7 ») d'après sa nature
+ * et son numéro, comme une publication par le formulaire. Un tome déjà en ligne garde son adresse.
+ *
+ * @param array $data    Données du contenu (non échappées).
+ * @param array $postarr Arguments d'origine.
+ * @return array
+ */
+function slug_tome_a_la_mise_en_ligne( $data, $postarr ) {
+	$service = '\\Yume\\Core\\Publication\\Service';
+	if ( CPT_TOME !== ( $data['post_type'] ?? '' ) || ! in_array( $data['post_status'] ?? '', array( 'publish', 'future' ), true )
+		|| ! is_callable( array( $service, 'slug_a_poser' ) ) ) {
+		return $data;
+	}
+	$id      = (int) ( $postarr['ID'] ?? 0 );
+	$actuel  = $id ? get_post( $id ) : null;
+	$numero  = $id ? get_post_meta( $id, 'yume_numero', true ) : '';
+	if ( ! $actuel instanceof \WP_Post || '' === $numero || null === $numero ) {
+		return $data;
+	}
+	$candidat              = clone $actuel;
+	$candidat->post_name   = (string) $data['post_name'];
+	$candidat->post_title  = wp_unslash( (string) $data['post_title'] );
+	if ( $service::slug_a_poser( $candidat ) ) {
+		$data['post_name'] = $service::slug_tome_existant( $id );
+	}
+	return $data;
+}
+add_filter( 'wp_insert_post_data', __NAMESPACE__ . '\\slug_tome_a_la_mise_en_ligne', 10, 2 );
+
+/**
  * Sur wp_after_insert_post : vérification du slug des tomes et chapitres.
  *
  * @param int $post_id ID.

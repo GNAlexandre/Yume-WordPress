@@ -422,7 +422,7 @@ final class Service {
 	 *
 	 * @param \WP_Post $tome Tome.
 	 */
-	private static function slug_a_poser( \WP_Post $tome ): bool {
+	public static function slug_a_poser( \WP_Post $tome ): bool {
 		if ( in_array( $tome->post_status, array( 'publish', 'private' ), true ) ) {
 			return false;
 		}
@@ -439,7 +439,7 @@ final class Service {
 	 *
 	 * @param int $tome_id Tome.
 	 */
-	private static function slug_tome_existant( int $tome_id ): string {
+	public static function slug_tome_existant( int $tome_id ): string {
 		$nature = (string) get_post_meta( $tome_id, 'yume_nature', true );
 		return self::slug_tome( '' === $nature ? 'tome' : $nature, self::numero( get_post_meta( $tome_id, 'yume_numero', true ) ) );
 	}

@@ -130,10 +130,11 @@ function libelle_sortie( int $post_id ): string {
 /**
  * Sujet et corps de l'alerte d'une sortie.
  *
- * @param int $post_id Tome ou chapitre publié.
+ * @param int   $post_id Tome ou chapitre publié.
+ * @param int[] $groupe  Chapitres sortis ensemble (sortie groupée), vide sinon.
  * @return array{sujet:string,corps:string}
  */
-function message_sortie( int $post_id ): array {
+function message_sortie( int $post_id, array $groupe = array() ): array {
 	$oeuvre_id = yume_get_oeuvre_id( $post_id );
 	$oeuvre    = titre_brut( $oeuvre_id );
 	$libelle   = libelle_sortie( $post_id );
@@ -149,6 +150,18 @@ function message_sortie( int $post_id ): array {
 		);
 		$url    = url_lecture_tome( $post_id );
 		$action = __( 'Lire en ligne', 'yume-core' );
+	} elseif ( count( $groupe ) > 1 && is_callable( array( '\\Yume\\Core\\Publication\\Service', 'libelle_groupe' ) ) ) {
+		$libelle = \Yume\Core\Publication\Service::libelle_groupe( $groupe );
+		/* translators: 1 : œuvre, 2 : libellé des chapitres (« Chapitres 21 à 23 »). */
+		$sujet = sprintf( __( 'Nouveaux chapitres de %1$s : %2$s', 'yume-core' ), $oeuvre, $libelle );
+		$texte = sprintf(
+			/* translators: 1 : libellé des chapitres, 2 : œuvre. */
+			esc_html__( 'De nouveaux chapitres viennent de sortir : %1$s de %2$s.', 'yume-core' ),
+			'<strong>' . esc_html( $libelle ) . '</strong>',
+			'<strong>' . esc_html( $oeuvre ) . '</strong>'
+		);
+		$url    = (string) get_permalink( $post_id );
+		$action = __( 'Lire les chapitres', 'yume-core' );
 	} else {
 		/* translators: 1 : œuvre, 2 : libellé du chapitre. */
 		$sujet = sprintf( __( 'Nouveau chapitre de %1$s : %2$s', 'yume-core' ), $oeuvre, $libelle );
@@ -187,10 +200,11 @@ function message_sortie( int $post_id ): array {
  * Sortie d'un tome ou d'un chapitre : note la sortie (pour le récapitulatif) et prévient
  * une seule fois les abonnés « immédiat ».
  *
- * @param int $post_id Tome ou chapitre.
+ * @param int   $post_id Tome ou chapitre.
+ * @param int[] $groupe  Chapitres sortis ensemble (sortie groupée), vide sinon.
  * @return int Nombre d'e-mails envoyés ou mis en file.
  */
-function alerter_sortie( int $post_id ): int {
+function alerter_sortie( int $post_id, array $groupe = array() ): int {
 	$post = get_post( $post_id );
 	if ( ! $post || ! in_array( $post->post_type, array( 'yume_tome', 'yume_chapitre' ), true ) || 'publish' !== $post->post_status ) {
 		return 0;
@@ -206,7 +220,7 @@ function alerter_sortie( int $post_id ): int {
 	if ( ! emails_actifs() ) {
 		return 0;
 	}
-	$message = message_sortie( $post_id );
+	$message = message_sortie( $post_id, $groupe );
 	$envoyes = 0;
 	foreach ( abonnes( $oeuvre_id, 'immediat' ) as $user_id ) {
 		if ( ! preferences_alertes( $user_id )['sorties'] ) {
@@ -349,12 +363,13 @@ add_action( 'yume_tome_publie', __NAMESPACE__ . '\\sur_tome_publie', 20 );
 /**
  * Action yume_chapitre_publie : alerte des abonnés.
  *
- * @param int $chapitre_id Chapitre.
+ * @param int   $chapitre_id Chapitre.
+ * @param int[] $groupe      Chapitres sortis ensemble (sortie groupée), vide sinon.
  */
-function sur_chapitre_publie( $chapitre_id ): void {
-	alerter_sortie( (int) $chapitre_id );
+function sur_chapitre_publie( $chapitre_id, $groupe = array() ): void {
+	alerter_sortie( (int) $chapitre_id, array_map( 'intval', (array) $groupe ) );
 }
-add_action( 'yume_chapitre_publie', __NAMESPACE__ . '\\sur_chapitre_publie', 20 );
+add_action( 'yume_chapitre_publie', __NAMESPACE__ . '\\sur_chapitre_publie', 20, 2 );
 
 /*
  * -----------------------------------------------------------------------------

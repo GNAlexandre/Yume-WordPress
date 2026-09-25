@@ -693,6 +693,25 @@ function enregistrer_planning( int $post_id ): void {
 		if ( $ancien === $valeur ) {
 			continue;
 		}
+		// Désigner les responsables est réservé à yume_maj_planning_tous, et seulement parmi l'équipe.
+		if ( 'yume_responsables' === $cle ) {
+			if ( ! current_user_can( 'yume_maj_planning_tous' ) ) {
+				continue;
+			}
+			foreach ( $valeur as $role => $uid ) {
+				if ( $uid && ! user_can( (int) $uid, 'yume_voir_equipe' ) ) {
+					$valeur[ $role ] = 0;
+				}
+			}
+			if ( $ancien === $valeur ) {
+				continue;
+			}
+		}
+		// Mêmes règles d'étape que l'espace équipe (« publié » suit la publication).
+		if ( 'yume_etape' === $cle && function_exists( '\\Yume\\Core\\Planning\\controler_etape' )
+			&& is_wp_error( \Yume\Core\Planning\controler_etape( $post_id, (string) $ancien, (string) $valeur, $user_id ) ) ) {
+			continue;
+		}
 		if ( 'yume_bloque' === $cle ) {
 			update_post_meta( $post_id, $cle, $valeur );
 		} else {
