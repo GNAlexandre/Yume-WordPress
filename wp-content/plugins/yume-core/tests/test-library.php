@@ -1719,3 +1719,29 @@ yume_tl_test(
 		}
 	}
 );
+
+yume_test(
+	'partenaires : sans les médias de l’ancien site, les logos embarqués remplacent les initiales',
+	static function () {
+		yume_tl_partenaires( null );
+		$html = yume_tl_rendu( 'partenaires' );
+		foreach ( array( 'massnovel', 'novel-index', 'novel-de-laube', 'j-garden' ) as $logo ) {
+			yume_assert_contains( 'blocks/partenaires/logos/' . $logo . '.png', $html );
+			yume_assert_true( is_readable( YUME_CORE_DIR . 'includes/library/blocks/partenaires/logos/' . $logo . '.png' ), $logo );
+		}
+		yume_assert_not_contains( 'yn-partenaire__monogramme', $html );
+
+		// Partenaire ajouté sans logo : toujours les initiales.
+		yume_tl_partenaires(
+			array(
+				array(
+					'nom'         => 'Équipe amie',
+					'url'         => 'https://exemple.org/',
+					'description' => '',
+					'logo'        => '',
+				),
+			)
+		);
+		yume_assert_contains( 'yn-partenaire__monogramme', yume_tl_rendu( 'partenaires' ) );
+	}
+);

@@ -6,8 +6,9 @@
  * Tant que le réglage n'a jamais été enregistré, les quatre partenaires de l'ancien site sont
  * affichés (valeur par défaut du module core). Leur logo est la pièce jointe de l'ancien site
  * si elle existe et porte le fichier attendu (mêmes ID après la migration) ; sinon il est
- * cherché par nom de fichier dans la médiathèque ; à défaut, les initiales du nom
- * (monogramme) le remplacent : démonstration, Playground, autre site.
+ * cherché par nom de fichier dans la médiathèque ; à défaut, le logo embarqué dans l'extension
+ * (blocks/partenaires/logos/ : démonstration, Playground, autre site) ; sinon les initiales
+ * du nom (monogramme).
  *
  * @package Yume\Core
  */
@@ -142,7 +143,30 @@ add_action( 'edit_attachment', __NAMESPACE__ . '\\oublier_logos_partenaires' );
 add_action( 'delete_attachment', __NAMESPACE__ . '\\oublier_logos_partenaires' );
 
 /**
- * Logo d'un partenaire : pièce jointe (id) ou adresse d'image (url) ; les deux vides : monogramme.
+ * Logo embarqué dans l'extension pour un partenaire par défaut (fichier attendu dans la
+ * médiathèque de l'ancien site → image de blocks/partenaires/logos/). Il sert quand la
+ * médiathèque ne contient pas l'original : démonstration, Playground, autre site.
+ *
+ * @param string $fichier Nom du fichier attendu.
+ * @return string Adresse de l'image, '' si aucune.
+ */
+function logo_embarque( string $fichier ): string {
+	$embarques = array(
+		'logomassnovel-2.png'          => 'massnovel.png',
+		'logo-1.png'                   => 'novel-index.png',
+		'logo_ln-france4-1.webp'       => 'novel-de-laube.png',
+		'cropped-jg-logo-original.png' => 'j-garden.png',
+	);
+	$image     = $embarques[ strtolower( wp_basename( $fichier ) ) ] ?? '';
+	if ( '' === $image || ! is_readable( __DIR__ . '/blocks/partenaires/logos/' . $image ) ) {
+		return '';
+	}
+	return plugins_url( 'blocks/partenaires/logos/' . $image, __FILE__ );
+}
+
+/**
+ * Logo d'un partenaire : pièce jointe (id) ou adresse d'image (url) ; les deux vides : logo
+ * embarqué (partenaires par défaut), sinon monogramme.
  *
  * Avec un nom de fichier attendu (partenaires par défaut), l'ID n'est retenu que si la pièce
  * jointe porte ce fichier (un autre site peut avoir une pièce jointe sans rapport au même ID) ;
@@ -166,10 +190,14 @@ function resoudre_logo_partenaire( $logo, string $fichier = '' ): array {
 			);
 		}
 		$trouve = '' !== $fichier ? chercher_logo( $fichier ) : 0;
-		return $trouve ? array(
-			'id'  => $trouve,
-			'url' => '',
-		) : $aucun;
+		if ( $trouve ) {
+			return array(
+				'id'  => $trouve,
+				'url' => '',
+			);
+		}
+		$aucun['url'] = '' !== $fichier ? logo_embarque( $fichier ) : '';
+		return $aucun;
 	}
 	$url = is_string( $logo ) ? esc_url_raw( trim( $logo ), array( 'http', 'https' ) ) : '';
 	if ( '' !== $url ) {
@@ -179,10 +207,14 @@ function resoudre_logo_partenaire( $logo, string $fichier = '' ): array {
 		);
 	}
 	$trouve = '' !== $fichier ? chercher_logo( $fichier ) : 0;
-	return $trouve ? array(
-		'id'  => $trouve,
-		'url' => '',
-	) : $aucun;
+	if ( $trouve ) {
+		return array(
+			'id'  => $trouve,
+			'url' => '',
+		);
+	}
+	$aucun['url'] = '' !== $fichier ? logo_embarque( $fichier ) : '';
+	return $aucun;
 }
 
 /**
