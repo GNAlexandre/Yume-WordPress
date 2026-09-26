@@ -51,7 +51,7 @@ final class Migration_Planner {
 	/**
 	 * Pages créées par la migration : clé de l'option yume_pages => ( slug, clé du parent,
 	 * titre, bloc dynamique ou '' pour un contenu propre à la page, réglage de lecture visé ).
-	 * Les six premières sont celles du contrat §11 ; « actualites » devient la page des
+	 * Les sept premières sont celles du contrat §11 ; « actualites » devient la page des
 	 * articles, « accueil » la page d'accueil (le thème fournit front-page.html) et
 	 * « mentions-legales » reçoit un texte de base (visé par le pied de page du thème).
 	 */
@@ -60,6 +60,7 @@ final class Migration_Planner {
 		'planning'         => array( 'planning', '', 'Planning', 'yume/planning', '' ),
 		'equipe'           => array( 'equipe', '', 'Espace équipe', 'yume/team-dashboard', '' ),
 		'publier'          => array( 'publier', 'equipe', 'Publier un tome', 'yume/publish-form', '' ),
+		'membres'          => array( 'membres', 'equipe', 'Membres et rôles', 'yume/team-members', '' ),
 		'compte'           => array( 'compte', '', 'Mon compte', 'yume/account', '' ),
 		'connexion'        => array( 'connexion', '', 'Connexion', 'yume/account', '' ),
 		'actualites'       => array( 'actualites', '', 'Actualités', '', 'page_for_posts' ),

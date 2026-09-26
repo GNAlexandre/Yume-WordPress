@@ -52,8 +52,10 @@ if ( $yume_tome ) {
 	}
 	$yume_nav[] = array( __( 'Planning complet', 'yume-core' ), $yume_planning, false );
 	$yume_nav[] = array( __( 'Journal', 'yume-core' ), $yume_equipe . '#yn-team-journal', false );
-	if ( current_user_can( 'list_users' ) ) {
-		$yume_nav[] = array( __( 'Membres et rôles', 'yume-core' ), admin_url( 'users.php' ), false );
+	// Page « Membres et rôles » de l'espace équipe, sinon la liste des utilisateurs de l'administration.
+	$yume_membres = function_exists( '\Yume\Core\Planning\url_membres' ) ? \Yume\Core\Planning\url_membres() : ( current_user_can( 'list_users' ) ? admin_url( 'users.php' ) : '' );
+	if ( '' !== $yume_membres ) {
+		$yume_nav[] = array( __( 'Membres et rôles', 'yume-core' ), $yume_membres, false );
 	}
 	if ( current_user_can( 'yume_reglages' ) ) {
 		$yume_nav[] = array( __( 'Réglages (rappels, Discord)', 'yume-core' ), admin_url( 'admin.php?page=yume-reglages' ), false );

@@ -3,7 +3,7 @@
  * Tests du module planning : tables, états, yume_get_planning et filtres, REST (droits,
  * assainissement, journal, masquage des notes), écouteurs d'événements, file d'e-mails,
  * Discord, rappels et anti-répétition (heure simulée), récapitulatif, planification cron,
- * blocs (rendu selon les droits) et formulaires sans JavaScript.
+ * blocs (rendu selon les droits), formulaires sans JavaScript et page « Membres et rôles ».
  *
  * Lancement : tools/localenv/test.sh planning
  *
@@ -29,6 +29,8 @@ use function Yume\Core\Planning\table_journal;
 use function Yume\Core\Planning\table_notifications;
 use function Yume\Core\Planning\traiter_formulaire_ajout;
 use function Yume\Core\Planning\traiter_formulaire_maj;
+use function Yume\Core\Planning\traiter_formulaire_membres;
+use function Yume\Core\Planning\url_membres;
 
 /*
  * -----------------------------------------------------------------------------
@@ -2111,5 +2113,349 @@ yume_tp_test(
 				yume_assert_same( array(), \Yume\Core\Planning\comptes_chapitres_amorces(), 'lot vidé après calcul' );
 			}
 		);
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Page « Membres et rôles » (yume/team-members)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Crée la page « Membres et rôles » sous l'espace équipe et l'enregistre (option yume_pages),
+ * comme après la migration.
+ *
+ * @return int ID de la page.
+ */
+function yume_tp_page_membres(): int {
+	$equipe  = yume_factory_post(
+		array(
+			'post_type'   => 'page',
+			'post_name'   => 'equipe',
+			'post_title'  => 'Espace équipe',
+			'post_status' => 'publish',
+		)
+	);
+	$membres = yume_factory_post(
+		array(
+			'post_type'    => 'page',
+			'post_name'    => 'membres',
+			'post_title'   => 'Membres et rôles',
+			'post_status'  => 'publish',
+			'post_parent'  => $equipe,
+			'post_content' => '<!-- wp:yume/team-members /-->',
+		)
+	);
+	update_option(
+		'yume_pages',
+		array(
+			'equipe'  => $equipe,
+			'membres' => $membres,
+		)
+	);
+	return $membres;
+}
+
+/**
+ * Formulaire de la page « Membres et rôles », nonce compris.
+ *
+ * @param string $op     role, retrait ou ajout.
+ * @param array  $champs Champs (user_id, role, compte).
+ * @return array
+ */
+function yume_tp_post_membres( string $op, array $champs ): array {
+	$nonce = 'ajout' === $op ? 'yume_membres_ajout' : 'yume_membres_' . (int) ( $champs['user_id'] ?? 0 );
+	return array_merge(
+		array(
+			'action'      => 'yume_equipe_membres',
+			'op'          => $op,
+			'_yume_nonce' => wp_create_nonce( $nonce ),
+		),
+		array_map( 'strval', $champs )
+	);
+}
+
+yume_tp_test(
+	'bloc yume/team-members : connexion requise, réservé aux gérants (yume_gerer_equipe)',
+	function () {
+		$html = yume_render_block( 'yume/team-members' );
+		yume_assert_contains( 'yn-team--acces', $html );
+		yume_assert_contains( 'wp-login.php', $html );
+		foreach ( array( 'subscriber', 'yume_traducteur', 'yume_editeur' ) as $role ) {
+			wp_set_current_user( yume_tp_membre( $role, 'Kaede' ) );
+			$html = yume_render_block( 'yume/team-members' );
+			yume_assert_contains( 'Page réservée aux gérants', $html, $role );
+			yume_assert_not_contains( 'yume_equipe_membres', $html, $role );
+		}
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_tp_test(
+	'bloc yume/team-members (gérant) : membres et rôles, navigation partagée, administrateurs et gérants intouchables',
+	function () {
+		\Yume\Core\Core\installer_roles();
+		$page   = yume_tp_page_membres();
+		$gerant = yume_tp_membre( 'yume_gerant', 'Hikari' );
+		$autre  = yume_tp_membre( 'yume_gerant', 'Sora' );
+		$admin  = yume_tp_membre( 'administrator', 'Admin' );
+		$trad   = yume_tp_membre( 'yume_traducteur', 'Calumi' );
+		$lec    = yume_tp_membre( 'subscriber', 'Kaede' );
+		wp_set_current_user( $gerant );
+		$html = yume_render_block( 'yume/team-members' );
+		wp_set_current_user( 0 );
+		yume_assert_contains( 'class="yn-team yn-team--membres wp-block-yume-team-members" id="yn-team"', $html );
+		yume_assert_contains( '<h2 class="yn-team__bonjour">Membres et rôles</h2>', $html );
+
+		// Navigation : celle du tableau de bord, « Membres et rôles » en page courante.
+		preg_match( '#<nav class="yn-team__nav".*?</nav>#s', $html, $m );
+		yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
+		preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0], $liens, PREG_SET_ORDER );
+		$libelles = array_map( static fn( $l ) => html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), $liens );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages (rappels, Discord)' ), $libelles );
+		$equipe = esc_url( yume_url_page( 'equipe' ) );
+		yume_assert_same( $equipe, $liens[0][1] );
+		yume_assert_same( $equipe . '#yn-mes-taches', $liens[1][1] );
+		yume_assert_same( esc_url( get_permalink( $page ) ), $liens[6][1] );
+		yume_assert_same( ' aria-current="page"', $liens[6][2] );
+		yume_assert_same( 1, substr_count( $m[0], 'aria-current' ) );
+
+		// Membres : chacun avec son rôle ; lecteur absent de la liste.
+		yume_assert_contains( 'id="yn-membre-' . $trad . '"', $html );
+		yume_assert_contains( 'id="yn-membre-' . $admin . '"', $html, 'l’administrateur fait partie de l’équipe' );
+		yume_assert_not_contains( 'id="yn-membre-' . $lec . '"', $html );
+		yume_assert_contains( '>Traducteur</span>', $html );
+		yume_assert_contains( '>Gérant</span>', $html );
+
+		// Formulaires : seulement pour les comptes modifiables.
+		yume_assert_contains( 'name="user_id" value="' . $trad . '"', $html );
+		foreach ( array( $admin, $autre, $gerant ) as $id ) {
+			yume_assert_not_contains( 'name="user_id" value="' . $id . '"', $html, "compte $id non modifiable" );
+		}
+		yume_assert_contains( 'Votre compte : votre rôle ne se change pas ici.', $html );
+		yume_assert_contains( 'Administrateur ou gérant : non modifiable depuis l’espace équipe.', $html );
+		yume_assert_contains( 'name="action" value="yume_equipe_membres"', $html );
+		yume_assert_contains( 'name="_yume_nonce"', $html );
+		yume_assert_contains( '<option value="yume_traducteur" selected=\'selected\'>Traducteur</option>', $html );
+		yume_assert_contains( '<option value="yume_editeur">Éditeur Yume</option>', $html );
+		yume_assert_not_contains( '<option value="yume_gerant"', $html );
+		yume_assert_not_contains( '<option value="administrator"', $html );
+		yume_assert_contains( 'name="op" value="retrait"', $html );
+		yume_assert_contains( 'id="yn-ajouter-membre-form"', $html );
+		yume_assert_contains( 'name="compte"', $html );
+
+		// Tableau de bord : le lien « Membres et rôles » mène à la page.
+		wp_set_current_user( $gerant );
+		$tableau = yume_render_block( 'yume/team-dashboard' );
+		wp_set_current_user( 0 );
+		yume_assert_contains( '<a href="' . esc_url( get_permalink( $page ) ) . '">Membres et rôles</a>', $tableau );
+		yume_assert_not_contains( 'users.php', $tableau );
+	}
+);
+
+yume_tp_test(
+	'lien « Membres et rôles » : page de l’espace équipe, sinon users.php (page absente), rien pour un traducteur',
+	function () {
+		delete_option( 'yume_pages' );
+		$gerant = yume_tp_membre( 'yume_gerant', 'Hikari' );
+		wp_set_current_user( $gerant );
+		yume_assert_same( admin_url( 'users.php' ), url_membres() );
+		yume_assert_contains( '<a href="' . esc_url( admin_url( 'users.php' ) ) . '">Membres et rôles</a>', yume_render_block( 'yume/team-dashboard' ) );
+		$page = yume_tp_page_membres();
+		yume_assert_same( get_permalink( $page ), url_membres() );
+		yume_assert_same( home_url( '/equipe/membres/' ), yume_url_page( 'membres' ) );
+		wp_set_current_user( yume_tp_membre( 'yume_traducteur', 'Calumi' ) );
+		yume_assert_same( '', url_membres() );
+		yume_assert_not_contains( 'Membres et rôles', yume_render_block( 'yume/team-dashboard' ) );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_tp_test(
+	'formulaire « Membres et rôles » : changer le rôle, ajouter un lecteur (identifiant ou e-mail), retirer de l’équipe',
+	function () {
+		\Yume\Core\Core\installer_roles();
+		$gerant = yume_tp_membre( 'yume_gerant', 'Hikari' );
+		$trad   = yume_tp_membre( 'yume_traducteur', 'Calumi' );
+		$lec    = yume_tp_membre( 'subscriber', 'Kaede' );
+		$lec2   = yume_tp_membre( 'subscriber', 'Mio' );
+		wp_set_current_user( $gerant );
+
+		$r = traiter_formulaire_membres(
+			yume_tp_post_membres(
+				'role',
+				array(
+					'user_id' => $trad,
+					'role'    => 'yume_relecteur',
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( 'yn-membre-' . $trad, $r['cible'] );
+		yume_assert_same( 'Rôle de Calumi : Relecteur.', $r['message'] );
+		yume_assert_same( array( 'yume_relecteur' ), array_values( get_userdata( $trad )->roles ) );
+
+		$r = traiter_formulaire_membres(
+			yume_tp_post_membres(
+				'ajout',
+				array(
+					'compte' => get_userdata( $lec )->user_login,
+					'role'   => 'yume_graphiste',
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( 'Kaede rejoint l’équipe : Graphiste.', $r['message'] );
+		yume_assert_same( array( 'yume_graphiste' ), array_values( get_userdata( $lec )->roles ) );
+		yume_assert_true( user_can( $lec, 'yume_voir_equipe' ) );
+
+		$r = traiter_formulaire_membres(
+			yume_tp_post_membres(
+				'ajout',
+				array(
+					'compte' => wp_slash( ' ' . get_userdata( $lec2 )->user_email . ' ' ),
+					'role'   => 'yume_editeur',
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( array( 'yume_editeur' ), array_values( get_userdata( $lec2 )->roles ) );
+
+		// Déjà membre, compte inconnu.
+		$r = traiter_formulaire_membres(
+			yume_tp_post_membres(
+				'ajout',
+				array(
+					'compte' => get_userdata( $lec )->user_login,
+					'role'   => 'yume_traducteur',
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_contains( 'fait déjà partie de l’équipe', $r['message'] );
+		yume_assert_same( 'yn-ajouter-membre-form', $r['cible'] );
+		$r = traiter_formulaire_membres( yume_tp_post_membres( 'ajout', array( 'compte' => 'personne-inconnue' ) ), $gerant );
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_contains( 'Aucun compte', $r['message'] );
+
+		$r = traiter_formulaire_membres( yume_tp_post_membres( 'retrait', array( 'user_id' => $trad ) ), $gerant );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( 'yn-membres', $r['cible'] );
+		yume_assert_same( array( 'subscriber' ), array_values( get_userdata( $trad )->roles ) );
+		yume_assert_false( user_can( $trad, 'yume_voir_equipe' ) );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_tp_test(
+	'formulaire « Membres et rôles » : refus (nonce, non-gérant, administrateur, autre gérant, soi-même, rôle interdit)',
+	function () {
+		\Yume\Core\Core\installer_roles();
+		$gerant  = yume_tp_membre( 'yume_gerant', 'Hikari' );
+		$autre   = yume_tp_membre( 'yume_gerant', 'Sora' );
+		$admin   = yume_tp_membre( 'administrator', 'Admin' );
+		$editeur = yume_tp_membre( 'yume_editeur', 'Rin' );
+		$trad    = yume_tp_membre( 'yume_traducteur', 'Calumi' );
+		$lec     = yume_tp_membre( 'subscriber', 'Kaede' );
+
+		// Nonce absent ou d'un autre compte.
+		wp_set_current_user( $gerant );
+		$post                = yume_tp_post_membres(
+			'role',
+			array(
+				'user_id' => $trad,
+				'role'    => 'yume_relecteur',
+			)
+		);
+		$post['_yume_nonce'] = wp_create_nonce( 'yume_membres_' . $lec );
+		$r                   = traiter_formulaire_membres( $post, $gerant );
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_contains( 'session a expiré', $r['message'] );
+		$r = traiter_formulaire_membres( array( 'op' => 'retrait' ), $gerant );
+		yume_assert_same( 'erreur', $r['type'] );
+
+		// Rôles hors équipe : gérant, administrateur, rôle WordPress.
+		foreach ( array( 'yume_gerant', 'administrator', 'editor', 'inconnu' ) as $role ) {
+			$r = traiter_formulaire_membres(
+				yume_tp_post_membres(
+					'role',
+					array(
+						'user_id' => $trad,
+						'role'    => $role,
+					)
+				),
+				$gerant
+			);
+			yume_assert_same( 'erreur', $r['type'], $role );
+		}
+		yume_assert_same( array( 'yume_traducteur' ), array_values( get_userdata( $trad )->roles ) );
+
+		// Comptes intouchables : administrateur, autre gérant, soi-même.
+		foreach ( array( $admin, $autre, $gerant ) as $cible ) {
+			foreach ( array( 'role', 'retrait' ) as $op ) {
+				$r = traiter_formulaire_membres(
+					yume_tp_post_membres(
+						$op,
+						array(
+							'user_id' => $cible,
+							'role'    => 'yume_traducteur',
+						)
+					),
+					$gerant
+				);
+				yume_assert_same( 'erreur', $r['type'], "$op $cible" );
+			}
+		}
+		$r = traiter_formulaire_membres(
+			yume_tp_post_membres(
+				'ajout',
+				array(
+					'compte' => get_userdata( $admin )->user_login,
+					'role'   => 'yume_traducteur',
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_true( in_array( 'administrator', get_userdata( $admin )->roles, true ) );
+		yume_assert_same( array( 'yume_gerant' ), array_values( get_userdata( $autre )->roles ) );
+		yume_assert_same( array( 'yume_gerant' ), array_values( get_userdata( $gerant )->roles ) );
+
+		// Un administrateur ne promeut pas un gérant depuis cette page (administration seulement).
+		wp_set_current_user( $admin );
+		$r = traiter_formulaire_membres(
+			yume_tp_post_membres(
+				'role',
+				array(
+					'user_id' => $trad,
+					'role'    => 'yume_gerant',
+				)
+			),
+			$admin
+		);
+		yume_assert_same( 'erreur', $r['type'] );
+		$r = traiter_formulaire_membres( yume_tp_post_membres( 'retrait', array( 'user_id' => $autre ) ), $admin );
+		yume_assert_same( 'erreur', $r['type'] );
+
+		// Un éditeur (sans yume_gerer_equipe) ne gère pas les membres.
+		wp_set_current_user( $editeur );
+		$r = traiter_formulaire_membres(
+			yume_tp_post_membres(
+				'ajout',
+				array(
+					'compte' => get_userdata( $lec )->user_login,
+					'role'   => 'yume_traducteur',
+				)
+			),
+			$editeur
+		);
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_same( array( 'subscriber' ), array_values( get_userdata( $lec )->roles ) );
+		wp_set_current_user( 0 );
 	}
 );

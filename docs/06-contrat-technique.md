@@ -137,8 +137,19 @@ Capacités de types : `edit_yume_oeuvres`, `edit_others_yume_oeuvres`, `publish_
 | `subscriber` | Lecteur (renommé) | `read` |
 | `yume_traducteur`, `yume_relecteur`, `yume_graphiste` | Traducteur, Relecteur, Graphiste | `read`, `upload_files`, `yume_voir_equipe`, `yume_maj_planning`, `edit_yume_tomes` |
 | `yume_editeur` | Éditeur Yume | les précédentes + `yume_publier`, `yume_maj_planning_tous`, toutes les capacités des 3 types (y compris others/publish/delete), `edit_posts`, `publish_posts`, `edit_published_posts`, `moderate_comments`, `manage_categories` |
-| `yume_gerant` | Gérant | `yume_editeur` + `yume_gerer_equipe`, `yume_reglages`, `edit_others_posts`, `delete_posts`, `delete_published_posts`, `delete_others_posts`, `list_users` |
+| `yume_gerant` | Gérant | `yume_editeur` + `yume_gerer_equipe`, `yume_reglages`, `edit_others_posts`, `delete_posts`, `delete_published_posts`, `delete_others_posts`, `list_users`, `create_users`, `edit_users`, `promote_users` (limitées, voir ci-dessous) |
 | `administrator` | — | tout, y compris toutes les capacités `yume_*` |
+
+Gestion des membres par un gérant (tout compte sans `manage_options`) : `create_users`, `edit_users`
+et `promote_users` ne portent que sur le Lecteur et les rôles de l'équipe (`roles_gerables()` :
+`subscriber`, `yume_traducteur`, `yume_relecteur`, `yume_graphiste`, `yume_editeur`). Le filtre
+`editable_roles` limite les rôles attribuables à cette liste (user-new.php, user-edit.php, users.php,
+REST `/wp/v2/users`) ; `map_meta_cap` refuse `edit_user`, `promote_user`, `remove_user` et
+`delete_user` sur tout compte ayant un autre rôle (administrateurs, autres gérants, rôles WordPress
+éditoriaux) ou super administrateur, et `promote_user` sur son propre compte. En façade, la page
+« Membres et rôles » (`yume/team-members`, capacité `yume_gerer_equipe`) applique les mêmes règles,
+y compris pour un administrateur : rôles attribuables = rôles de l'équipe de `roles_gerables()`, retrait
+= retour à `subscriber`, contrôle `current_user_can( 'promote_user', $id )` à chaque action.
 
 Fonction utilitaire : `yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool`
 (vrai si `yume_maj_planning_tous`, ou `yume_maj_planning` et l'utilisateur est un des responsables).
@@ -196,7 +207,7 @@ yume_libelle_chapitre( int $chapitre_id ): string;                    // « Chap
 yume_types(): array; yume_statuts(): array; yume_natures_tome(): array; yume_etapes(): array; // slug => libellé
 yume_liens_telechargement( int $tome_id ): array;                     // ['pdf'=>url|'' , 'epub'=>url|'']
 yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool;
-yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','compte','connexion' → URL de la page (option yume_pages)
+yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion' → URL de la page (option yume_pages)
 ```
 
 **planning** (`includes/planning/api.php`) :
@@ -291,6 +302,7 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
 | `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal |
 | `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) |
+| `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) |
 | `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture : progression, sommaire, marque-page, thème, panneau Paramètres |
 | `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte |
 | `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
@@ -313,6 +325,7 @@ module lecteurs y ajoute la progression personnelle sur les lignes de `yume/tome
 | `planning` | `planning` | `yume/planning` |
 | `equipe` | `equipe` | `yume/team-dashboard` |
 | `publier` | `equipe/publier` (page enfant) | `yume/publish-form` |
+| `membres` | `equipe/membres` (page enfant) | `yume/team-members` |
 | `compte` | `compte` | `yume/account` |
 | `connexion` | `connexion` | formulaire de connexion/inscription rendu par `yume/account` quand déconnecté |
 | `actualites` | `actualites` | page des articles (`page_for_posts`) |

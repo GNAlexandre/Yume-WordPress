@@ -1,0 +1,20 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/team-members",
+	"title": "Membres et rôles",
+	"category": "yume",
+	"icon": "admin-users",
+	"description": "Espace équipe (gérants) : membres de l’équipe et leur rôle, changement de rôle, ajout d’un compte existant, retrait de l’équipe.",
+	"keywords": [ "équipe", "membres", "rôles" ],
+	"textdomain": "yume-core",
+	"attributes": {},
+	"supports": {
+		"html": false,
+		"multiple": false,
+		"reusable": false,
+		"align": [ "wide", "full" ]
+	},
+	"render": "file:./render.php",
+	"style": [ "yume-team-dashboard-style", "file:./style.css" ]
+}

@@ -460,6 +460,46 @@ function nom_role( \WP_User $user ): string {
 }
 
 /**
+ * Navigation latérale de l'espace équipe, partagée par le tableau de bord (yume/team-dashboard)
+ * et la page « Membres et rôles » (yume/team-members) : mêmes entrées, même ordre et mêmes
+ * cibles (WCAG 3.2.3). Sur le tableau de bord, les entrées de la page sont des ancres.
+ *
+ * @param string $actif   Page affichée : 'tableau' ou 'membres'.
+ * @param int    $retards Nombre de mes retards (pastille de « Mes tâches »).
+ */
+function navigation_equipe( string $actif, int $retards = 0 ): string {
+	$user    = wp_get_current_user();
+	$tableau = 'tableau' === $actif;
+	$equipe  = $tableau ? '' : yume_url_page( 'equipe' );
+	$html    = '<nav class="yn-team__nav" aria-label="' . esc_attr__( 'Espace équipe', 'yume-core' ) . '"><ul>';
+	$html   .= '<li><a href="' . esc_url( $tableau ? '#yn-team' : $equipe ) . '"' . ( $tableau ? ' aria-current="true"' : '' ) . '>' . esc_html__( 'Tableau de bord', 'yume-core' ) . '</a></li>';
+	$html   .= '<li><a href="' . esc_url( $equipe . '#yn-mes-taches' ) . '">' . esc_html__( 'Mes tâches', 'yume-core' );
+	if ( $retards ) {
+		/* translators: %d : retards */
+		$html .= ' <span class="yn-chip yn-chip--warn"><span aria-hidden="true">' . $retards . '</span><span class="yn-visually-hidden">' . esc_html( sprintf( _n( '%d en retard', '%d en retard', $retards, 'yume-core' ), $retards ) ) . '</span></span>';
+	}
+	$html .= '</a></li>';
+	if ( current_user_can( 'yume_publier' ) ) {
+		$html .= '<li><a href="' . esc_url( yume_url_page( 'publier' ) ) . '">' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a></li>';
+	}
+	if ( current_user_can( 'yume_maj_planning_tous' ) ) {
+		$html .= '<li><a href="' . esc_url( $equipe . '#yn-tous-les-tomes' ) . '">' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</a></li>';
+	}
+	$html   .= '<li><a href="' . esc_url( yume_url_page( 'planning' ) ) . '">' . esc_html__( 'Planning complet', 'yume-core' ) . '</a></li>';
+	$html   .= '<li><a href="' . esc_url( $equipe . '#yn-team-journal' ) . '">' . esc_html__( 'Journal', 'yume-core' ) . '</a></li>';
+	$membres = url_membres();
+	if ( '' !== $membres ) {
+		$html .= '<li><a href="' . esc_url( $membres ) . '"' . ( 'membres' === $actif ? ' aria-current="page"' : '' ) . '>' . esc_html__( 'Membres et rôles', 'yume-core' ) . '</a></li>';
+	}
+	if ( current_user_can( 'yume_reglages' ) ) {
+		$html .= '<li><a href="' . esc_url( admin_url( 'admin.php?page=yume-reglages' ) ) . '">' . esc_html__( 'Réglages (rappels, Discord)', 'yume-core' ) . '</a></li>';
+	}
+	$html .= '</ul><p class="yn-team__moi"><span class="yn-team__avatar" aria-hidden="true">' . esc_html( mb_strtoupper( mb_substr( (string) $user->display_name, 0, 1 ) ) ) . '</span>';
+	$html .= '<span><span class="yn-team__nom">' . esc_html( $user->display_name ) . '</span><span class="yn-label">' . esc_html( nom_role( $user ) ) . '</span></span></p></nav>';
+	return $html;
+}
+
+/**
  * Rendu du bloc « Espace équipe » (aucun attribut).
  */
 function rendu_team_dashboard(): string {
@@ -545,30 +585,7 @@ function rendu_team_dashboard(): string {
 	$html = '<div ' . attributs_racine( 'yn-team', $racine ) . '>';
 
 	// Navigation latérale.
-	$html .= '<nav class="yn-team__nav" aria-label="' . esc_attr__( 'Espace équipe', 'yume-core' ) . '"><ul>';
-	$html .= '<li><a href="#yn-team" aria-current="true">' . esc_html__( 'Tableau de bord', 'yume-core' ) . '</a></li>';
-	$html .= '<li><a href="#yn-mes-taches">' . esc_html__( 'Mes tâches', 'yume-core' );
-	if ( $mes_retards ) {
-		/* translators: %d : retards */
-		$html .= ' <span class="yn-chip yn-chip--warn"><span aria-hidden="true">' . count( $mes_retards ) . '</span><span class="yn-visually-hidden">' . esc_html( sprintf( _n( '%d en retard', '%d en retard', count( $mes_retards ), 'yume-core' ), count( $mes_retards ) ) ) . '</span></span>';
-	}
-	$html .= '</a></li>';
-	if ( current_user_can( 'yume_publier' ) ) {
-		$html .= '<li><a href="' . esc_url( yume_url_page( 'publier' ) ) . '">' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a></li>';
-	}
-	if ( $tous ) {
-		$html .= '<li><a href="#yn-tous-les-tomes">' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</a></li>';
-	}
-	$html .= '<li><a href="' . esc_url( yume_url_page( 'planning' ) ) . '">' . esc_html__( 'Planning complet', 'yume-core' ) . '</a></li>';
-	$html .= '<li><a href="#yn-team-journal">' . esc_html__( 'Journal', 'yume-core' ) . '</a></li>';
-	if ( current_user_can( 'list_users' ) ) {
-		$html .= '<li><a href="' . esc_url( admin_url( 'users.php' ) ) . '">' . esc_html__( 'Membres et rôles', 'yume-core' ) . '</a></li>';
-	}
-	if ( current_user_can( 'yume_reglages' ) ) {
-		$html .= '<li><a href="' . esc_url( admin_url( 'admin.php?page=yume-reglages' ) ) . '">' . esc_html__( 'Réglages (rappels, Discord)', 'yume-core' ) . '</a></li>';
-	}
-	$html .= '</ul><p class="yn-team__moi"><span class="yn-team__avatar" aria-hidden="true">' . esc_html( mb_strtoupper( mb_substr( (string) $user->display_name, 0, 1 ) ) ) . '</span>';
-	$html .= '<span><span class="yn-team__nom">' . esc_html( $user->display_name ) . '</span><span class="yn-label">' . esc_html( nom_role( $user ) ) . '</span></span></p></nav>';
+	$html .= navigation_equipe( 'tableau', count( $mes_retards ) );
 
 	$html .= '<div class="yn-team__principal">';
 

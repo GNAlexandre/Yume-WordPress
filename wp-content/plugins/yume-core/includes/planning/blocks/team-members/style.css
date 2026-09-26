@@ -1,0 +1,74 @@
+/**
+ * yume/team-members — structure seulement ; la mise en page de l'espace équipe (navigation,
+ * en-tête, sections, champs) vient de la feuille du bloc yume/team-dashboard.
+ */
+.yn-team__membre {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+	gap: 12px 24px;
+	align-items: center;
+	padding: 14px 20px;
+	scroll-margin-top: 24px;
+}
+
+.yn-team__membre-tete {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	line-height: 1.25;
+}
+
+.yn-team__membre-id {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.yn-team__membre-id .yn-muted {
+	overflow: hidden;
+	font-size: 13px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.yn-team__membre-tete .yn-chip {
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+.yn-team__membre-form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 10px 12px;
+}
+
+.yn-team__membre-form .yn-team__champ {
+	flex: 1 1 160px;
+}
+
+.yn-team__membre-form .yn-team__retour {
+	flex: 1 1 100%;
+}
+
+.yn-team__membre-note {
+	font-size: 14px;
+}
+
+.yn-team--membres .yn-team__section > .yn-team__retour:not(:empty) {
+	padding: 12px 16px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+}
+
+@media (max-width: 699.98px) {
+	.yn-team__membre {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-team__membre-form .yn-team__action,
+	.yn-team__membre-form .yn-btn {
+		width: 100%;
+	}
+}

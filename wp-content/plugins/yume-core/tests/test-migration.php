@@ -735,10 +735,13 @@ yume_test(
 		yume_assert_same( 'arc', $remplacer[2173] );
 		yume_assert_same( 'chapitre', $remplacer[1548] );
 		$creer = array_column( $plan['pages']['creer'], null, 'post_name' );
-		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_keys( $creer ) );
-		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_column( $plan['pages']['creer'], 'cle' ) );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_keys( $creer ) );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_column( $plan['pages']['creer'], 'cle' ) );
 		yume_assert_contains( '<!-- wp:yume/publish-form /-->', $creer['publier']['post_content'] );
 		yume_assert_same( 'equipe', $creer['publier']['parent'] );
+		yume_assert_contains( '<!-- wp:yume/team-members /-->', $creer['membres']['post_content'] );
+		yume_assert_same( 'equipe', $creer['membres']['parent'] );
+		yume_assert_same( '/equipe/membres/', $creer['membres']['url'] );
 		yume_assert_contains( '<!-- wp:yume/account /-->', $creer['connexion']['post_content'] );
 		yume_assert_same( 'page_for_posts', $creer['actualites']['reglage'] );
 		yume_assert_same( 'page_on_front', $creer['accueil']['reglage'] );
@@ -1091,10 +1094,12 @@ yume_test(
 		yume_assert_same( 3402, (int) get_option( 'default_category' ) );
 
 		$pages = get_option( 'yume_pages' );
-		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_keys( $pages ) );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'accueil' ), array_keys( $pages ) );
 		yume_assert_same( (int) $pages['equipe'], (int) get_post( $pages['publier'] )->post_parent );
 		yume_assert_same( home_url( '/equipe/publier/' ), get_permalink( $pages['publier'] ) );
 		yume_assert_same( home_url( '/equipe/publier/' ), yume_url_page( 'publier' ) );
+		yume_assert_same( (int) $pages['equipe'], (int) get_post( $pages['membres'] )->post_parent );
+		yume_assert_same( home_url( '/equipe/membres/' ), yume_url_page( 'membres' ) );
 		yume_assert_same( '<!-- wp:yume/library-grid /-->', get_post( $pages['bibliotheque'] )->post_content );
 		yume_assert_contains( 'Automattic', get_post( $pages['mentions-legales'] )->post_content );
 		yume_assert_same( 'page', get_option( 'show_on_front' ) );
@@ -1500,7 +1505,7 @@ yume_test(
 		$cibles = array_column( $plan['redirections'], 'cible', 'source' );
 		yume_assert_same( '/oeuvres/secrets-of-the-silent-witch/', $cibles['/arc-8-la-vie-nocturne-silent-witch/'] );
 		yume_assert_same( 92, count( $plan['redirections'] ) );
-		yume_assert_same( 9, count( $plan['pages']['creer'] ) );
+		yume_assert_same( 10, count( $plan['pages']['creer'] ) );
 	}
 );
 
@@ -1519,7 +1524,7 @@ yume_test(
 		$etat = Migration_Runner::terminer();
 		yume_assert_same( 'migre', $etat['statut'], (string) $etat['erreur'] );
 		$c = $etat['comptes'];
-		yume_assert_same( array( 15, 55, 81, 181, 9, 90, 92 ), array( $c['oeuvres_creees'], $c['tomes_crees'], $c['chapitres_crees'], $c['articles_reclasses'], $c['pages_creees'], $c['pages_depubliees'], $c['redirections'] ) );
+		yume_assert_same( array( 15, 55, 81, 181, 10, 90, 92 ), array( $c['oeuvres_creees'], $c['tomes_crees'], $c['chapitres_crees'], $c['articles_reclasses'], $c['pages_creees'], $c['pages_depubliees'], $c['redirections'] ) );
 		yume_assert_same( 15, (int) wp_count_posts( 'yume_oeuvre' )->publish );
 		yume_assert_same( array( 53, 2 ), array( (int) wp_count_posts( 'yume_tome' )->publish, (int) wp_count_posts( 'yume_tome' )->draft ) );
 		yume_assert_same( array( 63, 18 ), array( (int) wp_count_posts( 'yume_chapitre' )->publish, (int) wp_count_posts( 'yume_chapitre' )->draft ) );

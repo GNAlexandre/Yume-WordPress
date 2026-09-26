@@ -179,10 +179,13 @@ Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approu
 
 ## 8. Pour les gérants
 
-- **Membres et rôles** (espace équipe, *Comptes* dans l'administration) : ajouter un membre,
-  changer son rôle (Lecteur, Traducteur, Relecteur, Graphiste, Éditeur Yume), le retirer. Un membre
-  qui quitte l'équipe est repassé au rôle Lecteur ; réattribuez d'abord ses tâches. Les comptes
-  administrateurs et gérants ne sont modifiables que par un administrateur.
+- **Membres et rôles** (page `/equipe/membres/` de l'espace équipe) : la liste des membres et de
+  leur rôle. Pour chacun : **Changer le rôle** (Traducteur, Relecteur, Graphiste, Éditeur Yume) ou
+  **Retirer de l'équipe** (le compte repasse Lecteur ; réattribuez d'abord ses tâches). **Ajouter un
+  membre** : la personne crée d'abord son compte de lecteur sur le site, puis vous saisissez son
+  identifiant ou son e-mail et choisissez son rôle. Les comptes administrateurs et gérants, et le
+  vôtre, ne sont modifiables que par un administrateur (*Comptes* dans l'administration, où vous
+  pouvez aussi créer un compte ou modifier un profil).
 - **Yume → Réglages** (administration) :
   - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),

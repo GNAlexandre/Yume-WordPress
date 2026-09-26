@@ -786,7 +786,7 @@ function yume_preprod_bilan(): void {
 		yume_preprod_log( '  tome 7 : ' . get_permalink( $t7 ) . ' (' . count( $chap ) . ' chapitres)' );
 		yume_preprod_log( '  chapitre 1 : ' . get_permalink( $chap[0] ) );
 	}
-	foreach ( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion', 'actualites' ) as $cle ) {
+	foreach ( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites' ) as $cle ) {
 		yume_preprod_log( sprintf( '  %-13s %s', $cle, yume_url_page( $cle ) ) );
 	}
 }

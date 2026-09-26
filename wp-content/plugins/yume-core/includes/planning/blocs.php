@@ -2,7 +2,7 @@
 /**
  * Blocs du planning (§10) : enregistrement, composants partagés (pastilles d'état, barres,
  * journal) et rendu des blocs publics yume/upcoming, yume/planning et yume/oeuvre-planning.
- * Le bloc yume/team-dashboard est rendu par equipe.php.
+ * Le bloc yume/team-dashboard est rendu par equipe.php, yume/team-members par membres.php.
  *
  * Couleurs : uniquement les variables et classes du thème (§15).
  *
@@ -20,7 +20,7 @@ function enregistrer_blocs(): void {
 	if ( ! function_exists( 'yume_register_dynamic_block' ) ) {
 		return;
 	}
-	foreach ( array( 'upcoming', 'planning', 'oeuvre-planning', 'team-dashboard' ) as $bloc ) {
+	foreach ( array( 'upcoming', 'planning', 'oeuvre-planning', 'team-dashboard', 'team-members' ) as $bloc ) {
 		yume_register_dynamic_block( __DIR__ . '/blocks/' . $bloc );
 	}
 }

@@ -80,7 +80,8 @@
 	color: var(--wp--preset--color--texte-fort);
 }
 
-.yn-team .yn-team__nav a[aria-current="true"] {
+.yn-team .yn-team__nav a[aria-current="true"],
+.yn-team .yn-team__nav a[aria-current="page"] {
 	border-left-color: var(--wp--preset--color--accent);
 	background: var(--wp--preset--color--selection);
 	color: var(--wp--preset--color--texte-fort);
@@ -645,7 +646,8 @@
 		font-size: 14px;
 	}
 
-	.yn-team .yn-team__nav a[aria-current="true"] {
+	.yn-team .yn-team__nav a[aria-current="true"],
+	.yn-team .yn-team__nav a[aria-current="page"] {
 		border-color: var(--wp--preset--color--accent);
 	}
 

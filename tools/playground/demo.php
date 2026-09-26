@@ -4,8 +4,8 @@
  *
  * Crée (sans doublon si on le relance) : une œuvre fictive avec ses taxonomies, un tome publié
  * avec liens PDF/EPUB et deux chapitres, un tome planifié en cours de traduction, un article
- * d'actualité, les pages du contrat (§11 : bibliothèque, planning, équipe, publier, compte,
- * connexion) et deux comptes de test (equipe / equipe, lecteur / lecteur).
+ * d'actualité, les pages du contrat (§11 : bibliothèque, planning, équipe, publier, membres,
+ * compte, connexion) et deux comptes de test (equipe / equipe, lecteur / lecteur).
  *
  * Ce fichier est la source de l'étape runPHP des blueprints (tools/playground/construire.php
  * l'y recopie). Il s'exécute aussi sur un WordPress local :
@@ -298,6 +298,7 @@ $yume_demo_modele = array(
 	'planning'     => array( 'planning', 'Planning', '<!-- wp:yume/planning /-->', '' ),
 	'equipe'       => array( 'equipe', 'Espace équipe', '<!-- wp:yume/team-dashboard /-->', '' ),
 	'publier'      => array( 'publier', 'Publier un tome', '<!-- wp:yume/publish-form /-->', 'equipe' ),
+	'membres'      => array( 'membres', 'Membres et rôles', '<!-- wp:yume/team-members /-->', 'equipe' ),
 	'compte'       => array( 'compte', 'Mon compte', '<!-- wp:yume/account /-->', '' ),
 	'connexion'    => array( 'connexion', 'Connexion', '<!-- wp:yume/account /-->', '' ),
 );

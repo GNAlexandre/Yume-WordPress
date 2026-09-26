@@ -480,7 +480,8 @@ function yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool {
 }
 
 /**
- * URL d'une page Yume ('bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion').
+ * URL d'une page Yume ('bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte',
+ * 'connexion').
  * Page enregistrée dans l'option yume_pages (clé => ID, créée par la migration), sinon
  * repli sur home_url( '/<slug>/' ).
  *
@@ -492,6 +493,7 @@ function yume_url_page( string $cle ): string {
 		'planning'     => 'planning',
 		'equipe'       => 'equipe',
 		'publier'      => 'equipe/publier',
+		'membres'      => 'equipe/membres',
 		'compte'       => 'compte',
 		'connexion'    => 'connexion',
 	);

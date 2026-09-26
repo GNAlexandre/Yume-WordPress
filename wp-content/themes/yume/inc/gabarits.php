@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Identifiants des pages fonctionnelles créées par la migration (option `yume_pages`,
  * contrat §11) qui s'affichent en pleine largeur : bibliothèque, planning, équipe,
- * publication, compte, connexion.
+ * publication, membres et rôles, compte, connexion.
  *
  * @return int[]
  */
@@ -19,7 +19,7 @@ function yume_theme_pages_larges(): array {
 	if ( ! is_array( $pages ) ) {
 		return array();
 	}
-	$cles = array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion' );
+	$cles = array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion' );
 	$ids  = array();
 	foreach ( $cles as $cle ) {
 		if ( ! empty( $pages[ $cle ] ) ) {
@@ -44,7 +44,7 @@ function yume_theme_hierarchie_page( $modeles ) {
 	if ( ! $page instanceof WP_Post ) {
 		return $modeles;
 	}
-	$slugs = array( 'bibliotheque', 'planning', 'equipe', 'publier', 'compte', 'connexion' );
+	$slugs = array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion' );
 	if ( ! in_array( (int) $page->ID, yume_theme_pages_larges(), true ) && ! in_array( $page->post_name, $slugs, true ) ) {
 		return $modeles;
 	}

@@ -108,7 +108,7 @@ switch ( $yume_v_mode ) {
 		yume_verifier( 90 === (int) ( $yume_v_comptes['pages_depubliees'] ?? 0 ), 'anciennes pages passées en brouillon : ' . (int) ( $yume_v_comptes['pages_depubliees'] ?? 0 ) );
 		yume_verifier( 92 === count( Redirections::table() ), 'redirections 301 : ' . count( Redirections::table() ) );
 		$yume_v_pages = (array) get_option( 'yume_pages', array() );
-		yume_verifier( 9 === count( $yume_v_pages ), 'pages Yume (option yume_pages) : ' . implode( ', ', array_keys( $yume_v_pages ) ) );
+		yume_verifier( 10 === count( $yume_v_pages ), 'pages Yume (option yume_pages) : ' . implode( ', ', array_keys( $yume_v_pages ) ) );
 		yume_verifier( 'page' === get_option( 'show_on_front' ) && (int) get_option( 'page_on_front' ) === (int) ( $yume_v_pages['accueil'] ?? -1 ), 'page d’accueil statique' );
 		foreach ( array( '/oeuvres/grimgar-of-fantasy-and-ash/', '/oeuvres/grimgar-of-fantasy-and-ash/tome-9/', '/oeuvres/secrets-of-the-silent-witch/arc-7/', '/lire/secrets-of-the-silent-witch/arc-1/1/', '/lire/secrets-of-the-silent-witch/arc-4/1/', '/lire/secrets-of-the-silent-witch/arc-7/8/', '/oeuvres/roshidere-manga/' ) as $yume_v_url ) {
 			yume_verifier( url_to_postid( home_url( $yume_v_url ) ) > 0, 'URL résolue : ' . $yume_v_url );
