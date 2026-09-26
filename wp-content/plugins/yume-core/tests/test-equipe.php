@@ -4,7 +4,9 @@
  * vue « Planning complet » (?vue=planning : tous les tomes vivants, filtres, formulaire par
  * ligne, raccourcis, « Retirer du planning », erreur affichée sur la ligne), raccourcis de
  * « Mes tâches » et de « Tous les tomes », vue « Journal » (?vue=journal : pagination, filtre
- * par tome), avertissements de la page « Membres et rôles » et passerelle du planning public.
+ * par tome), vue « Réglages » (?vue=reglages : champs selon les capacités, enregistrement par
+ * admin-post.php avec l'assainissement de la page d'administration), avertissements de la page
+ * « Membres et rôles » et passerelle du planning public.
  *
  * Lancement : tools/localenv/test.sh equipe
  *
@@ -21,6 +23,7 @@ use function Yume\Core\Planning\retour_formulaire;
 use function Yume\Core\Planning\table_journal;
 use function Yume\Core\Planning\table_notifications;
 use function Yume\Core\Planning\traiter_formulaire_maj;
+use function Yume\Core\Planning\traiter_formulaire_reglages;
 use function Yume\Core\Planning\traiter_formulaire_retrait;
 use function Yume\Core\Planning\url_vue_equipe;
 
@@ -229,7 +232,9 @@ yume_te_test(
 		$nav      = navigation_equipe( 'tableau', 2 );
 		$entrees  = yume_te_nav( $nav );
 		$libelles = array_column( $entrees, 0 );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages (rappels, Discord)' ), $libelles );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
+		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[7][1], 'réglages dans l’espace équipe' );
+		yume_assert_not_contains( 'page=yume-reglages', $nav, 'plus la page de l’administration' );
 		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[4][1] );
 		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[5][1] );
 		yume_assert_contains( 'vue=planning', $entrees[4][1] );
@@ -245,6 +250,7 @@ yume_te_test(
 			'journal'  => 5,
 			'publier'  => 2,
 			'membres'  => 6,
+			'reglages' => 7,
 		) as $cle => $index ) {
 			$html    = navigation_equipe( $cle );
 			$entrees = yume_te_nav( $html );
@@ -873,5 +879,192 @@ yume_te_test(
 		);
 		yume_assert_same( array( 'dépublié (repassé en brouillon)', false ), $texte( 'depublie', 'publish', 'draft' ) );
 		yume_assert_same( array( 'dépublié (passé en privé)', false ), $texte( 'depublie', 'publish', 'private' ) );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Réglages (?vue=reglages)
+ * -----------------------------------------------------------------------------
+ */
+
+yume_te_test(
+	'réglages : vue refusée à l’éditeur et au traducteur (ni formulaire ni entrée de navigation)',
+	function () {
+		$d = yume_te_jeu();
+		foreach ( array( 'editeur', 'calumi' ) as $qui ) {
+			$html = yume_te_rendu( $d[ $qui ], array( 'vue' => 'reglages' ) );
+			yume_assert_contains( 'Seuls les gérants et les administrateurs peuvent modifier les réglages du site.', $html, $qui );
+			yume_assert_not_contains( 'name="yume_reglages[', $html, $qui . ' : aucun champ' );
+			yume_assert_not_contains( 'yume_reglages_equipe', $html, $qui . ' : aucun formulaire' );
+			yume_assert_not_contains( 'Réglages', implode( '|', array_column( yume_te_nav( $html ), 0 ) ), $qui . ' : pas d’entrée' );
+			yume_assert_not_contains( 'id="yn-mes-taches"', $html, $qui . ' : pas le tableau de bord' );
+		}
+	}
+);
+
+yume_te_test(
+	'réglages : le gérant voit toutes les sections sauf « Mises à jour » (update_plugins), l’administrateur tout',
+	function () {
+		$d = yume_te_jeu();
+		delete_option( 'yume_reglages' );
+		$html = yume_te_rendu( $d['gerant'], array( 'vue' => 'reglages' ) );
+		yume_assert_contains( '<h2 class="yn-team__bonjour">Réglages</h2>', $html );
+		yume_assert_contains( 'data-yn-rest=', $html, 'racine de l’espace équipe' );
+		$nav = yume_te_nav( $html );
+		yume_assert_same( ' aria-current="page"', $nav[ count( $nav ) - 1 ][2], 'entrée « Réglages » active' );
+		foreach ( array( 'Site et réseaux', 'Planning et rappels', 'Annonces et notifications', 'Partenaires' ) as $titre ) {
+			yume_assert_contains( '>' . $titre . '</h2>', $html, $titre );
+		}
+		yume_assert_not_contains( '>Mises à jour</h2>', $html, 'section vide masquée' );
+		foreach ( \Yume\Core\Core\champs_reglages() as $champ ) {
+			$present = false !== strpos( $html, 'name="yume_reglages[' . $champ['key'] . ']' );
+			yume_assert_same( ! in_array( $champ['key'], array( 'github_repo', 'maj_auto' ), true ), $present, $champ['key'] );
+		}
+		// Types de champs dans l'habillage de l'espace équipe.
+		yume_assert_contains( 'type="url" id="yn-reglage-kofi_url" name="yume_reglages[kofi_url]" value="https://ko-fi.com/ynovel"', $html );
+		yume_assert_contains( '<label class="yn-label" for="yn-reglage-kofi_url">Page Ko-fi</label>', $html );
+		yume_assert_contains( 'aria-describedby="yn-reglage-kofi_url-aide"', $html );
+		yume_assert_contains( 'type="number" id="yn-reglage-rappel_jours_sans_maj"', $html );
+		yume_assert_contains( 'min="1" max="90"', $html );
+		yume_assert_contains( '<select id="yn-reglage-rappel_heure"', $html );
+		yume_assert_contains( 'name="yume_reglages[jours_sortie][]" value="samedi" checked', $html );
+		yume_assert_contains( '<textarea id="yn-reglage-modele_annonce"', $html );
+		yume_assert_contains( 'name="yume_reglages[emails_lecteurs]" value="1" checked', $html );
+		yume_assert_contains( 'name="yume_reglages[partenaires][0][nom]" value="MassNovel"', $html );
+		yume_assert_contains( 'name="yume_reglages[partenaires][7][url]"', $html, 'emplacements libres' );
+		yume_assert_contains( 'Choisir dans la médiathèque', $html );
+		yume_assert_contains( esc_url( admin_url( 'admin.php?page=yume-reglages#yume-reglage-banniere_id' ) ), $html );
+		yume_assert_not_contains( 'wp.media', $html );
+		// Un seul formulaire, un seul bouton, nonce et action admin-post.php.
+		yume_assert_same( 1, substr_count( $html, 'Enregistrer les réglages' ) );
+		yume_assert_contains( 'name="action" value="yume_reglages_equipe"', $html );
+		yume_assert_contains( 'name="_yume_nonce"', $html );
+		yume_assert_contains( 'name="yume_reglages[_formulaire]" value="1"', $html );
+		yume_assert_contains( esc_url( admin_url( 'admin-post.php' ) ), $html );
+		yume_assert_contains( 'Ouvrir dans l’administration', $html );
+		yume_assert_contains( 'role="status" aria-live="polite"', $html );
+
+		$html = yume_te_rendu( $d['admin'], array( 'vue' => 'reglages' ) );
+		yume_assert_contains( '>Mises à jour</h2>', $html );
+		yume_assert_contains( 'name="yume_reglages[github_repo]"', $html );
+		yume_assert_contains( 'name="yume_reglages[maj_auto]"', $html );
+	}
+);
+
+yume_te_test(
+	'réglages : enregistrement (admin-post.php) avec l’assainissement de la page d’administration',
+	function () {
+		$d = yume_te_jeu();
+		delete_option( 'yume_reglages' );
+		wp_set_current_user( $d['gerant'] );
+		$dossier = wp_upload_dir();
+		$image   = wp_insert_attachment(
+			array(
+				'post_title'     => 'Bannière',
+				'post_mime_type' => 'image/png',
+				'post_status'    => 'inherit',
+			),
+			$dossier['basedir'] . '/2026/09/banniere-equipe-test.png'
+		);
+		$post    = array(
+			'action'        => 'yume_reglages_equipe',
+			'_yume_nonce'   => wp_create_nonce( 'yume_reglages_equipe' ),
+			'yume_reglages' => array(
+				'_formulaire'           => '1',
+				'kofi_url'              => 'https://ko-fi.com/equipe',
+				'modele_annonce'        => 'Le {nature} de l\\\'équipe',
+				'rappel_jours_sans_maj' => '500',
+				'jours_sortie'          => array( 'samedi', 'jour-inconnu' ),
+				'banniere_id'           => $dossier['baseurl'] . '/2026/09/banniere-equipe-test.png',
+				'github_repo'           => 'attaquant/depot-piege',
+				'partenaires'           => array(
+					array(
+						'nom' => 'Bon partenaire',
+						'url' => 'https://exemple.fr/',
+					),
+					array(
+						'nom' => 'Mauvais lien',
+						'url' => 'javascript:alert(1)',
+					),
+				),
+			),
+		);
+		$retour  = traiter_formulaire_reglages( $post, $d['gerant'] );
+		yume_assert_same( 'erreur', $retour['type'], 'avertissement de l’assainissement' );
+		yume_assert_same( 'yn-reglages-retour', $retour['cible'] );
+		yume_assert_contains( 'Partenaire « Mauvais lien » ignoré', implode( ' | ', $retour['details'] ) );
+		yume_assert_same( 1, count( $retour['details'] ) );
+
+		$option = get_option( 'yume_reglages' );
+		yume_assert_same( 'https://ko-fi.com/equipe', $option['kofi_url'] );
+		yume_assert_same( 'Le {nature} de l\'équipe', $option['modele_annonce'], 'déslashé' );
+		yume_assert_same( 90, $option['rappel_jours_sans_maj'], 'borné comme dans l’administration' );
+		yume_assert_same( array( 'samedi' ), $option['jours_sortie'] );
+		yume_assert_false( $option['emails_lecteurs'], 'case absente du formulaire : décochée' );
+		yume_assert_same( $image, $option['banniere_id'], 'adresse de la médiathèque convertie en ID' );
+		yume_assert_same( array( 'Bon partenaire' ), array_column( $option['partenaires'], 'nom' ) );
+		yume_assert_same( 'GNAlexandre/Yume-WordPress', $option['github_repo'], 'dépôt réservé à update_plugins' );
+		yume_assert_true( $option['maj_auto'], 'maj_auto conservé (champ masqué au gérant)' );
+
+		// Même résultat que le callback de la page d'administration.
+		$attendu = \Yume\Core\Core\assainir_reglages( wp_unslash( array_merge( $post['yume_reglages'], array( 'banniere_id' => (string) $image ) ) ) );
+		yume_assert_same( $attendu, $option );
+
+		// Formulaire sans avertissement ; image inconnue : valeur conservée et signalée.
+		$post['_yume_nonce']                  = wp_create_nonce( 'yume_reglages_equipe' );
+		$post['yume_reglages']['partenaires'] = array();
+		$retour                               = traiter_formulaire_reglages( $post, $d['gerant'] );
+		yume_assert_same( 'ok', $retour['type'] );
+		yume_assert_same( 'Réglages enregistrés.', $retour['message'] );
+		$post['yume_reglages']['banniere_id'] = 'https://ailleurs.example/image.png';
+		$retour                               = traiter_formulaire_reglages( $post, $d['gerant'] );
+		yume_assert_same( 'erreur', $retour['type'] );
+		yume_assert_contains( 'Bannière du site', $retour['details'][0] ?? '' );
+		yume_assert_same( $image, (int) yume_setting( 'banniere_id' ) );
+
+		// Retour affiché dans la zone aria-live de la vue.
+		retour_formulaire( $d['gerant'], $retour );
+		$html = yume_te_rendu( $d['gerant'], array( 'vue' => 'reglages' ) );
+		yume_assert_contains( 'yn-team__retour--erreur" id="yn-reglages-retour" role="status" aria-live="polite"', $html );
+		yume_assert_contains( 'Réglages enregistrés, sauf :', $html );
+		yume_assert_contains( 'aucune image de la médiathèque', $html );
+	}
+);
+
+yume_te_test(
+	'réglages : nonce invalide ou compte sans yume_reglages refusés, rien n’est enregistré',
+	function () {
+		$d = yume_te_jeu();
+		delete_option( 'yume_reglages' );
+		$saisie = array(
+			'_formulaire' => '1',
+			'kofi_url'    => 'https://ko-fi.com/pirate',
+		);
+		wp_set_current_user( $d['gerant'] );
+		$retour = traiter_formulaire_reglages(
+			array(
+				'_yume_nonce'   => 'faux',
+				'yume_reglages' => $saisie,
+			),
+			$d['gerant']
+		);
+		yume_assert_same( 'erreur', $retour['type'] );
+		yume_assert_contains( 'session a expiré', $retour['message'] );
+		yume_assert_same( 'https://ko-fi.com/ynovel', yume_setting( 'kofi_url' ) );
+
+		wp_set_current_user( $d['editeur'] );
+		$retour = traiter_formulaire_reglages(
+			array(
+				'_yume_nonce'   => wp_create_nonce( 'yume_reglages_equipe' ),
+				'yume_reglages' => $saisie,
+			),
+			$d['editeur']
+		);
+		yume_assert_same( 'erreur', $retour['type'] );
+		yume_assert_contains( 'autorisation', $retour['message'] );
+		yume_assert_same( 'https://ko-fi.com/ynovel', yume_setting( 'kofi_url' ) );
+		yume_assert_true( has_action( 'admin_post_yume_reglages_equipe' ) > 0 );
+		yume_assert_true( has_action( 'admin_post_nopriv_yume_reglages_equipe' ) > 0 );
 	}
 );

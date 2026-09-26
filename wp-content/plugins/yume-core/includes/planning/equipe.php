@@ -7,7 +7,8 @@
  * Vues de la même page (paramètre « vue », sans page supplémentaire) : « Planning complet »
  * (?vue=planning : tous les tomes vivants, filtres œuvre / état / statut / responsable,
  * formulaire par ligne, raccourcis vers la publication, l'administration et la fiche, « Retirer
- * du planning ») et « Journal » (?vue=journal : tout le journal, paginé, filtrable par tome).
+ * du planning »), « Journal » (?vue=journal : tout le journal, paginé, filtrable par tome) et
+ * « Réglages » (?vue=reglages, capacité yume_reglages : voir reglages-equipe.php).
  *
  * Les formulaires passent par la REST en JavaScript (view.js) et, sans JavaScript, par
  * admin-post.php (actions yume_planning_maj, yume_planning_ajout et yume_planning_retrait,
@@ -614,7 +615,8 @@ function nom_role( \WP_User $user ): string {
 
 /**
  * Adresse d'une vue de l'espace équipe (paramètre « vue » de la page équipe, sans nouvelle page) :
- * 'planning' (gestion de tout le planning) ou 'journal' (tout le journal) ; '' : tableau de bord.
+ * 'planning' (gestion de tout le planning), 'journal' (tout le journal) ou 'reglages' (réglages
+ * du site) ; '' : tableau de bord.
  *
  * @param string $vue  Vue.
  * @param array  $args Paramètres supplémentaires (valeurs vides ignorées).
@@ -631,7 +633,8 @@ function url_vue_equipe( string $vue = '', array $args = array() ): string {
 }
 
 /**
- * Vue demandée de l'espace équipe (paramètre GET « vue ») : 'planning', 'journal' ou ''.
+ * Vue demandée de l'espace équipe (paramètre GET « vue ») : 'planning', 'journal', 'reglages'
+ * ou ''.
  */
 function vue_equipe(): string {
 	if ( est_apercu_editeur() ) {
@@ -639,17 +642,17 @@ function vue_equipe(): string {
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- choix d'affichage en lecture seule.
 	$vue = isset( $_GET['vue'] ) && is_string( $_GET['vue'] ) ? sanitize_key( wp_unslash( $_GET['vue'] ) ) : '';
-	return in_array( $vue, array( 'planning', 'journal' ), true ) ? $vue : '';
+	return in_array( $vue, array( 'planning', 'journal', 'reglages' ), true ) ? $vue : '';
 }
 
 /**
  * Navigation latérale de l'espace équipe, partagée par le tableau de bord (yume/team-dashboard),
- * ses vues « Planning complet » et « Journal », la page « Membres et rôles » (yume/team-members)
+ * ses vues « Planning complet », « Journal » et « Réglages », la page « Membres et rôles » (yume/team-members)
  * et le formulaire de publication : mêmes entrées, même ordre et mêmes cibles (WCAG 3.2.3).
  * Sur le tableau de bord, les entrées de la page sont des ancres.
  *
  * @param string $actif   Page affichée : 'tableau', 'planning' (gestion du planning), 'journal',
- *                        'publier' ou 'membres'.
+ *                        'publier', 'membres' ou 'reglages'.
  * @param int    $retards Nombre de mes retards (pastille de « Mes tâches »).
  */
 function navigation_equipe( string $actif, int $retards = 0 ): string {
@@ -682,7 +685,7 @@ function navigation_equipe( string $actif, int $retards = 0 ): string {
 		$html .= '<li><a href="' . esc_url( $membres ) . '"' . $courant( 'membres' ) . '>' . esc_html__( 'Membres et rôles', 'yume-core' ) . '</a></li>';
 	}
 	if ( current_user_can( 'yume_reglages' ) ) {
-		$html .= '<li><a href="' . esc_url( admin_url( 'admin.php?page=yume-reglages' ) ) . '">' . esc_html__( 'Réglages (rappels, Discord)', 'yume-core' ) . '</a></li>';
+		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'reglages' ) ) . '"' . $courant( 'reglages' ) . '>' . esc_html__( 'Réglages', 'yume-core' ) . '</a></li>';
 	}
 	$html .= '</ul><div class="yn-team__moi"><span class="yn-team__avatar" aria-hidden="true">' . esc_html( mb_strtoupper( mb_substr( (string) $user->display_name, 0, 1 ) ) ) . '</span>';
 	$html .= '<span><span class="yn-team__nom">' . esc_html( $user->display_name ) . '</span><span class="yn-label">' . esc_html( nom_role( $user ) ) . '</span></span></div>';
@@ -1053,6 +1056,9 @@ function rendu_team_dashboard(): string {
 	if ( 'journal' === $vue ) {
 		return rendu_vue_journal();
 	}
+	if ( 'reglages' === $vue ) {
+		return rendu_vue_reglages();
+	}
 
 	$user    = wp_get_current_user();
 	$uid     = (int) $user->ID;
@@ -1254,7 +1260,7 @@ function rendu_team_dashboard(): string {
 		$html .= '<p class="yn-muted">' . esc_html__( 'Aucun rappel ces 30 derniers jours.', 'yume-core' ) . '</p>';
 	}
 	if ( current_user_can( 'yume_reglages' ) ) {
-		$html .= '<p><a href="' . esc_url( admin_url( 'admin.php?page=yume-reglages' ) ) . '">' . esc_html__( 'Régler les délais et canaux', 'yume-core' ) . ' <span aria-hidden="true">→</span></a></p>';
+		$html .= '<p><a href="' . esc_url( url_vue_equipe( 'reglages' ) . '#yn-reglages-planning' ) . '">' . esc_html__( 'Régler les délais et canaux', 'yume-core' ) . ' <span aria-hidden="true">→</span></a></p>';
 	}
 	$html .= '</section>';
 

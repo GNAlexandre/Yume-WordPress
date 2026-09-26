@@ -44,7 +44,7 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
 - les liens **Publier un tome** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
-  **Membres et rôles** et **Réglages (rappels, Discord)** ;
+  **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
 Sous chaque tâche (et chaque tome de *Tous les tomes*), des raccourcis mènent directement au bon
@@ -83,6 +83,23 @@ Depuis le planning public (`/planning/`), un membre connecté a un bouton **Modi
 mises à jour, page par page, avec des filtres par œuvre et par tome ; cochez **Inclure les rappels
 automatiques** pour voir aussi les rappels et signalements. Cliquer sur le nom d'un tome filtre le
 journal sur ce tome.
+
+### Réglages (`/equipe/?vue=reglages`, gérants et administrateurs)
+
+L'entrée **Réglages** du menu affiche tous les réglages du site dans l'espace équipe, sans passer
+par l'administration : *Site et réseaux*, *Planning et rappels*, *Annonces et notifications*,
+*Partenaires* (et *Mises à jour* pour l'administrateur seulement ; voir la section 8 pour le
+détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
+bas de page) : un message en haut de la vue confirme l'enregistrement ou liste ce qui a été
+refusé (par exemple un partenaire sans lien valide, ou un lien qui n'est pas un webhook Discord ;
+l'ancienne valeur est alors conservée).
+
+- **Images** (bannière du site, logos des partenaires) : saisissez l'**ID** de l'image ou son
+  **adresse** (copiée depuis la médiathèque) ; un aperçu s'affiche une fois enregistrée. Le lien
+  **Choisir dans la médiathèque** ouvre l'administration dans un nouvel onglet (pour la bannière :
+  la page *Yume → Réglages* et son sélecteur d'images).
+- **Ouvrir dans l'administration** (en haut à droite) ouvre la page *Yume → Réglages*, qui reste
+  disponible et enregistre exactement les mêmes réglages.
 
 ## 4. Mettre à jour son planning
 
@@ -243,7 +260,7 @@ Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approu
   vôtre, ne sont modifiables que par un administrateur (*Comptes* dans l'administration, où vous
   pouvez aussi créer un compte ou modifier un profil) ; l'administrateur a pour cela un lien
   **Modifier dans l'administration** sur la ligne de ces comptes.
-- **Yume → Réglages** (administration) :
+- **Réglages** (menu de l'espace équipe, ou *Yume → Réglages* dans l'administration) :
   - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),
     heure des rappels, jour du récapitulatif ;

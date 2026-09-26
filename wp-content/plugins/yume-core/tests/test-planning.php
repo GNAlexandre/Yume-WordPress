@@ -1789,7 +1789,8 @@ yume_tp_test(
 				yume_assert_contains( 'Ajouter un tome au planning', $html );
 				yume_assert_contains( '<option value="' . $d['grimgar'] . '">Grimgar of Fantasy and Ash</option>', $html );
 				yume_assert_contains( 'Publier un tome', $html );
-				yume_assert_contains( 'Réglages (rappels, Discord)', $html );
+				yume_assert_contains( '>Réglages</a>', $html );
+				yume_assert_contains( esc_url( \Yume\Core\Planning\url_vue_equipe( 'reglages' ) ), $html );
 				yume_assert_contains( 'Membres et rôles', $html );
 				yume_assert_contains( 'Rappels ce mois', $html );
 				yume_assert_contains( 'aucun relecteur assigné', $html );
@@ -2213,7 +2214,7 @@ yume_tp_test(
 		yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
 		preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0], $liens, PREG_SET_ORDER );
 		$libelles = array_map( static fn( $l ) => html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), $liens );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages (rappels, Discord)' ), $libelles );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
 		$equipe = esc_url( yume_url_page( 'equipe' ) );
 		yume_assert_same( $equipe, $liens[0][1] );
 		yume_assert_same( $equipe . '#yn-mes-taches', $liens[1][1] );

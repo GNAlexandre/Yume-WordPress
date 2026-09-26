@@ -25,4 +25,5 @@ require_once __DIR__ . '/rappels.php';
 require_once __DIR__ . '/rest.php';
 require_once __DIR__ . '/blocs.php';
 require_once __DIR__ . '/equipe.php';
+require_once __DIR__ . '/reglages-equipe.php';
 require_once __DIR__ . '/membres.php';
