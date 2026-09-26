@@ -563,8 +563,9 @@ yume_test(
 		yume_assert_contains( 'yn-reader-tools__compte--membre', $membre );
 		yume_assert_contains( 'aria-label="Mon compte (Kaede)"', $membre );
 		yume_assert_not_contains( '>Connexion</a>', $membre );
-		$css = (string) file_get_contents( YUME_CORE_DIR . 'includes/reader/blocks/reader-tools/style.css' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
-		yume_assert_contains( 'body:has(.yn-reader-tools__barre) .yn-site-header--lecture', $css );
+		$gabarit = (string) file_get_contents( get_theme_root() . '/yume/templates/single-yume_chapitre.html' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		yume_assert_not_contains( 'wp:template-part {"slug":"header-lecture"', $gabarit, 'La barre de lecture est le seul en-tête du chapitre.' );
+		yume_assert_contains( '<!-- wp:yume/reader-tools /-->', $gabarit );
 	}
 );
 

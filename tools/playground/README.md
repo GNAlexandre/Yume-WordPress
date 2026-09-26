@@ -9,8 +9,10 @@ Idéal pour faire relire une version par l'équipe avant de la publier.
 | --- | --- | --- |
 | `blueprint.json` | `yume-core.zip` et `yume.zip` de la **dernière release** GitHub (`releases/latest/download/…`) | Vérifier la version publiée (ou sur le point de l'être) |
 | `blueprint-branche.json` | Le plugin et le thème lus **directement dans la branche** `main` du dépôt (ressource `git:directory`) | Relire du travail non publié, avant toute release |
+| `blueprint-local.json` | Le plugin et le thème **de votre clone**, montés par le CLI Playground (`lancer.sh`, `lancer.ps1`) | Tester en local une branche ou des modifications non poussées |
+| `lancer.sh`, `lancer.ps1` | — | Lancent Playground en local sur le clone (Mac/Linux, Windows) : voir [docs/tester-en-local.md](../../docs/tester-en-local.md) |
 | `demo.php` | — | Source du contenu de démonstration (étape `runPHP`) |
-| `construire.php` | — | Régénère les deux blueprints à partir de `demo.php` |
+| `construire.php` | — | Régénère les trois blueprints à partir de `demo.php` |
 
 ## Ouvrir
 
@@ -22,11 +24,14 @@ Le dépôt doit être **public** (Playground lit les fichiers sans authentificat
   `https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/GNAlexandre/Yume-WordPress/main/tools/playground/blueprint-branche.json`
 
 On peut aussi coller le contenu d'un blueprint dans l'éditeur de blueprint de
-playground.wordpress.net, ou lancer Playground en local :
+playground.wordpress.net, ou lancer Playground en local sur le clone (Node.js 22+) :
 
 ```sh
-npx @wp-playground/cli@latest server --blueprint=tools/playground/blueprint-branche.json
+tools/playground/lancer.sh                                                  # Mac / Linux
+powershell -ExecutionPolicy Bypass -File tools\playground\lancer.ps1        # Windows
 ```
+
+Puis <http://127.0.0.1:9400>. Guide pas à pas : [docs/tester-en-local.md](../../docs/tester-en-local.md).
 
 Comptes créés : `admin` / `password` (connecté d'office), `equipe` / `equipe` (rôle Éditeur Yume :
 espace équipe, publication), `lecteur` / `lecteur` (lecteur).

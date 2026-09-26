@@ -66,7 +66,9 @@ Yume-WordPress/
   Détails : `tools/localenv/README.md`.
 - Préproduction : `tools/migrate/seed-local.php` reconstitue l'ancien site dans une base locale à partir
   de l'export, puis *Yume → Migrer → Simuler / Exécuter* rejoue la migration sur les vraies données.
-- `tools/playground/blueprint-branche.json` ouvre une démo dans WordPress Playground sans release.
+- `tools/playground/lancer.sh` (ou `lancer.ps1`) lance le site en local avec WordPress Playground, sur le
+  clone, avec seulement Node.js ; `blueprint-branche.json` ouvre une démo en ligne sans release.
+  Guide : `docs/tester-en-local.md`.
 
 ## 5. Contenu : migration et publications
 

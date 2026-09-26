@@ -14,8 +14,7 @@
  * 11. Commentaires
  * 12. Pagination
  * 13. Œuvres, tomes, bibliothèque
- * 14. En-tête du lecteur
- * 15. Préférences d'accessibilité et impression
+ * 14. Préférences d'accessibilité et impression
  *
  * Les couleurs passent toujours par les variables --wp--preset--color--* (theme.json) :
  * les thèmes Papier et Sépia se contentent de les redéfinir.
@@ -2100,74 +2099,7 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 }
 
 /* ==========================================================================
-   14. En-tête du lecteur
-   ========================================================================== */
-
-.yn-header--lecture {
-	--yn-hauteur-entete: 56px;
-	gap: 14px;
-	padding-inline: clamp(12px, 2vw, 24px);
-}
-
-.yn-header--lecture .yn-header__logo img {
-	width: 36px;
-	height: 36px;
-}
-
-.yn-header-lecture__titres {
-	flex: 1 1 auto;
-	min-width: 0;
-	gap: 0;
-}
-
-.yn-header-lecture__titres > * {
-	max-width: 100%;
-	margin: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.yn-header-lecture__chapitre {
-	color: var(--wp--preset--color--texte-fort);
-	font-family: var(--wp--preset--font-family--corps);
-	font-size: 15px;
-	font-weight: 600;
-	line-height: 1.25;
-}
-
-.yn-header-lecture__site {
-	font-family: var(--wp--preset--font-family--corps);
-	font-size: 12px;
-	font-weight: 400;
-	line-height: 1.3;
-}
-
-.yn-header-lecture__site a,
-.yn-header-lecture__site a:hover {
-	color: var(--wp--preset--color--texte-faible);
-}
-
-.yn-header--lecture .yn-auth {
-	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-@media (max-width: 599.98px) {
-	.yn-header--lecture {
-		--yn-hauteur-entete: 52px;
-		gap: 10px;
-	}
-
-	.yn-header--lecture .yn-auth {
-		display: none;
-	}
-}
-
-/* ==========================================================================
-   15. Préférences d'accessibilité et impression
+   14. Préférences d'accessibilité et impression
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {

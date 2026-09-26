@@ -694,20 +694,10 @@ html[data-yn-theme="sepia"] .yn-reader-panel input[type="range"]::-moz-range-thu
 }
 
 /*
- * Barre unique (maquettes Lecteur et LecteurMobile) : quand la barre de lecture est présente,
- * elle remplace l'en-tête du gabarit (logo, titre du chapitre répété, connexion) et porte
- * elle-même le lien de compte. Sans :has(), l'en-tête reste affiché et le lien de la barre
- * masqué (aucun doublon).
+ * Barre unique (maquettes Lecteur et LecteurMobile) : sur un chapitre, la barre de lecture est
+ * le seul en-tête du gabarit (single-yume_chapitre.html) et porte le lien de compte.
  */
 .yn-reader-tools__compte {
-	display: none;
-}
-
-body:has(.yn-reader-tools__barre) .yn-site-header--lecture {
-	display: none;
-}
-
-body:has(.yn-reader-tools__barre) .yn-reader-tools__compte {
 	display: inline-flex;
 	flex-shrink: 0;
 	align-items: center;
@@ -735,7 +725,7 @@ body:has(.yn-reader-tools__barre) .yn-reader-tools__compte {
 }
 
 @media (max-width: 599.98px) {
-	body:has(.yn-reader-tools__barre) .yn-reader-tools__compte:not(.yn-reader-tools__compte--membre) {
+	.yn-reader-tools__compte:not(.yn-reader-tools__compte--membre) {
 		display: none;
 	}
 

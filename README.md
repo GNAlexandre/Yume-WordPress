@@ -5,9 +5,14 @@ thème, plugin métier, scripts de migration et documentation, déployés sur Wo
 
 ## État
 
-Phase **0 — cadrage**. Ce dépôt contient l'audit du site actuel, le plan de refonte, le modèle de
-données, la spécification du lecteur en ligne et du pipeline de déploiement, ainsi que les notes de design.
-Le code (thème `yume`, plugin `yume-core`) sera ajouté à partir de la phase 0 du plan.
+**v2.0.0-dev, prête pour relecture.** Le thème `yume` et le plugin `yume-core` sont complets
+(bibliothèque, lecteur en ligne généré depuis le DOCX, planning public, espace équipe, publication
+par glisser-déposer, comptes lecteurs, migration de l'ancien site), testés sur SQLite et MariaDB,
+et vérifiés sur une préproduction locale. **Rien n'est publié sur yumenovel.fr** avant le « Go »
+de l'équipe.
+
+**Tester en local :** [docs/tester-en-local.md](docs/tester-en-local.md) — le plus simple :
+`tools/playground/lancer.sh` (ou `lancer.ps1` sous Windows) avec Node.js, puis <http://127.0.0.1:9400>.
 
 ## Documentation
 
@@ -17,7 +22,11 @@ Le code (thème `yume`, plugin `yume-core`) sera ajouté à partir de la phase 0
 | [docs/02-plan-refonte.md](docs/02-plan-refonte.md) | Vision, décision d'hébergement, architecture, fonctionnalités F1–F8, plugins, phasage, jour J, décisions |
 | [docs/03-modele-de-donnees.md](docs/03-modele-de-donnees.md) | Types de contenu, tables, rôles, API REST |
 | [docs/04-import-docx-epub-lecteur.md](docs/04-import-docx-epub-lecteur.md) | Conversion DOCX/EPUB → chapitres, rendu et réglages du lecteur, marque-page |
-| [docs/05-pipeline-github-wordpress.md](docs/05-pipeline-github-wordpress.md) | Arborescence, GitHub Deployments, staging, CI, migration |
+| [docs/05-pipeline-github-wordpress.md](docs/05-pipeline-github-wordpress.md) | Releases GitHub → mises à jour WordPress, environnement local, CI, migration |
+| [docs/06-contrat-technique.md](docs/06-contrat-technique.md) | Contrat technique partagé : types, métadonnées, blocs, routes, rôles, pages |
+| [docs/tester-en-local.md](docs/tester-en-local.md) | Lancer le site sur son ordinateur (Playground, environnement PHP, préproduction) |
+| [docs/guide-equipe.md](docs/guide-equipe.md) | Guide de l'équipe : publier un tome, planning, rappels |
+| [docs/guide-developpeur.md](docs/guide-developpeur.md) | Guide développeur : modules, tests, CI, release |
 | [design/README.md](design/README.md) | Direction visuelle, tokens, liste des maquettes |
 | [docs/plan-refonte.html](docs/plan-refonte.html) | Version présentable du plan (page HTML autonome) |
 
@@ -30,7 +39,7 @@ Atomic à la première installation). Sans GitHub Deployments ni SSH, le code se
 jamais hébergés sur le site ; la lecture en ligne est générée depuis le DOCX. Voir
 `docs/02-plan-refonte.md` §2 et `docs/05-pipeline-github-wordpress.md`.
 
-## Arborescence cible
+## Arborescence
 
 ```
 wp-content/plugins/yume-core   plugin métier (types de contenu, planning, import DOCX/EPUB, API, comptes)

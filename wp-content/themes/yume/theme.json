@@ -798,11 +798,6 @@
 			"area": "header"
 		},
 		{
-			"name": "header-lecture",
-			"title": "En-tête du lecteur",
-			"area": "header"
-		},
-		{
 			"name": "footer",
 			"title": "Pied de page",
 			"area": "footer"
