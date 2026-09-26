@@ -125,6 +125,12 @@ Les clés `yume_*` sont protégées (absentes de la boîte « Champs personnalis
 (`yume_note_moyenne`, `yume_nb_notes`, `yume_nb_favoris`, `yume_derniere_sortie`, `yume_nb_chapitres`)
 sont en lecture seule via `/wp/v2` : les modules les écrivent avec `update_post_meta`.
 
+Méta internes (préfixe `_`, non exposées) : tome `_yume_planning_depublie` (date GMT : tome
+dépublié, sa sortie est rétablie à son retour en ligne) et `_yume_planning_sortie_partielle` (date
+GMT : tome en ligne dont des chapitres restent à sortir) ; article d'annonce `_yume_annonce_retiree`
+(`{statut: publish|future, date, date_gmt}` : annonce remise en brouillon avec son tome dépublié ou
+reprogrammé, republiée à son retour).
+
 ## 5. Rôles et capacités (module core, à l'installation)
 
 Capacités propres : `yume_maj_planning` (ses tomes), `yume_maj_planning_tous`, `yume_publier`,
@@ -154,6 +160,15 @@ y compris pour un administrateur : rôles attribuables = rôles de l'équipe de 
 Fonction utilitaire : `yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool`
 (vrai si `yume_maj_planning_tous`, ou `yume_maj_planning` et l'utilisateur est un des responsables).
 
+Règles d'écriture du planning (espace équipe, REST et méta-boîte ; `includes/planning/service.php`) :
+avancer à `relecture` ou `edition` exige que les étapes précédentes soient à 100 % (sinon 400
+`yume_etape_prematuree`) ; revenir en arrière reste permis. Un administrateur (`manage_options`) ou un
+gérant (`yume_gerer_equipe`) peut forcer ce passage : `Yume\Core\Planning\peut_forcer_etape( int $user_id ): bool`,
+filtre `yume_planning_peut_forcer_etape( bool $peut, int $user_id )` ; le passage est journalisé
+`etape_forcee` (privé) et ne permet jamais « publié » pour un tome non publié. Sans
+`yume_maj_planning_tous`, un membre ne modifie que l'avancement des étapes dont il est responsable (403
+`yume_avancement_interdit` ; une valeur inchangée est acceptée).
+
 ## 6. Réglages (module core)
 
 Option unique `yume_reglages` (tableau), page *Yume → Réglages* (capacité `yume_reglages`),
@@ -175,11 +190,20 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `modele_annonce` | `Le {nature} {numero} de {oeuvre} est disponible !` | publication |
 | `github_repo` | `GNAlexandre/Yume-WordPress` | updater |
 | `maj_auto` | `true` | updater |
+| `partenaires` | les 4 partenaires de l'ancien site (`partenaires_par_defaut()`) | bibliothèque (`yume/partenaires`) |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
 `yume_reglages_champs` (types en plus : `checkboxes` ; clés facultatives `default`, `min`, `max`,
 `step`, `placeholder`, `sanitize`) et des sections via `yume_reglages_sections` (tableau de `array( 'key', 'label', 'type' => text|url|number|checkbox|select|media|textarea, 'section', 'options', 'description' )`).
+
+`partenaires` (section *Partenaires*, type de champ `partenaires`) : liste ordonnée d'au plus 8
+(`MAX_PARTENAIRES`) `{nom, url, description, logo: int (pièce jointe) | string (URL http(s)) | '',
+fichier?: string}` ; `fichier` (nom du fichier du logo attendu) n'existe que sur les lignes par
+défaut. Assainissement `assainir_partenaires()` : ligne sans nom ni lien retirée, ligne sans lien
+http(s) ignorée avec un avertissement. Filtres `yume_partenaires` (liste affichée par le bloc) et
+`yume_reglages_partenaires_formulaire` (lignes du formulaire : la bibliothèque y remplace le logo des
+lignes par défaut par la pièce jointe trouvée par nom de fichier, transient `yume_partenaires_logos`).
 
 ## 6 bis. Administration
 
@@ -189,6 +213,20 @@ créé par **core**. Les types `yume_oeuvre`, `yume_tome`, `yume_chapitre` y app
 `yume-migrer`, capacité `manage_options`), *Publier un tome* (publication, lien vers la page
 `/equipe/publier/`). Les autres modules ajoutent leurs sous-pages avec `add_submenu_page( 'yume', … )`
 sur `admin_menu` priorité ≥ 20.
+
+- **Accès à wp-admin** (`includes/core/admin/acces.php`) : un membre de l'équipe sans droit de
+  rédaction (traducteur, relecteur, graphiste : `yume_voir_equipe` sans `edit_others_yume_tomes`,
+  `edit_posts` ni `manage_options`) est renvoyé vers la page `equipe` sur `admin_init`, sauf
+  `profile.php`, `admin-post.php`, `admin-ajax.php`, `async-upload.php`, REST et cron ; menus Yume,
+  Tableau de bord et Médias masqués, « Tableau de bord » de la barre d'administration → espace équipe.
+- **Méta-boîte Planning** d'un tome : mêmes règles que le §5 (étape forcée journalisée) ; les champs
+  refusés sont mémorisés 10 min (transient `yume_refus_planning_{user_id}`) et affichés en avis
+  (éditeur classique) ou dans l'éditeur de blocs (action AJAX `yume_refus_planning`, nonce).
+- **Pages manquantes** (`includes/core/admin/notices.php`, capacité `manage_options` ou
+  `yume_reglages`) : avis listant les pages du §11 absentes, à la corbeille, non publiées ou
+  détachées de leur parent, bouton « Recréer les pages manquantes » (admin-post
+  `yume_recreer_pages`) qui appelle `recreer_pages_yume(): array` (clé → ID ; mêmes slugs, parents
+  et contenus que la migration, réglages de lecture reportés ; utilisée aussi par la démo).
 
 ## 7. API PHP partagée (signatures figées)
 
@@ -207,19 +245,28 @@ yume_libelle_chapitre( int $chapitre_id ): string;                    // « Chap
 yume_types(): array; yume_statuts(): array; yume_natures_tome(): array; yume_etapes(): array; // slug => libellé
 yume_liens_telechargement( int $tome_id ): array;                     // ['pdf'=>url|'' , 'epub'=>url|'']
 yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool;
-yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion' → URL de la page (option yume_pages)
+yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion','actualites','mentions-legales','accueil' → URL de la page (option yume_pages) ; filtre yume_url_page
 ```
 
 **planning** (`includes/planning/api.php`) :
 
 ```php
 yume_planning_etat( int $tome_id ): string;         // 'publie'|'bloque'|'en_retard'|'a_lheure' (en_retard : date_cible < aujourd'hui, ou derniere_maj > rappel_jours_sans_maj jours)
-yume_get_planning( array $args = array() ): array;  // lignes : ['tome_id','oeuvre_id','oeuvre','tome','etape','avancement','responsables'=>[etape=>['id','nom']], 'date_cible','etat','derniere_maj','url_oeuvre']
-                                                    // args: 'oeuvre_id', 'type' (slug yume_type), 'etat', 'a_venir' (bool, exclut publie), 'limit', 'inclure_publies_depuis' (jours, défaut 14)
+yume_get_planning( array $args = array() ): array;  // lignes : ['tome_id','oeuvre_id','oeuvre','tome','etape','avancement','responsables'=>[etape=>['id','nom']], 'date_cible','etat','derniere_maj','url_oeuvre', …, 'programme' (bool, statut future),'date_programmee' (Y-m-d Paris ou '')]
+                                                    // args: 'oeuvre_id', 'type' (slug yume_type), 'etat', 'a_venir' (bool, exclut publie), 'limit' (0 = tout), 'inclure_publies_depuis' (jours, défaut 14),
+                                                    //       'responsable' (user_id), 'gestion' (bool : tous les tomes vivants, filtrables par 'statut' WordPress)
 yume_journal_planning( int $tome_id, int $user_id, string $champ, $ancien, $nouveau ): void;
 yume_queue_email( $destinataire, string $sujet, string $html, string $contexte = '' ): void; // user_id ou e-mail ; envoi par lot (cron), gabarit HTML Yume
 yume_discord( string $canal, string $texte, array $embeds = array() ): bool;                 // canal 'sorties'|'equipe'
 ```
+
+`yume_url_page()` ne renvoie la page enregistrée que si elle est publiée ainsi que tous ses parents ;
+sinon l'adresse du slug du §11 (ex. `/equipe/publier/`, `/` pour `accueil`). Un tome programmé
+(statut `future`) est toujours `a_lheure`, libellé « Programmé le … », et sa `date_cible` suit la date
+programmée. `Yume\Core\Planning\retirer_tome( int $tome_id, int $user_id ): true|WP_Error` : tome à la
+corbeille, journal `retire` (public) ; exige `yume_maj_planning_tous` et `delete_post` (403
+`yume_retrait_interdit`), refusé (409 `yume_retrait_impossible`) pour un tome publié, programmé,
+privé ou ayant un chapitre publié.
 
 **social** (`includes/social/api.php`) :
 
@@ -238,7 +285,7 @@ et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces 
 
 | Action | Arguments | Émise par | Écoutée par |
 | --- | --- | --- | --- |
-| `yume_tome_publie` | `int $tome_id` | publication (et core sur `transition_post_status` d'un tome vers `publish`, une seule fois par tome : meta `_yume_publie_notifie`) | planning (étape `publie`, 100 %, journal, Discord), social (e-mails aux abonnés), core (cache `yume_derniere_sortie`) |
+| `yume_tome_publie` | `int $tome_id` | publication (et core sur `transition_post_status` d'un tome vers `publish`, une seule fois par tome : meta `_yume_publie_notifie`) | planning (étape `publie`, 100 %, journal, Discord ; si des chapitres restent à sortir, étape gardée et journal `publie` partiel, « publié » au dernier chapitre), social (e-mails aux abonnés), core (cache `yume_derniere_sortie`) |
 | `yume_chapitre_publie` | `int $chapitre_id` | core (`transition_post_status` d'un chapitre publié isolément, hors publication de tome) | social (abonnés), planning (Discord) |
 | `yume_planning_mis_a_jour` | `int $tome_id, array $changements, int $user_id` | planning | — |
 | `yume_publication_preparee` | `int $tome_id, array $rapport` | publication | — |
@@ -254,6 +301,11 @@ ait été publié au moins 15 minutes avant (`yume_delai_publication_groupee`). 
 Pour ne pas notifier chaque chapitre d'un tome publié en bloc, publication définit la constante
 d'exécution `yume_publication_en_cours` via `did_action`/drapeau statique ; core n'émet
 `yume_chapitre_publie` que si le tome parent était déjà publié avant.
+
+Dépublication d'un tome (`publish` → autre statut, hors corbeille) : planning « publié » → `edition`
+(avancements gardés), journal `depublie`, `yume_derniere_sortie` recalculée, annonce remise en
+brouillon. Son retour en ligne rétablit la sortie (journal `publie` avec `retour`) **sans** réémettre
+`yume_tome_publie` (ni annonce Discord ni e-mails).
 
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 
@@ -300,14 +352,15 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Sans carte propre (le thème fournit la carte). Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
 | `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent |
 | `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
-| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal |
-| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) |
-| `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) |
+| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, « Retirer du planning » en admin-post `yume_planning_retrait`) et `?vue=journal` (journal complet paginé, filtres œuvre / tome) |
+| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`) |
+| `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) ; avertissement sur un membre responsable de tomes en cours, lien « Modifier dans l'administration » (administrateur) pour les comptes non modifiables ici |
+| `yume/partenaires` | bibliothèque | `title` (string, « Nos partenaires ») | `.yn-partenaires` | Section de l'accueil : logo (initiales à défaut), nom, description, lien en nouvel onglet ; réglage `partenaires` (§6) |
 | `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture : progression, sommaire, marque-page, thème, panneau Paramètres |
 | `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte |
 | `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
 | `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) |
-| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion » (la page connexion propose aussi l'inscription) ou « Mon compte » (+ « Espace équipe » si capacité) ; placé dans `core/navigation` |
+| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion » (la page connexion propose aussi l'inscription) ou « Mon compte » (+ « Espace équipe » si capacité) et « Se déconnecter » ; placé dans `core/navigation` |
 | `yume/theme-toggle` | **thème** | — | `.yn-theme-toggle` | Bascule Nuit ↔ Papier (`aria-pressed`, `[data-yn-theme-toggle]`) |
 
 Les blocs posés dans le modèle `page-large` (planning, compte, équipe, publication) commencent leurs
@@ -316,6 +369,10 @@ les paramètres GET `type`, `statut` (`slug[,slug…]`), `genre`, `tri` (`recent
 (pagination) ; filtre `yume_bibliotheque_groupes_statuts`. `yume/latest-releases` affiche une carte par
 tome, datée par ses chapitres pour un arc ou un web novel. Filtre `yume_bibliotheque_ligne_tome` : le
 module lecteurs y ajoute la progression personnelle sur les lignes de `yume/tome-list`.
+`yume/planning` montre à un membre connecté (`yume_voir_equipe`) « Modifier dans l'espace équipe »
+(en tête et sous chaque tome, vers `?vue=planning`). Thème : avec `comment_registration` = 1, le
+formulaire de commentaire est remplacé par une invitation à se connecter ou à créer un compte ; le
+lien « Contact » de l'en-tête (classe `yn-lien-discord`) ouvre l'invitation Discord (réglage `discord_invite`).
 
 ## 11. Pages créées par la migration (option `yume_pages` : clé → ID)
 
@@ -338,17 +395,22 @@ Pages supplémentaires : `actualites` (slug `actualites`, page des articles) et 
 Le format du plan de migration (`plan.json` v1) est décrit dans `tools/migrate/README.md` : c'est
 l'interface entre l'analyse et l'exécution. Pendant l'exécution : `add_filter( 'yume_core_notifier',
 '__return_false' )`, ne pas créer les termes `yume_oeuvre_liee` à la main (ils naissent avec les œuvres).
+La migration pose aussi `comment_registration = 1` (commentaires réservés aux comptes) ; une page dont
+le titre ou le slug fait 3 caractères au plus, ou au contenu quasi vide, et vers laquelle aucun lien
+de l'export ne mène, est classée « ignorée » (SCAN-22). L'annulation restaure les options
+sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sanitize_option_{option}`.
 
 ## 12. REST `yume/v1`
 
 | Méthode et route | Module | Permission |
 | --- | --- | --- |
 | `GET /planning` | planning | public (champs publics uniquement) |
-| `PATCH /tomes/(?P<id>\d+)/planning` | planning | `yume_user_can_edit_planning` |
+| `PATCH /tomes/(?P<id>\d+)/planning` | planning | `yume_user_can_edit_planning` (règles du §5 : 400 `yume_etape_prematuree`, 403 `yume_avancement_interdit`) |
+| `DELETE /tomes/(?P<id>\d+)/planning` | planning | `yume_maj_planning_tous` — retire le tome du planning (`retirer_tome()`, §7) |
 | `GET /planning/journal` | planning | public (sans notes d'équipe) |
 | `POST /publications/analyse` | publication | `yume_publier` — multipart `source` (DOCX/EPUB) → rapport sans rien créer |
 | `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) |
-| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres |
+| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` |
 | `GET /moi` | lecteurs | connecté |
 | `GET, PUT /moi/reglages` | lecture | connecté |
 | `GET, PUT /moi/progression` | lecture | connecté |
@@ -373,14 +435,24 @@ accepte `reinitialiser` ; `GET /moi/progression?oeuvre=` renvoie `url`, `url_rep
 | `planning_journal` | `id` BIGINT AI, `tome_id`, `user_id`, `champ` VARCHAR(40), `ancien` TEXT, `nouveau` TEXT, `public` TINYINT, `created_at` ; KEY tome_id, KEY created_at | planning |
 | `notifications` | `id` AI, `destinataire` VARCHAR(190), `user_id`, `sujet` VARCHAR(255), `html` LONGTEXT, `contexte` VARCHAR(60), `statut` VARCHAR(10) DEFAULT 'attente', `tentatives` TINYINT, `created_at`, `envoye_le` ; KEY statut | planning |
 
-`planning_journal.champ` contient aussi des événements (`creation`, `publie`, `chapitre_publie`,
-`rappel`, `signalement`, `digest` ; `tome_id` 0 pour le digest). `notifications.statut` ∈ `attente`,
+`planning_journal.champ` contient aussi des événements (`creation`, `publie`, `depublie`,
+`chapitre_publie`, `retire`, `etape_forcee`, `rappel`, `signalement`, `digest` ; `tome_id` 0 pour le
+digest). `publie` porte `{chapitres, total?, partiel?|retour?|complet?}` (sortie partielle, retour en
+ligne, dernier chapitre). Jamais publics : `note_equipe`, `etape_forcee`, `signalement`, `digest`. `notifications.statut` ∈ `attente`,
 `envoi` (transitoire), `envoye`, `echec`.
 
 Méta utilisateur : `yume_reglages` (`{size, lh, font, width, bgAlpha, theme}`) et `yume_alertes`
-(`{sorties, hebdo, commentaires}` booléens). Méta internes : `_yume_alerte_envoyee` (tome ou chapitre
+(`{sorties, hebdo, commentaires}` booléens) ; `_yume_jeton_desabonnement` (jeton secret des liens de
+désabonnement, effacé avec les données du membre). Méta internes : `_yume_alerte_envoyee` (tome ou chapitre
 notifié aux lecteurs), `_yume_migration_cle`, `_yume_source_id`, `_yume_migration_run` ; options
 `yume_redirections`, `yume_migration_*` ; actions `yume_migration_terminee`, `yume_migration_annulee`.
+
+Désabonnement des e-mails d'alerte (`includes/social/desabonnement.php`) : chaque e-mail porte un lien
+signé `?yn-desabo={user_id}&yn-portee=oeuvre|commentaires|tout&yn-oeuvre={id}&yn-sig=…` (HMAC du membre,
+de la portée, de l'œuvre et du jeton ; changer le jeton invalide les anciens liens). GET : confirmation
+seulement (page compte) ; POST du bouton : appliqué ; POST « One-Click » RFC 8058 : appliqué
+directement. En-têtes `List-Unsubscribe` et `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
+ajoutés sur `wp_mail`. Action `yume_desabonnement( int $user_id, string $portee, int $oeuvre_id )`.
 
 `dbDelta` : deux espaces après `PRIMARY KEY`, une colonne par ligne. Le SQL doit fonctionner
 sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développement local). Les tests tournent sur les deux moteurs
