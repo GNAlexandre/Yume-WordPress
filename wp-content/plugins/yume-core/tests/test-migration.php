@@ -2176,3 +2176,40 @@ yume_test(
 		yume_assert_same( array( 143 ), array_column( yume_test_migration_plan()['pages']['conserver'], 'id' ) );
 	}
 );
+
+yume_test(
+	'contenu révisé : la FAQ réécrite est livrée ; une page conservée prend sa version révisée, l’annulation rend l’originale',
+	function () {
+		$faq = Migration_Executor::contenu_revise( 'yume-faq' );
+		yume_assert_contains( '<!-- wp:details -->', $faq );
+		yume_assert_contains( 'Qui sommes-nous ?', $faq );
+		yume_assert_contains( 'https://discord.gg/SMBZqhgUv8', $faq );
+		yume_assert_contains( '/bibliotheque/?type=light-novel', $faq );
+		yume_assert_not_contains( 'yumenovel.wordpress.com', $faq, 'liens vers le nouveau site' );
+		yume_assert_same( '', Migration_Executor::contenu_revise( 'page-sans-revision' ) );
+		yume_assert_same( '', Migration_Executor::contenu_revise( '../../yume-core' ), 'slug assaini' );
+
+		// Page conservée « La Yume Novel » (143) avec une version révisée (filtre).
+		$revise = "<!-- wp:paragraph -->\n<p>Version révisée de test.</p>\n<!-- /wp:paragraph -->";
+		$filtre = static function ( $contenu, $slug ) use ( $revise ) {
+			return 'la-yume-novel' === $slug ? $revise : $contenu;
+		};
+		add_filter( 'yume_migration_contenu_revise', $filtre, 10, 2 );
+		try {
+			yume_test_migration_seed();
+			$origine = get_post( 143 )->post_content;
+			$avant   = yume_test_migration_instantane();
+			$etat    = yume_test_migration_executer();
+			yume_assert_same( 'migre', $etat['statut'], (string) $etat['erreur'] );
+			yume_assert_same( $revise, get_post( 143 )->post_content );
+			yume_assert_same( 'publish', get_post_status( 143 ) );
+			Migration_Runner::demarrer_annulation();
+			$etat = Migration_Runner::terminer();
+			yume_assert_same( 'annule', $etat['statut'], (string) $etat['erreur'] );
+			yume_assert_same( $origine, get_post( 143 )->post_content );
+			yume_assert_same( '', yume_test_migration_diff( $avant, yume_test_migration_instantane() ) );
+		} finally {
+			remove_filter( 'yume_migration_contenu_revise', $filtre, 10 );
+		}
+	}
+);

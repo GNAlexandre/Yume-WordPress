@@ -47,6 +47,12 @@ if ( false === $yume_pg_demo || '' === trim( $yume_pg_demo ) ) {
 	fwrite( STDERR, "demo.php illisible\n" );
 	exit( 1 );
 }
+// Contenu réel des pages institutionnelles (pages-institutionnelles.json) : recopié dans le code
+// de l'étape runPHP, qui ne peut pas lire les fichiers voisins dans Playground.
+$yume_pg_pages = is_readable( __DIR__ . '/pages-institutionnelles.json' ) ? (string) file_get_contents( __DIR__ . '/pages-institutionnelles.json' ) : '';
+if ( '' !== trim( $yume_pg_pages ) ) {
+	$yume_pg_demo = preg_replace( '/^<\?php\n/', "<?php\n\$GLOBALS['yume_demo_pages_json'] = <<<'YUME_PAGES_JSON'\n" . rtrim( $yume_pg_pages ) . "\nYUME_PAGES_JSON;\n", $yume_pg_demo, 1 );
+}
 
 /**
  * Étapes qui installent et activent le plugin et le thème depuis des ressources (url ou git:directory).

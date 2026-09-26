@@ -312,30 +312,45 @@ if ( ! empty( $yume_demo_pages['accueil'] ) && ! empty( $yume_demo_pages['actual
 // Commentaires réservés aux comptes connectés, comme après la migration.
 update_option( 'comment_registration', 1 );
 
-// Pages institutionnelles du menu « Yume Novel » et « Contact » (parts/header.html). Sur le vrai
-// site, elles existent déjà et sont conservées par la migration ; la démo en crée des versions courtes.
-$yume_demo_institution = array(
-	'lequipe'        => array( 'L’équipe', 'Les traducteurs, relecteurs et graphistes de Yume Novel. Sur le site réel, cette page reprend celle de l’ancien site.' ),
-	'la-yume-novel'  => array( 'La Yume Novel', 'Qui sommes-nous ? Une équipe de fans qui traduit des light novels en français, à but non lucratif.' ),
-	'yume-faq'       => array( 'FAQ', 'Questions fréquentes : rythme de sortie, téléchargement des PDF et EPUB, lecture en ligne, comptes lecteurs.' ),
-	'a-propos'       => array( 'Nos réseaux', 'Retrouvez Yume Novel sur Discord, X / Twitter et Ko-fi.' ),
-	'contactez-nous' => array( 'Contact', 'Pour nous écrire : rejoignez le Discord de Yume Novel ou utilisez le formulaire de contact du site réel.' ),
-);
-foreach ( $yume_demo_institution as $yume_demo_slug => $yume_demo_page ) {
-	if ( get_page_by_path( $yume_demo_slug ) ) {
+// Pages institutionnelles du menu « Yume Novel » et « Contact » (parts/header.html) : contenu réel
+// du site actuel (pages-institutionnelles.json, extrait de l'export par extraire-pages.php ; dans
+// Playground, recopié dans le blueprint par construire.php), et version révisée livrée avec
+// l'extension quand elle existe (FAQ), comme après la migration. Une page de démonstration
+// laissée par une version précédente de ce script est remplacée ; une page modifiée est gardée.
+$yume_demo_json = $GLOBALS['yume_demo_pages_json'] ?? '';
+if ( '' === $yume_demo_json && is_readable( __DIR__ . '/pages-institutionnelles.json' ) ) {
+	$yume_demo_json = (string) file_get_contents( __DIR__ . '/pages-institutionnelles.json' );
+}
+$yume_demo_reelles = json_decode( $yume_demo_json, true );
+$yume_demo_reelles = is_array( $yume_demo_reelles ) ? $yume_demo_reelles : array();
+if ( ! $yume_demo_reelles ) {
+	echo "Démo : pages-institutionnelles.json absent, pages du menu non créées.\n";
+}
+foreach ( $yume_demo_reelles as $yume_demo_page ) {
+	if ( ! is_array( $yume_demo_page ) || empty( $yume_demo_page['slug'] ) ) {
 		continue;
 	}
-	wp_insert_post(
-		wp_slash(
-			array(
-				'post_type'    => 'page',
-				'post_name'    => $yume_demo_slug,
-				'post_title'   => $yume_demo_page[0],
-				'post_content' => yume_demo_paragraphe( $yume_demo_page[1] ) . yume_demo_paragraphe( 'Page de démonstration.', 'yn-center' ),
-				'post_status'  => 'publish',
-			)
-		)
+	$yume_demo_slug    = (string) $yume_demo_page['slug'];
+	$yume_demo_contenu = (string) ( $yume_demo_page['contenu'] ?? '' );
+	if ( is_callable( array( '\\Yume\\Core\\Migration\\Migration_Executor', 'contenu_revise' ) ) ) {
+		$yume_demo_revise  = \Yume\Core\Migration\Migration_Executor::contenu_revise( $yume_demo_slug );
+		$yume_demo_contenu = '' !== $yume_demo_revise ? $yume_demo_revise : $yume_demo_contenu;
+	}
+	$yume_demo_existe = get_page_by_path( $yume_demo_slug );
+	if ( $yume_demo_existe && ! str_contains( (string) $yume_demo_existe->post_content, 'Page de démonstration.' ) ) {
+		continue;
+	}
+	$yume_demo_donnees = array(
+		'post_type'    => 'page',
+		'post_name'    => $yume_demo_slug,
+		'post_title'   => (string) ( $yume_demo_page['titre'] ?? $yume_demo_slug ),
+		'post_content' => $yume_demo_contenu,
+		'post_status'  => 'publish',
 	);
+	if ( $yume_demo_existe ) {
+		$yume_demo_donnees['ID'] = (int) $yume_demo_existe->ID;
+	}
+	wp_insert_post( wp_slash( $yume_demo_donnees ) );
 }
 
 flush_rewrite_rules( false );

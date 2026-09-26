@@ -68,11 +68,11 @@ function yume_theme_definitions_liens(): array {
 		),
 		'discord'       => array(
 			'reglage' => 'discord_invite',
-			'defaut'  => 'https://discord.gg/yumenovel',
+			'defaut'  => 'https://discord.gg/SMBZqhgUv8',
 		),
 		'twitter'       => array(
 			'reglage' => 'twitter_url',
-			'defaut'  => 'https://x.com/Roshidere_FR',
+			'defaut'  => 'https://x.com/YumeNovel',
 		),
 	);
 }
