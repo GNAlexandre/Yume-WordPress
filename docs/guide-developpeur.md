@@ -22,6 +22,7 @@ tools/build/                      lint.sh (php -l), zip.sh (archives installable
 tools/playground/                 blueprints WordPress Playground + contenu de démonstration
 tools/docx2chapters/, tools/migrate/   outils en ligne de commande (import DOCX, migration)
 tools/preprod/                    préproduction locale (MariaDB) construite de zéro + parcours Playwright
+tools/ci/                         contrôle de rendu de la CI (rendu.sh, rendu.js, rendu-attendus.js)
 .github/workflows/                ci.yml (intégration continue), release.yml (publication)
 phpcs.xml.dist                    normes de code
 docs/, design/                    documentation, maquettes validées (design/maquettes/*.dc.html)
@@ -142,10 +143,60 @@ l'implémenter. Ne jamais redéclarer une fonction `yume_*` d'un autre module.
 | Syntaxe PHP 8.1 / 8.2 / 8.3 / 8.4 | `tools/build/lint.sh` ; blueprints Playground à jour (`construire.php --verifier`) |
 | Normes de code | PHPCS, annotations sur la PR (bloquant, voir §4) |
 | Tests WordPress (6.6 sous PHP 8.1, dernière version sous PHP 8.4 ; chacune sur SQLite et sur MariaDB 10.11) | `tools/localenv/setup.sh --source wp-cli --langue fr_FR --bloquer-http [--version 6.6]` (avec `YUME_DB_ENGINE=mysql` et un service `mariadb:10.11` pour MariaDB), puis `wp eval-file wp-content/plugins/yume-core/tests/runner.php` ; contrôle de `debug.log` |
+| Rendu WordPress (6.6 sous PHP 8.1, dernière version sous PHP 8.4 ; SQLite) | même installation que les tests, démo `tools/playground/demo.php`, puis `tools/ci/rendu.sh` : styles calculés des blocs vérifiés dans Chromium (voir ci-dessous) ; artefact `rendu-mesures-<version>` |
+| Rendu identique sur WordPress 6.6 et la dernière | `node tools/ci/rendu.js --comparer` sur les deux artefacts `rendu-mesures-*` |
 | Archives | `tools/build/zip.sh`, artefact `yume-archives-<version>-<n°>` (à décompresser : il contient `yume-core.zip`, `yume.zip`, `SHA256SUMS`) |
 
 Protection de la branche principale recommandée (docs/05 §3) : PR obligatoire, jobs *Syntaxe*,
-*Tests* et *Archives* verts, une relecture.
+*Tests*, *Rendu* et *Archives* verts, une relecture.
+
+### Contrôle de rendu (job « Rendu »)
+
+Sous WordPress 6.6.0, les styles globaux du cœur (titres `h1`-`h6`, liens, boutons) ont une
+spécificité supérieure ou égale à un sélecteur de bloc d'une seule classe et l'écrasent : le titre du
+panneau de lecture passait en 28px/700 au lieu de 20px/800, le lien de retour du lecteur en rose accent
+au lieu de `texte-fort` (revue RC-1). Règle : **dans le CSS d'un bloc, préfixer les sélecteurs par la
+classe du bloc** (`.yn-reader-panel .yn-reader-panel__titre`, `.yn-toc .yn-toc__lien`…). La
+régression n'apparaît plus à partir de 6.6.1 : la CI teste donc 6.6 exactement (6.6.0).
+
+Le job « Rendu » l'empêche de revenir :
+
+1. `tools/localenv/setup.sh --source wp-cli --langue fr_FR --bloquer-http [--version 6.6]` (SQLite),
+   puis `tools/localenv/wp.sh eval-file tools/playground/demo.php` (œuvre *Lanternes de brume haute*) ;
+2. `npm install` dans `tools/ci/` (Playwright, version figée dans `tools/ci/package.json`) et
+   `npx playwright install --with-deps chromium` ;
+3. `tools/ci/rendu.sh` sert le site avec `php -S` et `tools/localenv/router.php`, puis
+   `tools/ci/rendu.js` ouvre dans Chromium (fenêtre 1280×900) la page de l'œuvre, celle du tome 1 et
+   le chapitre 1 avec le panneau *Paramètres de lecture* ouvert, et compare `font-size`,
+   `font-weight` et `color` des éléments listés dans `tools/ci/rendu-attendus.js` ;
+4. le job « Rendu identique… » compare ensuite les mesures des deux versions de WordPress.
+
+En cas d'échec, le journal liste chaque écart (aussi en annotation) :
+
+```
+[rendu] ÉCHEC : 3 écart(s) de rendu (WordPress 6.6) :
+  - chapitre (panneau Paramètres ouvert) : .yn-reader-tools__retour { color } = rgb(243, 166, 200), attendu rgb(255, 248, 251) (preset:texte-fort)
+  - chapitre (panneau Paramètres ouvert) : .yn-reader-panel__titre { font-size } = 28px, attendu 20px
+```
+
+Dans `rendu-attendus.js`, une couleur s'écrit `preset:<slug>` (palette de `theme.json`, résolue dans le
+contexte de l'élément) ; les autres valeurs sont les valeurs calculées exactes. Un changement de design
+voulu se reporte dans ce tableau. Pour ajouter un contrôle : une entrée `{ selecteur, attendu }` dans la
+page concernée (le premier élément correspondant doit exister et être visible).
+
+En local :
+
+```sh
+. ~/.local/share/yume-localenv/env.sh
+export YUME_ENV=rendu
+tools/localenv/wp.sh eval-file tools/playground/demo.php
+npm install --prefix tools/ci && (cd tools/ci && npx playwright install chromium)
+tools/ci/rendu.sh                        # port 8090 ; --port N, --sortie mesures.json, --libelle "WP 6.6"
+node tools/ci/rendu.js --comparer a.json b.json
+```
+
+Pour WordPress 6.6 : `tools/localenv/setup.sh --dossier /tmp/yume-66 --version 6.6`, puis
+`. /tmp/yume-66/env.sh` et les mêmes commandes.
 
 ## 7. Publier une version
 
@@ -235,4 +286,5 @@ et `yume_updater_copie_de_developpement` (forcer ou annuler la détection de cop
 | Tests verts en local, rouges en CI | Texte traduit par WordPress (CI en français), requête réseau non simulée, notice dans `debug.log`, ou SQL propre à SQLite/MySQL. |
 | Pages en 404 | `tools/localenv/wp.sh rewrite flush`. |
 | Tâche planifiée qui ne part pas | `tools/localenv/wp.sh cron event list` puis `wp cron event run <hook>` ; en production, l'extension WP Crontrol. |
+| Job « Rendu » rouge sur 6.6 seulement | Un sélecteur de bloc non préfixé est écrasé par les styles globaux du cœur : le préfixer par la classe du bloc (§6, « Contrôle de rendu »). |
 | `serve.sh` : CSS absent | Vérifier que le serveur tourne avec `tools/localenv/router.php` (lancer via `serve.sh`). |

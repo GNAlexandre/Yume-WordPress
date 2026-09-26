@@ -5,6 +5,8 @@
 #   normes       PHPCS : WordPress-Extra + WordPress-Docs + phpcs.xml.dist (bloquant : zéro écart)
 #   tests        WordPress fr_FR monté comme tools/localenv, puis tests/runner.php, sur la version
 #                minimale déclarée (6.6) et la dernière, avec SQLite et MariaDB 10.11 (production)
+#   rendu        démo (tools/playground/demo.php) servie par php -S, styles calculés des blocs vérifiés
+#                dans Chromium (tools/ci/rendu.js) sur WordPress 6.6 et la dernière, puis comparés
 #   archives     dist/yume-core.zip et dist/yume.zip en artefacts téléchargeables
 #
 # Déclenché à chaque push de branche et à chaque pull request ; appelé aussi par release.yml
@@ -173,6 +175,107 @@ jobs:
           if grep -qE "$motif" "$journal"; then
             echo "::warning::debug.log contient des messages PHP hors Yume (voir ci-dessus)."
           fi
+
+  # Revue RC-1/RC-2 : sous WordPress 6.6.0, les styles globaux du cœur écrasaient les sélecteurs de
+  # bloc non préfixés (titre du panneau de lecture en 28px/700, lien de retour en rose accent…).
+  # Ce job ouvre les pages œuvre, tome et chapitre (panneau Paramètres ouvert) de la démo dans
+  # Chromium et compare font-size, font-weight et color à tools/ci/rendu-attendus.js.
+  # Garder « 6.6 » exact (6.6.0) : la régression ne se reproduit plus à partir de 6.6.1.
+  rendu:
+    name: Rendu WordPress ${{ matrix.wp }} (PHP ${{ matrix.php }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { php: '8.1', wp: '6.6' }
+          - { php: '8.4', wp: latest }
+    env:
+      YUME_ENV: rendu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sqlite3, pdo_sqlite, zip, intl, gd, mbstring, dom, xml, xmlreader
+          ini-values: memory_limit=512M
+          coverage: none
+          tools: wp-cli
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Installer WordPress ${{ matrix.wp }} (fr_FR, SQLite)
+        env:
+          WP_VERSION: ${{ matrix.wp }}
+        run: |
+          set --
+          if [ "$WP_VERSION" != latest ]; then
+            set -- --version "$WP_VERSION"
+          fi
+          tools/localenv/setup.sh \
+            --dossier "$RUNNER_TEMP/localenv" \
+            --source wp-cli \
+            --langue fr_FR \
+            --bloquer-http \
+            "$@"
+
+      - name: Contenu de démonstration (tools/playground/demo.php)
+        run: |
+          . "$RUNNER_TEMP/localenv/env.sh"
+          tools/localenv/wp.sh core version --extra
+          tools/localenv/wp.sh eval-file tools/playground/demo.php
+
+      - name: Installer Playwright et Chromium
+        working-directory: tools/ci
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Styles calculés (tools/ci/rendu.sh)
+        env:
+          YUME_RENDU_JOURNAL: ${{ runner.temp }}/rendu-serveur.log
+        run: |
+          . "$RUNNER_TEMP/localenv/env.sh"
+          version=$(tools/localenv/wp.sh core version)
+          tools/ci/rendu.sh --libelle "WordPress $version" --sortie "$RUNNER_TEMP/rendu-mesures.json"
+
+      - name: Journaux (serveur PHP, debug.log)
+        if: ${{ failure() }}
+        run: |
+          cat "$RUNNER_TEMP/rendu-serveur.log" 2>/dev/null || true
+          cat "$RUNNER_TEMP/localenv/wp/wp-content/debug.log" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: rendu-mesures-${{ matrix.wp }}
+          path: ${{ runner.temp }}/rendu-mesures.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # Mêmes styles calculés sur les deux versions de WordPress (en plus du tableau des valeurs attendues).
+  rendu-comparaison:
+    name: Rendu identique sur WordPress 6.6 et la dernière
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: rendu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rendu-mesures-*
+          path: ${{ runner.temp }}/rendu
+
+      - name: Comparer les mesures
+        run: |
+          node tools/ci/rendu.js --comparer \
+            "$RUNNER_TEMP/rendu/rendu-mesures-6.6/rendu-mesures.json" \
+            "$RUNNER_TEMP/rendu/rendu-mesures-latest/rendu-mesures.json"
 
   archives:
     name: Archives yume-core.zip et yume.zip
