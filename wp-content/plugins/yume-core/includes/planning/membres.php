@@ -11,6 +11,10 @@
  * par l'administration pour ces comptes). Chaque action vérifie aussi
  * current_user_can( 'promote_user', $id ) (règles de Core\limiter_gestion_membres()).
  *
+ * Un membre responsable de tomes en cours est signalé (nombre, tomes, lien vers le planning
+ * complet filtré sur lui) avant tout retrait ou changement de rôle, sans que ce soit bloquant.
+ * Pour les comptes non modifiables ici, un administrateur a un lien vers user-edit.php.
+ *
  * Les formulaires sont envoyés à admin-post.php (action yume_equipe_membres, nonce).
  *
  * @package Yume\Core
@@ -109,6 +113,69 @@ function url_membres(): string {
 	return current_user_can( 'list_users' ) ? admin_url( 'users.php' ) : '';
 }
 
+/**
+ * Tomes en cours (non publiés) dont chaque membre est responsable d'une étape, par membre.
+ *
+ * @return array<int,array<int,array>> user_id => lignes du planning.
+ */
+function tomes_par_responsable(): array {
+	$par = array();
+	foreach (
+		yume_get_planning(
+			array(
+				'a_venir' => true,
+				'public'  => false,
+			)
+		) as $l
+	) {
+		$vus = array();
+		foreach ( ETAPES_TRAVAIL as $e ) {
+			$uid = (int) ( $l['responsables'][ $e ]['id'] ?? 0 );
+			if ( $uid && ! isset( $vus[ $uid ] ) ) {
+				$vus[ $uid ]   = true;
+				$par[ $uid ][] = $l;
+			}
+		}
+	}
+	return $par;
+}
+
+/**
+ * Avertissement d'un membre responsable de tomes en cours (SCAN-08) : les retirer de l'équipe
+ * ou changer leur rôle ne les décharge pas de ces tomes. N'empêche rien.
+ *
+ * @param \WP_User $membre Membre.
+ * @param array    $tomes  Lignes du planning dont il est responsable.
+ */
+function avertissement_responsable( \WP_User $membre, array $tomes ): string {
+	if ( ! $tomes ) {
+		return '';
+	}
+	$noms = array();
+	foreach ( array_slice( $tomes, 0, 4 ) as $l ) {
+		$noms[] = $l['oeuvre'] . ' ' . $l['tome'];
+	}
+	if ( count( $tomes ) > 4 ) {
+		$noms[] = '…';
+	}
+	$html = '<p class="yn-team__membre-alerte" role="note"><span aria-hidden="true">▲</span> ' . esc_html(
+		sprintf(
+			/* translators: 1: pseudo, 2: nombre de tomes, 3: tomes */
+			_n(
+				'%1$s est responsable de %2$d tome en cours (%3$s). Retirer ce membre ou changer son rôle ne l’en décharge pas : réattribuez-le d’abord.',
+				'%1$s est responsable de %2$d tomes en cours (%3$s). Retirer ce membre ou changer son rôle ne l’en décharge pas : réattribuez-les d’abord.',
+				count( $tomes ),
+				'yume-core'
+			),
+			$membre->display_name,
+			count( $tomes ),
+			implode( ', ', $noms )
+		)
+	);
+	$html .= ' <a href="' . esc_url( url_vue_equipe( 'planning', array( 'responsable' => (int) $membre->ID ) ) ) . '">' . esc_html__( 'Voir ses tomes dans le planning', 'yume-core' ) . '<span class="yn-visually-hidden"> : ' . esc_html( $membre->display_name ) . '</span></a></p>';
+	return $html;
+}
+
 /*
  * -----------------------------------------------------------------------------
  * Rendu
@@ -122,8 +189,9 @@ function url_membres(): string {
  * @param \WP_User   $membre Membre.
  * @param array      $roles  Rôles attribuables.
  * @param array|null $retour Retour sans JavaScript (si ce formulaire est concerné).
+ * @param array      $tomes  Tomes en cours dont il est responsable (avertissement).
  */
-function ligne_membre( \WP_User $membre, array $roles, ?array $retour ): string {
+function ligne_membre( \WP_User $membre, array $roles, ?array $retour, array $tomes = array() ): string {
 	$id     = (int) $membre->ID;
 	$ancre  = 'yn-membre-' . $id;
 	$titre  = $ancre . '-nom';
@@ -135,21 +203,37 @@ function ligne_membre( \WP_User $membre, array $roles, ?array $retour ): string 
 	$html  .= '<span class="yn-muted">' . esc_html( $membre->user_login ) . '</span></span>';
 	$html  .= '<span class="yn-chip yn-chip--info">' . esc_html( '' !== $role ? $role : __( 'Sans rôle', 'yume-core' ) ) . '</span></div>';
 	$acteur = get_current_user_id();
+	$alerte = avertissement_responsable( $membre, $tomes );
 	if ( ! peut_gerer_membre( $acteur, $id ) ) {
 		$motif = $id === $acteur
 			? __( 'Votre compte : votre rôle ne se change pas ici.', 'yume-core' )
 			: __( 'Administrateur ou gérant : non modifiable depuis l’espace équipe.', 'yume-core' );
-		return $html . '<p class="yn-muted yn-team__membre-note">' . esc_html( $motif ) . '</p></li>';
+		$html .= '<p class="yn-muted yn-team__membre-note">' . esc_html( $motif );
+		// Administrateur : le compte se modifie dans l'administration (SCAN-23).
+		if ( current_user_can( 'manage_options' ) && current_user_can( 'edit_user', $id ) ) {
+			$html .= ' <a href="' . esc_url( admin_url( 'user-edit.php?user_id=' . $id ) ) . '">' . esc_html__( 'Modifier dans l’administration', 'yume-core' ) . '<span class="yn-visually-hidden"> : ' . esc_html( $nom ) . '</span></a>';
+		}
+		return $html . '</p>' . $alerte . '</li>';
 	}
-	$actuel = (string) ( array_values( (array) $membre->roles )[0] ?? '' );
-	$html  .= '<form class="yn-team__membre-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" aria-labelledby="' . esc_attr( $titre ) . '">';
-	$html  .= '<input type="hidden" name="action" value="yume_equipe_membres">';
-	$html  .= '<input type="hidden" name="user_id" value="' . $id . '">';
-	$html  .= wp_nonce_field( 'yume_membres_' . $id, '_yume_nonce', true, false );
-	$html  .= champ_select( 'yn-membre-' . $id . '-role', 'role', __( 'Rôle', 'yume-core' ), $roles, $actuel );
-	$html  .= '<p class="yn-team__action"><button type="submit" name="op" value="role" class="yn-btn yn-btn--primary">' . esc_html__( 'Changer le rôle', 'yume-core' ) . '</button></p>';
-	$html  .= '<p class="yn-team__action"><button type="submit" name="op" value="retrait" class="yn-btn">' . esc_html__( 'Retirer de l’équipe', 'yume-core' ) . '<span class="yn-visually-hidden"> : ' . esc_html( $nom ) . '</span></button></p>';
-	return $html . zone_retour( $retour ) . '</form></li>';
+	$actuel  = (string) ( array_values( (array) $membre->roles )[0] ?? '' );
+	$html   .= '<form class="yn-team__membre-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" aria-labelledby="' . esc_attr( $titre ) . '">';
+	$html   .= '<input type="hidden" name="action" value="yume_equipe_membres">';
+	$html   .= '<input type="hidden" name="user_id" value="' . $id . '">';
+	$html   .= wp_nonce_field( 'yume_membres_' . $id, '_yume_nonce', true, false );
+	$html   .= champ_select( 'yn-membre-' . $id . '-role', 'role', __( 'Rôle', 'yume-core' ), $roles, $actuel );
+	$html   .= '<p class="yn-team__action"><button type="submit" name="op" value="role" class="yn-btn yn-btn--primary">' . esc_html__( 'Changer le rôle', 'yume-core' ) . '</button></p>';
+	$confirm = $tomes
+		? ' data-yn-confirmer="' . esc_attr(
+			sprintf(
+				/* translators: 1: pseudo, 2: nombre de tomes */
+				_n( 'Retirer %1$s de l’équipe ? Il reste responsable de %2$d tome en cours.', 'Retirer %1$s de l’équipe ? Il reste responsable de %2$d tomes en cours.', count( $tomes ), 'yume-core' ),
+				$nom,
+				count( $tomes )
+			)
+		) . '"'
+		: '';
+	$html .= '<p class="yn-team__action"><button type="submit" name="op" value="retrait" class="yn-btn"' . $confirm . '>' . esc_html__( 'Retirer de l’équipe', 'yume-core' ) . '<span class="yn-visually-hidden"> : ' . esc_html( $nom ) . '</span></button></p>';
+	return $html . zone_retour( $retour ) . '</form>' . $alerte . '</li>';
 }
 
 /**
@@ -205,6 +289,7 @@ function rendu_team_members(): string {
 	$retour  = est_apercu_editeur() ? null : retour_formulaire( $uid );
 	$roles   = roles_equipe_attribuables();
 	$membres = comptes_equipe();
+	$tomes   = tomes_par_responsable();
 	$pour    = static function ( string $cible ) use ( $retour ): ?array {
 		return $retour && ( $retour['cible'] ?? '' ) === $cible ? $retour : null;
 	};
@@ -235,7 +320,7 @@ function rendu_team_members(): string {
 	if ( $membres ) {
 		$html .= '<ul class="yn-card yn-team__liste">';
 		foreach ( $membres as $membre ) {
-			$html .= ligne_membre( $membre, $roles, $pour( 'yn-membre-' . $membre->ID ) );
+			$html .= ligne_membre( $membre, $roles, $pour( 'yn-membre-' . $membre->ID ), $tomes[ (int) $membre->ID ] ?? array() );
 		}
 		$html .= '</ul>';
 	} else {
@@ -334,7 +419,12 @@ function traiter_formulaire_membres( array $post, int $user_id ): array {
 	$nom = (string) $compte->display_name;
 	if ( 'retrait' === $op ) {
 		/* translators: %s : pseudo */
-		$message = sprintf( __( '%s ne fait plus partie de l’équipe (rôle Lecteur).', 'yume-core' ), $nom );
+		$message  = sprintf( __( '%s ne fait plus partie de l’équipe (rôle Lecteur).', 'yume-core' ), $nom );
+		$restants = count( tomes_par_responsable()[ (int) $compte->ID ] ?? array() );
+		if ( $restants ) {
+			/* translators: %d : nombre de tomes */
+			$message .= ' ' . sprintf( _n( 'Il reste responsable de %d tome en cours : réattribuez-le dans le planning complet.', 'Il reste responsable de %d tomes en cours : réattribuez-les dans le planning complet.', $restants, 'yume-core' ), $restants );
+		}
 	} elseif ( 'ajout' === $op ) {
 		/* translators: 1: pseudo, 2: rôle */
 		$message = sprintf( __( '%1$s rejoint l’équipe : %2$s.', 'yume-core' ), $nom, $roles[ $nouveau ] );

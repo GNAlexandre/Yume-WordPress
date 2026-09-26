@@ -30,6 +30,12 @@ final class Annonce {
 	public const META_LIEN = '_yume_annonce_lien';
 
 	/**
+	 * Méta de l'article : annonce retirée avec son tome (dépublié), à republier à son retour
+	 * en ligne ['statut' => publish|future, 'date' => locale, 'date_gmt' => GMT].
+	 */
+	public const META_RETIREE = '_yume_annonce_retiree';
+
+	/**
 	 * Catégorie « Sorties » (créée si absente).
 	 *
 	 * @return int ID du terme (0 si impossible).
@@ -337,5 +343,124 @@ final class Annonce {
 			update_post_meta( $article_id, self::META_EMPREINTE, md5( (string) get_post_field( 'post_content', $article_id, 'raw' ) ) );
 		}
 		return $article_id;
+	}
+	/**
+	 * Suit le statut du tome (transition_post_status) : un tome qui quitte le site (brouillon,
+	 * en attente, privé, corbeille) remet son annonce parue ou programmée en brouillon ; à son
+	 * retour en ligne (ou à sa programmation), cette même annonce est republiée plutôt qu'une
+	 * nouvelle créée.
+	 *
+	 * @param string   $nouveau Nouveau statut.
+	 * @param string   $ancien  Ancien statut.
+	 * @param \WP_Post $post    Contenu.
+	 */
+	public static function suivre_tome( $nouveau, $ancien, $post ): void {
+		if ( ! $post instanceof \WP_Post || 'yume_tome' !== $post->post_type || $nouveau === $ancien ) {
+			return;
+		}
+		$en_ligne = array( 'publish', 'future' );
+		if ( in_array( $nouveau, $en_ligne, true ) ) {
+			if ( 'future' === $nouveau && 'publish' === $ancien ) {
+				self::retirer( (int) $post->ID ); // Tome reprogrammé : l'annonce le suit.
+			}
+			self::remettre( $post, (string) $nouveau );
+		} elseif ( in_array( $ancien, $en_ligne, true ) ) {
+			self::retirer( (int) $post->ID );
+		}
+	}
+
+	/**
+	 * Remet en brouillon l'annonce parue ou programmée d'un tome qui n'est plus en ligne.
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	private static function retirer( int $tome_id ): void {
+		$article_id = self::existant( $tome_id );
+		$article    = $article_id ? get_post( $article_id ) : null;
+		if ( ! $article || ! in_array( $article->post_status, array( 'publish', 'future' ), true ) ) {
+			return;
+		}
+		update_post_meta(
+			$article_id,
+			self::META_RETIREE,
+			array(
+				'statut'   => $article->post_status,
+				'date'     => $article->post_date,
+				'date_gmt' => $article->post_date_gmt,
+			)
+		);
+		$garder = self::empreinte_intacte( $article );
+		wp_update_post(
+			array(
+				'ID'          => $article_id,
+				'post_status' => 'draft',
+			)
+		);
+		if ( $garder ) {
+			self::noter_empreinte( $article_id );
+		}
+	}
+
+	/**
+	 * Le contenu de l'article est-il encore celui généré (non retouché à la main) ?
+	 *
+	 * @param \WP_Post $article Article.
+	 */
+	private static function empreinte_intacte( \WP_Post $article ): bool {
+		return md5( (string) $article->post_content ) === (string) get_post_meta( $article->ID, self::META_EMPREINTE, true );
+	}
+
+	/**
+	 * Enregistre l'empreinte du contenu actuel de l'article.
+	 *
+	 * @param int $article_id Article.
+	 */
+	private static function noter_empreinte( int $article_id ): void {
+		update_post_meta( $article_id, self::META_EMPREINTE, md5( (string) get_post_field( 'post_content', $article_id, 'raw' ) ) );
+	}
+
+	/**
+	 * Tome de retour en ligne (ou programmé) : son annonce retirée est republiée à sa date
+	 * d'origine si elle était déjà parue, sinon à la date du tome.
+	 *
+	 * @param \WP_Post $tome   Tome.
+	 * @param string   $statut publish ou future.
+	 */
+	private static function remettre( \WP_Post $tome, string $statut ): void {
+		$article_id = self::existant( (int) $tome->ID );
+		$retiree    = $article_id ? get_post_meta( $article_id, self::META_RETIREE, true ) : '';
+		if ( ! is_array( $retiree ) ) {
+			return;
+		}
+		delete_post_meta( $article_id, self::META_RETIREE );
+		$article = get_post( $article_id );
+		if ( ! $article || in_array( $article->post_status, array( 'publish', 'future', 'private' ), true ) ) {
+			return; // Déjà republiée à la main.
+		}
+		$date     = (string) $tome->post_date;
+		$date_gmt = (string) $tome->post_date_gmt;
+		$gmt      = (string) ( $retiree['date_gmt'] ?? '' );
+		if ( 'publish' === $statut && 'publish' === ( $retiree['statut'] ?? '' ) && '' !== $gmt && '0000-00-00 00:00:00' !== $gmt && strtotime( $gmt . ' UTC' ) <= time() ) {
+			$date     = (string) $retiree['date'];
+			$date_gmt = $gmt;
+		}
+		$lien   = (string) get_permalink( $tome );
+		$garder = self::empreinte_intacte( $article );
+		wp_update_post(
+			wp_slash(
+				array(
+					'ID'            => $article_id,
+					'post_status'   => $statut,
+					'post_date'     => $date,
+					'post_date_gmt' => $date_gmt,
+					'edit_date'     => true,
+					'post_content'  => self::remplacer_lien( (string) $article->post_content, (string) get_post_meta( $article_id, self::META_LIEN, true ), $lien ),
+				)
+			)
+		);
+		update_post_meta( $article_id, self::META_LIEN, $lien );
+		if ( $garder ) {
+			self::noter_empreinte( $article_id );
+		}
 	}
 }

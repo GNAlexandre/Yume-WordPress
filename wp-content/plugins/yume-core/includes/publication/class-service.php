@@ -1169,13 +1169,56 @@ final class Service {
 	}
 
 	/**
+	 * Le tome n'a-t-il rien à lire : aucun chapitre (hors chapitres retirés) et aucun lien
+	 * de téléchargement PDF ou EPUB ?
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	public static function tome_vide( int $tome_id ): bool {
+		foreach ( array( 'yume_lien_pdf', 'yume_lien_epub' ) as $cle ) {
+			if ( '' !== trim( (string) get_post_meta( $tome_id, $cle, true ) ) ) {
+				return false;
+			}
+		}
+		foreach ( yume_get_chapitres( $tome_id, array( 'status' => array( 'draft', 'pending', 'future', 'publish', 'private' ) ) ) as $chapitre ) {
+			if ( ! get_post_meta( $chapitre->ID, self::META_RETIRE, true ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Sortie programmée : la date cible du planning suit la date programmée (mise à jour
+	 * journalisée par le module planning, s'il est chargé).
+	 *
+	 * @param int                $tome_id Tome.
+	 * @param \DateTimeImmutable $date    Date de sortie.
+	 */
+	private static function caler_date_cible( int $tome_id, \DateTimeImmutable $date ): void {
+		if ( ! function_exists( '\Yume\Core\Planning\mettre_a_jour' ) ) {
+			return;
+		}
+		$jour = $date->setTimezone( wp_timezone() )->format( 'Y-m-d' );
+		if ( (string) get_post_meta( $tome_id, 'yume_date_cible', true ) === $jour ) {
+			return;
+		}
+		\Yume\Core\Planning\mettre_a_jour( $tome_id, array( 'date_cible' => $jour ), get_current_user_id(), array( 'forcer' => true ) );
+	}
+
+	/**
 	 * Publie tout de suite, ou programme, le tome, ses chapitres et son annonce.
 	 *
-	 * @param int    $tome_id Tome.
-	 * @param string $quand   « maintenant » ou date ISO.
+	 * Un tome sans chapitre ni lien PDF/EPUB n'est publié (ou programmé) que sur confirmation
+	 * explicite (option confirmer_vide) ; sinon erreur yume_tome_vide (409) : les lecteurs
+	 * prévenus n'auraient rien à lire.
+	 *
+	 * @param int                 $tome_id Tome.
+	 * @param string              $quand   « maintenant » ou date ISO.
+	 * @param array<string,mixed> $options confirmer_vide (bool, défaut false).
 	 * @return array<string,mixed>|\WP_Error
 	 */
-	public static function publier( int $tome_id, string $quand = 'maintenant' ) {
+	public static function publier( int $tome_id, string $quand = 'maintenant', array $options = array() ) {
 		$tome = get_post( $tome_id );
 		if ( ! $tome || 'yume_tome' !== $tome->post_type || 'trash' === $tome->post_status ) {
 			return new \WP_Error( 'yume_tome_introuvable', __( 'Tome introuvable.', 'yume-core' ), array( 'status' => 404 ) );
@@ -1197,7 +1240,17 @@ final class Service {
 		}
 		$statut     = $immediat ? 'publish' : 'future';
 		$deja_sorti = 'publish' === $tome->post_status;
-		$a_publier  = array_values(
+		if ( ! $deja_sorti && empty( $options['confirmer_vide'] ) && self::tome_vide( $tome_id ) ) {
+			return new \WP_Error(
+				'yume_tome_vide',
+				__( 'Ce tome n’a aucun chapitre ni lien de téléchargement PDF ou EPUB : les lecteurs prévenus n’auraient rien à lire. Déposez le fichier du tome ou indiquez un lien, ou confirmez la publication d’un tome vide.', 'yume-core' ),
+				array(
+					'status'       => 409,
+					'confirmation' => 'confirmer_vide',
+				)
+			);
+		}
+		$a_publier = array_values(
 			array_filter(
 				yume_get_chapitres( $tome_id, array( 'status' => array( 'draft', 'pending', 'future' ) ) ),
 				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true )
@@ -1257,6 +1310,9 @@ final class Service {
 			}
 		}
 		$article_id = Annonce::sortir( $tome_id, $statut, $local, $gmt );
+		if ( ! $immediat && 'future' === get_post_status( $tome_id ) ) {
+			self::caler_date_cible( $tome_id, $date );
+		}
 
 		clean_post_cache( $tome_id );
 		if ( $immediat && ! $deja_sorti && ! metadata_exists( 'post', $tome_id, self::META_NOTIFIE ) && 'publish' === get_post_status( $tome_id ) ) {

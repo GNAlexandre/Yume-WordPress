@@ -12,8 +12,8 @@
 defined( 'ABSPATH' ) || exit;
 ?>
 <!-- wp:comments {"className":"yn-commentaires"} -->
-<div class="wp-block-comments yn-commentaires"><!-- wp:heading {"className":"yn-commentaires__titre"} -->
-<h2 class="wp-block-heading yn-commentaires__titre"><?php esc_html_e( 'Commentaires', 'yume' ); ?></h2>
+<div class="wp-block-comments yn-commentaires"><!-- wp:heading {"className":"yn-commentaires__titre","anchor":"commentaires"} -->
+<h2 class="wp-block-heading yn-commentaires__titre" id="commentaires"><?php esc_html_e( 'Commentaires', 'yume' ); ?></h2>
 <!-- /wp:heading -->
 
 <!-- wp:comment-template -->

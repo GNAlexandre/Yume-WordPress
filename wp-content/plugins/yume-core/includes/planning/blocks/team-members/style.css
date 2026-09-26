@@ -62,6 +62,26 @@
 	border-radius: var(--yn-radius-card);
 }
 
+/* Membre encore responsable de tomes en cours (avertissement, non bloquant). */
+.yn-team__membre-alerte {
+	grid-column: 1 / -1;
+	padding: 10px 14px;
+	border: 1px solid var(--wp--preset--color--avertissement);
+	border-radius: var(--yn-radius);
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 14px;
+}
+
+.yn-team__membre-alerte > span[aria-hidden] {
+	color: var(--wp--preset--color--avertissement);
+}
+
+.yn-team .yn-team__membre-alerte a,
+.yn-team .yn-team__membre-note a {
+	color: var(--wp--preset--color--accent);
+	font-weight: 600;
+}
+
 @media (max-width: 699.98px) {
 	.yn-team__membre {
 		grid-template-columns: minmax(0, 1fr);

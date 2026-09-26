@@ -41,7 +41,45 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
 - les liens **Publier un tome** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
-  **Membres et rôles** et **Réglages (rappels, Discord)**.
+  **Membres et rôles** et **Réglages (rappels, Discord)** ;
+- **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
+
+Sous chaque tâche (et chaque tome de *Tous les tomes*), des raccourcis mènent directement au bon
+écran : **Publier ce tome** (éditeurs : le formulaire de publication s'ouvre déjà rempli pour ce
+tome, inutile de ressaisir œuvre, nature et numéro), **Modifier dans l'administration**, **Voir la
+fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans le planning complet**.
+
+### Planning complet (`/equipe/?vue=planning`)
+
+L'entrée **Planning complet** du menu ouvre la gestion de **tout** le planning, sans passer par
+l'administration WordPress (le planning public reste accessible par le bouton **Voir le planning
+public**) :
+
+- **tous les tomes** : en préparation, programmés, en attente, publiés (même anciens) ;
+- **filtres** : œuvre, état (à l'heure, en retard, bloqué, publié), statut (brouillon, programmé,
+  publié…) et responsable ; **Afficher tout le planning** retire les filtres ;
+- chaque ligne se déplie : étape, avancement des trois étapes, responsables, date cible, blocage et
+  note, puis **Enregistrer**. Si l'enregistrement est refusé (par exemple « Terminez d'abord l'étape
+  Traduction (100 %) avant de passer à la Relecture »), le message s'affiche en rouge **dans la
+  ligne** ; seuls les gérants et l'administrateur peuvent forcer une étape (le journal note alors
+  « étape forcée ») ;
+- les mêmes raccourcis que ci-dessus, plus **Retirer du planning** (éditeurs, gérants) : pour un
+  tome ajouté par erreur, **brouillon sans chapitre publié** seulement. Il part à la corbeille (un
+  administrateur peut le récupérer). Un tome publié, programmé ou avec des chapitres en ligne ne
+  se retire pas ici : le message explique quoi faire dans l'administration.
+
+Traducteurs, relecteurs et graphistes y voient tout le planning, mais ne modifient que leurs propres
+étapes des tomes dont ils sont responsables.
+
+Depuis le planning public (`/planning/`), un membre connecté a un bouton **Modifier dans l'espace
+équipe** en haut de page et un lien du même nom sous chaque tome, qui ouvre directement sa ligne.
+
+### Journal (`/equipe/?vue=journal`)
+
+**Journal** (menu) ou **Tout le journal** (sous le journal du tableau de bord) affiche toutes les
+mises à jour, page par page, avec des filtres par œuvre et par tome ; cochez **Inclure les rappels
+automatiques** pour voir aussi les rappels et signalements. Cliquer sur le nom d'un tome filtre le
+journal sur ce tome.
 
 ## 4. Mettre à jour son planning
 
@@ -181,11 +219,15 @@ Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approu
 
 - **Membres et rôles** (page `/equipe/membres/` de l'espace équipe) : la liste des membres et de
   leur rôle. Pour chacun : **Changer le rôle** (Traducteur, Relecteur, Graphiste, Éditeur Yume) ou
-  **Retirer de l'équipe** (le compte repasse Lecteur ; réattribuez d'abord ses tâches). **Ajouter un
+  **Retirer de l'équipe** (le compte repasse Lecteur ; réattribuez d'abord ses tâches). Un membre
+  encore responsable de tomes en cours est signalé sur sa ligne (nombre et liste des tomes) avec un
+  lien **Voir ses tomes dans le planning** (planning complet filtré sur lui) : le retrait ou le
+  changement de rôle reste possible, mais il ne le décharge pas de ces tomes. **Ajouter un
   membre** : la personne crée d'abord son compte de lecteur sur le site, puis vous saisissez son
   identifiant ou son e-mail et choisissez son rôle. Les comptes administrateurs et gérants, et le
   vôtre, ne sont modifiables que par un administrateur (*Comptes* dans l'administration, où vous
-  pouvez aussi créer un compte ou modifier un profil).
+  pouvez aussi créer un compte ou modifier un profil) ; l'administrateur a pour cela un lien
+  **Modifier dans l'administration** sur la ligne de ces comptes.
 - **Yume → Réglages** (administration) :
   - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),
@@ -207,7 +249,8 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | --- | --- |
 | Je ne vois pas mon tome dans *Mes tâches* | Vous n'en êtes pas responsable : demandez à un éditeur ou un gérant de vous l'attribuer. |
 | Le planning dit « En retard » alors que j'avance | Aucune mise à jour depuis 14 jours : enregistrez votre avancement, même sans changer d'étape. |
-| Le tome publié n'apparaît pas | Il est en brouillon ou programmé : vérifiez la date dans *Yume → Tomes*. |
+| Le tome publié n'apparaît pas | Il est en brouillon ou programmé : vérifiez son statut dans *Planning complet* (filtre *Statut*) ou dans *Yume → Tomes*. |
+| J'ai ajouté un tome au planning par erreur | *Planning complet* → dépliez sa ligne → **Retirer du planning** (brouillon sans chapitre publié). |
 | Un lien PDF ou EPUB est mort | *Yume → Tomes → Modifier* le tome et remplacez le lien. |
 | Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. |
 | Un lecteur ne reçoit pas les alertes | Il doit avoir l'œuvre en favori avec une alerte active (page *Mon compte*) ; les e-mails aux lecteurs doivent être activés dans *Yume → Réglages*. |

@@ -2,7 +2,7 @@
 /**
  * Tests du module bibliothèque : enregistrement des blocs, rendu de chaque bloc avec et sans
  * données, brouillons exclus, filtres et pagination de la grille, liens (rel, externes),
- * cache invalidé, JSON-LD et balises rel=prev/next.
+ * cache invalidé, JSON-LD et balises rel=prev/next, partenaires de l'accueil (réglage, logos).
  *
  * Commande : tools/localenv/test.sh library
  *
@@ -22,8 +22,12 @@ use function Yume\Core\Library\donnees_structurees;
 use function Yume\Core\Library\duree_lecture;
 use function Yume\Core\Library\est_nouveau;
 use function Yume\Core\Library\index_oeuvres;
+use function Yume\Core\Library\initiales;
+use function Yume\Core\Library\logos_formulaire_partenaires;
 use function Yume\Core\Library\normaliser_filtres;
+use function Yume\Core\Library\partenaires;
 use function Yume\Core\Library\renouveler_version;
+use function Yume\Core\Library\resoudre_logo_partenaire;
 use function Yume\Core\Library\sous_titre_tome;
 use function Yume\Core\Library\version_cache;
 
@@ -316,10 +320,10 @@ function yume_tl_noeud( array $document, string $type ): array {
  */
 
 yume_tl_test(
-	'enregistre les 11 blocs du §10 (apiVersion 3, catégorie yume, rendu serveur, style)',
+	'enregistre les 12 blocs du module (apiVersion 3, catégorie yume, rendu serveur, style)',
 	static function () {
 		$registre = WP_Block_Type_Registry::get_instance();
-		foreach ( array( 'library-menu', 'banner', 'latest-releases', 'library-grid', 'oeuvre-header', 'oeuvre-infos', 'tome-list', 'tome-header', 'tome-toc', 'chapter-header', 'chapter-nav' ) as $nom ) {
+		foreach ( array( 'library-menu', 'banner', 'latest-releases', 'library-grid', 'oeuvre-header', 'oeuvre-infos', 'tome-list', 'tome-header', 'tome-toc', 'chapter-header', 'chapter-nav', 'partenaires' ) as $nom ) {
 			$type = $registre->get_registered( 'yume/' . $nom );
 			yume_assert_true( $type instanceof WP_Block_Type, 'yume/' . $nom . ' enregistré' );
 			yume_assert_same( 'yume', $type->category, 'catégorie de ' . $nom );
@@ -1433,6 +1437,285 @@ yume_tl_test(
 				yume_assert_same( 0, preg_match( '/(?:^|[},])\s*\.' . preg_quote( $classe, '/' ) . '\s*[{,]/m', $css ), $fichier . ' : .' . $classe . ' jamais seul' );
 				yume_assert_true( 1 === preg_match( '/\.[a-z-]+\s+\.' . preg_quote( $classe, '/' ) . '\s*\{/', $css ), $fichier . ' : .' . $classe . ' préfixé par son bloc' );
 			}
+		}
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * yume/partenaires (section « Nos partenaires » de l'accueil)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Règle la liste des partenaires (sans passer par l'assainissement) ; null : jamais enregistrée.
+ *
+ * @param array|null $liste Partenaires.
+ */
+function yume_tl_partenaires( $liste ): void {
+	$reglages = get_option( 'yume_reglages', array() );
+	$reglages = is_array( $reglages ) ? $reglages : array();
+	if ( null === $liste ) {
+		unset( $reglages['partenaires'] );
+	} else {
+		$reglages['partenaires'] = $liste;
+	}
+	// Écriture directe : l'assainissement (testé à part) est suspendu le temps de l'écriture.
+	$filtres = $GLOBALS['wp_filter']['sanitize_option_yume_reglages'] ?? null;
+	remove_all_filters( 'sanitize_option_yume_reglages' );
+	update_option( 'yume_reglages', $reglages );
+	if ( null !== $filtres ) {
+		$GLOBALS['wp_filter']['sanitize_option_yume_reglages'] = $filtres; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+	}
+	delete_transient( 'yume_partenaires_logos' );
+}
+
+yume_tl_test(
+	'partenaires : les quatre de l’ancien site tant que le réglage n’a jamais été enregistré',
+	static function () {
+		yume_tl_partenaires( null );
+		$liste = partenaires();
+		yume_assert_same( array( 'MassNovel', 'Novel Index', 'Novel de l’Aube', 'J-Garden' ), array_column( $liste, 'nom' ) );
+		yume_assert_same( array( 'https://massnovel.fr/', 'https://www.novel-index.com/', 'https://noveldelaube.com/', 'https://j-garden.fr/' ), array_column( $liste, 'url' ) );
+		yume_assert_same( array( 1317, 1312, 2486, 1313 ), array_column( $liste, 'logo' ), 'ID des logos de l’ancien site' );
+		yume_assert_same( 'logo_ln-france4-1.webp', $liste[2]['fichier'], 'fichier attendu du logo' );
+		yume_assert_contains( 'Regroupe toutes les sorties de manhwa', $liste[0]['description'] );
+
+		// Réglage enregistré vide : aucun partenaire, le bloc ne rend rien en façade.
+		yume_tl_partenaires( array() );
+		yume_assert_same( array(), partenaires() );
+		yume_assert_same( '', yume_tl_rendu( 'partenaires' ) );
+	}
+);
+
+yume_tl_test(
+	'partenaires : cartes en liens externes (nouvel onglet, rel noopener, nom accessible), monogramme sans logo',
+	static function () {
+		yume_tl_partenaires(
+			array(
+				array(
+					'nom'         => 'MassNovel',
+					'url'         => 'https://massnovel.fr/',
+					'description' => 'Sorties <b>manhwa</b>',
+					'logo'        => '',
+				),
+				array(
+					'nom'         => 'Novel de l’Aube',
+					'url'         => 'https://noveldelaube.com/',
+					'description' => '',
+					'logo'        => 999999,
+				),
+				array(
+					'nom' => 'Sans lien',
+					'url' => 'javascript:alert(1)',
+				),
+			)
+		);
+		$html = yume_tl_rendu( 'partenaires', array( 'title' => 'Amis & alliés' ) );
+		yume_assert_contains( '<section class="', $html );
+		yume_assert_contains( 'yn-partenaires', $html );
+		yume_assert_same( 1, preg_match( '/aria-labelledby="([^"]+)".*<h2 class="yn-partenaires__titre" id="\1">Amis &amp; alliés<\/h2>/s', $html ), 'section nommée par son titre' );
+		yume_assert_same( 2, yume_tl_compte( '<li class="yn-partenaires__item">', $html ), 'ligne sans lien http(s) écartée' );
+		yume_assert_not_contains( 'javascript:', $html );
+		yume_assert_same( 2, yume_tl_compte( 'target="_blank" rel="noopener"', $html ), 'nouvel onglet et rel="noopener"' );
+		yume_assert_contains( 'href="https://noveldelaube.com/"', $html );
+		yume_assert_contains( '<span class="yn-partenaire__nom">MassNovel</span>', $html, 'nom visible dans le lien (nom accessible)' );
+		yume_assert_same( 2, yume_tl_compte( 's’ouvre dans un nouvel onglet', $html ), 'nouvel onglet annoncé' );
+		yume_assert_contains( 'Sorties manhwa', $html, 'balises retirées de la description' );
+		yume_assert_not_contains( '<b>', $html );
+		yume_assert_not_contains( 'yn-partenaire__description"></span>', $html, 'pas de description vide' );
+		yume_assert_contains( 'aria-hidden="true"><span class="yn-partenaire__monogramme">MN</span>', $html, 'monogramme sans logo' );
+		yume_assert_contains( '<span class="yn-partenaire__monogramme">NA</span>', $html, 'monogramme : pièce jointe inexistante' );
+		yume_assert_not_contains( '<img', $html );
+
+		// Titre par défaut.
+		yume_assert_contains( '>Nos partenaires</h2>', yume_tl_rendu( 'partenaires' ) );
+
+		yume_assert_same( 'MN', initiales( 'MassNovel' ) );
+		yume_assert_same( 'NI', initiales( 'Novel Index' ) );
+		yume_assert_same( 'NA', initiales( 'Novel de l’Aube' ) );
+		yume_assert_same( 'JG', initiales( 'J-Garden' ) );
+		yume_assert_same( 'É', initiales( 'éclat' ) );
+	}
+);
+
+yume_tl_test(
+	'partenaires : logo (pièce jointe ou adresse) décoratif, alt vide, taille contrainte',
+	static function () {
+		$image = yume_tl_image( 'logo-partenaire.png' );
+		yume_tl_partenaires(
+			array(
+				array(
+					'nom'         => 'Avec média',
+					'url'         => 'https://exemple.fr/',
+					'description' => 'Une ligne',
+					'logo'        => $image,
+				),
+				array(
+					'nom'         => 'Avec adresse',
+					'url'         => 'https://exemple.org/',
+					'description' => 'Une autre',
+					'logo'        => 'https://cdn.exemple.org/logo.svg" onerror="alert(1)',
+				),
+			)
+		);
+		$html = yume_tl_rendu( 'partenaires' );
+		yume_assert_same( 2, yume_tl_compte( '<img', $html ) );
+		yume_assert_same( 2, yume_tl_compte( 'alt=""', $html ), 'logo décoratif : le nom est écrit sur la carte' );
+		yume_assert_contains( 'logo-partenaire.png', $html, 'image de la médiathèque' );
+		yume_assert_contains( 'class="yn-partenaire__image', $html );
+		yume_assert_not_contains( 'onerror="', $html, 'adresse du logo échappée' );
+		yume_assert_not_contains( 'yn-partenaire__monogramme', $html );
+	}
+);
+
+yume_tl_test(
+	'partenaires : logo par défaut retenu seulement si la pièce jointe porte le fichier attendu',
+	static function () {
+		delete_transient( 'yume_partenaires_logos' );
+		$autre = yume_tl_image( 'sans-rapport.jpg' );
+		yume_assert_same( 0, resoudre_logo_partenaire( $autre, 'logomassnovel-2.png' )['id'], 'autre pièce jointe au même ID : écartée' );
+		yume_assert_same( $autre, resoudre_logo_partenaire( $autre )['id'], 'ID saisi dans les réglages (sans fichier attendu) : retenu' );
+		yume_assert_same( 0, resoudre_logo_partenaire( 99999999, '' )['id'], 'pièce jointe inexistante' );
+
+		// Le média existe sous un autre ID (autre site, import) : trouvé par nom de fichier.
+		$logo = yume_tl_image( 'logomassnovel-2.png' );
+		yume_tl_image( 'xlogomassnovel-2.png' );
+		yume_assert_same( $logo, resoudre_logo_partenaire( $autre, 'logomassnovel-2.png' )['id'], 'recherche par nom de fichier (cache oublié à l’ajout d’un média)' );
+		yume_assert_same( $logo, resoudre_logo_partenaire( $logo, 'logomassnovel-2.png' )['id'], 'ID et fichier concordants' );
+		yume_assert_same( $logo, resoudre_logo_partenaire( '', 'LOGOMASSNOVEL-2.PNG' )['id'], 'casse ignorée' );
+		yume_assert_same( 0, resoudre_logo_partenaire( '', 'logo-1.png' )['id'], 'fichier absent de la médiathèque : monogramme' );
+		yume_assert_same( 'https://exemple.fr/l.png', resoudre_logo_partenaire( 'https://exemple.fr/l.png' )['url'] );
+		yume_assert_same( '', resoudre_logo_partenaire( 'javascript:alert(1)' )['url'] );
+
+		// Partenaires par défaut : le logo de MassNovel est retrouvé, les autres sont des monogrammes
+		// (sauf si la base locale contient les médias de l'ancien site).
+		yume_tl_partenaires( null );
+		$html = yume_tl_rendu( 'partenaires' );
+		yume_assert_contains( 'logomassnovel-2.png', $html );
+		yume_assert_same( 4, yume_tl_compte( 'class="yn-partenaire__logo', $html ) );
+
+		// Formulaire des réglages : le logo par défaut devient l'ID trouvé sur ce site, sans fichier.
+		$formulaire = logos_formulaire_partenaires( \Yume\Core\Core\partenaires_par_defaut() );
+		yume_assert_same( $logo, $formulaire[0]['logo'] );
+		yume_assert_false( isset( $formulaire[0]['fichier'] ) );
+	}
+);
+
+yume_tl_test(
+	'partenaires : assainissement du réglage (lien http(s) obligatoire, logo, 8 lignes au plus)',
+	static function () {
+		if ( ! function_exists( 'Yume\Core\Core\assainir_partenaires' ) ) {
+			return;
+		}
+		$image  = yume_tl_image( 'logo-ok.png' );
+		$lignes = array(
+			array(
+				'nom'         => ' <script>x</script>Team <em>A</em> ',
+				'url'         => 'https://a.fr/',
+				'description' => str_repeat( 'é', 300 ),
+				'logo'        => (string) $image,
+			),
+			array(
+				'nom'  => 'Piège',
+				'url'  => 'javascript:alert(1)',
+				'logo' => '',
+			),
+			array(
+				'nom'  => 'Sans schéma',
+				'url'  => 'ftp://b.fr/',
+				'logo' => '',
+			),
+			array(
+				'nom'  => '',
+				'url'  => '',
+				'logo' => '',
+			),
+			array(
+				'nom'     => 'Logo URL',
+				'url'     => 'http://c.fr/',
+				'logo'    => 'javascript:alert(1)',
+				'fichier' => '../x.png',
+			),
+			array(
+				'nom'     => 'Logo inexistant',
+				'url'     => 'https://d.fr/',
+				'logo'    => '99999999',
+				'fichier' => 'logo.png',
+			),
+			'pas une ligne',
+		);
+		$sortie = \Yume\Core\Core\assainir_partenaires( $lignes );
+		yume_assert_same( array( 'Team A', 'Logo URL', 'Logo inexistant' ), array_column( $sortie, 'nom' ), 'lignes invalides ou vides retirées' );
+		yume_assert_same( 'https://a.fr/', $sortie[0]['url'] );
+		yume_assert_same( 160, mb_strlen( $sortie[0]['description'] ), 'description limitée' );
+		yume_assert_same( $image, $sortie[0]['logo'], 'ID de pièce jointe existante' );
+		yume_assert_same( '', $sortie[1]['logo'], 'adresse de logo javascript: refusée' );
+		yume_assert_false( isset( $sortie[1]['fichier'] ), 'fichier attendu seulement avec un ID' );
+		yume_assert_same( '', $sortie[2]['logo'], 'pièce jointe inexistante' );
+		yume_assert_same(
+			'https://cdn.fr/l.png',
+			\Yume\Core\Core\assainir_partenaires(
+				array(
+					array(
+						'nom'  => 'X',
+						'url'  => 'https://x.fr',
+						'logo' => 'https://cdn.fr/l.png',
+					),
+				)
+			)[0]['logo']
+		);
+
+		$dix = array_fill(
+			0,
+			10,
+			array(
+				'nom' => 'P',
+				'url' => 'https://p.fr/',
+			)
+		);
+		yume_assert_same( 8, count( \Yume\Core\Core\assainir_partenaires( $dix ) ), '8 partenaires au plus' );
+		yume_assert_same( array(), \Yume\Core\Core\assainir_partenaires( 'texte' ) );
+
+		// Par le formulaire de Yume → Réglages (callback de l'option).
+		$reglages = \Yume\Core\Core\assainir_reglages(
+			array(
+				'_formulaire' => '1',
+				'partenaires' => array(
+					array(
+						'nom' => 'Ok',
+						'url' => 'https://ok.fr/',
+					),
+					array(
+						'nom' => 'Ko',
+						'url' => 'javascript:alert(1)',
+					),
+				),
+			)
+		);
+		yume_assert_same( array( 'Ok' ), array_column( $reglages['partenaires'], 'nom' ) );
+		$defauts = \Yume\Core\Core\defauts_reglages();
+		yume_assert_same( 4, count( $defauts['partenaires'] ), 'valeur par défaut du réglage' );
+	}
+);
+
+yume_tl_test(
+	'partenaires : feuille du bloc (grille responsive, logo contenu), accueil et pied de page',
+	static function () {
+		$css = (string) file_get_contents( dirname( __DIR__ ) . '/includes/library/blocks/partenaires/style.css' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
+		yume_assert_contains( 'object-fit: contain', $css );
+		yume_assert_contains( 'repeat(2, minmax(0, 1fr))', $css, '2 × 2' );
+		yume_assert_contains( 'grid-template-columns: minmax(0, 1fr)', $css, 'une colonne sur mobile' );
+		yume_assert_contains( 'html[data-yn-theme="papier"] .yn-partenaires', $css );
+		yume_assert_same( 0, preg_match( '/(?:^|[},])\s*\.yn-partenaires__titre\s*[{,]/m', $css ), 'titre préfixé par son bloc' );
+
+		$theme = get_theme_root() . '/yume';
+		if ( is_dir( $theme ) ) {
+			$accueil = (string) file_get_contents( $theme . '/templates/front-page.html' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
+			yume_assert_contains( '<!-- wp:yume/partenaires', $accueil, 'bloc dans le modèle de l’accueil' );
+			$pied = (string) file_get_contents( $theme . '/parts/footer.html' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
+			yume_assert_contains( 'href="https://noveldelaube.com/"', $pied );
+			yume_assert_not_contains( 'noveldelaube.fr', $pied );
 		}
 	}
 );

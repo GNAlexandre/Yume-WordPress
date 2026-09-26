@@ -481,33 +481,42 @@ function yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool {
 
 /**
  * URL d'une page Yume ('bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte',
- * 'connexion').
- * Page enregistrée dans l'option yume_pages (clé => ID, créée par la migration), sinon
- * repli sur home_url( '/<slug>/' ).
+ * 'connexion', 'actualites', 'mentions-legales', 'accueil').
+ * Page enregistrée dans l'option yume_pages (clé => ID, créée par la migration) si elle est
+ * publiée ainsi que ses parents ; sinon (absente, à la corbeille, en brouillon, privée ou sous
+ * un parent dépublié) repli sur home_url( '/<chemin>/' ), le chemin du contrat §11.
  *
  * @param string $cle Clé de page.
  */
 function yume_url_page( string $cle ): string {
 	$slugs = array(
-		'bibliotheque' => 'bibliotheque',
-		'planning'     => 'planning',
-		'equipe'       => 'equipe',
-		'publier'      => 'equipe/publier',
-		'membres'      => 'equipe/membres',
-		'compte'       => 'compte',
-		'connexion'    => 'connexion',
+		'bibliotheque'     => 'bibliotheque',
+		'planning'         => 'planning',
+		'equipe'           => 'equipe',
+		'publier'          => 'equipe/publier',
+		'membres'          => 'equipe/membres',
+		'compte'           => 'compte',
+		'connexion'        => 'connexion',
+		'actualites'       => 'actualites',
+		'mentions-legales' => 'mentions-legales',
+		'accueil'          => '',
 	);
 	$url   = '';
 	$pages = get_option( 'yume_pages', array() );
 	if ( is_array( $pages ) && ! empty( $pages[ $cle ] ) ) {
-		$page = get_post( (int) $pages[ $cle ] );
-		if ( $page && 'page' === $page->post_type && in_array( $page->post_status, array( 'publish', 'private' ), true ) ) {
+		$page     = get_post( (int) $pages[ $cle ] );
+		$publiee  = static fn( $p ): bool => $p instanceof WP_Post && 'page' === $p->post_type && 'publish' === $p->post_status;
+		$en_ligne = $publiee( $page );
+		foreach ( $en_ligne ? get_post_ancestors( $page ) : array() as $parent ) {
+			$en_ligne = $en_ligne && $publiee( get_post( $parent ) );
+		}
+		if ( $en_ligne ) {
 			$url = (string) get_permalink( $page );
 		}
 	}
 	if ( '' === $url ) {
 		$slug = $slugs[ $cle ] ?? sanitize_title( $cle );
-		$url  = home_url( '/' . $slug . '/' );
+		$url  = home_url( '' !== $slug ? '/' . $slug . '/' : '/' );
 	}
 	/**
 	 * Filtre l'URL d'une page Yume.

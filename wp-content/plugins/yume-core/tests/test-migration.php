@@ -942,7 +942,7 @@ function yume_test_migration_instantane(): array {
 	$rel   = $wpdb->get_results( "SELECT object_id, term_taxonomy_id FROM {$wpdb->term_relationships} ORDER BY object_id, term_taxonomy_id", ARRAY_A );
 	// phpcs:enable
 	$options = array();
-	foreach ( array( 'show_on_front', 'page_on_front', 'page_for_posts', 'default_category', 'yume_pages', 'yume_reglages', 'yume_redirections', 'sticky_posts', 'users_can_register', 'default_role', 'posts_per_page' ) as $option ) {
+	foreach ( array( 'show_on_front', 'page_on_front', 'page_for_posts', 'default_category', 'yume_pages', 'yume_reglages', 'yume_redirections', 'sticky_posts', 'users_can_register', 'default_role', 'posts_per_page', 'comment_registration' ) as $option ) {
 		$valeur             = get_option( $option, '__absente__' );
 		$options[ $option ] = is_scalar( $valeur ) ? (string) $valeur : $valeur;
 	}
@@ -1109,6 +1109,7 @@ yume_test(
 		yume_assert_same( '1', (string) get_option( 'users_can_register' ), 'inscription des lecteurs ouverte' );
 		yume_assert_same( 'subscriber', get_option( 'default_role' ), 'rôle par défaut : Lecteur' );
 		yume_assert_same( 12, (int) get_option( 'posts_per_page' ), 'grilles d’actualités : 12 par page' );
+		yume_assert_same( '1', (string) get_option( 'comment_registration' ), 'commentaires réservés aux comptes connectés' );
 
 		// Anciennes pages remplacées en brouillon, institutionnelles et ignorées intactes.
 		foreach ( array( 12, 66, 550, 1548, 2072, 2173, 2209, 2417, 2558 ) as $id ) {
@@ -1276,11 +1277,13 @@ yume_test(
 		// Réglages d'inscription de l'ancien site : fermés, rôle par défaut différent.
 		update_option( 'users_can_register', '0' );
 		update_option( 'default_role', 'author' );
+		update_option( 'comment_registration', '0' );
 		$avant = yume_test_migration_instantane();
 		yume_test_migration_executer();
 		yume_assert_true( array() !== Migration_State::journal()['empreinte'] );
 		yume_assert_same( '1', (string) get_option( 'users_can_register' ) );
 		yume_assert_same( 'subscriber', get_option( 'default_role' ) );
+		yume_assert_same( '1', (string) get_option( 'comment_registration' ) );
 		Migration_Runner::demarrer_annulation();
 		$etat = Migration_Runner::terminer();
 		yume_assert_same( 'annule', $etat['statut'], (string) $etat['erreur'] );
@@ -1294,6 +1297,7 @@ yume_test(
 		yume_assert_same( 'yume-news', get_term( 775285387, 'category' )->slug );
 		yume_assert_same( '0', (string) get_option( 'users_can_register' ), 'inscription restaurée' );
 		yume_assert_same( 'author', get_option( 'default_role' ), 'rôle par défaut restauré' );
+		yume_assert_same( '0', (string) get_option( 'comment_registration' ), 'commentaires anonymes restaurés' );
 		yume_assert_same( null, Redirections::resoudre( '/grimgar-of-fantasy-and-ash-ln/' ) );
 		// Une nouvelle simulation puis exécution sont de nouveau possibles.
 		yume_assert_same( 'migre', yume_test_migration_executer()['statut'] );
@@ -2109,5 +2113,66 @@ yume_test(
 		ob_start();
 		Migration_Admin::afficher();
 		yume_assert_contains( 'Contrôle impossible', (string) ob_get_clean() );
+	}
+);
+
+/**
+ * Page ajoutée à l'export des fixtures (sur le modèle de la page 143).
+ *
+ * @param array  $export  Export (par référence).
+ * @param int    $id      ID.
+ * @param string $slug    Slug.
+ * @param string $titre   Titre.
+ * @param string $contenu Contenu.
+ */
+function yume_test_migration_ajouter_page( array &$export, int $id, string $slug, string $titre, string $contenu ): void {
+	$page              = yume_test_migration_page( 143 );
+	$export['pages'][] = array_merge(
+		$page,
+		array(
+			'id'      => $id,
+			'slug'    => $slug,
+			'title'   => $titre,
+			'link'    => 'https://yumenovel.fr/' . $slug . '/',
+			'content' => $contenu,
+			'excerpt' => '',
+		)
+	);
+}
+
+yume_test(
+	'SCAN-22 : page parasite (titre court ou contenu quasi vide, sans lien qui y mène) ignorée et signalée ; page courte liée conservée',
+	function () {
+		$bio     = "<!-- wp:paragraph -->\n<p>Étudiant traducteur chez Yume Novel pour le fun, grand lecteur d’animangas.</p>\n<!-- /wp:paragraph -->";
+		$plan    = yume_test_migration_plan_de(
+			yume_test_migration_export_modifie(
+				static function ( array &$e ) use ( $bio ): void {
+					yume_test_migration_ajouter_page( $e, 9001, 'xba', 'Xba', $bio );
+					yume_test_migration_ajouter_page( $e, 9002, 'essai', 'Page d’essai', "<!-- wp:paragraph -->\n<p>à voir</p>\n<!-- /wp:paragraph -->" );
+					yume_test_migration_ajouter_page( $e, 9003, 'yume-faq', 'FAQ', $bio );
+					yume_test_migration_ajouter_page( $e, 9004, 'contactez-nous', 'Contactez-nous', "<!-- wp:paragraph -->\n<p>Sur Discord : @mael7523m<br>Sur Twitter : @Roshidere_FR<br>Par mail : <br></p>\n<!-- /wp:paragraph -->" );
+					// La FAQ est liée depuis une page conservée : elle reste institutionnelle.
+					yume_test_migration_remplacer_page( $e, 143, '</p>', ' <a href="https://yumenovel.fr/yume-faq/">FAQ</a></p>' );
+				}
+			)
+		);
+		$ignorer = array_column( $plan['pages']['ignorer'], null, 'id' );
+		yume_assert_same( array( 151, 9001, 9002 ), array_keys( $ignorer ) );
+		yume_assert_contains( 'trois caractères', $ignorer[9001]['raison'] );
+		yume_assert_contains( 'quasi vide', $ignorer[9002]['raison'] );
+		yume_assert_same( array( 143, 9003, 9004 ), array_column( $plan['pages']['conserver'], 'id' ), 'page de contact conservée' );
+
+		$xba = yume_test_migration_avertissements( $plan, '« Xba »' );
+		yume_assert_same( 1, count( $xba ) );
+		yume_assert_same( 'attention', $xba[0]['niveau'] );
+		yume_assert_same( 9001, $xba[0]['source_id'] );
+		yume_assert_same( 1, count( yume_test_migration_avertissements( $plan, '« Page d’essai »' ) ) );
+		$faq = yume_test_migration_avertissements( $plan, '« FAQ »' );
+		yume_assert_same( 'info', $faq[0]['niveau'], 'page courte mais liée : conservée, signalée' );
+		yume_assert_same( array(), yume_test_migration_avertissements( $plan, '« Contactez-nous »' ) );
+		yume_assert_contains( 'Xba', Plan_Report::markdown( $plan ) );
+
+		// Fixtures d'origine : rien de changé.
+		yume_assert_same( array( 143 ), array_column( yume_test_migration_plan()['pages']['conserver'], 'id' ) );
 	}
 );

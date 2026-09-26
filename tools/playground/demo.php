@@ -4,8 +4,10 @@
  *
  * Crée (sans doublon si on le relance) : une œuvre fictive avec ses taxonomies, un tome publié
  * avec liens PDF/EPUB et deux chapitres, un tome planifié en cours de traduction, un article
- * d'actualité, les pages du contrat (§11 : bibliothèque, planning, équipe, publier, membres,
- * compte, connexion) et deux comptes de test (equipe / equipe, lecteur / lecteur).
+ * d'actualité, toutes les pages du contrat (§11 : bibliothèque, planning, équipe, publier,
+ * membres, compte, connexion, actualités, mentions légales, accueil) avec les réglages de lecture
+ * (accueil statique, page des articles), les pages institutionnelles du menu et deux comptes de
+ * test (equipe / equipe, lecteur / lecteur). Les commentaires sont réservés aux comptes connectés.
  *
  * Ce fichier est la source de l'étape runPHP des blueprints (tools/playground/construire.php
  * l'y recopie). Il s'exécute aussi sur un WordPress local :
@@ -290,42 +292,25 @@ if ( $yume_demo_article && $yume_demo_oeuvre && taxonomy_exists( 'yume_oeuvre_li
 	wp_set_object_terms( $yume_demo_article, 'lanternes-de-brume-haute', 'yume_oeuvre_liee' );
 }
 
-// Pages du contrat (§11), si elles n'existent pas déjà.
-$yume_demo_pages  = get_option( 'yume_pages', array() );
-$yume_demo_pages  = is_array( $yume_demo_pages ) ? $yume_demo_pages : array();
-$yume_demo_modele = array(
-	'bibliotheque' => array( 'bibliotheque', 'Bibliothèque', '<!-- wp:yume/library-grid /-->', '' ),
-	'planning'     => array( 'planning', 'Planning', '<!-- wp:yume/planning /-->', '' ),
-	'equipe'       => array( 'equipe', 'Espace équipe', '<!-- wp:yume/team-dashboard /-->', '' ),
-	'publier'      => array( 'publier', 'Publier un tome', '<!-- wp:yume/publish-form /-->', 'equipe' ),
-	'membres'      => array( 'membres', 'Membres et rôles', '<!-- wp:yume/team-members /-->', 'equipe' ),
-	'compte'       => array( 'compte', 'Mon compte', '<!-- wp:yume/account /-->', '' ),
-	'connexion'    => array( 'connexion', 'Connexion', '<!-- wp:yume/account /-->', '' ),
-);
-foreach ( $yume_demo_modele as $yume_demo_cle => $yume_demo_page ) {
-	if ( ! empty( $yume_demo_pages[ $yume_demo_cle ] ) && 'page' === get_post_type( (int) $yume_demo_pages[ $yume_demo_cle ] ) ) {
-		continue;
-	}
-	$yume_demo_parent = '' !== $yume_demo_page[3] ? (int) ( $yume_demo_pages[ $yume_demo_page[3] ] ?? 0 ) : 0;
-	$yume_demo_chemin = ( $yume_demo_parent ? get_post_field( 'post_name', $yume_demo_parent ) . '/' : '' ) . $yume_demo_page[0];
-	$yume_demo_existe = get_page_by_path( $yume_demo_chemin );
-	$yume_demo_id     = $yume_demo_existe ? (int) $yume_demo_existe->ID : wp_insert_post(
-		wp_slash(
-			array(
-				'post_type'    => 'page',
-				'post_name'    => $yume_demo_page[0],
-				'post_title'   => $yume_demo_page[1],
-				'post_content' => $yume_demo_page[2],
-				'post_status'  => 'publish',
-				'post_parent'  => $yume_demo_parent,
-			)
-		)
-	);
-	if ( $yume_demo_id && ! is_wp_error( $yume_demo_id ) ) {
-		$yume_demo_pages[ $yume_demo_cle ] = (int) $yume_demo_id;
-	}
+// Pages du contrat (§11) : les mêmes que la migration (Migration_Planner::PAGES_A_CREER, mêmes
+// slugs, parents et contenus), créées par Yume Core si elles ne sont pas en ligne. Une page déjà
+// présente à son adresse est reprise : aucun doublon si le script est relancé.
+if ( function_exists( 'Yume\\Core\\Core\\recreer_pages_yume' ) ) {
+	\Yume\Core\Core\recreer_pages_yume();
+} else {
+	echo "Démo : Yume Core ne sait pas créer les pages du contrat (module migration absent ?).\n";
 }
-update_option( 'yume_pages', $yume_demo_pages );
+$yume_demo_pages = get_option( 'yume_pages', array() );
+$yume_demo_pages = is_array( $yume_demo_pages ) ? $yume_demo_pages : array();
+
+// Réglages de lecture : accueil statique (front-page.html), page des articles « Actualités ».
+if ( ! empty( $yume_demo_pages['accueil'] ) && ! empty( $yume_demo_pages['actualites'] ) ) {
+	update_option( 'show_on_front', 'page' );
+	update_option( 'page_on_front', (int) $yume_demo_pages['accueil'] );
+	update_option( 'page_for_posts', (int) $yume_demo_pages['actualites'] );
+}
+// Commentaires réservés aux comptes connectés, comme après la migration.
+update_option( 'comment_registration', 1 );
 
 // Pages institutionnelles du menu « Yume Novel » et « Contact » (parts/header.html). Sur le vrai
 // site, elles existent déjà et sont conservées par la migration ; la démo en crée des versions courtes.

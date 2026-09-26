@@ -4,8 +4,14 @@
  * (curseur d'avancement, étape, date cible, blocage, note), « Tous les tomes » et « Ajouter un
  * tome au planning » (yume_maj_planning_tous), retards, rappels récents, journal de l'équipe.
  *
+ * Vues de la même page (paramètre « vue », sans page supplémentaire) : « Planning complet »
+ * (?vue=planning : tous les tomes vivants, filtres œuvre / état / statut / responsable,
+ * formulaire par ligne, raccourcis vers la publication, l'administration et la fiche, « Retirer
+ * du planning ») et « Journal » (?vue=journal : tout le journal, paginé, filtrable par tome).
+ *
  * Les formulaires passent par la REST en JavaScript (view.js) et, sans JavaScript, par
- * admin-post.php (actions yume_planning_maj et yume_planning_ajout, nonce).
+ * admin-post.php (actions yume_planning_maj, yume_planning_ajout et yume_planning_retrait,
+ * nonce).
  *
  * @package Yume\Core
  */
@@ -298,10 +304,10 @@ function carte_tache( array $tache, ?array $retour ): string {
 	// Une tâche en attente n'est pas en retard pour ce membre : le retard est celui de l'étape en cours.
 	$retard  = 'en_retard' === $l['etat'] && ! $tache['attente'];
 	$classes = 'yn-card yn-team__tache' . ( $retard ? ' yn-team__tache--retard' : '' ) . ( $tache['attente'] ? ' yn-team__tache--attente' : '' );
-	$nom     = $l['oeuvre'] . ' · ' . $l['tome'] . ( '' !== $l['titre'] ? ' : ' . $l['titre'] : '' );
+	$nom     = nom_ligne( $l );
 	$puce    = $tache['attente'] && 'bloque' !== $l['etat']
 		? '<span class="yn-chip yn-chip--info" data-yn-puce>' . esc_html__( 'En attente', 'yume-core' ) . '</span>'
-		: pastille( $l['etat'], 'a_lheure' === $l['etat'] ? '' : texte_etat( $l ), array( 'data-yn-puce' => '' ) );
+		: pastille_ligne( $l, true, array( 'data-yn-puce' => '' ) );
 	$tete    = '<div class="yn-team__tache-tete"><div><h3 class="yn-team__tache-titre" id="' . esc_attr( $titre ) . '">' . esc_html( $nom ) . '</h3>';
 	$tete   .= '<p class="yn-muted yn-team__tache-info">' . esc_html( sous_titre_tache( $tache ) ) . '</p></div>' . $puce . '</div>';
 	$action  = esc_url( admin_url( 'admin-post.php' ) );
@@ -310,36 +316,59 @@ function carte_tache( array $tache, ?array $retour ): string {
 		$html  = '<article class="' . esc_attr( $classes ) . '" id="' . esc_attr( $ancre ) . '" aria-labelledby="' . esc_attr( $titre ) . '" data-yn-carte>' . $tete;
 		$html .= '<details class="yn-team__details"><summary>' . esc_html__( 'Mettre à jour quand même', 'yume-core' ) . '</summary>';
 		$html .= '<form method="post" action="' . $action . '" data-yn-planning="' . $id . '">' . champs_caches_maj( $id, $ancre ) . champs_tache( $tache, 't' . $id, null ) . '</form>';
-		return $html . '</details></article>';
+		return $html . '</details>' . liens_tome( $l, false, true ) . '</article>';
 	}
+	// La carte est un formulaire : les raccourcis sont de simples liens (pas de formulaire imbriqué).
 	$html  = '<form class="' . esc_attr( $classes ) . '" id="' . esc_attr( $ancre ) . '" method="post" action="' . $action . '" aria-labelledby="' . esc_attr( $titre ) . '" data-yn-planning="' . $id . '" data-yn-carte>';
-	$html .= $tete . champs_caches_maj( $id, $ancre ) . champs_tache( $tache, 't' . $id, $retour );
+	$html .= $tete . champs_caches_maj( $id, $ancre ) . champs_tache( $tache, 't' . $id, $retour ) . liens_tome( $l, false, true );
 	return $html . '</form>';
 }
 
 /**
- * Ligne dépliable de « Tous les tomes » (formulaire complet, responsables compris).
+ * Résumé d'une ligne du planning (texte du <summary>) : œuvre, tome, étape en cours, date, et
+ * statut WordPress quand le tome n'est pas un simple brouillon.
+ *
+ * @param array $l Ligne.
+ */
+function resume_ligne( array $l ): string {
+	$etape  = etape_de_travail( $l['etape'] );
+	$resume = 'publie' === $l['etat']
+		? __( 'publié', 'yume-core' )
+		: libelle_etape_min( $etape ) . ' ' . pct( (int) ( $l['avancement'][ $etape ] ?? 0 ) ) . ' · ' . ( '' !== $l['date_cible'] ? date_cible_lisible( $l['date_cible'], true ) : __( 'pas de date', 'yume-core' ) );
+	$statut = (string) ( $l['statut'] ?? '' );
+	$html   = '<span class="yn-team__resume"><b>' . esc_html( $l['oeuvre'] ) . '</b> · ' . esc_html( $l['tome'] . ( '' !== $l['titre'] ? ' : ' . $l['titre'] : '' ) ) . ' <span class="yn-muted">' . esc_html( $resume ) . '</span>';
+	if ( '' !== $statut && 'draft' !== $statut && 'publie' !== $l['etat'] && ! est_programme( $l ) ) {
+		$html .= ' <span class="yn-team__statut yn-muted">(' . esc_html( libelle_statut( $l ) ) . ')</span>';
+	}
+	return $html . '</span>';
+}
+
+/**
+ * Ligne dépliable de « Tous les tomes » et du planning complet : formulaire complet
+ * (responsables compris), raccourcis et « Retirer du planning ».
  *
  * @param array      $l       Ligne.
  * @param array      $membres Membres (ID => pseudo).
  * @param array|null $retour  Retour sans JavaScript.
+ * @param bool       $ouvert  Ligne dépliée d'office (lien direct vers ce tome).
  */
-function ligne_gestion( array $l, array $membres, ?array $retour ): string {
+function ligne_gestion( array $l, array $membres, ?array $retour, bool $ouvert = false ): string {
 	$id      = (int) $l['tome_id'];
 	$ancre   = 'yn-tome-' . $id;
 	$prefixe = 'g' . $id;
-	$etape   = etape_de_travail( $l['etape'] );
-	$resume  = libelle_etape_min( $etape ) . ' ' . pct( (int) ( $l['avancement'][ $etape ] ?? 0 ) ) . ' · ' . ( '' !== $l['date_cible'] ? date_cible_lisible( $l['date_cible'], true ) : __( 'pas de date', 'yume-core' ) );
-	$html    = '<li class="yn-team__ligne" data-yn-carte><details class="yn-team__details" id="' . esc_attr( $ancre ) . '"' . ( $retour ? ' open' : '' ) . '>';
-	$html   .= '<summary><span class="yn-team__resume"><b>' . esc_html( $l['oeuvre'] ) . '</b> · ' . esc_html( $l['tome'] ) . ' <span class="yn-muted">' . esc_html( $resume ) . '</span></span>';
-	$html   .= pastille( $l['etat'], 'a_lheure' === $l['etat'] ? '' : texte_etat( $l ), array( 'data-yn-puce' => '' ) ) . '</summary>';
+	$html    = '<li class="yn-team__ligne" data-yn-carte><details class="yn-team__details" id="' . esc_attr( $ancre ) . '"' . ( $retour || $ouvert ? ' open' : '' ) . '>';
+	$html   .= '<summary>' . resume_ligne( $l );
+	$html   .= pastille_ligne( $l, true, array( 'data-yn-puce' => '' ) ) . '</summary>';
+	$html   .= '<div class="yn-team__corps">';
 	$html   .= '<form class="yn-team__gestion" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-yn-planning="' . $id . '">';
 	$html   .= champs_caches_maj( $id, $ancre );
-	$html   .= '<div class="yn-team__champs">';
-	$html   .= champ_select( $prefixe . '-etape', 'etape', __( 'Étape', 'yume-core' ), etapes_proposees( $id, (string) $l['etape'], get_current_user_id() ), $l['etape'] );
-	$html   .= champ_saisie( $prefixe . '-date', 'date_cible', __( 'Date cible', 'yume-core' ), $l['date_cible'], 'date' );
-	$html   .= '</div><div class="yn-team__etapes">';
-	$choix   = array( '0' => __( '— Personne —', 'yume-core' ) ) + $membres;
+	// Erreur de la dernière tentative (étape prématurée…) : en tête du formulaire, bien visible.
+	$html .= zone_retour( $retour );
+	$html .= '<div class="yn-team__champs">';
+	$html .= champ_select( $prefixe . '-etape', 'etape', __( 'Étape', 'yume-core' ), etapes_proposees( $id, (string) $l['etape'], get_current_user_id() ), $l['etape'] );
+	$html .= champ_saisie( $prefixe . '-date', 'date_cible', __( 'Date cible', 'yume-core' ), $l['date_cible'], 'date' );
+	$html .= '</div><div class="yn-team__etapes">';
+	$choix = array( '0' => __( '— Personne —', 'yume-core' ) ) + $membres;
 	foreach ( ETAPES_TRAVAIL as $e ) {
 		$uid = (int) $l['responsables'][ $e ]['id'];
 		if ( $uid && ! isset( $choix[ $uid ] ) ) {
@@ -354,8 +383,147 @@ function ligne_gestion( array $l, array $membres, ?array $retour ): string {
 	$html .= champ_saisie( $prefixe . '-note', 'note_equipe', __( 'Note pour l’équipe (facultatif)', 'yume-core' ), (string) get_post_meta( $id, 'yume_note_equipe', true ), 'text', array( 'maxlength' => 2000 ), 'yn-team__note' );
 	$html .= champ_blocage( $prefixe, $l );
 	$html .= '<p class="yn-team__action"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Enregistrer', 'yume-core' ) . '</button></p>';
-	$html .= '</div>' . zone_retour( $retour ) . '</form></details></li>';
+	$html .= '</div></form>' . liens_tome( $l, true ) . '</div></details></li>';
 	return $html;
+}
+
+/**
+ * Ligne du planning complet pour un membre qui ne gère pas tout le planning : formulaire de
+ * ses étapes s'il est responsable du tome (comme « Mes tâches »), sinon lecture seule.
+ *
+ * @param array      $l      Ligne.
+ * @param array|null $retour Retour sans JavaScript.
+ * @param bool       $ouvert Ligne dépliée d'office.
+ */
+function ligne_membre_planning( array $l, ?array $retour, bool $ouvert = false ): string {
+	$id    = (int) $l['tome_id'];
+	$ancre = 'yn-tome-' . $id;
+	$tache = taches( array( $l ), get_current_user_id() )[0] ?? null;
+	$html  = '<li class="yn-team__ligne" data-yn-carte><details class="yn-team__details" id="' . esc_attr( $ancre ) . '"' . ( $retour || $ouvert ? ' open' : '' ) . '>';
+	$html .= '<summary>' . resume_ligne( $l ) . pastille_ligne( $l, true, array( 'data-yn-puce' => '' ) ) . '</summary>';
+	$html .= '<div class="yn-team__corps">';
+	if ( $tache ) {
+		$html .= '<form class="yn-team__gestion" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-yn-planning="' . $id . '">';
+		$html .= champs_caches_maj( $id, $ancre ) . champs_tache( $tache, 'g' . $id, $retour ) . '</form>';
+	} else {
+		$noms = array();
+		foreach ( ETAPES_TRAVAIL as $e ) {
+			$noms[] = yume_etapes()[ $e ] . ' : ' . pct( (int) $l['avancement'][ $e ] ) . ( '' !== $l['responsables'][ $e ]['nom'] ? ' · ' . $l['responsables'][ $e ]['nom'] : '' );
+		}
+		$html .= '<p class="yn-muted yn-team__lecture">' . esc_html( implode( ' — ', $noms ) ) . '</p>';
+		$html .= '<p class="yn-muted">' . esc_html__( 'Vous n’êtes pas responsable de ce tome : demandez à un éditeur ou à un gérant pour le modifier.', 'yume-core' ) . '</p>';
+	}
+	return $html . liens_tome( $l ) . '</div></details></li>';
+}
+
+/**
+ * Statuts WordPress des tomes dans la vue de gestion (filtre « Statut »).
+ *
+ * @return array<string,string>
+ */
+function statuts_gestion(): array {
+	return array(
+		'draft'   => __( 'Brouillon', 'yume-core' ),
+		'pending' => __( 'En attente de relecture', 'yume-core' ),
+		'future'  => __( 'Programmé', 'yume-core' ),
+		'publish' => __( 'Publié', 'yume-core' ),
+		'private' => __( 'Privé', 'yume-core' ),
+	);
+}
+
+/**
+ * Libellé du statut WordPress d'une ligne (« Brouillon », « Programmé le 3 oct. »…).
+ *
+ * @param array $l Ligne.
+ */
+function libelle_statut( array $l ): string {
+	$statut = (string) ( $l['statut'] ?? get_post_status( (int) $l['tome_id'] ) );
+	if ( 'future' === $statut ) {
+		$post = get_post( (int) $l['tome_id'] );
+		$ts   = $post ? ts_gmt( (string) $post->post_date_gmt ) : 0;
+		/* translators: %s : date de sortie programmée */
+		return $ts ? sprintf( __( 'Programmé le %s', 'yume-core' ), format_fr( $ts, 'j M H:i' ) ) : __( 'Programmé', 'yume-core' );
+	}
+	return statuts_gestion()[ $statut ] ?? '';
+}
+
+/**
+ * Nom complet d'une ligne (« Grimgar · Tome 10 : Titre »).
+ *
+ * @param array $l Ligne.
+ */
+function nom_ligne( array $l ): string {
+	return $l['oeuvre'] . ' · ' . $l['tome'] . ( '' !== $l['titre'] ? ' : ' . $l['titre'] : '' );
+}
+
+/**
+ * L'utilisateur courant peut-il proposer « Retirer du planning » pour ce tome ? Éditeurs,
+ * gérants et administrateurs (yume_maj_planning_tous + delete_post), tome brouillon ou en
+ * attente ; le service refuse (avec explication) un tome dont un chapitre est publié.
+ *
+ * @param array $l Ligne.
+ */
+function peut_proposer_retrait( array $l ): bool {
+	$id = (int) $l['tome_id'];
+	return in_array( (string) ( $l['statut'] ?? get_post_status( $id ) ), array( 'draft', 'pending' ), true )
+		&& current_user_can( 'yume_maj_planning_tous' ) && current_user_can( 'delete_post', $id );
+}
+
+/**
+ * Raccourcis d'un tome (SCAN-07) : publier, modifier dans l'administration, voir la fiche,
+ * historique ; et, si demandé, « Retirer du planning » (formulaire séparé : jamais à l'intérieur
+ * d'un autre formulaire).
+ *
+ * @param array $l       Ligne.
+ * @param bool  $retrait Proposer « Retirer du planning ».
+ * @param bool  $gerer   Proposer « Gérer dans le planning complet ».
+ */
+function liens_tome( array $l, bool $retrait = false, bool $gerer = false ): string {
+	$id     = (int) $l['tome_id'];
+	$nom    = '<span class="yn-visually-hidden"> : ' . esc_html( nom_ligne( $l ) ) . '</span>';
+	$statut = (string) ( $l['statut'] ?? get_post_status( $id ) );
+	$liens  = array();
+	if ( 'publish' !== $statut && current_user_can( 'yume_publier' ) && function_exists( 'yume_url_page' ) ) {
+		$liens[] = '<a href="' . esc_url( add_query_arg( 'tome', $id, yume_url_page( 'publier' ) ) ) . '">' . esc_html__( 'Publier ce tome', 'yume-core' ) . $nom . '</a>';
+	}
+	if ( $gerer && current_user_can( 'yume_maj_planning_tous' ) ) {
+		$liens[] = '<a href="' . esc_url( url_vue_equipe( 'planning', array( 'tome' => $id ) ) . '#yn-tome-' . $id ) . '">' . esc_html__( 'Gérer dans le planning complet', 'yume-core' ) . $nom . '</a>';
+	}
+	if ( current_user_can( 'edit_post', $id ) ) {
+		$edition = (string) get_edit_post_link( $id, 'raw' );
+		if ( '' !== $edition ) {
+			$liens[] = '<a href="' . esc_url( $edition ) . '">' . esc_html__( 'Modifier dans l’administration', 'yume-core' ) . $nom . '</a>';
+		}
+	}
+	if ( '' !== (string) ( $l['url'] ?? '' ) ) {
+		$liens[] = '<a href="' . esc_url( $l['url'] ) . '">' . esc_html__( 'Voir la fiche', 'yume-core' ) . $nom . '</a>';
+	}
+	$liens[] = '<a href="' . esc_url( url_vue_equipe( 'journal', array( 'tome' => $id ) ) ) . '">' . esc_html__( 'Historique', 'yume-core' ) . $nom . '</a>';
+	$html    = '<div class="yn-team__liens"><ul class="yn-team__raccourcis"><li>' . implode( '</li><li>', $liens ) . '</li></ul>';
+	if ( $retrait && peut_proposer_retrait( $l ) ) {
+		$html .= formulaire_retrait( $l );
+	}
+	return $html . '</div>';
+}
+
+/**
+ * Formulaire « Retirer du planning » d'un tome (admin-post.php, action yume_planning_retrait).
+ *
+ * @param array $l Ligne.
+ */
+function formulaire_retrait( array $l ): string {
+	$id   = (int) $l['tome_id'];
+	$html = '<form class="yn-team__retrait" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-yn-confirmer="' . esc_attr(
+		sprintf(
+			/* translators: %s : tome */
+			__( 'Retirer %s du planning ? Le brouillon du tome part à la corbeille (récupérable depuis l’administration).', 'yume-core' ),
+			nom_ligne( $l )
+		)
+	) . '">';
+	$html .= '<input type="hidden" name="action" value="yume_planning_retrait"><input type="hidden" name="tome_id" value="' . $id . '">';
+	$html .= wp_nonce_field( 'yume_planning_retrait_' . $id, '_yume_nonce', true, false );
+	$html .= '<button type="submit" class="yn-btn yn-btn--sm yn-team__retirer">' . esc_html__( 'Retirer du planning', 'yume-core' ) . '<span class="yn-visually-hidden"> : ' . esc_html( nom_ligne( $l ) ) . '</span></button>';
+	return $html . '</form>';
 }
 
 /**
@@ -365,28 +533,13 @@ function ligne_gestion( array $l, array $membres, ?array $retour ): string {
  * @param array|null $retour  Retour sans JavaScript.
  */
 function formulaire_ajout( array $membres, ?array $retour ): string {
-	$oeuvres = array( '' => __( '— Choisir une œuvre —', 'yume-core' ) );
-	foreach (
-		get_posts(
-			array(
-				'post_type'        => 'yume_oeuvre',
-				'post_status'      => array( 'publish', 'draft', 'pending', 'private', 'future' ),
-				'posts_per_page'   => -1,
-				'orderby'          => 'title',
-				'order'            => 'ASC',
-				'no_found_rows'    => true,
-				'suppress_filters' => false,
-			)
-		) as $o
-	) {
-		$oeuvres[ (string) $o->ID ] = titre_brut( (int) $o->ID ) . ( 'publish' !== $o->post_status ? ' ' . __( '(brouillon)', 'yume-core' ) : '' );
-	}
-	$html   = '<form class="yn-card yn-team__ajout" id="yn-ajouter-tome-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-yn-planning-ajout aria-labelledby="yn-ajouter-tome">';
-	$html  .= '<input type="hidden" name="action" value="yume_planning_ajout">' . wp_nonce_field( 'yume_planning_ajout', '_yume_nonce', true, false );
-	$html  .= '<div class="yn-team__grille">';
-	$html  .= champ_select( 'yn-ajout-oeuvre', 'oeuvre_id', __( 'Œuvre', 'yume-core' ), $oeuvres, '', array( 'required' => true ) );
-	$html  .= champ_select( 'yn-ajout-nature', 'nature', __( 'Nature', 'yume-core' ), yume_natures_tome(), 'tome' );
-	$html  .= champ_saisie(
+	$oeuvres = choix_oeuvres( __( '— Choisir une œuvre —', 'yume-core' ) );
+	$html    = '<form class="yn-card yn-team__ajout" id="yn-ajouter-tome-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-yn-planning-ajout aria-labelledby="yn-ajouter-tome">';
+	$html   .= '<input type="hidden" name="action" value="yume_planning_ajout">' . wp_nonce_field( 'yume_planning_ajout', '_yume_nonce', true, false );
+	$html   .= '<div class="yn-team__grille">';
+	$html   .= champ_select( 'yn-ajout-oeuvre', 'oeuvre_id', __( 'Œuvre', 'yume-core' ), $oeuvres, '', array( 'required' => true ) );
+	$html   .= champ_select( 'yn-ajout-nature', 'nature', __( 'Nature', 'yume-core' ), yume_natures_tome(), 'tome' );
+	$html   .= champ_saisie(
 		'yn-ajout-numero',
 		'numero',
 		__( 'Numéro', 'yume-core' ),
@@ -397,9 +550,9 @@ function formulaire_ajout( array $membres, ?array $retour ): string {
 			'step' => '0.5',
 		)
 	);
-	$html  .= champ_saisie( 'yn-ajout-titre', 'titre', __( 'Titre (facultatif)', 'yume-core' ), '', 'text', array( 'maxlength' => 150 ) );
-	$html  .= champ_saisie( 'yn-ajout-date', 'date_cible', __( 'Date cible', 'yume-core' ), '', 'date' );
-	$depart = yume_etapes();
+	$html   .= champ_saisie( 'yn-ajout-titre', 'titre', __( 'Titre (facultatif)', 'yume-core' ), '', 'text', array( 'maxlength' => 150 ) );
+	$html   .= champ_saisie( 'yn-ajout-date', 'date_cible', __( 'Date cible', 'yume-core' ), '', 'date' );
+	$depart  = yume_etapes();
 	unset( $depart['publie'] );
 	$html .= champ_select( 'yn-ajout-etape', 'etape', __( 'Étape de départ', 'yume-core' ), $depart, 'a_faire' );
 	$choix = array( '0' => __( '— Personne —', 'yume-core' ) ) + $membres;
@@ -460,17 +613,52 @@ function nom_role( \WP_User $user ): string {
 }
 
 /**
- * Navigation latérale de l'espace équipe, partagée par le tableau de bord (yume/team-dashboard)
- * et la page « Membres et rôles » (yume/team-members) : mêmes entrées, même ordre et mêmes
- * cibles (WCAG 3.2.3). Sur le tableau de bord, les entrées de la page sont des ancres.
+ * Adresse d'une vue de l'espace équipe (paramètre « vue » de la page équipe, sans nouvelle page) :
+ * 'planning' (gestion de tout le planning) ou 'journal' (tout le journal) ; '' : tableau de bord.
  *
- * @param string $actif   Page affichée : 'tableau' ou 'membres'.
+ * @param string $vue  Vue.
+ * @param array  $args Paramètres supplémentaires (valeurs vides ignorées).
+ */
+function url_vue_equipe( string $vue = '', array $args = array() ): string {
+	$base = function_exists( 'yume_url_page' ) ? yume_url_page( 'equipe' ) : home_url( '/' );
+	$args = array_filter(
+		array_merge( array( 'vue' => $vue ), $args ),
+		static function ( $v ): bool {
+			return '' !== (string) $v && 0 !== $v;
+		}
+	);
+	return $args ? add_query_arg( array_map( 'rawurlencode', array_map( 'strval', $args ) ), $base ) : $base;
+}
+
+/**
+ * Vue demandée de l'espace équipe (paramètre GET « vue ») : 'planning', 'journal' ou ''.
+ */
+function vue_equipe(): string {
+	if ( est_apercu_editeur() ) {
+		return '';
+	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- choix d'affichage en lecture seule.
+	$vue = isset( $_GET['vue'] ) && is_string( $_GET['vue'] ) ? sanitize_key( wp_unslash( $_GET['vue'] ) ) : '';
+	return in_array( $vue, array( 'planning', 'journal' ), true ) ? $vue : '';
+}
+
+/**
+ * Navigation latérale de l'espace équipe, partagée par le tableau de bord (yume/team-dashboard),
+ * ses vues « Planning complet » et « Journal », la page « Membres et rôles » (yume/team-members)
+ * et le formulaire de publication : mêmes entrées, même ordre et mêmes cibles (WCAG 3.2.3).
+ * Sur le tableau de bord, les entrées de la page sont des ancres.
+ *
+ * @param string $actif   Page affichée : 'tableau', 'planning' (gestion du planning), 'journal',
+ *                        'publier' ou 'membres'.
  * @param int    $retards Nombre de mes retards (pastille de « Mes tâches »).
  */
 function navigation_equipe( string $actif, int $retards = 0 ): string {
 	$user    = wp_get_current_user();
 	$tableau = 'tableau' === $actif;
-	$equipe  = $tableau ? '' : yume_url_page( 'equipe' );
+	$equipe  = $tableau ? '' : url_vue_equipe();
+	$courant = static function ( string $cle ) use ( $actif ): string {
+		return $cle === $actif ? ' aria-current="page"' : '';
+	};
 	$html    = '<nav class="yn-team__nav" aria-label="' . esc_attr__( 'Espace équipe', 'yume-core' ) . '"><ul>';
 	$html   .= '<li><a href="' . esc_url( $tableau ? '#yn-team' : $equipe ) . '"' . ( $tableau ? ' aria-current="true"' : '' ) . '>' . esc_html__( 'Tableau de bord', 'yume-core' ) . '</a></li>';
 	$html   .= '<li><a href="' . esc_url( $equipe . '#yn-mes-taches' ) . '">' . esc_html__( 'Mes tâches', 'yume-core' );
@@ -480,23 +668,362 @@ function navigation_equipe( string $actif, int $retards = 0 ): string {
 	}
 	$html .= '</a></li>';
 	if ( current_user_can( 'yume_publier' ) ) {
-		$html .= '<li><a href="' . esc_url( yume_url_page( 'publier' ) ) . '">' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a></li>';
+		$html .= '<li><a href="' . esc_url( yume_url_page( 'publier' ) ) . '"' . $courant( 'publier' ) . '>' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a></li>';
 	}
 	if ( current_user_can( 'yume_maj_planning_tous' ) ) {
 		$html .= '<li><a href="' . esc_url( $equipe . '#yn-tous-les-tomes' ) . '">' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</a></li>';
 	}
-	$html   .= '<li><a href="' . esc_url( yume_url_page( 'planning' ) ) . '">' . esc_html__( 'Planning complet', 'yume-core' ) . '</a></li>';
-	$html   .= '<li><a href="' . esc_url( $equipe . '#yn-team-journal' ) . '">' . esc_html__( 'Journal', 'yume-core' ) . '</a></li>';
+	// Vue de gestion de tout le planning (le planning public reste accessible par le bouton
+	// « Voir le planning public »).
+	$html   .= '<li><a href="' . esc_url( url_vue_equipe( 'planning' ) ) . '"' . $courant( 'planning' ) . '>' . esc_html__( 'Planning complet', 'yume-core' ) . '</a></li>';
+	$html   .= '<li><a href="' . esc_url( url_vue_equipe( 'journal' ) ) . '"' . $courant( 'journal' ) . '>' . esc_html__( 'Journal', 'yume-core' ) . '</a></li>';
 	$membres = url_membres();
 	if ( '' !== $membres ) {
-		$html .= '<li><a href="' . esc_url( $membres ) . '"' . ( 'membres' === $actif ? ' aria-current="page"' : '' ) . '>' . esc_html__( 'Membres et rôles', 'yume-core' ) . '</a></li>';
+		$html .= '<li><a href="' . esc_url( $membres ) . '"' . $courant( 'membres' ) . '>' . esc_html__( 'Membres et rôles', 'yume-core' ) . '</a></li>';
 	}
 	if ( current_user_can( 'yume_reglages' ) ) {
 		$html .= '<li><a href="' . esc_url( admin_url( 'admin.php?page=yume-reglages' ) ) . '">' . esc_html__( 'Réglages (rappels, Discord)', 'yume-core' ) . '</a></li>';
 	}
-	$html .= '</ul><p class="yn-team__moi"><span class="yn-team__avatar" aria-hidden="true">' . esc_html( mb_strtoupper( mb_substr( (string) $user->display_name, 0, 1 ) ) ) . '</span>';
-	$html .= '<span><span class="yn-team__nom">' . esc_html( $user->display_name ) . '</span><span class="yn-label">' . esc_html( nom_role( $user ) ) . '</span></span></p></nav>';
+	$html .= '</ul><div class="yn-team__moi"><span class="yn-team__avatar" aria-hidden="true">' . esc_html( mb_strtoupper( mb_substr( (string) $user->display_name, 0, 1 ) ) ) . '</span>';
+	$html .= '<span><span class="yn-team__nom">' . esc_html( $user->display_name ) . '</span><span class="yn-label">' . esc_html( nom_role( $user ) ) . '</span></span></div>';
+	$html .= '<p class="yn-team__sortie"><a class="yn-team__deconnexion" href="' . esc_url( wp_logout_url( home_url( '/' ) ) ) . '">' . esc_html__( 'Se déconnecter', 'yume-core' ) . '</a></p></nav>';
 	return $html;
+}
+
+/**
+ * Ouverture de la racine de l'espace équipe : adresse REST, nonce et messages pour view.js ;
+ * inerte dans l'aperçu de l'éditeur.
+ *
+ * @param string $classe Classes.
+ */
+function ouvrir_racine( string $classe ): string {
+	$racine = array(
+		'id'                  => 'yn-team',
+		'data-yn-rest'        => esc_url_raw( rest_url() ),
+		'data-yn-nonce'       => wp_create_nonce( 'wp_rest' ),
+		'data-yn-msg-envoi'   => __( 'Enregistrement…', 'yume-core' ),
+		'data-yn-msg-erreur'  => __( 'L’enregistrement a échoué. Réessayez.', 'yume-core' ),
+		'data-yn-msg-session' => __( 'Votre session a expiré : rechargez la page puis réessayez.', 'yume-core' ),
+		'data-yn-msg-reseau'  => __( 'Connexion impossible : vérifiez votre réseau puis réessayez.', 'yume-core' ),
+	);
+	if ( est_apercu_editeur() ) {
+		// Aperçu de l'éditeur : formulaires visibles mais inactifs.
+		$racine['inert'] = '';
+	}
+	return '<div ' . attributs_racine( $classe, $racine ) . '>';
+}
+
+/**
+ * En-tête d'une vue de l'espace équipe : surtitre, titre et boutons.
+ *
+ * @param string $titre   Titre.
+ * @param string $boutons HTML des boutons.
+ */
+function tete_vue( string $titre, string $boutons ): string {
+	$html  = '<div class="yn-team__tete"><div><p class="yn-label">' . esc_html__( 'Espace équipe', 'yume-core' ) . '</p>';
+	$html .= '<h2 class="yn-team__bonjour">' . esc_html( $titre ) . '</h2></div>';
+	return $html . ( '' !== $boutons ? '<p class="yn-team__boutons">' . $boutons . '</p>' : '' ) . '</div>';
+}
+
+/**
+ * Champs cachés qui reportent la requête de l'adresse de la page équipe (permaliens simples :
+ * ?page_id=…) dans un formulaire GET de filtres.
+ *
+ * @param string $vue Vue.
+ */
+function champs_caches_vue( string $vue ): string {
+	$html  = '';
+	$query = (string) wp_parse_url( url_vue_equipe(), PHP_URL_QUERY );
+	parse_str( $query, $args );
+	foreach ( $args as $nom => $valeur ) {
+		if ( is_scalar( $valeur ) && 'vue' !== $nom ) {
+			$html .= '<input type="hidden" name="' . esc_attr( (string) $nom ) . '" value="' . esc_attr( (string) $valeur ) . '">';
+		}
+	}
+	return $html . '<input type="hidden" name="vue" value="' . esc_attr( $vue ) . '">';
+}
+
+/**
+ * Pagination d'une vue (« Précédent » / « Suivant »).
+ *
+ * @param string $vue     Vue.
+ * @param array  $args    Filtres courants.
+ * @param int    $page    Page courante (1…).
+ * @param bool   $suivant Une page suivante existe.
+ * @param int    $total   Nombre de pages (0 : inconnu).
+ */
+function pagination_vue( string $vue, array $args, int $page, bool $suivant, int $total = 0 ): string {
+	if ( $page <= 1 && ! $suivant ) {
+		return '';
+	}
+	$html = '<nav class="yn-team__pages" aria-label="' . esc_attr__( 'Pages', 'yume-core' ) . '">';
+	if ( $page > 1 ) {
+		$html .= '<a class="yn-btn yn-btn--sm" rel="prev" href="' . esc_url( url_vue_equipe( $vue, array_merge( $args, array( 'pg' => $page > 2 ? $page - 1 : '' ) ) ) ) . '">' . esc_html__( '← Précédent', 'yume-core' ) . '</a>';
+	}
+	$html .= '<span class="yn-muted">' . esc_html(
+		$total
+			/* translators: 1: page, 2: nombre de pages */
+			? sprintf( __( 'Page %1$d sur %2$d', 'yume-core' ), $page, $total )
+			/* translators: %d : page */
+			: sprintf( __( 'Page %d', 'yume-core' ), $page )
+	) . '</span>';
+	if ( $suivant ) {
+		$html .= '<a class="yn-btn yn-btn--sm" rel="next" href="' . esc_url( url_vue_equipe( $vue, array_merge( $args, array( 'pg' => $page + 1 ) ) ) ) . '">' . esc_html__( 'Suivant →', 'yume-core' ) . '</a>';
+	}
+	return $html . '</nav>';
+}
+
+/**
+ * Entier positif d'un paramètre GET.
+ *
+ * @param string $cle Clé.
+ */
+function get_entier( string $cle ): int {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- filtres d'affichage en lecture seule.
+	return isset( $_GET[ $cle ] ) && is_scalar( $_GET[ $cle ] ) ? absint( $_GET[ $cle ] ) : 0;
+}
+
+/**
+ * Clé d'un paramètre GET.
+ *
+ * @param string $cle Clé.
+ */
+function get_cle( string $cle ): string {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- filtres d'affichage en lecture seule.
+	return isset( $_GET[ $cle ] ) && is_string( $_GET[ $cle ] ) ? sanitize_key( wp_unslash( $_GET[ $cle ] ) ) : '';
+}
+
+/**
+ * Œuvres proposées dans les filtres et formulaires (tous statuts vivants), par titre.
+ *
+ * @param string $vide Libellé de l'option vide.
+ * @return array<string,string>
+ */
+function choix_oeuvres( string $vide ): array {
+	$oeuvres = array( '' => $vide );
+	foreach (
+		get_posts(
+			array(
+				'post_type'        => 'yume_oeuvre',
+				'post_status'      => array( 'publish', 'draft', 'pending', 'private', 'future' ),
+				'posts_per_page'   => -1,
+				'orderby'          => 'title',
+				'order'            => 'ASC',
+				'no_found_rows'    => true,
+				'suppress_filters' => false,
+			)
+		) as $o
+	) {
+		$oeuvres[ (string) $o->ID ] = titre_brut( (int) $o->ID ) . ( 'publish' !== $o->post_status ? ' ' . __( '(brouillon)', 'yume-core' ) : '' );
+	}
+	return $oeuvres;
+}
+
+/**
+ * Filtres de la vue « Planning complet » (GET), validés.
+ *
+ * @return array{oeuvre:int,etat:string,statut:string,responsable:int,tome:int,pg:int}
+ */
+function filtres_gestion(): array {
+	$oeuvre = get_entier( 'oeuvre' );
+	$etat   = get_cle( 'etat' );
+	$statut = get_cle( 'statut' );
+	$tome   = get_entier( 'tome' );
+	return array(
+		'oeuvre'      => $oeuvre && 'yume_oeuvre' === get_post_type( $oeuvre ) ? $oeuvre : 0,
+		'etat'        => array_key_exists( $etat, etats() ) ? $etat : '',
+		'statut'      => array_key_exists( $statut, statuts_gestion() ) ? $statut : '',
+		'responsable' => get_entier( 'responsable' ),
+		'tome'        => $tome && 'yume_tome' === get_post_type( $tome ) ? $tome : 0,
+		'pg'          => max( 1, get_entier( 'pg' ) ),
+	);
+}
+
+/** Nombre de tomes par page du planning complet. */
+const TOMES_PAR_PAGE = 25;
+
+/**
+ * Vue « Planning complet » (?vue=planning) : tous les tomes vivants (brouillons, programmés,
+ * publiés…), filtres œuvre / état / statut / responsable, formulaire par ligne, raccourcis
+ * (publier, administration, fiche, historique) et « Retirer du planning ».
+ */
+function rendu_vue_planning(): string {
+	$uid      = get_current_user_id();
+	$tous     = current_user_can( 'yume_maj_planning_tous' );
+	$f        = filtres_gestion();
+	$retour   = retour_formulaire( $uid );
+	$membres  = membres_equipe();
+	$lignes   = yume_get_planning(
+		array(
+			'gestion'     => true,
+			'public'      => false,
+			'oeuvre_id'   => $f['oeuvre'],
+			'etat'        => $f['etat'],
+			'statut'      => $f['statut'],
+			'responsable' => $f['responsable'],
+		)
+	);
+	$lignes   = array_values(
+		array_filter(
+			$lignes,
+			static function ( array $l ) use ( $f ): bool {
+				return ( ! $f['tome'] || (int) $l['tome_id'] === $f['tome'] )
+					&& ( '' === $f['statut'] || ( $l['statut'] ?? '' ) === $f['statut'] );
+			}
+		)
+	);
+	$total    = count( $lignes );
+	$pages    = max( 1, (int) ceil( $total / TOMES_PAR_PAGE ) );
+	$page     = min( $f['pg'], $pages );
+	$visibles = array_slice( $lignes, ( $page - 1 ) * TOMES_PAR_PAGE, TOMES_PAR_PAGE );
+	$pour     = static function ( string $cible ) use ( $retour ): ?array {
+		return $retour && ( $retour['cible'] ?? '' ) === $cible ? $retour : null;
+	};
+
+	$html  = ouvrir_racine( 'yn-team yn-team--vue' );
+	$html .= navigation_equipe( 'planning' );
+	$html .= '<div class="yn-team__principal">';
+
+	$boutons = '<a class="yn-btn" href="' . esc_url( yume_url_page( 'planning' ) ) . '">' . esc_html__( 'Voir le planning public', 'yume-core' ) . '</a>';
+	if ( $tous ) {
+		$boutons .= '<a class="yn-btn" href="' . esc_url( url_vue_equipe() . '#yn-ajouter-tome-section' ) . '">' . esc_html__( 'Ajouter un tome au planning', 'yume-core' ) . '</a>';
+	}
+	if ( current_user_can( 'yume_publier' ) ) {
+		$boutons .= '<a class="yn-btn yn-btn--primary" href="' . esc_url( yume_url_page( 'publier' ) ) . '"><span aria-hidden="true">+</span> ' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a>';
+	}
+	$html .= tete_vue( __( 'Planning complet', 'yume-core' ), $boutons );
+	$html .= '<p class="yn-muted">' . esc_html(
+		$tous
+			? __( 'Tous les tomes du planning, y compris programmés et publiés. Dépliez une ligne pour modifier son étape, ses avancements, ses responsables, sa date, son blocage ou sa note.', 'yume-core' )
+			: __( 'Tous les tomes du planning. Vous pouvez modifier ceux dont vous êtes responsable.', 'yume-core' )
+	) . '</p>';
+	// Retour d'une action dont la ligne n'existe plus (tome retiré du planning).
+	$html .= '<div id="yn-gestion-retour">' . zone_retour( $pour( 'yn-gestion-retour' ) ) . '</div>';
+
+	// Filtres (GET).
+	$html .= '<form class="yn-card yn-team__filtres" method="get" action="' . esc_url( strtok( url_vue_equipe(), '?' ) ) . '" aria-label="' . esc_attr__( 'Filtrer le planning', 'yume-core' ) . '">' . champs_caches_vue( 'planning' );
+	$html .= champ_select( 'yn-f-oeuvre', 'oeuvre', __( 'Œuvre', 'yume-core' ), choix_oeuvres( __( 'Toutes', 'yume-core' ) ), ( $f['oeuvre'] ? (string) $f['oeuvre'] : '' ) );
+	$html .= champ_select( 'yn-f-etat', 'etat', __( 'État', 'yume-core' ), array( '' => __( 'Tous', 'yume-core' ) ) + etats(), $f['etat'] );
+	$html .= champ_select( 'yn-f-statut', 'statut', __( 'Statut', 'yume-core' ), array( '' => __( 'Tous', 'yume-core' ) ) + statuts_gestion(), $f['statut'] );
+	$resp  = array( '' => __( 'Tous', 'yume-core' ) ) + $membres;
+	if ( $f['responsable'] && ! isset( $resp[ $f['responsable'] ] ) ) {
+		$resp[ $f['responsable'] ] = nom_utilisateur( $f['responsable'] );
+	}
+	$html .= champ_select( 'yn-f-resp', 'responsable', __( 'Responsable', 'yume-core' ), $resp, ( $f['responsable'] ? (string) $f['responsable'] : '' ) );
+	$html .= '<p class="yn-team__action"><button type="submit" class="yn-btn">' . esc_html__( 'Filtrer', 'yume-core' ) . '</button></p>';
+	$html .= '</form>';
+
+	$actifs = array_filter( array_intersect_key( $f, array_flip( array( 'oeuvre', 'etat', 'statut', 'responsable', 'tome' ) ) ) );
+	$html  .= '<section class="yn-team__section" id="yn-planning-complet" aria-labelledby="yn-planning-complet-titre"><div class="yn-team__section-tete">';
+	/* translators: %d : nombre de tomes */
+	$html .= '<h2 id="yn-planning-complet-titre">' . esc_html( sprintf( _n( '%d tome', '%d tomes', $total, 'yume-core' ), $total ) ) . '</h2>';
+	if ( $actifs ) {
+		$html .= '<a href="' . esc_url( url_vue_equipe( 'planning' ) ) . '">' . esc_html__( 'Afficher tout le planning', 'yume-core' ) . '</a>';
+	}
+	$html .= '</div>';
+	if ( $visibles ) {
+		$html .= '<ul class="yn-card yn-team__liste">';
+		foreach ( $visibles as $l ) {
+			$ouvert = $f['tome'] === (int) $l['tome_id'];
+			$html  .= $tous
+				? ligne_gestion( $l, $membres, $pour( 'yn-tome-' . $l['tome_id'] ), $ouvert )
+				: ligne_membre_planning( $l, $pour( 'yn-tome-' . $l['tome_id'] ), $ouvert );
+		}
+		$html .= '</ul>';
+	} else {
+		$html .= '<p class="yn-card yn-team__vide yn-muted">' . esc_html__( 'Aucun tome ne correspond à ces filtres.', 'yume-core' ) . '</p>';
+	}
+	$html .= pagination_vue( 'planning', $actifs, $page, $page < $pages, $pages );
+	$html .= '</section>';
+
+	return $html . '</div></div>';
+}
+
+/**
+ * Tomes présents dans le journal (filtre « Tome » de la vue « Journal »), par libellé.
+ *
+ * @return array<string,string>
+ */
+function tomes_du_journal(): array {
+	global $wpdb;
+	$table = table_journal();
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+	$ids   = array_map( 'intval', (array) $wpdb->get_col( "SELECT DISTINCT tome_id FROM {$table} WHERE tome_id > 0" ) );
+	$tomes = array();
+	foreach ( $ids as $id ) {
+		$tomes[ (string) $id ] = cible_journal( $id );
+	}
+	asort( $tomes, SORT_NATURAL | SORT_FLAG_CASE );
+	return $tomes;
+}
+
+/** Lignes brutes du journal lues par page (une mise à jour regroupe plusieurs lignes). */
+const JOURNAL_PAR_PAGE = 60;
+
+/**
+ * Vue « Journal » (?vue=journal) : tout le journal de l'équipe, paginé, filtrable par œuvre et
+ * par tome, rappels automatiques en option.
+ */
+function rendu_vue_journal(): string {
+	$tome    = get_entier( 'tome' );
+	$oeuvre  = get_entier( 'oeuvre' );
+	$rappels = 1 === get_entier( 'rappels' );
+	$page    = max( 1, get_entier( 'pg' ) );
+	$tomes   = tomes_du_journal();
+	$tome    = isset( $tomes[ (string) $tome ] ) ? $tome : 0;
+	$oeuvre  = $oeuvre && 'yume_oeuvre' === get_post_type( $oeuvre ) ? $oeuvre : 0;
+	$args    = array(
+		'tome_id'   => $tome,
+		'oeuvre_id' => $oeuvre,
+		'limit'     => JOURNAL_PAR_PAGE + 1,
+		'offset'    => ( $page - 1 ) * JOURNAL_PAR_PAGE,
+	);
+	if ( ! $rappels ) {
+		$args['exclure'] = array( 'rappel', 'signalement', 'digest' );
+	}
+	$brut    = lire_journal( $args );
+	$suivant = count( $brut ) > JOURNAL_PAR_PAGE;
+	$entrees = grouper_journal( array_slice( $brut, 0, JOURNAL_PAR_PAGE ), true );
+	$filtres = array_filter(
+		array(
+			'tome'    => $tome,
+			'oeuvre'  => $oeuvre,
+			'rappels' => $rappels ? 1 : 0,
+		)
+	);
+
+	$html  = ouvrir_racine( 'yn-team yn-team--vue' );
+	$html .= navigation_equipe( 'journal' );
+	$html .= '<div class="yn-team__principal">';
+	$html .= tete_vue( __( 'Journal de l’équipe', 'yume-core' ), '<a class="yn-btn" href="' . esc_url( url_vue_equipe( 'planning' ) ) . '">' . esc_html__( 'Planning complet', 'yume-core' ) . '</a>' );
+
+	$html .= '<form class="yn-card yn-team__filtres" method="get" action="' . esc_url( strtok( url_vue_equipe(), '?' ) ) . '" aria-label="' . esc_attr__( 'Filtrer le journal', 'yume-core' ) . '">' . champs_caches_vue( 'journal' );
+	$html .= champ_select( 'yn-j-oeuvre', 'oeuvre', __( 'Œuvre', 'yume-core' ), choix_oeuvres( __( 'Toutes', 'yume-core' ) ), ( $oeuvre ? (string) $oeuvre : '' ) );
+	$html .= champ_select( 'yn-j-tome', 'tome', __( 'Tome', 'yume-core' ), array( '' => __( 'Tous', 'yume-core' ) ) + $tomes, ( $tome ? (string) $tome : '' ) );
+	$html .= '<p class="yn-team__champ yn-team__champ--case"><label class="yn-team__case" for="yn-j-rappels"><input type="checkbox" id="yn-j-rappels" name="rappels" value="1"' . checked( $rappels, true, false ) . '> ' . esc_html__( 'Inclure les rappels automatiques', 'yume-core' ) . '</label></p>';
+	$html .= '<p class="yn-team__action"><button type="submit" class="yn-btn">' . esc_html__( 'Filtrer', 'yume-core' ) . '</button></p>';
+	$html .= '</form>';
+
+	$html .= '<section class="yn-card yn-team__carte" id="yn-journal-complet" aria-labelledby="yn-journal-complet-titre"><div class="yn-team__section-tete">';
+	$html .= '<h2 id="yn-journal-complet-titre" class="yn-label">' . esc_html( $tome ? cible_journal( $tome ) : ( $oeuvre ? titre_brut( $oeuvre ) : __( 'Toutes les mises à jour', 'yume-core' ) ) ) . '</h2>';
+	if ( $tome || $oeuvre ) {
+		$html .= '<a href="' . esc_url( url_vue_equipe( 'journal', $rappels ? array( 'rappels' => 1 ) : array() ) ) . '">' . esc_html__( 'Tout le journal', 'yume-core' ) . '</a>';
+	}
+	$html .= '</div>';
+	$lien  = static function ( int $tome_id ) use ( $rappels ): string {
+		return url_vue_equipe(
+			'journal',
+			array(
+				'tome'    => $tome_id,
+				'rappels' => $rappels ? 1 : 0,
+			)
+		);
+	};
+	$html .= $entrees ? liste_journal( $entrees, 'yn-team__journal yn-journal', false, $lien ) : '<p class="yn-muted">' . esc_html__( 'Aucune mise à jour.', 'yume-core' ) . '</p>';
+	$html .= pagination_vue( 'journal', $filtres, $page, $suivant );
+	$html .= '</section>';
+
+	return $html . '</div></div>';
 }
 
 /**
@@ -517,6 +1044,14 @@ function rendu_team_dashboard(): string {
 			__( 'Cet espace est réservé aux membres de l’équipe Yume. Pour nous rejoindre, passez sur le Discord.', 'yume-core' ),
 			'<a class="yn-btn" href="' . esc_url( yume_url_page( 'planning' ) ) . '">' . esc_html__( 'Voir le planning public', 'yume-core' ) . '</a>'
 		);
+	}
+
+	$vue = vue_equipe();
+	if ( 'planning' === $vue ) {
+		return rendu_vue_planning();
+	}
+	if ( 'journal' === $vue ) {
+		return rendu_vue_journal();
 	}
 
 	$user    = wp_get_current_user();
@@ -569,20 +1104,7 @@ function rendu_team_dashboard(): string {
 		return $retour && ( $retour['cible'] ?? '' ) === $cible ? $retour : null;
 	};
 
-	$racine = array(
-		'id'                  => 'yn-team',
-		'data-yn-rest'        => esc_url_raw( rest_url() ),
-		'data-yn-nonce'       => wp_create_nonce( 'wp_rest' ),
-		'data-yn-msg-envoi'   => __( 'Enregistrement…', 'yume-core' ),
-		'data-yn-msg-erreur'  => __( 'L’enregistrement a échoué. Réessayez.', 'yume-core' ),
-		'data-yn-msg-session' => __( 'Votre session a expiré : rechargez la page puis réessayez.', 'yume-core' ),
-		'data-yn-msg-reseau'  => __( 'Connexion impossible : vérifiez votre réseau puis réessayez.', 'yume-core' ),
-	);
-	if ( est_apercu_editeur() ) {
-		// Aperçu de l'éditeur : formulaires visibles mais inactifs.
-		$racine['inert'] = '';
-	}
-	$html = '<div ' . attributs_racine( 'yn-team', $racine ) . '>';
+	$html = ouvrir_racine( 'yn-team' );
 
 	// Navigation latérale.
 	$html .= navigation_equipe( 'tableau', count( $mes_retards ) );
@@ -656,7 +1178,9 @@ function rendu_team_dashboard(): string {
 	$html .= '</section>';
 
 	if ( $tous ) {
-		$html .= '<section class="yn-team__section" id="yn-tous-les-tomes" aria-labelledby="yn-tous-titre"><h2 id="yn-tous-titre">' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</h2>';
+		$html .= '<section class="yn-team__section" id="yn-tous-les-tomes" aria-labelledby="yn-tous-titre"><div class="yn-team__section-tete"><h2 id="yn-tous-titre">' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</h2>';
+		$html .= '<a href="' . esc_url( url_vue_equipe( 'planning' ) ) . '">' . esc_html__( 'Planning complet (publiés, programmés…)', 'yume-core' ) . ' <span aria-hidden="true">→</span></a></div>';
+		$html .= '<div id="yn-gestion-retour">' . zone_retour( $retour_pour( 'yn-gestion-retour' ) ) . '</div>';
 		if ( $lignes ) {
 			$html .= '<ul class="yn-card yn-team__liste">';
 			foreach ( $lignes as $l ) {
@@ -747,6 +1271,7 @@ function rendu_team_dashboard(): string {
 	);
 	$html   .= '<section class="yn-card yn-team__carte" id="yn-team-journal" aria-labelledby="yn-team-journal-titre"><h3 id="yn-team-journal-titre" class="yn-label">' . esc_html__( 'Journal de l’équipe', 'yume-core' ) . '</h3>';
 	$html   .= $journal ? liste_journal( $journal, 'yn-team__journal yn-journal', true ) : '<p class="yn-muted">' . esc_html__( 'Aucune mise à jour pour le moment.', 'yume-core' ) . '</p>';
+	$html   .= '<p><a href="' . esc_url( url_vue_equipe( 'journal' ) ) . '">' . esc_html__( 'Tout le journal', 'yume-core' ) . ' <span aria-hidden="true">→</span></a></p>';
 	$html   .= '</section>';
 
 	$html .= '</div></div></div></div>';
@@ -866,6 +1391,45 @@ function traiter_formulaire_ajout( array $post, int $user_id ): array {
 }
 
 /**
+ * Traite le formulaire « Retirer du planning » (SCAN-06) : le service retire le tome (brouillon
+ * sans chapitre publié) ou explique son refus.
+ *
+ * @param array $post    Données POST (brutes, avec slashes).
+ * @param int   $user_id Utilisateur.
+ * @return array{type:string,message:string,cible:string,tome_id:int}
+ */
+function traiter_formulaire_retrait( array $post, int $user_id ): array {
+	$tome_id = isset( $post['tome_id'] ) && is_scalar( $post['tome_id'] ) ? absint( $post['tome_id'] ) : 0;
+	$nonce   = is_scalar( $post['_yume_nonce'] ?? null ) ? sanitize_text_field( wp_unslash( (string) $post['_yume_nonce'] ) ) : '';
+	$erreur  = static function ( string $message ) use ( $tome_id ): array {
+		return array(
+			'type'    => 'erreur',
+			'message' => $message,
+			'cible'   => $tome_id ? 'yn-tome-' . $tome_id : 'yn-gestion-retour',
+			'tome_id' => $tome_id,
+		);
+	};
+	if ( ! $tome_id || ! wp_verify_nonce( $nonce, 'yume_planning_retrait_' . $tome_id ) ) {
+		return $erreur( __( 'Votre session a expiré : rechargez la page puis réessayez.', 'yume-core' ) );
+	}
+	if ( ! function_exists( __NAMESPACE__ . '\\retirer_tome' ) ) {
+		return $erreur( __( 'Le retrait d’un tome n’est pas disponible sur ce site : passez par l’administration.', 'yume-core' ) );
+	}
+	$nom      = cible_journal( $tome_id );
+	$resultat = retirer_tome( $tome_id, $user_id );
+	if ( is_wp_error( $resultat ) ) {
+		return $erreur( $resultat->get_error_message() );
+	}
+	return array(
+		'type'    => 'ok',
+		/* translators: %s : tome */
+		'message' => sprintf( __( '%s a été retiré du planning (brouillon mis à la corbeille).', 'yume-core' ), $nom ),
+		'cible'   => 'yn-gestion-retour',
+		'tome_id' => $tome_id,
+	);
+}
+
+/**
  * Redirige vers l'espace équipe après un formulaire.
  *
  * @param array $retour Retour.
@@ -903,6 +1467,17 @@ function admin_post_ajout(): void {
 add_action( 'admin_post_yume_planning_ajout', __NAMESPACE__ . '\\admin_post_ajout' );
 
 /**
+ * Formulaire « Retirer du planning » (admin-post.php, action yume_planning_retrait).
+ */
+function admin_post_retrait(): void {
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié dans traiter_formulaire_retrait().
+	$retour = traiter_formulaire_retrait( $_POST, get_current_user_id() );
+	retour_formulaire( get_current_user_id(), $retour );
+	rediriger_retour( $retour );
+}
+add_action( 'admin_post_yume_planning_retrait', __NAMESPACE__ . '\\admin_post_retrait' );
+
+/**
  * Visiteur non connecté : vers la connexion.
  */
 function admin_post_anonyme(): void {
@@ -911,3 +1486,4 @@ function admin_post_anonyme(): void {
 }
 add_action( 'admin_post_nopriv_yume_planning_maj', __NAMESPACE__ . '\\admin_post_anonyme' );
 add_action( 'admin_post_nopriv_yume_planning_ajout', __NAMESPACE__ . '\\admin_post_anonyme' );
+add_action( 'admin_post_nopriv_yume_planning_retrait', __NAMESPACE__ . '\\admin_post_anonyme' );

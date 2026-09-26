@@ -38,8 +38,13 @@ espace équipe, publication), `lecteur` / `lecteur` (lecteur).
 
 Contenu de démonstration (fictif) : l'œuvre « Les Lanternes de Brume-Haute » (light novel, en cours),
 un tome 1 publié avec liens PDF/EPUB d'exemple et deux chapitres (dialogues, pensées, séparateur de
-scène), un tome 2 planifié en traduction à 40 %, un article d'actualité, et les pages du contrat
-(§11) : `/bibliotheque/`, `/planning/`, `/equipe/`, `/equipe/publier/`, `/compte/`, `/connexion/`.
+scène), un tome 2 planifié en traduction à 40 %, un article d'actualité, les pages
+institutionnelles du menu (L'équipe, La Yume Novel, FAQ, Nos réseaux, Contact) et toutes les pages
+du contrat (§11), créées comme par la migration (`Migration_Planner::PAGES_A_CREER`) :
+`/bibliotheque/`, `/planning/`, `/equipe/`, `/equipe/publier/`, `/equipe/membres/`, `/compte/`,
+`/connexion/`, `/actualites/` (page des articles), `/mentions-legales/` et `/accueil/` (page
+d'accueil statique). Comme après la migration, les commentaires sont réservés aux comptes
+connectés. Relancer le script ne crée aucun doublon et recrée seulement les pages manquantes.
 
 ## Limites
 

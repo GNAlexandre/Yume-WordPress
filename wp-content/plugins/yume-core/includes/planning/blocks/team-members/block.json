@@ -16,5 +16,6 @@
 		"align": [ "wide", "full" ]
 	},
 	"render": "file:./render.php",
-	"style": [ "yume-team-dashboard-style", "file:./style.css" ]
+	"style": [ "yume-team-dashboard-style", "file:./style.css" ],
+	"viewScript": "yume-team-dashboard-view-script"
 }

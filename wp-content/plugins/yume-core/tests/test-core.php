@@ -2217,9 +2217,234 @@ yume_test(
 		yume_assert_same( 77, get_post_meta( $t, 'yume_avancement', true )['traduction'], 'progression concurrente conservée' );
 		yume_assert_same( '2026-12-24', get_post_meta( $t, 'yume_date_cible', true ), 'champ modifié écrit' );
 
-		// (c) Champ réellement modifié par l'utilisateur : écrit.
-		$poster( array( 'etape' => 'edition' ) );
+		// (c) Champ réellement modifié par l'utilisateur : écrit (étapes précédentes terminées).
+		$poster(
+			array(
+				'etape'      => 'edition',
+				'avancement' => array(
+					'traduction' => '100',
+					'relecture'  => '100',
+					'edition'    => '0',
+				),
+			)
+		);
 		yume_assert_same( 'edition', get_post_meta( $t, 'yume_etape', true ) );
+		yume_assert_same( array(), \Yume\Core\Core\lire_refus_planning( $editeur, $t ), 'aucun refus' );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_test(
+	'SCAN-02 : méta-boîte, étape refusée signalée (avis après redirection), forcée par un gérant',
+	function () {
+		$editeur = yume_factory_user( 'yume_editeur' );
+		$gerant  = yume_factory_user( 'yume_gerant' );
+		$o       = yume_tc_oeuvre( 'Refus signalé' );
+		$t       = yume_tc_sans_evenements( static fn(): int => yume_tc_tome( $o, 4, array( 'post_status' => 'draft' ) ) );
+		update_post_meta( $t, 'yume_etape', 'traduction' );
+		update_post_meta(
+			$t,
+			'yume_avancement',
+			array(
+				'traduction' => 70,
+				'relecture'  => 0,
+				'edition'    => 0,
+			)
+		);
+		$poster = static function ( array $champs ) use ( $t ): void {
+			$_POST = array(
+				'yume_nonce_tome' => wp_create_nonce( 'yume_enregistrer_tome_' . $t ),
+				'yume'            => wp_slash(
+					array_merge(
+						array(
+							'oeuvre_id'     => (string) get_post_meta( $t, 'yume_oeuvre_id', true ),
+							'nature'        => 'tome',
+							'numero'        => '4',
+							'etape'         => 'relecture',
+							'avancement'    => array(
+								'traduction' => '70',
+								'relecture'  => '0',
+								'edition'    => '0',
+							),
+							'responsables'  => array(
+								'traduction' => '0',
+								'relecture'  => '0',
+								'edition'    => '0',
+							),
+							'date_cible'    => '',
+							'bloque_raison' => '',
+							'note_equipe'   => '',
+						),
+						$champs
+					)
+				),
+			);
+			try {
+				\Yume\Core\Core\enregistrer_tome( $t );
+			} finally {
+				$_POST = array();
+			}
+		};
+
+		// Éditeur : passage à la relecture avec une traduction à 70 % refusé, mais plus en silence.
+		wp_set_current_user( $editeur );
+		$poster( array() );
+		yume_assert_same( 'traduction', get_post_meta( $t, 'yume_etape', true ), 'étape refusée' );
+		$refus = get_transient( \Yume\Core\Core\cle_refus_planning( $editeur ) );
+		yume_assert_true( is_array( $refus ) && $t === $refus['tome'], 'refus mémorisé pour ce tome' );
+		yume_assert_contains( 'Terminez d’abord l’étape « Traduction »', implode( ' ', $refus['messages'] ) );
+
+		// Avis d'administration au rechargement (éditeur classique), une seule fois.
+		$ecran = \WP_Screen::get( 'yume_tome' );
+		$ecran->is_block_editor( false );
+		$ecran->set_current_screen();
+		$GLOBALS['post'] = get_post( $t ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		ob_start();
+		\Yume\Core\Core\avis_refus_planning();
+		$avis = (string) ob_get_clean();
+		yume_assert_contains( 'notice notice-error', $avis );
+		yume_assert_contains( 'Étape non modifiée', $avis );
+		ob_start();
+		\Yume\Core\Core\avis_refus_planning();
+		yume_assert_same( '', (string) ob_get_clean(), 'avis affiché une seule fois' );
+
+		// Éditeur de blocs : refus lus par admin-ajax.
+		$poster( array() );
+		yume_assert_same( array(), \Yume\Core\Core\lire_refus_planning( $editeur, $t + 1000 ), 'autre tome : rien' );
+		yume_assert_same( 1, count( \Yume\Core\Core\lire_refus_planning( $editeur, $t ) ) );
+
+		// Responsable choisi hors de l'équipe : écarté, et signalé.
+		$lecteur = yume_factory_user( 'subscriber' );
+		$poster(
+			array(
+				'etape'        => 'traduction',
+				'responsables' => array(
+					'traduction' => (string) $lecteur,
+					'relecture'  => '0',
+					'edition'    => '0',
+				),
+			)
+		);
+		yume_assert_contains( 'ne fait pas partie de l’équipe', implode( ' ', \Yume\Core\Core\lire_refus_planning( $editeur, $t ) ) );
+		yume_assert_same( 0, (int) ( get_post_meta( $t, 'yume_responsables', true )['traduction'] ?? 0 ) );
+
+		// Gérant : l'étape peut être forcée (journalisée « étape forcée » si le planning le sait).
+		wp_set_current_user( $gerant );
+		$poster( array() );
+		$attendu = function_exists( '\\Yume\\Core\\Planning\\peut_forcer_etape' ) ? 'relecture' : 'traduction';
+		yume_assert_same( $attendu, get_post_meta( $t, 'yume_etape', true ), 'étape forcée par un gérant' );
+		if ( 'relecture' === $attendu ) {
+			yume_assert_same( array(), \Yume\Core\Core\lire_refus_planning( $gerant, $t ), 'aucun refus pour le gérant' );
+			if ( function_exists( '\Yume\Core\Planning\table_journal' ) ) {
+				global $wpdb;
+				$table = \Yume\Core\Planning\table_journal();
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$ligne = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE tome_id = %d AND champ = 'etape_forcee'", $t ), ARRAY_A );
+				yume_assert_true( is_array( $ligne ), 'étape forcée journalisée' );
+				yume_assert_same( 0, (int) $ligne['public'], 'entrée réservée à l’équipe' );
+				yume_assert_same( $gerant, (int) $ligne['user_id'] );
+			}
+		}
+		// « Publié » reste interdit à un tome non publié, même pour un gérant.
+		$poster( array( 'etape' => 'publie' ) );
+		yume_assert_same( $attendu, get_post_meta( $t, 'yume_etape', true ), 'jamais « publié » sur un tome non publié' );
+		yume_assert_true( array() !== \Yume\Core\Core\lire_refus_planning( $gerant, $t ) );
+		unset( $GLOBALS['post'] );
+		set_current_screen( 'front' );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_test(
+	'SCAN-14 : traducteur, relecteur, graphiste renvoyés de wp-admin vers l’espace équipe, menu Yume masqué',
+	function () {
+		$membres = array(
+			'yume_traducteur' => true,
+			'yume_relecteur'  => true,
+			'yume_graphiste'  => true,
+			'yume_editeur'    => false,
+			'yume_gerant'     => false,
+			'administrator'   => false,
+			'subscriber'      => false,
+		);
+		foreach ( $membres as $role => $renvoye ) {
+			$uid = yume_factory_user( $role );
+			yume_assert_same( $renvoye, \Yume\Core\Core\equipe_sans_redaction( $uid ), $role );
+		}
+		$traducteur = yume_factory_user( 'yume_traducteur' );
+		wp_set_current_user( $traducteur );
+		$page_avant = $GLOBALS['pagenow'] ?? null;
+		foreach ( array(
+			'profile.php'      => true,
+			'admin-post.php'   => true,
+			'async-upload.php' => true,
+			'index.php'        => false,
+			'edit.php'         => false,
+			'post.php'         => false,
+		) as $page => $autorisee ) {
+			$GLOBALS['pagenow'] = $page; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			yume_assert_same( $autorisee, \Yume\Core\Core\administration_equipe_autorisee(), $page );
+		}
+		$GLOBALS['pagenow'] = $page_avant; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+		// Redirection vers la page équipe.
+		$GLOBALS['pagenow'] = 'edit.php'; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$cible              = '';
+		$capter             = static function ( $url ) use ( &$cible ) {
+			$cible = (string) $url;
+			throw new \RuntimeException( 'redirection' );
+		};
+		add_filter( 'wp_redirect', $capter, 1 );
+		try {
+			\Yume\Core\Core\rediriger_equipe_sans_redaction();
+		} catch ( \RuntimeException $e ) {
+			unset( $e );
+		} finally {
+			remove_filter( 'wp_redirect', $capter, 1 );
+			$GLOBALS['pagenow'] = $page_avant; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
+		yume_assert_same( yume_url_page( 'equipe' ), $cible );
+
+		// Menu Yume masqué (et visible pour un éditeur).
+		global $menu;
+		$menu_avant = $menu;
+		$menu       = array( array( 'Yume', 'edit_yume_tomes', 'yume' ), array( 'Profil', 'read', 'profile.php' ) ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		\Yume\Core\Core\masquer_menus_equipe();
+		yume_assert_same( array( 'profile.php' ), array_values( array_column( $menu, 2 ) ) );
+		wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+		$menu = array( array( 'Yume', 'edit_yume_tomes', 'yume' ) ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		\Yume\Core\Core\masquer_menus_equipe();
+		yume_assert_same( array( 'yume' ), array_values( array_column( $menu, 2 ) ) );
+		$menu = $menu_avant; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+		// Barre d'administration : « Tableau de bord » → espace équipe.
+		wp_set_current_user( $traducteur );
+		require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
+		$barre = new \WP_Admin_Bar();
+		$barre->add_node(
+			array(
+				'id'   => 'site-name',
+				'href' => admin_url(),
+			)
+		);
+		$barre->add_node(
+			array(
+				'id'     => 'dashboard',
+				'parent' => 'site-name',
+				'href'   => admin_url(),
+				'title'  => 'Tableau de bord',
+			)
+		);
+		$barre->add_node(
+			array(
+				'id'   => 'new-content',
+				'href' => admin_url( 'post-new.php' ),
+			)
+		);
+		\Yume\Core\Core\barre_equipe( $barre );
+		yume_assert_same( yume_url_page( 'equipe' ), $barre->get_node( 'dashboard' )->href );
+		yume_assert_same( 'site-name', $barre->get_node( 'dashboard' )->parent );
+		yume_assert_same( null, $barre->get_node( 'new-content' ) );
 		wp_set_current_user( 0 );
 	}
 );

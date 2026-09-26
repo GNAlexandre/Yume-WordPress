@@ -15,7 +15,9 @@ defined( 'ABSPATH' ) || exit;
  * - 'bloque'    : le tome est marqué bloqué ;
  * - 'en_retard' : date cible antérieure à aujourd'hui (heure de Paris), ou aucune mise à jour
  *                 depuis plus de yume_setting( 'rappel_jours_sans_maj' ) jours ;
- * - 'a_lheure'  : sinon (et pour un ID qui n'est pas un tome).
+ * - 'a_lheure'  : sinon (et pour un ID qui n'est pas un tome). Un tome programmé (statut
+ *                 future) est toujours « à l'heure » : il sortira à sa date (libellé
+ *                 « Programmé le … », voir yume_get_planning()).
  *
  * @param int $tome_id ID du tome.
  * @return string 'publie'|'bloque'|'en_retard'|'a_lheure'
@@ -41,7 +43,9 @@ function yume_planning_etat( int $tome_id ): string {
  * et en complément : 'titre' (sous-titre du tome), 'nature', 'numero', 'type' (slug yume_type),
  * 'statut' (statut WordPress), 'url' (tome publié), 'bloque', 'bloque_raison', 'motif_retard'
  * ('date'|'inactivite'|''), 'jours_retard', 'chapitres' (['publies','total']), 'date_sortie'
- * (GMT, tome publié), 'maj_par' (['id','nom']), 'ts_activite'.
+ * (GMT, tome publié), 'maj_par' (['id','nom']), 'ts_activite', 'programme' (bool : tome
+ * programmé, statut future) et 'date_programmee' (Y-m-d, heure de Paris, ou '') ; pour un tome
+ * programmé, 'date_cible' est le jour de sortie programmé.
  *
  * Tri : tomes en cours par date cible (sans date en dernier), puis tomes publiés du plus récent
  * au plus ancien.
@@ -50,7 +54,11 @@ function yume_planning_etat( int $tome_id ): string {
  *                    les tomes publiés), 'limit' (0 = tout), 'inclure_publies_depuis' (jours,
  *                    défaut 14 ; 0 = aucun tome publié) ; extensions : 'responsable' (ID : tomes
  *                    dont il est responsable), 'public' (bool, défaut vrai : exclut les tomes
- *                    privés et ceux d'une œuvre non publiée).
+ *                    privés et ceux d'une œuvre non publiée) ; 'gestion' (bool) : vue de gestion
+ *                    de l'équipe, TOUS les tomes vivants (draft, future, pending, publish,
+ *                    private) de toutes les œuvres quels que soient leur étape et leur âge
+ *                    (a_venir, inclure_publies_depuis et public ignorés), filtrables par
+ *                    'oeuvre_id', 'statut' (statut WordPress), 'etat', 'type', 'responsable'.
  * @return array<int,array<string,mixed>>
  */
 function yume_get_planning( array $args = array() ): array {

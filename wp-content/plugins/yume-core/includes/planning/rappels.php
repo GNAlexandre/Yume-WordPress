@@ -43,43 +43,43 @@ function rappel_recent( int $tome_id ): bool {
 
 /**
  * Destinataires d'un rappel de retard : responsable de l'étape en cours, sinon les
- * responsables dont l'étape n'est pas terminée, sinon tous les responsables.
+ * responsables dont l'étape n'est pas terminée, sinon tous les responsables. Seuls les
+ * membres actuels de l'équipe comptent (SCAN-08) : un responsable retiré de l'équipe est
+ * traité comme absent (les gérants sont alors prévenus).
  *
  * @param array $ligne Ligne du planning.
  * @return int[]
  */
 function destinataires_rappel( array $ligne ): array {
-	$ids   = array();
-	$etape = etape_de_travail( (string) $ligne['etape'] );
-	if ( '' !== $etape && ! empty( $ligne['responsables'][ $etape ]['id'] ) ) {
-		$ids[] = (int) $ligne['responsables'][ $etape ]['id'];
+	$membre = static function ( array $ligne, string $etape ): int {
+		$id = (int) ( $ligne['responsables'][ $etape ]['id'] ?? 0 );
+		return $id > 0 && est_membre( $id ) ? $id : 0;
+	};
+	$ids    = array();
+	$etape  = etape_de_travail( (string) $ligne['etape'] );
+	if ( '' !== $etape && $membre( $ligne, $etape ) ) {
+		$ids[] = $membre( $ligne, $etape );
 	}
 	if ( ! $ids ) {
 		foreach ( ETAPES_TRAVAIL as $e ) {
-			if ( ! empty( $ligne['responsables'][ $e ]['id'] ) && (int) $ligne['avancement'][ $e ] < 100 ) {
-				$ids[] = (int) $ligne['responsables'][ $e ]['id'];
+			if ( $membre( $ligne, $e ) && (int) $ligne['avancement'][ $e ] < 100 ) {
+				$ids[] = $membre( $ligne, $e );
 			}
 		}
 	}
 	if ( ! $ids ) {
 		foreach ( ETAPES_TRAVAIL as $e ) {
-			if ( ! empty( $ligne['responsables'][ $e ]['id'] ) ) {
-				$ids[] = (int) $ligne['responsables'][ $e ]['id'];
+			if ( $membre( $ligne, $e ) ) {
+				$ids[] = $membre( $ligne, $e );
 			}
 		}
 	}
-	return array_values(
-		array_filter(
-			array_unique( $ids ),
-			static function ( int $id ): bool {
-				return (bool) get_userdata( $id );
-			}
-		)
-	);
+	return array_values( array_unique( $ids ) );
 }
 
 /**
- * Étapes restantes sans responsable d'un tome (étape en cours et suivantes non terminées).
+ * Étapes restantes sans responsable d'un tome (étape en cours et suivantes non terminées). Un
+ * responsable qui n'est plus membre de l'équipe compte comme absent (SCAN-08).
  *
  * @param array $ligne Ligne du planning.
  * @return string[]
@@ -88,7 +88,8 @@ function roles_manquants( array $ligne ): array {
 	$rang      = rang_etape( etape_de_travail( (string) $ligne['etape'] ) );
 	$manquants = array();
 	foreach ( ETAPES_TRAVAIL as $e ) {
-		if ( rang_etape( $e ) >= $rang && (int) $ligne['avancement'][ $e ] < 100 && empty( $ligne['responsables'][ $e ]['id'] ) ) {
+		$uid = (int) ( $ligne['responsables'][ $e ]['id'] ?? 0 );
+		if ( rang_etape( $e ) >= $rang && (int) $ligne['avancement'][ $e ] < 100 && ( $uid <= 0 || ! est_membre( $uid ) ) ) {
 			$manquants[] = $e;
 		}
 	}

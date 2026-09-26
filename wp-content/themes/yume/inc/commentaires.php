@@ -55,6 +55,80 @@ function yume_theme_champs_commentaire( $champs ) {
 add_filter( 'comment_form_default_fields', 'yume_theme_champs_commentaire' );
 
 /**
+ * Adresse de retour après connexion ou inscription : la page courante, à hauteur des
+ * commentaires.
+ *
+ * @return string
+ */
+function yume_theme_retour_commentaires() {
+	return yume_theme_url_courante() . '#commentaires';
+}
+
+/**
+ * Page de connexion pour commenter : celle de Yume (extension active, page « connexion » ou
+ * « compte »), sinon wp-login.php ; retour sur les commentaires de la page courante.
+ *
+ * @param bool $inscription Viser le formulaire « Créer un compte ».
+ * @return string
+ */
+function yume_theme_url_connexion_commentaires( $inscription = false ) {
+	$retour = yume_theme_retour_commentaires();
+	if ( function_exists( '\Yume\Core\Social\url_connexion' ) ) {
+		$url = \Yume\Core\Social\url_connexion( $retour );
+		// Sans page Yume, url_connexion() renvoie wp-login.php : l'ancre n'y aurait pas de sens.
+		$yume = \Yume\Core\Social\page_enregistree( 'connexion' ) || \Yume\Core\Social\page_enregistree( 'compte' );
+		if ( $yume ) {
+			return $url . ( $inscription ? '#yn-inscription' : '#yn-bloc-connexion' );
+		}
+		return $inscription ? wp_registration_url() : $url;
+	}
+	return $inscription ? wp_registration_url() : wp_login_url( $retour );
+}
+
+/**
+ * Inscriptions ouvertes (réglage de l'extension, sinon « Tout le monde peut s'inscrire »).
+ *
+ * @return bool
+ */
+function yume_theme_inscriptions_ouvertes() {
+	if ( function_exists( '\Yume\Core\Social\inscriptions_ouvertes' ) ) {
+		return \Yume\Core\Social\inscriptions_ouvertes();
+	}
+	return (bool) get_option( 'users_can_register' );
+}
+
+/**
+ * Invitation affichée à la place du formulaire quand les commentaires sont réservés aux
+ * comptes (option comment_registration) : « Connectez-vous ou créez un compte pour
+ * commenter », liens vers la page de connexion de Yume avec retour sur les commentaires.
+ *
+ * @return string
+ */
+function yume_theme_invitation_connexion() {
+	$connexion = sprintf(
+		'<a href="%1$s">%2$s</a>',
+		esc_url( yume_theme_url_connexion_commentaires() ),
+		esc_html__( 'Connectez-vous', 'yume' )
+	);
+	if ( yume_theme_inscriptions_ouvertes() ) {
+		$texte = sprintf(
+			/* translators: 1 : lien « Connectez-vous », 2 : lien « créez un compte ». */
+			esc_html__( '%1$s ou %2$s pour commenter.', 'yume' ),
+			$connexion,
+			sprintf(
+				'<a href="%1$s">%2$s</a>',
+				esc_url( yume_theme_url_connexion_commentaires( true ) ),
+				esc_html__( 'créez un compte', 'yume' )
+			)
+		);
+	} else {
+		/* translators: %s : lien « Connectez-vous ». */
+		$texte = sprintf( esc_html__( '%s pour commenter.', 'yume' ), $connexion );
+	}
+	return '<p class="must-log-in yn-commentaires__invitation">' . $texte . '</p>';
+}
+
+/**
  * Libellés du formulaire de commentaire.
  *
  * @param array $reglages Réglages par défaut de comment_form().
@@ -80,14 +154,7 @@ function yume_theme_formulaire_commentaire( $reglages ) {
 		'<p class="comment-form-comment"><label for="comment">%1$s <span class="required" aria-hidden="true">*</span></label><textarea id="comment" name="comment" cols="45" rows="6" maxlength="65525" required></textarea></p>',
 		esc_html__( 'Votre commentaire', 'yume' )
 	);
-	$reglages['must_log_in']          = sprintf(
-		'<p class="must-log-in">%s</p>',
-		sprintf(
-			/* translators: %s : adresse de la page de connexion. */
-			wp_kses( __( 'Vous devez <a href="%s">vous connecter</a> pour publier un commentaire.', 'yume' ), array( 'a' => array( 'href' => array() ) ) ),
-			esc_url( wp_login_url( yume_theme_url_courante() ) )
-		)
-	);
+	$reglages['must_log_in']          = yume_theme_invitation_connexion();
 
 	$utilisateur = wp_get_current_user();
 	if ( $utilisateur->exists() ) {
@@ -121,6 +188,21 @@ function yume_theme_lien_reponse( $arguments ) {
 	return $arguments;
 }
 add_filter( 'comment_reply_link_args', 'yume_theme_lien_reponse' );
+
+/**
+ * Lien « Connectez-vous pour répondre » (commentaires réservés aux comptes) : vers la page de
+ * connexion de Yume plutôt que wp-login.php.
+ *
+ * @param string $lien Lien HTML complet.
+ * @return string
+ */
+function yume_theme_lien_reponse_connexion( $lien ) {
+	if ( is_user_logged_in() || false === strpos( (string) $lien, 'comment-reply-login' ) ) {
+		return $lien;
+	}
+	return (string) preg_replace( '#href=([\'"])[^\'"]*\1#', 'href="' . esc_url( yume_theme_url_connexion_commentaires() ) . '"', (string) $lien, 1 );
+}
+add_filter( 'comment_reply_link', 'yume_theme_lien_reponse_connexion' );
 
 /**
  * Texte du lien d'annulation de réponse.

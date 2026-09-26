@@ -50,6 +50,8 @@ Bon à savoir :
 - aucun e-mail ne part et aucun webhook Discord n'est configuré ;
 - les pages institutionnelles (L'équipe, FAQ, Contact…) sont de courtes pages de démonstration ; sur
   le vrai site, ce sont les pages existantes, conservées par la migration ;
+- pour commenter, il faut être connecté (par exemple avec `lecteur` / `lecteur`), comme sur le vrai
+  site après la migration ;
 - une adresse qui n'existe pas affiche l'accueil dans Playground au lieu de la page 404 : c'est
   propre à Playground (l'option 2 et le vrai site renvoient bien une 404).
 

@@ -1,0 +1,31 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/partenaires",
+	"title": "Partenaires",
+	"category": "yume",
+	"icon": "groups",
+	"description": "Section « Nos partenaires » : logo, nom et description de chaque partenaire (liste réglée dans Yume → Réglages → Partenaires).",
+	"keywords": [
+		"partenaires",
+		"accueil",
+		"liens"
+	],
+	"textdomain": "yume-core",
+	"attributes": {
+		"title": {
+			"type": "string",
+			"default": "Nos partenaires",
+			"label": "Titre"
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [
+			"wide",
+			"full"
+		]
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

@@ -91,37 +91,54 @@ function ligne_tome( int $tome_id ): array {
 		$date_sortie = '' !== $d['derniere_maj'] ? $d['derniere_maj'] : ( $post && ts_contenu( $post, 'post_date' ) ? gmt( ts_contenu( $post, 'post_date' ) ) : '' );
 	}
 	$numero = get_post_meta( $tome_id, 'yume_numero', true );
+	// Sortie programmée : la date cible affichée est le jour de sortie programmé (SCAN-05).
+	$programmee = 'programme' === $analyse['motif'] ? (string) ( $analyse['date'] ?? '' ) : '';
 
 	return array(
-		'tome_id'       => $tome_id,
-		'oeuvre_id'     => $oeuvre_id,
-		'oeuvre'        => $oeuvre_id ? titre_brut( $oeuvre_id ) : '',
-		'tome'          => yume_libelle_tome( $tome_id ),
-		'etape'         => $d['etape'],
-		'avancement'    => $d['avancement'],
-		'responsables'  => $responsables,
-		'date_cible'    => $d['date_cible'],
-		'etat'          => $etat,
-		'derniere_maj'  => $d['derniere_maj'],
-		'url_oeuvre'    => $oeuvre_id && 'publish' === get_post_status( $oeuvre_id ) ? (string) get_permalink( $oeuvre_id ) : '',
-		'titre'         => sous_titre_tome( $tome_id ),
-		'nature'        => (string) get_post_meta( $tome_id, 'yume_nature', true ),
-		'numero'        => is_numeric( $numero ) ? (float) $numero : null,
-		'type'          => type_oeuvre( $oeuvre_id ),
-		'statut'        => $statut,
-		'url'           => 'publish' === $statut ? (string) get_permalink( $tome_id ) : '',
-		'bloque'        => $d['bloque'],
-		'bloque_raison' => $d['bloque'] ? $d['bloque_raison'] : '',
-		'motif_retard'  => 'en_retard' === $etat ? $analyse['motif'] : '',
-		'jours_retard'  => 'en_retard' === $etat ? $analyse['jours'] : 0,
-		'chapitres'     => compte_chapitres( $tome_id ),
-		'date_sortie'   => $date_sortie,
-		'maj_par'       => array(
+		'tome_id'         => $tome_id,
+		'oeuvre_id'       => $oeuvre_id,
+		'oeuvre'          => $oeuvre_id ? titre_brut( $oeuvre_id ) : '',
+		'tome'            => yume_libelle_tome( $tome_id ),
+		'etape'           => $d['etape'],
+		'avancement'      => $d['avancement'],
+		'responsables'    => $responsables,
+		'date_cible'      => '' !== $programmee ? $programmee : $d['date_cible'],
+		'etat'            => $etat,
+		'derniere_maj'    => $d['derniere_maj'],
+		'url_oeuvre'      => $oeuvre_id && 'publish' === get_post_status( $oeuvre_id ) ? (string) get_permalink( $oeuvre_id ) : '',
+		'titre'           => sous_titre_tome( $tome_id ),
+		'nature'          => (string) get_post_meta( $tome_id, 'yume_nature', true ),
+		'numero'          => is_numeric( $numero ) ? (float) $numero : null,
+		'type'            => type_oeuvre( $oeuvre_id ),
+		'statut'          => $statut,
+		'url'             => 'publish' === $statut ? (string) get_permalink( $tome_id ) : '',
+		'bloque'          => $d['bloque'],
+		'bloque_raison'   => $d['bloque'] ? $d['bloque_raison'] : '',
+		'motif_retard'    => 'en_retard' === $etat ? $analyse['motif'] : '',
+		'jours_retard'    => 'en_retard' === $etat ? $analyse['jours'] : 0,
+		'chapitres'       => compte_chapitres( $tome_id ),
+		'date_sortie'     => $date_sortie,
+		'maj_par'         => array(
 			'id'  => $d['maj_par'],
 			'nom' => $d['maj_par'] ? nom_utilisateur( $d['maj_par'] ) : '',
 		),
-		'ts_activite'   => ts_derniere_activite( $tome_id ),
+		'ts_activite'     => ts_derniere_activite( $tome_id ),
+		'programme'       => '' !== $programmee,
+		'date_programmee' => $programmee,
 	);
+}
+
+/**
+ * Libellé de l'état d'une ligne : « Programmé le sam. 3 oct. » pour une sortie programmée,
+ * sinon le libellé de l'état (« À l'heure », « En retard »…).
+ *
+ * @param array $ligne Ligne (etat, programme, date_programmee).
+ */
+function libelle_etat_ligne( array $ligne ): string {
+	if ( ! empty( $ligne['programme'] ) && 'publie' !== ( $ligne['etat'] ?? '' ) ) {
+		return libelle_programme( (string) ( $ligne['date_programmee'] ?? '' ) );
+	}
+	return (string) ( etats()[ $ligne['etat'] ?? '' ] ?? '' );
 }
 
 /**
@@ -164,8 +181,13 @@ function lignes_planning( array $args = array() ): array {
 			'inclure_publies_depuis' => 14,
 			'responsable'            => 0,
 			'public'                 => true,
+			'gestion'                => false,
+			'statut'                 => '',
 		)
 	);
+	if ( $args['gestion'] ) {
+		return lignes_gestion( $args );
+	}
 
 	$oeuvre_id   = max( 0, (int) $args['oeuvre_id'] );
 	$type        = sanitize_key( (string) $args['type'] );
@@ -201,6 +223,66 @@ function lignes_planning( array $args = array() ): array {
 	 * @param array $lignes Lignes.
 	 * @param array $args   Arguments de yume_get_planning().
 	 */
+	return (array) apply_filters( 'yume_planning_lignes', $lignes, $args );
+}
+
+/**
+ * Vue de gestion (yume_get_planning( array( 'gestion' => true ) )) : tous les tomes vivants
+ * (brouillon, programmé, en attente, publié, privé) de toutes les œuvres, quels que soient
+ * leur étape et leur âge. Filtres : oeuvre_id, statut (statut WordPress), etat, type,
+ * responsable, limit.
+ *
+ * @param array $args Arguments (déjà complétés par lignes_planning()).
+ * @return array<int,array<string,mixed>>
+ */
+function lignes_gestion( array $args ): array {
+	global $wpdb;
+	$statuts = array( 'draft', 'future', 'pending', 'publish', 'private' );
+	$statut  = sanitize_key( (string) $args['statut'] );
+	if ( '' !== $statut ) {
+		if ( ! in_array( $statut, $statuts, true ) ) {
+			return array();
+		}
+		$statuts = array( $statut );
+	}
+	$marques = implode( ', ', array_fill( 0, count( $statuts ), '%s' ) );
+	$sql     = "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'yume_tome' AND post_status IN ($marques) ORDER BY ID ASC";
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	$ids = $wpdb->get_col( $wpdb->prepare( $sql, $statuts ) );
+	$ids = array_values( array_unique( array_map( 'intval', (array) $ids ) ) );
+	if ( ! $ids ) {
+		return array();
+	}
+	$oeuvre_id   = max( 0, (int) $args['oeuvre_id'] );
+	$type        = sanitize_key( (string) $args['type'] );
+	$etat_voulu  = sanitize_key( (string) $args['etat'] );
+	$responsable = max( 0, (int) $args['responsable'] );
+	amorcer_caches_planning( $ids );
+	$lignes = array();
+	try {
+		foreach ( $ids as $id ) {
+			$o = yume_get_oeuvre_id( $id );
+			if ( ( $oeuvre_id && $o !== $oeuvre_id ) || ( '' !== $type && type_oeuvre( $o ) !== $type ) ) {
+				continue;
+			}
+			if ( $responsable && ! in_array( $responsable, norm_responsables( get_post_meta( $id, 'yume_responsables', true ) ), true ) ) {
+				continue;
+			}
+			$ligne = ligne_tome( $id );
+			if ( '' !== $etat_voulu && $ligne['etat'] !== $etat_voulu ) {
+				continue;
+			}
+			$lignes[] = $ligne;
+		}
+	} finally {
+		oublier_comptes_chapitres();
+	}
+	usort( $lignes, __NAMESPACE__ . '\\comparer_lignes' );
+	$limite = max( 0, (int) $args['limit'] );
+	if ( $limite > 0 ) {
+		$lignes = array_slice( $lignes, 0, $limite );
+	}
+	/** Ce filtre est documenté dans lignes_planning(). */
 	return (array) apply_filters( 'yume_planning_lignes', $lignes, $args );
 }
 
@@ -345,31 +427,32 @@ function ligne_publique( array $ligne ): array {
 	foreach ( ETAPES_TRAVAIL as $etape ) {
 		$responsables[ $etape ] = array( 'nom' => (string) ( $ligne['responsables'][ $etape ]['nom'] ?? '' ) );
 	}
-	$etats  = etats();
 	$etapes = yume_etapes();
 	return array(
-		'tome_id'       => (int) $ligne['tome_id'],
-		'oeuvre_id'     => (int) $ligne['oeuvre_id'],
-		'oeuvre'        => (string) $ligne['oeuvre'],
-		'tome'          => (string) $ligne['tome'],
-		'titre'         => (string) $ligne['titre'],
-		'nature'        => (string) $ligne['nature'],
-		'numero'        => $ligne['numero'],
-		'type'          => (string) $ligne['type'],
-		'etape'         => (string) $ligne['etape'],
-		'etape_libelle' => (string) ( $etapes[ $ligne['etape'] ] ?? '' ),
-		'avancement'    => $ligne['avancement'],
-		'responsables'  => $responsables,
-		'date_cible'    => (string) $ligne['date_cible'],
-		'etat'          => (string) $ligne['etat'],
-		'etat_libelle'  => (string) ( $etats[ $ligne['etat'] ] ?? '' ),
-		'bloque_raison' => (string) $ligne['bloque_raison'],
-		'motif_retard'  => (string) $ligne['motif_retard'],
-		'chapitres'     => $ligne['chapitres'],
-		'derniere_maj'  => iso( (string) $ligne['derniere_maj'] ),
-		'date_sortie'   => iso( (string) $ligne['date_sortie'] ),
-		'url_oeuvre'    => (string) $ligne['url_oeuvre'],
-		'url'           => (string) $ligne['url'],
+		'tome_id'         => (int) $ligne['tome_id'],
+		'oeuvre_id'       => (int) $ligne['oeuvre_id'],
+		'oeuvre'          => (string) $ligne['oeuvre'],
+		'tome'            => (string) $ligne['tome'],
+		'titre'           => (string) $ligne['titre'],
+		'nature'          => (string) $ligne['nature'],
+		'numero'          => $ligne['numero'],
+		'type'            => (string) $ligne['type'],
+		'etape'           => (string) $ligne['etape'],
+		'etape_libelle'   => (string) ( $etapes[ $ligne['etape'] ] ?? '' ),
+		'avancement'      => $ligne['avancement'],
+		'responsables'    => $responsables,
+		'date_cible'      => (string) $ligne['date_cible'],
+		'etat'            => (string) $ligne['etat'],
+		'etat_libelle'    => libelle_etat_ligne( $ligne ),
+		'bloque_raison'   => (string) $ligne['bloque_raison'],
+		'motif_retard'    => (string) $ligne['motif_retard'],
+		'chapitres'       => $ligne['chapitres'],
+		'derniere_maj'    => iso( (string) $ligne['derniere_maj'] ),
+		'date_sortie'     => iso( (string) $ligne['date_sortie'] ),
+		'url_oeuvre'      => (string) $ligne['url_oeuvre'],
+		'url'             => (string) $ligne['url'],
+		'programme'       => ! empty( $ligne['programme'] ),
+		'date_programmee' => (string) ( $ligne['date_programmee'] ?? '' ),
 	);
 }
 
@@ -385,7 +468,7 @@ function ligne_equipe( int $tome_id ): array {
 	unset( $ligne['ts_activite'] );
 	$ligne['derniere_maj'] = iso( (string) $ligne['derniere_maj'] );
 	$ligne['date_sortie']  = iso( (string) $ligne['date_sortie'] );
-	$ligne['etat_libelle'] = etats()[ $ligne['etat'] ] ?? '';
+	$ligne['etat_libelle'] = libelle_etat_ligne( $ligne );
 	if ( current_user_can( 'yume_maj_planning' ) ) {
 		$ligne['note_equipe'] = (string) get_post_meta( $tome_id, 'yume_note_equipe', true );
 	}

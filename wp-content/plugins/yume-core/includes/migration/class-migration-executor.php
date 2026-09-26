@@ -1260,7 +1260,8 @@ final class Migration_Executor extends Migration_Moteur {
 
 	/**
 	 * Réglages : page d'accueil, page des articles (12 par page), bannière du site, inscription
-	 * des lecteurs (« Tout le monde peut s'inscrire », rôle par défaut Lecteur). Les valeurs
+	 * des lecteurs (« Tout le monde peut s'inscrire », rôle par défaut Lecteur), commentaires
+	 * réservés aux comptes connectés (« comment_registration »). Les valeurs
 	 * d'origine sont sauvegardées à la préparation et restaurées par l'annulation.
 	 */
 	private function reglages(): void {
@@ -1276,6 +1277,11 @@ final class Migration_Executor extends Migration_Moteur {
 		if ( 'subscriber' !== get_option( 'default_role' ) ) {
 			update_option( 'default_role', 'subscriber' );
 			$this->noter_option( 'default_role' );
+		}
+		// Commentaires réservés aux comptes connectés (lecteurs inscrits, équipe).
+		if ( '1' !== (string) get_option( 'comment_registration' ) ) {
+			update_option( 'comment_registration', 1 );
+			$this->noter_option( 'comment_registration' );
 		}
 		// Actualités, catégories et recherche en grilles de 2 ou 3 colonnes : 12 par page.
 		if ( 12 !== (int) get_option( 'posts_per_page' ) ) {

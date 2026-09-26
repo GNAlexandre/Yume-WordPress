@@ -629,8 +629,16 @@ final class Migration_Rollback extends Migration_Moteur {
 		}
 		if ( empty( $origine['existe'] ) ) {
 			delete_option( $option );
-		} else {
-			update_option( $option, $origine['valeur'] );
+			return;
+		}
+		// Valeur d'origine réécrite telle quelle : sans l'assainissement de register_setting(),
+		// qui dépend de l'utilisateur courant et des valeurs par défaut du moment.
+		$filtre  = 'sanitize_option_' . $option;
+		$rappels = $GLOBALS['wp_filter'][ $filtre ] ?? null;
+		remove_all_filters( $filtre );
+		update_option( $option, $origine['valeur'] );
+		if ( null !== $rappels ) {
+			$GLOBALS['wp_filter'][ $filtre ] = $rappels; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- filtres remis tels qu'ils étaient.
 		}
 	}
 

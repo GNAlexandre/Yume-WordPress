@@ -315,7 +315,7 @@ final class Migration_Admin {
 			data-operation="<?php echo esc_attr( $etat['operation'] ); ?>">
 			<h1><?php esc_html_e( 'Migrer l’ancien site', 'yume-core' ); ?></h1>
 			<p class="yume-migrer__intro">
-				<?php esc_html_e( 'La migration transforme les pages de l’ancien site (fiches, arcs, chapitres) en œuvres, tomes et chapitres Yume, reclasse les articles, crée les pages Yume, ouvre les inscriptions des lecteurs (rôle Lecteur) et installe les redirections 301. Elle se fait sur place : les images gardent leur identifiant et les anciennes pages passent en brouillon (rien n’est supprimé). Elle s’annule entièrement tant que le site n’a pas été utilisé ; ensuite, l’annulation conserve les œuvres qui ont reçu des chapitres, des commentaires ou des données de lecteurs.', 'yume-core' ); ?>
+				<?php esc_html_e( 'La migration transforme les pages de l’ancien site (fiches, arcs, chapitres) en œuvres, tomes et chapitres Yume, reclasse les articles, crée les pages Yume, ouvre les inscriptions des lecteurs (rôle Lecteur), réserve les commentaires aux comptes connectés et installe les redirections 301. Elle se fait sur place : les images gardent leur identifiant et les anciennes pages passent en brouillon (rien n’est supprimé). Elle s’annule entièrement tant que le site n’a pas été utilisé ; ensuite, l’annulation conserve les œuvres qui ont reçu des chapitres, des commentaires ou des données de lecteurs.', 'yume-core' ); ?>
 			</p>
 			<?php self::notice(); ?>
 			<?php self::carte_etat( $etat ); ?>

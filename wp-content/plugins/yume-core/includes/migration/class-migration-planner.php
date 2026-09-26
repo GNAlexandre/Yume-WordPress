@@ -104,6 +104,21 @@ final class Migration_Planner {
 	private array $avertissements = array();
 
 	/**
+	 * Chemins locaux (« /slug/ », « ?page_id=N ») visés par un lien des pages, articles,
+	 * navigations et parties de modèle de l'export => IDs des contenus qui portent le lien.
+	 *
+	 * @var array<string,int[]>
+	 */
+	private array $chemins_lies = array();
+
+	/**
+	 * Pages publiées écartées comme parasites (ID => raison).
+	 *
+	 * @var array<int,string>
+	 */
+	private array $parasites = array();
+
+	/**
 	 * Constructeur.
 	 *
 	 * @param array $export  Export (format Export_Loader).
@@ -195,7 +210,75 @@ final class Migration_Planner {
 				}
 			}
 		}
+		$suspecte = $this->page_suspecte( $page, $texte, $contenu );
+		if ( '' !== $suspecte ) {
+			if ( ! $this->page_liee( $page ) ) {
+				$this->parasites[ (int) $page['id'] ] = $suspecte;
+				$this->avertir( 'attention', 'pages', sprintf( 'Page « %1$s » (%2$s) : %3$s et aucun lien du site n’y mène ; classée « ignorée » (laissée telle quelle, non migrée) au lieu d’être conservée comme page institutionnelle. À supprimer ou à relier après vérification.', $page['title'], $this->chemin( $page ), $suspecte ), (int) $page['id'] );
+				return 'ignoree';
+			}
+			$this->avertir( 'info', 'pages', sprintf( 'Page « %1$s » (%2$s) : %3$s ; conservée car un lien du site y mène, à vérifier.', $page['title'], $this->chemin( $page ), $suspecte ), (int) $page['id'] );
+		}
 		return 'institutionnelle';
+	}
+
+	/**
+	 * Indices d'une page publiée parasite (essai, doublon, page oubliée) : titre ou slug de
+	 * trois caractères au plus, contenu quasi vide (moins de 20 caractères de texte, sans image,
+	 * formulaire, liste ni contenu embarqué).
+	 *
+	 * @param array  $page    Page.
+	 * @param string $texte   Texte normalisé du contenu.
+	 * @param string $contenu Contenu brut.
+	 * @return string Raison lisible, ou '' si rien ne l'indique.
+	 */
+	private function page_suspecte( array $page, string $texte, string $contenu ): string {
+		$raisons = array();
+		$titre   = Html::normaliser( (string) $page['title'] );
+		$slug    = (string) $page['slug'];
+		if ( mb_strlen( $titre, 'UTF-8' ) <= 3 || ( '' !== $slug && mb_strlen( $slug, 'UTF-8' ) <= 3 ) ) {
+			$raisons[] = 'titre ou slug de trois caractères au plus';
+		}
+		$riche = (bool) preg_match( '/wp:(?:image|gallery|embed|file|video|audio|table|list|jetpack|contact)|<(?:img|form|iframe|table|ul|ol|video)\b|\[contact-form/i', $contenu );
+		if ( ! $riche && mb_strlen( trim( $texte ), 'UTF-8' ) < 20 ) {
+			$raisons[] = 'contenu quasi vide';
+		}
+		return implode( ', ', $raisons );
+	}
+
+	/**
+	 * Un lien des pages, articles, navigations ou parties de modèle de l'export mène-t-il à la
+	 * page (par son chemin ou son adresse courte ?page_id=N) ?
+	 *
+	 * @param array $page Page.
+	 */
+	private function page_liee( array $page ): bool {
+		if ( array() === $this->chemins_lies ) {
+			$this->chemins_lies = array( '' => array() );
+			$sources            = array_merge( $this->export['pages'], $this->export['posts'], $this->export['navigations'], $this->export['template_parts'] );
+			foreach ( $sources as $source ) {
+				if ( ! preg_match_all( '/(?:href\s*=\s*["\']|"url"\s*:\s*")([^"\'\s>]+)/i', (string) ( $source['content'] ?? '' ), $m ) ) {
+					continue;
+				}
+				foreach ( $m[1] as $url ) {
+					$url  = str_replace( '\\/', '/', html_entity_decode( $url, ENT_QUOTES, 'UTF-8' ) );
+					$cles = array( Html::chemin_local( $url, $this->domaines ) );
+					if ( preg_match( '/[?&]page_id=(\d+)/', $url, $id ) ) {
+						$cles[] = '?page_id=' . $id[1];
+					}
+					foreach ( array_filter( $cles ) as $cle ) {
+						$this->chemins_lies[ $cle ][] = (int) ( $source['id'] ?? 0 );
+					}
+				}
+			}
+		}
+		foreach ( array( $this->chemin( $page ), '?page_id=' . (int) $page['id'] ) as $cle ) {
+			// Un lien de la page vers elle-même ne compte pas.
+			if ( '' !== $cle && array_diff( $this->chemins_lies[ $cle ] ?? array(), array( (int) $page['id'] ) ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -205,6 +288,8 @@ final class Migration_Planner {
 	 */
 	public function plan(): array {
 		$this->avertissements = array();
+		$this->parasites      = array();
+		$this->chemins_lies   = array();
 		$export               = $this->export;
 		$categories           = array();
 		foreach ( $export['categories'] as $cat ) {
@@ -1413,7 +1498,9 @@ final class Migration_Planner {
 					'id'     => $id,
 					'statut' => $page['status'],
 					'titre'  => $page['title'],
-					'raison' => ( 'publish' !== $page['status'] ? 'Brouillon' : 'Page' ) . ( $vide ? ' vide' : '' ) . ' : non migré, à supprimer après validation.',
+					'raison' => isset( $this->parasites[ $id ] )
+						? sprintf( 'Page publiée sans lien qui y mène (%s) : laissée telle quelle, non migrée, à supprimer ou à relier après vérification.', $this->parasites[ $id ] )
+						: ( 'publish' !== $page['status'] ? 'Brouillon' : 'Page' ) . ( $vide ? ' vide' : '' ) . ' : non migré, à supprimer après validation.',
 				);
 				continue;
 			}

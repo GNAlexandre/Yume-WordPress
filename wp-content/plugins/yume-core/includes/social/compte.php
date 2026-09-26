@@ -217,7 +217,7 @@ function compte_connecte(): string {
 			'data-yn-compte' => wp_json_encode( $donnees ),
 		)
 	) . '>';
-	$html .= '<div class="yn-account__messages">' . html_messages( messages_courants() ) . '</div>';
+	$html .= '<div class="yn-account__messages">' . confirmation_desabonnement() . html_messages( messages_courants() ) . '</div>';
 	$html .= '<div class="yn-account__grille">';
 
 	// Navigation.
@@ -603,7 +603,7 @@ function compte_visiteur(): string {
 			'data-yn-compte' => '{}',
 		)
 	) . '>';
-	$html .= '<div class="yn-account__messages">' . html_messages( messages_courants() ) . '</div>';
+	$html .= '<div class="yn-account__messages">' . confirmation_desabonnement() . html_messages( messages_courants() ) . '</div>';
 	$html .= '<div class="yn-account__acces">';
 
 	// Connexion.

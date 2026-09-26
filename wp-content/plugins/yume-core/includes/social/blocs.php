@@ -415,8 +415,8 @@ function contenu_resume( string $layout, array $donnees ): string {
  */
 
 /**
- * Rendu du bloc yume/auth-links : « Connexion » (visiteur) ou « Mon compte », précédé de
- * « Espace équipe » pour qui a la capacité yume_voir_equipe.
+ * Rendu du bloc yume/auth-links : « Connexion » (visiteur) ou « Mon compte » suivi de
+ * « Se déconnecter », précédés de « Espace équipe » pour qui a la capacité yume_voir_equipe.
  */
 function rendu_auth_links(): string {
 	$html = '<div ' . attributs_racine( 'yn-auth' ) . '>';
@@ -435,5 +435,11 @@ function rendu_auth_links(): string {
 	}
 	$actif = ( ! empty( $pages['compte'] ) && (int) $pages['compte'] === $page_courante ) || ( ! empty( $pages['connexion'] ) && (int) $pages['connexion'] === $page_courante );
 	$html .= '<a class="yn-btn yn-btn--primary yn-btn--sm" href="' . esc_url( url_compte() ) . '"' . ( $actif ? ' aria-current="page"' : '' ) . '>' . esc_html__( 'Mon compte', 'yume-core' ) . '</a>';
+	// Déconnexion (SCAN-18) : retour à l'accueil, la page courante pouvant être réservée.
+	// Sur un bureau étroit, seule l'icône reste visible (le libellé reste lu).
+	$icone = '<svg class="yn-auth__icone" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+		. '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h11"/></svg>';
+	$html .= '<a class="yn-auth__deconnexion" href="' . esc_url( wp_logout_url( home_url( '/' ) ) ) . '" title="' . esc_attr__( 'Se déconnecter', 'yume-core' ) . '">'
+		. $icone . '<span class="yn-auth__libelle">' . esc_html__( 'Se déconnecter', 'yume-core' ) . '</span></a>';
 	return $html . '</div>';
 }

@@ -211,22 +211,101 @@ function peut_forcer_publie( int $user_id ): bool {
 }
 
 /**
+ * L'utilisateur peut-il forcer le passage à une étape alors que les étapes précédentes ne
+ * sont pas à 100 % (décision SCAN-02) ? Réservé aux administrateurs et aux gérants (capacité
+ * yume_gerer_equipe) ; le passage est alors journalisé comme « étape forcée ». Forcer ne
+ * permet jamais de marquer « publié » un tome non publié.
+ *
+ * @param int $user_id Utilisateur.
+ * @return bool
+ */
+function peut_forcer_etape( int $user_id ): bool {
+	$peut = $user_id > 0 && ( user_can( $user_id, 'manage_options' ) || user_can( $user_id, 'yume_gerer_equipe' ) );
+	/**
+	 * Filtre le droit de forcer une étape sans que les précédentes soient terminées.
+	 *
+	 * @param bool $peut    Droit.
+	 * @param int  $user_id Utilisateur.
+	 */
+	return (bool) apply_filters( 'yume_planning_peut_forcer_etape', $peut, $user_id );
+}
+
+/**
+ * Passage prématuré : avancer à la relecture (ou à l'édition) alors qu'une étape précédente
+ * n'est pas à 100 %. Revenir à une étape antérieure n'est jamais prématuré.
+ *
+ * @param string $avant      Étape actuelle.
+ * @param string $apres      Étape demandée.
+ * @param array  $avancement Avancement {traduction, relecture, edition} après la saisie.
+ * @return \WP_Error|null Erreur yume_etape_prematuree (400), ou null.
+ */
+function etape_prematuree( string $avant, string $apres, array $avancement ): ?\WP_Error {
+	if ( $avant === $apres || ! in_array( $apres, array( 'relecture', 'edition' ), true ) || rang_etape( $apres ) <= rang_etape( $avant ) ) {
+		return null;
+	}
+	foreach ( ETAPES_TRAVAIL as $precedente ) {
+		if ( $precedente === $apres ) {
+			break;
+		}
+		if ( (int) ( $avancement[ $precedente ] ?? 0 ) < 100 ) {
+			$libelles = yume_etapes();
+			return erreur(
+				'yume_etape_prematuree',
+				sprintf(
+					/* translators: 1: étape à terminer (Traduction…), 2: étape demandée (Relecture…). */
+					__( 'Terminez d’abord l’étape « %1$s » (100 %%) avant de passer à l’étape « %2$s ».', 'yume-core' ),
+					$libelles[ $precedente ],
+					$libelles[ $apres ]
+				),
+				400
+			);
+		}
+	}
+	return null;
+}
+
+/**
+ * Le changement d'étape est-il un passage forcé (prématuré, accepté parce que l'utilisateur
+ * peut forcer) ? Sert à journaliser « étape forcée » (espace équipe, REST, méta-boîte).
+ *
+ * @param int        $tome_id    Tome.
+ * @param string     $avant      Étape actuelle.
+ * @param string     $apres      Étape demandée.
+ * @param int        $user_id    Auteur.
+ * @param array|null $avancement Avancement après la saisie (null : celui du tome).
+ * @return bool
+ */
+function est_etape_forcee( int $tome_id, string $avant, string $apres, int $user_id, ?array $avancement = null ): bool {
+	$avancement = $avancement ?? donnees_tome( $tome_id )['avancement'];
+	return null !== etape_prematuree( $avant, $apres, $avancement ) && peut_forcer_etape( $user_id );
+}
+
+/**
  * Contrôle un changement d'étape saisi à la main (hors écriture système).
  *
  * - « publié » n'est accepté que pour un tome réellement publié (statut publish), et
  *   seulement de la part d'un éditeur, d'un gérant ou d'un publieur ;
  * - un tome publié ne quitte l'étape « publié » que par un éditeur ou un gérant
- *   (yume_maj_planning_tous) : sinon il reviendrait dans les prochaines sorties.
+ *   (yume_maj_planning_tous) : sinon il reviendrait dans les prochaines sorties ;
+ * - avancer à la relecture (ou à l'édition) exige que les étapes précédentes soient à 100 %,
+ *   sauf pour un administrateur ou un gérant (peut_forcer_etape() : « étape forcée »).
+ *   Revenir à une étape antérieure reste possible.
  *
- * @param int    $tome_id Tome.
- * @param string $avant   Étape actuelle.
- * @param string $apres   Étape demandée.
- * @param int    $user_id Auteur.
+ * @param int        $tome_id    Tome.
+ * @param string     $avant      Étape actuelle.
+ * @param string     $apres      Étape demandée.
+ * @param int        $user_id    Auteur.
+ * @param array|null $avancement Avancement {traduction, relecture, edition} après la saisie
+ *                               (null : celui du tome).
  * @return true|\WP_Error
  */
-function controler_etape( int $tome_id, string $avant, string $apres, int $user_id ) {
+function controler_etape( int $tome_id, string $avant, string $apres, int $user_id, ?array $avancement = null ) {
 	if ( $avant === $apres ) {
 		return true;
+	}
+	$prematuree = etape_prematuree( $avant, $apres, $avancement ?? donnees_tome( $tome_id )['avancement'] );
+	if ( $prematuree && ! peut_forcer_etape( $user_id ) ) {
+		return $prematuree;
 	}
 	$publie = 'publish' === get_post_status( $tome_id );
 	if ( 'publie' === $apres ) {
@@ -244,8 +323,42 @@ function controler_etape( int $tome_id, string $avant, string $apres, int $user_
 }
 
 /**
+ * Contrôle l'avancement saisi (décision SCAN-09) : sans yume_maj_planning_tous, un membre ne
+ * modifie que l'avancement des étapes dont il est responsable. Une valeur inchangée est
+ * acceptée (les formulaires renvoient les trois curseurs).
+ *
+ * @param array $avant      Avancement actuel.
+ * @param array $saisi      Avancement saisi (partiel).
+ * @param array $resp       Responsables actuels.
+ * @param int   $user_id    Auteur.
+ * @return true|\WP_Error
+ */
+function controler_avancement( array $avant, array $saisi, array $resp, int $user_id ) {
+	if ( user_can( $user_id, 'yume_maj_planning_tous' ) ) {
+		return true;
+	}
+	foreach ( $saisi as $etape => $valeur ) {
+		if ( (int) ( $avant[ $etape ] ?? 0 ) === (int) $valeur || (int) ( $resp[ $etape ] ?? 0 ) === $user_id ) {
+			continue;
+		}
+		return erreur(
+			'yume_avancement_interdit',
+			sprintf(
+				/* translators: %s : étape (relecture…) */
+				__( 'Vous n’êtes pas responsable de l’étape « %s » : seul son responsable, un éditeur ou un gérant peut modifier son avancement.', 'yume-core' ),
+				libelle_etape_min( (string) $etape )
+			),
+			403,
+			array( 'etape' => (string) $etape )
+		);
+	}
+	return true;
+}
+
+/**
  * Étapes proposées dans les formulaires de l'espace équipe pour un tome : celles que
- * controler_etape() accepterait, plus l'étape actuelle.
+ * controler_etape() accepterait si les étapes précédentes étaient terminées, plus l'étape
+ * actuelle. L'avancement est contrôlé à l'envoi, car le même formulaire peut le passer à 100 %.
  *
  * @param int    $tome_id  Tome.
  * @param string $courante Étape actuelle.
@@ -255,7 +368,8 @@ function controler_etape( int $tome_id, string $avant, string $apres, int $user_
 function etapes_proposees( int $tome_id, string $courante, int $user_id ): array {
 	$options = array();
 	foreach ( yume_etapes() as $cle => $libelle ) {
-		if ( $cle === $courante || true === controler_etape( $tome_id, $courante, (string) $cle, $user_id ) ) {
+		$complet = array_fill_keys( ETAPES_TRAVAIL, 100 );
+		if ( $cle === $courante || true === controler_etape( $tome_id, $courante, (string) $cle, $user_id, $complet ) ) {
 			$options[ $cle ] = $libelle;
 		}
 	}
@@ -274,7 +388,10 @@ function etapes_proposees( int $tome_id, string $courante, int $user_id ): array
  * @param array $options 'verifier_droits' (bool, défaut vrai), 'forcer' (bool : écriture
  *                       système sans contrôle), 'toujours_dater' (bool : met à jour la date même
  *                       sans changement), 'evenements' (lignes de journal supplémentaires :
- *                       champ => [ancien, nouveau]).
+ *                       champ => [ancien, nouveau, visible publique facultative]).
+ *                       Sans 'forcer' : avancement limité aux étapes dont l'auteur est
+ *                       responsable (sauf yume_maj_planning_tous, 403 yume_avancement_interdit) ;
+ *                       une étape forcée par un gérant est journalisée (« etape_forcee »).
  * @return array{changements:array,etat:string}|\WP_Error
  */
 function mettre_a_jour( int $tome_id, array $saisie, int $user_id, array $options = array() ) {
@@ -299,11 +416,30 @@ function mettre_a_jour( int $tome_id, array $saisie, int $user_id, array $option
 		return $propre;
 	}
 
-	$avant = donnees_tome( $tome_id );
-	if ( ! $options['forcer'] && array_key_exists( 'etape', $propre ) ) {
-		$controle = controler_etape( $tome_id, $avant['etape'], $propre['etape'], $user_id );
+	$avant      = donnees_tome( $tome_id );
+	$evenements = (array) $options['evenements'];
+	if ( ! $options['forcer'] && array_key_exists( 'avancement', $propre ) ) {
+		$controle = controler_avancement( $avant['avancement'], $propre['avancement'], $avant['responsables'], $user_id );
 		if ( is_wp_error( $controle ) ) {
 			return $controle;
+		}
+	}
+	if ( ! $options['forcer'] && array_key_exists( 'etape', $propre ) ) {
+		$avancement = array_merge( $avant['avancement'], $propre['avancement'] ?? array() );
+		$controle   = controler_etape( $tome_id, $avant['etape'], $propre['etape'], $user_id, $avancement );
+		if ( is_wp_error( $controle ) ) {
+			return $controle;
+		}
+		if ( est_etape_forcee( $tome_id, $avant['etape'], $propre['etape'], $user_id, $avancement ) ) {
+			// Journal de l'équipe seulement : le changement d'étape lui-même reste public.
+			$evenements['etape_forcee'] = array(
+				$avant['etape'],
+				array(
+					'etape'      => $propre['etape'],
+					'avancement' => $avancement,
+				),
+				false,
+			);
 		}
 	}
 	$apres  = array();
@@ -336,7 +472,6 @@ function mettre_a_jour( int $tome_id, array $saisie, int $user_id, array $option
 		);
 	}
 
-	$evenements = (array) $options['evenements'];
 	if ( $changements || $evenements || $options['toujours_dater'] ) {
 		update_post_meta( $tome_id, 'yume_derniere_maj', gmt() );
 		update_post_meta( $tome_id, 'yume_maj_par', max( 0, $user_id ) );
@@ -348,7 +483,7 @@ function mettre_a_jour( int $tome_id, array $saisie, int $user_id, array $option
 			yume_journal_planning( $tome_id, $user_id, $champ, $valeurs['ancien'], $valeurs['nouveau'] );
 		}
 		foreach ( $evenements as $champ => $valeurs ) {
-			journaliser( $tome_id, $user_id, (string) $champ, $valeurs[0] ?? '', $valeurs[1] ?? '' );
+			journaliser( $tome_id, $user_id, (string) $champ, $valeurs[0] ?? '', $valeurs[1] ?? '', isset( $valeurs[2] ) ? (bool) $valeurs[2] : null );
 			$changements[ $champ ] = array(
 				'ancien'  => $valeurs[0] ?? null,
 				'nouveau' => $valeurs[1] ?? null,
@@ -524,4 +659,75 @@ function ajouter_tome( array $saisie, int $user_id ) {
 		$user_id
 	);
 	return $tome_id;
+}
+
+/**
+ * Retire un tome du planning (décision SCAN-06) : le tome part à la corbeille, avec une ligne
+ * « retiré du planning » au journal (champ « retire », public).
+ *
+ * Réservé aux utilisateurs qui ont yume_maj_planning_tous et le droit de supprimer ce tome
+ * (delete_post). Refusé (409) pour un tome publié, programmé ou privé, ou qui a au moins un
+ * chapitre publié : il faut alors passer par l'administration.
+ *
+ * @param int $tome_id Tome.
+ * @param int $user_id Auteur.
+ * @return true|\WP_Error
+ */
+function retirer_tome( int $tome_id, int $user_id ) {
+	$post = get_post( $tome_id );
+	if ( ! $post || 'yume_tome' !== $post->post_type || in_array( $post->post_status, array( 'trash', 'auto-draft', 'inherit' ), true ) ) {
+		return erreur( 'yume_tome_introuvable', __( 'Tome introuvable.', 'yume-core' ), 404 );
+	}
+	if ( ! user_can( $user_id, 'yume_maj_planning_tous' ) || ! user_can( $user_id, 'delete_post', $tome_id ) ) {
+		return erreur( 'yume_retrait_interdit', __( 'Seuls les éditeurs et les gérants peuvent retirer un tome du planning.', 'yume-core' ), 403 );
+	}
+	if ( in_array( $post->post_status, array( 'publish', 'future', 'private' ), true ) ) {
+		return erreur(
+			'yume_retrait_impossible',
+			'future' === $post->post_status
+				? __( 'Ce tome est programmé : annulez d’abord sa programmation depuis l’administration.', 'yume-core' )
+				: __( 'Ce tome est publié : il ne peut pas être retiré du planning. Dépubliez-le ou supprimez-le depuis l’administration.', 'yume-core' ),
+			409
+		);
+	}
+	$chap = compte_chapitres( $tome_id );
+	if ( $chap['publies'] > 0 ) {
+		return erreur(
+			'yume_retrait_impossible',
+			sprintf(
+				/* translators: %d : nombre de chapitres publiés */
+				_n(
+					'Ce tome a %d chapitre publié : il ne peut pas être retiré du planning. Passez par l’administration.',
+					'Ce tome a %d chapitres publiés : il ne peut pas être retiré du planning. Passez par l’administration.',
+					$chap['publies'],
+					'yume-core'
+				),
+				$chap['publies']
+			),
+			409
+		);
+	}
+	$libelle = cible_journal( $tome_id );
+	en_service( true );
+	try {
+		journaliser( $tome_id, $user_id, 'retire', '', $libelle );
+	} finally {
+		en_service( false );
+	}
+	if ( ! wp_trash_post( $tome_id ) ) {
+		return erreur( 'yume_retrait_echec', __( 'Le tome n’a pas pu être mis à la corbeille.', 'yume-core' ), 500 );
+	}
+	/** Cette action est documentée dans mettre_a_jour(). */
+	do_action(
+		'yume_planning_mis_a_jour',
+		$tome_id,
+		array(
+			'retire' => array(
+				'ancien'  => $post->post_status,
+				'nouveau' => 'trash',
+			),
+		),
+		$user_id
+	);
+	return true;
 }

@@ -36,6 +36,12 @@ const OPTION_DERNIERE_PURGE = 'yume_notifications_derniere_purge';
 /** Méta de tome : date GMT du dernier rappel (anti-répétition). */
 const META_DERNIER_RAPPEL = '_yume_dernier_rappel';
 
+/** Méta de tome : date GMT de la dépublication (le retour en ligne rétablit « publié »). */
+const META_DEPUBLIE = '_yume_planning_depublie';
+
+/** Méta de tome : tome en ligne dont des chapitres restent à sortir (brouillon, programmés). */
+const META_SORTIE_PARTIELLE = '_yume_planning_sortie_partielle';
+
 /** Événement cron quotidien des rappels. */
 const HOOK_RAPPELS = 'yume_planning_rappels';
 
@@ -532,9 +538,10 @@ function seuil_inactivite(): int {
  * Analyse de l'état d'un tome.
  *
  * @param int $tome_id Tome.
- * @return array{etat:string,motif:string,jours:int}
+ * @return array{etat:string,motif:string,jours:int,date?:string}
  *   motif : 'date' (date cible dépassée de « jours »), 'inactivite' (sans mise à jour depuis
- *   « jours »), ou vide.
+ *   « jours »), 'programme' (tome programmé, statut future : état « à l'heure », « date » =
+ *   jour de sortie programmé, Y-m-d heure de Paris), ou vide.
  */
 function analyser_etat( int $tome_id ): array {
 	$d = donnees_tome( $tome_id );
@@ -543,6 +550,16 @@ function analyser_etat( int $tome_id ): array {
 			'etat'  => 'publie',
 			'motif' => '',
 			'jours' => 0,
+		);
+	}
+	// Sortie programmée (statut future) : jamais en retard ni bloquée, elle sortira à sa date.
+	$programmee = date_programmee( $tome_id );
+	if ( '' !== $programmee ) {
+		return array(
+			'etat'  => 'a_lheure',
+			'motif' => 'programme',
+			'jours' => 0,
+			'date'  => $programmee,
 		);
 	}
 	if ( $d['bloque'] ) {
@@ -574,6 +591,49 @@ function analyser_etat( int $tome_id ): array {
 		'motif' => '',
 		'jours' => 0,
 	);
+}
+
+/**
+ * Jour de sortie (Y-m-d, heure de Paris) d'un tome programmé (statut future), sinon vide.
+ *
+ * @param int $tome_id Tome.
+ */
+function date_programmee( int $tome_id ): string {
+	$post = get_post( $tome_id );
+	if ( ! $post || 'future' !== $post->post_status ) {
+		return '';
+	}
+	$ts = ts_contenu( $post, 'post_date' );
+	return $ts ? date_locale( $ts ) : '';
+}
+
+/**
+ * Libellé « Programmé le sam. 3 oct. » d'une sortie programmée.
+ *
+ * @param string $date Date Y-m-d (heure de Paris).
+ */
+function libelle_programme( string $date ): string {
+	$ts = ts_date( $date );
+	if ( ! $ts ) {
+		return __( 'Programmé', 'yume-core' );
+	}
+	/* translators: %s : date de sortie programmée (« sam. 3 oct. ») */
+	return sprintf( __( 'Programmé le %s', 'yume-core' ), format_fr( $ts, substr( $date, 0, 4 ) !== substr( date_locale(), 0, 4 ) ? 'D j M Y' : 'D j M' ) );
+}
+
+/**
+ * Nombre de chapitres d'un tome qui restent à sortir (brouillon, en attente, programmés).
+ *
+ * @param int $tome_id Tome.
+ */
+function chapitres_en_attente( int $tome_id ): int {
+	$nb = 0;
+	foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chapitre ) {
+		if ( in_array( $chapitre->post_status, array( 'draft', 'future', 'pending' ), true ) ) {
+			++$nb;
+		}
+	}
+	return $nb;
 }
 
 /**

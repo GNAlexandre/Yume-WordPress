@@ -1239,6 +1239,12 @@ yume_test(
 		yume_assert_not_contains( 'Espace équipe', $lecteur );
 		yume_assert_contains( 'Espace équipe', $equipe );
 		yume_assert_contains( 'Mon compte', $equipe );
+		// SCAN-18 : « Se déconnecter » pour tout compte connecté, retour à l'accueil.
+		yume_assert_not_contains( 'Se déconnecter', $visiteur );
+		yume_assert_contains( '>Se déconnecter</span></a>', $lecteur );
+		yume_assert_contains( 'action=logout', $lecteur );
+		yume_assert_contains( rawurlencode( home_url( '/' ) ), $lecteur );
+		yume_assert_contains( '>Se déconnecter</span></a>', $equipe );
 	}
 );
 
@@ -1659,5 +1665,314 @@ yume_test(
 		\Yume\Core\Social\planifier();
 		yume_assert_same( $ts, wp_next_scheduled( 'yume_social_recap_hebdo' ) );
 		update_option( 'timezone_string', $fuseau );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * SCAN-20 : désabonnement en un clic depuis les e-mails
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Suit un lien de désabonnement et renvoie l'adresse de redirection : GET (lien ouvert) ou POST
+ * du bouton « Confirmer le désabonnement ».
+ *
+ * @param string $url     Lien.
+ * @param string $methode GET ou POST.
+ */
+function yume_ts_desabo( string $url, string $methode = 'POST' ): string {
+	$avant_get     = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$avant_post    = $_POST; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+	$avant_methode = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : null;
+	parse_str( (string) wp_parse_url( html_entity_decode( $url ), PHP_URL_QUERY ), $params );
+	$_GET                      = $params;
+	$_POST                     = 'POST' === $methode ? array( 'yn-confirmer' => '1' ) : array();
+	$_SERVER['REQUEST_METHOD'] = $methode;
+	try {
+		return yume_ts_redirection( 'Yume\Core\Social\traiter_desabonnement' );
+	} finally {
+		$_GET  = $avant_get;
+		$_POST = $avant_post;
+		if ( null === $avant_methode ) {
+			unset( $_SERVER['REQUEST_METHOD'] );
+		} else {
+			$_SERVER['REQUEST_METHOD'] = $avant_methode;
+		}
+	}
+}
+
+/**
+ * Confirmation affichée par la page compte pour un lien de désabonnement (GET).
+ *
+ * @param string $url Lien.
+ */
+function yume_ts_confirmation_desabo( string $url ): string {
+	$avant = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	parse_str( (string) wp_parse_url( html_entity_decode( $url ), PHP_URL_QUERY ), $params );
+	$_GET = $params;
+	try {
+		return \Yume\Core\Social\confirmation_desabonnement();
+	} finally {
+		$_GET = $avant;
+	}
+}
+
+yume_test(
+	'SCAN-20 : alerte de sortie avec lien de désabonnement signé par destinataire, List-Unsubscribe',
+	function () {
+		yume_ts_pages();
+		$s  = yume_ts_oeuvre( 1 );
+		$u1 = yume_factory_user();
+		$u2 = yume_factory_user();
+		ajouter_favori( $u1, $s['oeuvre'] );
+		ajouter_favori( $u2, $s['oeuvre'] );
+		$envois = yume_ts_emails( static fn() => alerter_sortie( $s['chapitres'][0] ) );
+		yume_assert_same( 2, count( $envois ) );
+		$par_email = array();
+		foreach ( $envois as $envoi ) {
+			$par_email[ $envoi['to'] ] = $envoi['message'];
+		}
+		$m1 = $par_email[ get_userdata( $u1 )->user_email ] ?? '';
+		$m2 = $par_email[ get_userdata( $u2 )->user_email ] ?? '';
+		yume_assert_contains( 'Modifier mes alertes', $m1, 'le lien de gestion reste' );
+		yume_assert_contains( 'Ne plus être alerté pour cette œuvre', $m1 );
+		yume_assert_contains( 'Me désabonner de toutes les alertes', $m1 );
+		yume_assert_not_contains( '#yn-desabo-', $m1, 'marqueurs remplacés' );
+		yume_assert_contains( 'yn-desabo=' . $u1, $m1 );
+		yume_assert_contains( 'yn-desabo=' . $u2, $m2 );
+		yume_assert_not_contains( 'yn-desabo=' . $u2, $m1, 'lien propre au destinataire' );
+
+		// En-têtes List-Unsubscribe (filtre wp_mail, commun à la file et à l'envoi direct).
+		$args    = \Yume\Core\Social\entetes_desabonnement(
+			array(
+				'to'      => 'a@example.org',
+				'subject' => 'x',
+				'message' => $m1,
+				'headers' => array( 'Content-Type: text/html; charset=UTF-8' ),
+			)
+		);
+		$entetes = implode( "\n", $args['headers'] );
+		yume_assert_contains( 'List-Unsubscribe: <' . home_url( '/' ), $entetes );
+		yume_assert_contains( 'yn-portee=oeuvre', $entetes, 'le lien le plus précis' );
+		yume_assert_not_contains( '#038;', $entetes );
+		yume_assert_contains( 'List-Unsubscribe-Post: List-Unsubscribe=One-Click', $entetes );
+		$sans = \Yume\Core\Social\entetes_desabonnement(
+			array(
+				'message' => '<p>Autre</p>',
+				'headers' => '',
+			)
+		);
+		yume_assert_same( '', $sans['headers'], 'autres e-mails inchangés' );
+
+		// Ouvrir le lien (GET, préchargement d'un antivirus compris) ne change rien : confirmation.
+		preg_match( '/href="([^"]*yn-portee=oeuvre[^"]*)"/', $m1, $lien );
+		wp_set_current_user( 0 );
+		$url = yume_ts_desabo( $lien[1], 'GET' );
+		yume_assert_contains( url_compte(), $url, 'confirmation sur la page compte' );
+		yume_assert_contains( 'yn-sig=', $url, 'paramètres signés conservés' );
+		yume_assert_not_contains( 'yn-msg=', $url );
+		yume_assert_same( 'immediat', \Yume\Core\Social\frequence_favori( $u1, $s['oeuvre'] ), 'GET : rien n’est appliqué' );
+		$confirmation = yume_ts_confirmation_desabo( $url );
+		yume_assert_contains( 'method="post"', $confirmation );
+		yume_assert_contains( '>Confirmer le désabonnement</button>', $confirmation );
+		yume_assert_contains( 'Ne plus être alerté pour « ' . get_the_title( $s['oeuvre'] ) . ' »', $confirmation );
+		yume_assert_contains( 'yn-sig=', $confirmation, 'le bouton renvoie le lien signé' );
+		yume_assert_same( '', yume_ts_confirmation_desabo( add_query_arg( 'yn-sig', 'faux', $url ) ), 'pas de bouton pour un lien invalide' );
+
+		// Le bouton (POST) coupe les alertes de l'œuvre pour ce seul membre, sans connexion ; idempotent.
+		$url = yume_ts_desabo( $lien[1] );
+		yume_assert_contains( 'yn-msg=desabo-oeuvre', $url );
+		yume_assert_same( 'jamais', \Yume\Core\Social\frequence_favori( $u1, $s['oeuvre'] ) );
+		yume_assert_same( 'immediat', \Yume\Core\Social\frequence_favori( $u2, $s['oeuvre'] ) );
+		yume_assert_contains( 'yn-msg=desabo-oeuvre', yume_ts_desabo( $lien[1] ), 'idempotent' );
+		yume_assert_same( 'jamais', \Yume\Core\Social\frequence_favori( $u1, $s['oeuvre'] ) );
+		yume_assert_true( yume_is_favori( $u1, $s['oeuvre'] ), 'le favori reste' );
+		$suivant = yume_ts_emails(
+			static function () use ( $s ) {
+				$chapitre = yume_factory_post(
+					array(
+						'post_type'  => 'yume_chapitre',
+						'post_title' => 'Chapitre 9',
+						'meta_input' => array(
+							'yume_tome_id' => $s['tome'],
+							'yume_numero'  => 9,
+						),
+					)
+				);
+				alerter_sortie( $chapitre );
+			}
+		);
+		yume_assert_same( array( get_userdata( $u2 )->user_email ), yume_ts_destinataires( $suivant ), 'sortie suivante : plus d’alerte pour u1' );
+	}
+);
+
+yume_test(
+	'SCAN-20 : signature vérifiée (membre, portée, œuvre), portées « tout » et « commentaires »',
+	function () {
+		yume_ts_pages();
+		$s  = yume_ts_oeuvre( 1 );
+		$s2 = yume_ts_oeuvre( 1 );
+		$u  = yume_factory_user();
+		$v  = yume_factory_user();
+		ajouter_favori( $u, $s['oeuvre'] );
+		ajouter_favori( $u, $s2['oeuvre'], 'hebdo' );
+		$bon = \Yume\Core\Social\url_desabonnement( $u, 'oeuvre', $s['oeuvre'] );
+
+		// Falsifications : autre membre, autre œuvre, autre portée, signature absente.
+		yume_assert_contains( 'desabo-invalide', yume_ts_desabo( add_query_arg( 'yn-desabo', $v, $bon ) ) );
+		yume_assert_contains( 'desabo-invalide', yume_ts_desabo( add_query_arg( 'yn-oeuvre', $s2['oeuvre'], $bon ) ) );
+		yume_assert_contains( 'desabo-invalide', yume_ts_desabo( add_query_arg( 'yn-portee', 'tout', $bon ) ) );
+		yume_assert_contains( 'desabo-invalide', yume_ts_desabo( remove_query_arg( 'yn-sig', $bon ) ) );
+		yume_assert_same( 'immediat', \Yume\Core\Social\frequence_favori( $u, $s['oeuvre'] ), 'rien ne change' );
+
+		yume_assert_contains( 'desabo-invalide', yume_ts_desabo( add_query_arg( 'yn-sig', 'faux', $bon ), 'GET' ), 'GET invalide : message d’erreur' );
+		yume_assert_same( 'immediat', \Yume\Core\Social\frequence_favori( $u, $s['oeuvre'] ), 'rien ne change (GET)' );
+
+		// Confirmations des autres portées.
+		yume_assert_contains( 'répond à mes commentaires', yume_ts_confirmation_desabo( \Yume\Core\Social\url_desabonnement( $u, 'commentaires' ) ) );
+		yume_assert_contains( 'aucune alerte e-mail', yume_ts_confirmation_desabo( \Yume\Core\Social\url_desabonnement( $u, 'tout' ) ) );
+
+		// Nouveau jeton : les anciens liens ne valent plus.
+		update_user_meta( $u, '_yume_jeton_desabonnement', 'autre-jeton' );
+		yume_assert_contains( 'desabo-invalide', yume_ts_desabo( $bon ) );
+
+		// Réponses aux commentaires.
+		yume_assert_contains( 'desabo-commentaires', yume_ts_desabo( \Yume\Core\Social\url_desabonnement( $u, 'commentaires' ) ) );
+		yume_assert_false( preferences_alertes( $u )['commentaires'] );
+		yume_assert_true( preferences_alertes( $u )['sorties'] );
+
+		// Tout : favoris en « jamais », préférences coupées ; connecté, retour sur ses alertes.
+		wp_set_current_user( $u );
+		$url = yume_ts_desabo( \Yume\Core\Social\url_desabonnement( $u, 'tout' ) );
+		wp_set_current_user( 0 );
+		yume_assert_contains( 'desabo-tout', $url );
+		yume_assert_contains( '#yn-alertes', $url );
+		yume_assert_same( 'jamais', \Yume\Core\Social\frequence_favori( $u, $s['oeuvre'] ) );
+		yume_assert_same( 'jamais', \Yume\Core\Social\frequence_favori( $u, $s2['oeuvre'] ) );
+		yume_assert_same(
+			array(
+				'sorties'      => false,
+				'hebdo'        => false,
+				'commentaires' => false,
+			),
+			preferences_alertes( $u )
+		);
+
+		// Message de confirmation affiché par la page compte.
+		$_GET['yn-msg'] = 'desabo-tout';
+		$html           = \Yume\Core\Social\html_messages( \Yume\Core\Social\messages_courants() );
+		unset( $_GET['yn-msg'] );
+		yume_assert_contains( 'vous ne recevrez plus aucun e-mail d’alerte', $html );
+
+		// Le jeton fait partie des données effacées du membre.
+		yume_assert_true( \Yume\Core\Social\effacer_donnees( $u ) > 0 );
+		yume_assert_same( '', get_user_meta( $u, '_yume_jeton_desabonnement', true ) );
+	}
+);
+
+yume_test(
+	'SCAN-20 : récapitulatif et réponse à un commentaire portent leur lien de désabonnement',
+	function () {
+		yume_ts_pages();
+		$s      = yume_ts_oeuvre( 1 );
+		$auteur = yume_factory_user();
+		$parent = wp_insert_comment(
+			array(
+				'comment_post_ID'  => $s['chapitres'][0],
+				'user_id'          => $auteur,
+				'comment_content'  => 'Question',
+				'comment_approved' => 1,
+			)
+		);
+		$envois = yume_ts_emails(
+			static function () use ( $s, $parent ) {
+				$id = wp_insert_comment(
+					array(
+						'comment_post_ID'  => $s['chapitres'][0],
+						'comment_parent'   => $parent,
+						'user_id'          => yume_factory_user(),
+						'comment_content'  => 'Réponse',
+						'comment_approved' => 1,
+					)
+				);
+				\Yume\Core\Social\notifier_reponse( get_comment( $id ) );
+			}
+		);
+		yume_assert_true( count( $envois ) >= 1 );
+		yume_assert_contains( 'Ne plus recevoir les réponses à mes commentaires', $envois[0]['message'] );
+		yume_assert_contains( 'yn-portee=commentaires', $envois[0]['message'] );
+		yume_assert_contains( 'yn-desabo=' . $auteur, $envois[0]['message'] );
+
+		$pied = \Yume\Core\Social\pied_email( 'Raison.', 'yn-alertes' );
+		yume_assert_contains( 'Modifier mes alertes', $pied );
+		yume_assert_contains( '#yn-desabo-tout-0', $pied, 'récapitulatif : désabonnement global seulement' );
+		yume_assert_not_contains( 'cette œuvre', $pied );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * SCAN-13 : commentaires réservés aux comptes (formulaire du thème)
+ * -----------------------------------------------------------------------------
+ */
+
+yume_test(
+	'SCAN-13 : commentaires réservés aux comptes, invitation vers la connexion Yume',
+	function () {
+		if ( ! function_exists( 'yume_theme_invitation_connexion' ) ) {
+			return; // Thème Yume inactif.
+		}
+		$pages  = yume_ts_pages();
+		$s      = yume_ts_oeuvre( 1 );
+		$avant  = get_option( 'comment_registration' );
+		$ouvert = get_option( 'users_can_register' );
+		update_option( 'comment_registration', 1 );
+		update_option( 'users_can_register', 1 );
+		$formulaire = static function ( int $post_id ): string {
+			return (string) yume_ts_sur(
+				$post_id,
+				static function () use ( $post_id ) {
+					ob_start();
+					comment_form( array(), $post_id );
+					return ob_get_clean();
+				}
+			);
+		};
+		foreach ( array( $s['oeuvre'], $s['tome'], $s['chapitres'][0], yume_factory_post( array( 'post_type' => 'post' ) ) ) as $post_id ) {
+			wp_set_current_user( 0 );
+			$html = $formulaire( $post_id );
+			yume_assert_contains( 'Connectez-vous</a> ou <a', $html, get_post_type( $post_id ) );
+			yume_assert_contains( 'créez un compte</a> pour commenter.', $html );
+			yume_assert_contains( esc_url( get_permalink( $pages['connexion'] ) ), $html, 'page connexion de Yume' );
+			yume_assert_contains( 'redirect_to=', $html );
+			yume_assert_contains( '%23commentaires', $html, 'retour sur les commentaires' );
+			yume_assert_contains( '#yn-inscription', $html );
+			yume_assert_not_contains( 'wp-login.php', $html );
+			yume_assert_not_contains( 'id="author"', $html, 'plus de champs anonymes' );
+			yume_assert_not_contains( 'id="email"', $html );
+			yume_assert_not_contains( '<textarea', $html );
+
+			wp_set_current_user( yume_factory_user() );
+			$html = $formulaire( $post_id );
+			yume_assert_contains( '<textarea', $html, 'formulaire pour un compte' );
+			yume_assert_contains( 'Connecté en tant que', $html );
+			yume_assert_not_contains( 'id="author"', $html );
+		}
+		wp_set_current_user( 0 );
+
+		// Inscriptions fermées : seulement « Connectez-vous pour commenter ».
+		update_option( 'users_can_register', 0 );
+		$html = $formulaire( $s['oeuvre'] );
+		yume_assert_contains( 'Connectez-vous</a> pour commenter.', $html );
+		yume_assert_not_contains( 'créez un compte', $html );
+
+		// Lien « Connectez-vous pour répondre » : page de connexion de Yume.
+		$lien = yume_theme_lien_reponse_connexion( '<a rel="nofollow" class="comment-reply-login" href="http://exemple.test/wp-login.php?redirect_to=x">Connectez-vous pour répondre</a>' );
+		yume_assert_contains( esc_url( get_permalink( $pages['connexion'] ) ), $lien );
+		yume_assert_not_contains( 'wp-login.php', $lien );
+
+		update_option( 'comment_registration', $avant );
+		update_option( 'users_can_register', $ouvert );
 	}
 );

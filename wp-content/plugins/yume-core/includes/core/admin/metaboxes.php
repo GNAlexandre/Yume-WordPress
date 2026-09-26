@@ -685,6 +685,8 @@ function enregistrer_planning( int $post_id ): void {
 	$origine = is_array( $origine ) ? $origine : null;
 
 	$changements = array();
+	$refus       = array();
+	$forcee      = null;
 	foreach ( $nouveau as $cle => $valeur ) {
 		if ( null !== $origine && array_key_exists( $cle, $origine ) && normaliser_planning( $cle, $origine[ $cle ] ) === $valeur ) {
 			continue; // Champ inchangé dans le formulaire.
@@ -696,21 +698,41 @@ function enregistrer_planning( int $post_id ): void {
 		// Désigner les responsables est réservé à yume_maj_planning_tous, et seulement parmi l'équipe.
 		if ( 'yume_responsables' === $cle ) {
 			if ( ! current_user_can( 'yume_maj_planning_tous' ) ) {
+				$refus[] = __( 'Responsables non modifiés : seuls les éditeurs et les gérants désignent les responsables d’un tome.', 'yume-core' );
 				continue;
 			}
 			foreach ( $valeur as $role => $uid ) {
 				if ( $uid && ! user_can( (int) $uid, 'yume_voir_equipe' ) ) {
 					$valeur[ $role ] = 0;
+					$refus[]         = sprintf(
+						/* translators: %s : nom du compte */
+						__( '%s ne fait pas partie de l’équipe : il n’a pas été désigné responsable.', 'yume-core' ),
+						get_the_author_meta( 'display_name', (int) $uid )
+					);
 				}
 			}
 			if ( $ancien === $valeur ) {
 				continue;
 			}
 		}
-		// Mêmes règles d'étape que l'espace équipe (« publié » suit la publication).
-		if ( 'yume_etape' === $cle && function_exists( '\\Yume\\Core\\Planning\\controler_etape' )
-			&& is_wp_error( \Yume\Core\Planning\controler_etape( $post_id, (string) $ancien, (string) $valeur, $user_id ) ) ) {
-			continue;
+		// Mêmes règles d'étape que l'espace équipe (« publié » suit la publication, étapes précédentes à 100 %).
+		if ( 'yume_etape' === $cle ) {
+			$controle = controler_etape_admin( $post_id, (string) $ancien, (string) $valeur, $user_id, $nouveau['yume_avancement'] );
+			if ( is_wp_error( $controle ) ) {
+				/* translators: %s : raison du refus */
+				$refus[] = sprintf( __( 'Étape non modifiée : %s', 'yume-core' ), $controle->get_error_message() );
+				continue;
+			}
+			if ( function_exists( '\\Yume\\Core\\Planning\\est_etape_forcee' )
+				&& \Yume\Core\Planning\est_etape_forcee( $post_id, (string) $ancien, (string) $valeur, $user_id, $nouveau['yume_avancement'] ) ) {
+				$forcee = array(
+					(string) $ancien,
+					array(
+						'etape'      => (string) $valeur,
+						'avancement' => $nouveau['yume_avancement'],
+					),
+				);
+			}
 		}
 		if ( 'yume_bloque' === $cle ) {
 			update_post_meta( $post_id, $cle, $valeur );
@@ -722,6 +744,9 @@ function enregistrer_planning( int $post_id ): void {
 			'nouveau' => $valeur,
 		);
 	}
+	if ( $refus ) {
+		noter_refus_planning( $user_id, $post_id, $refus );
+	}
 	if ( ! $changements ) {
 		return;
 	}
@@ -731,8 +756,163 @@ function enregistrer_planning( int $post_id ): void {
 		foreach ( $changements as $champ => $valeurs ) {
 			yume_journal_planning( $post_id, $user_id, $champ, $valeurs['ancien'], $valeurs['nouveau'] );
 		}
+		// Étape forcée par un administrateur ou un gérant (journal de l'équipe seulement).
+		if ( $forcee && isset( $changements['etape'] ) && function_exists( '\\Yume\\Core\\Planning\\journaliser' ) ) {
+			\Yume\Core\Planning\journaliser( $post_id, $user_id, 'etape_forcee', $forcee[0], $forcee[1], false );
+		}
 	}
 }
+
+/**
+ * Contrôle d'un changement d'étape saisi dans la méta-boîte : règles du module planning
+ * (controler_etape()). Un administrateur ou un gérant (peut_forcer_etape(), module planning)
+ * peut forcer une étape sans que les précédentes soient à 100 % ; les règles de l'étape
+ * « publié » restent appliquées.
+ *
+ * @param int               $post_id    Tome.
+ * @param string            $ancien     Étape actuelle.
+ * @param string            $nouveau    Étape demandée.
+ * @param int               $user_id    Auteur.
+ * @param array<string,int> $avancement Avancement saisi.
+ * @return true|\WP_Error
+ */
+function controler_etape_admin( int $post_id, string $ancien, string $nouveau, int $user_id, array $avancement ) {
+	if ( ! function_exists( '\\Yume\\Core\\Planning\\controler_etape' ) ) {
+		return true;
+	}
+	$controle = \Yume\Core\Planning\controler_etape( $post_id, $ancien, $nouveau, $user_id, $avancement );
+	if ( is_wp_error( $controle ) && 'yume_etape_prematuree' === $controle->get_error_code()
+		&& function_exists( '\\Yume\\Core\\Planning\\peut_forcer_etape' ) && \Yume\Core\Planning\peut_forcer_etape( $user_id ) ) {
+		// Étape forcée : seul le contrôle d'avancement est levé.
+		$controle = \Yume\Core\Planning\controler_etape( $post_id, $ancien, $nouveau, $user_id, array_fill_keys( array( 'traduction', 'relecture', 'edition' ), 100 ) );
+	}
+	return $controle;
+}
+
+/**
+ * Clé du transitoire des refus de la méta-boîte « Planning du tome » (par utilisateur).
+ *
+ * @param int $user_id Utilisateur.
+ */
+function cle_refus_planning( int $user_id ): string {
+	return 'yume_refus_planning_' . $user_id;
+}
+
+/**
+ * Mémorise les champs de planning refusés à l'enregistrement, affichés au rechargement
+ * (admin_notices) ou dans l'éditeur de blocs (avis après l'enregistrement des méta-boîtes).
+ *
+ * @param int      $user_id Utilisateur.
+ * @param int      $post_id Tome.
+ * @param string[] $refus   Messages.
+ */
+function noter_refus_planning( int $user_id, int $post_id, array $refus ): void {
+	$refus = array_values( array_unique( array_map( 'strval', $refus ) ) );
+	set_transient(
+		cle_refus_planning( $user_id ),
+		array(
+			'tome'     => $post_id,
+			'messages' => $refus,
+		),
+		10 * MINUTE_IN_SECONDS
+	);
+}
+
+/**
+ * Lit (et efface) les refus mémorisés pour un tome.
+ *
+ * @param int $user_id Utilisateur.
+ * @param int $post_id Tome (0 : n'importe lequel).
+ * @return string[]
+ */
+function lire_refus_planning( int $user_id, int $post_id = 0 ): array {
+	$refus = get_transient( cle_refus_planning( $user_id ) );
+	if ( ! is_array( $refus ) || ( $post_id && (int) ( $refus['tome'] ?? 0 ) !== $post_id ) ) {
+		return array();
+	}
+	delete_transient( cle_refus_planning( $user_id ) );
+	return array_map( 'strval', (array) ( $refus['messages'] ?? array() ) );
+}
+
+/**
+ * Avis d'administration (éditeur classique, après la redirection) : champs refusés.
+ */
+function avis_refus_planning(): void {
+	$ecran = get_current_screen();
+	if ( ! $ecran instanceof \WP_Screen || 'post' !== $ecran->base || CPT_TOME !== $ecran->post_type || $ecran->is_block_editor() ) {
+		return;
+	}
+	global $post;
+	$messages = $post instanceof \WP_Post ? lire_refus_planning( get_current_user_id(), (int) $post->ID ) : array();
+	foreach ( $messages as $message ) {
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+	}
+}
+add_action( 'admin_notices', __NAMESPACE__ . '\\avis_refus_planning' );
+
+/**
+ * Éditeur de blocs : les méta-boîtes sont enregistrées en arrière-plan, sans rechargement ;
+ * un petit script demande les refus (admin-ajax) une fois cet enregistrement terminé et les
+ * affiche comme avis de l'éditeur. Les refus d'un enregistrement précédent s'affichent aussi
+ * à l'ouverture (demandés de même : la page rechargée en arrière-plan après l'enregistrement
+ * des méta-boîtes ne doit pas les consommer).
+ */
+function script_refus_planning(): void {
+	$ecran = get_current_screen();
+	if ( ! $ecran instanceof \WP_Screen || CPT_TOME !== $ecran->post_type ) {
+		return;
+	}
+	global $post;
+	wp_register_script( 'yume-refus-planning', false, array( 'wp-data', 'wp-notices', 'wp-edit-post' ), YUME_CORE_VERSION, true );
+	wp_enqueue_script( 'yume-refus-planning' );
+	$config = array(
+		'ajax'  => admin_url( 'admin-ajax.php' ),
+		'nonce' => wp_create_nonce( 'yume_refus_planning' ),
+		'tome'  => $post instanceof \WP_Post ? (int) $post->ID : 0,
+	);
+	wp_add_inline_script(
+		'yume-refus-planning',
+		'( function ( config ) {
+	var data = window.wp && window.wp.data;
+	if ( ! data ) { return; }
+	function afficher( messages ) {
+		( messages || [] ).forEach( function ( message, i ) {
+			data.dispatch( "core/notices" ).createNotice( "error", message, { id: "yume-refus-planning-" + i, isDismissible: true } );
+		} );
+	}
+	function demander() {
+		var corps = new URLSearchParams( { action: "yume_refus_planning", tome: String( config.tome ), _ajax_nonce: config.nonce } );
+		window.fetch( config.ajax, { method: "POST", credentials: "same-origin", body: corps } )
+			.then( function ( r ) { return r.json(); } )
+			.then( function ( r ) { if ( r && r.success ) { afficher( r.data ); } } )
+			.catch( function () {} );
+	}
+	if ( config.tome ) { demander(); }
+	var enCours = false;
+	data.subscribe( function () {
+		var editeur = data.select( "core/edit-post" );
+		if ( ! editeur || ! editeur.isSavingMetaBoxes ) { return; }
+		var maintenant = editeur.isSavingMetaBoxes();
+		if ( enCours && ! maintenant ) { demander(); }
+		enCours = maintenant;
+	} );
+}( ' . wp_json_encode( $config ) . ' ) );'
+	);
+}
+add_action( 'enqueue_block_editor_assets', __NAMESPACE__ . '\\script_refus_planning' );
+
+/**
+ * Requête admin-ajax : refus mémorisés pour un tome (lus une seule fois).
+ */
+function ajax_refus_planning(): void {
+	check_ajax_referer( 'yume_refus_planning' );
+	$tome = isset( $_POST['tome'] ) ? absint( $_POST['tome'] ) : 0;
+	if ( ! $tome || ! current_user_can( 'edit_post', $tome ) ) {
+		wp_send_json_error( array(), 403 );
+	}
+	wp_send_json_success( lire_refus_planning( get_current_user_id(), $tome ) );
+}
+add_action( 'wp_ajax_yume_refus_planning', __NAMESPACE__ . '\\ajax_refus_planning' );
 
 /**
  * Méta-boîte latérale « Chapitres du tome ».

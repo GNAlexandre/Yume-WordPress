@@ -23,6 +23,9 @@ const META_ALERTES = 'yume_alertes';
 /** Méta utilisateur : changement d'adresse e-mail en attente de confirmation. */
 const META_EMAIL_ATTENTE = '_yume_email_en_attente';
 
+/** Méta utilisateur : jeton secret des liens de désabonnement en un clic (e-mails d'alerte). */
+const META_JETON_DESABO = '_yume_jeton_desabonnement';
+
 /** Fréquences d'alerte d'un favori. */
 const FREQUENCES = array( 'immediat', 'hebdo', 'jamais' );
 
@@ -786,6 +789,10 @@ function messages(): array {
 		'note-ok'                  => array( 'succes', __( 'Merci, votre note est enregistrée.', 'yume-core' ) ),
 		'note-retiree'             => array( 'succes', __( 'Votre note a été retirée.', 'yume-core' ) ),
 		'alerte-ok'                => array( 'succes', __( 'Alerte mise à jour.', 'yume-core' ) ),
+		'desabo-oeuvre'            => array( 'succes', __( 'C’est noté : vous ne recevrez plus d’alertes pour cette œuvre. Elle reste dans vos favoris.', 'yume-core' ) ),
+		'desabo-commentaires'      => array( 'succes', __( 'C’est noté : vous ne recevrez plus d’e-mail quand on répond à vos commentaires.', 'yume-core' ) ),
+		'desabo-tout'              => array( 'succes', __( 'C’est noté : vous ne recevrez plus aucun e-mail d’alerte de Yume Novel. Vous pouvez les réactiver à tout moment depuis votre compte.', 'yume-core' ) ),
+		'desabo-invalide'          => array( 'erreur', __( 'Ce lien de désabonnement n’est pas valide. Connectez-vous pour gérer vos alertes depuis votre compte.', 'yume-core' ) ),
 		'pas-favori'               => array( 'erreur', __( 'Ajoutez d’abord l’œuvre à vos favoris pour régler ses alertes.', 'yume-core' ) ),
 		'suppression-confirmation' => array( 'erreur', __( 'Pour supprimer votre compte, saisissez SUPPRIMER et votre mot de passe actuel.', 'yume-core' ) ),
 		'suppression-interdite'    => array( 'erreur', __( 'Les comptes de l’équipe et des administrateurs ne peuvent pas être supprimés depuis cette page.', 'yume-core' ) ),

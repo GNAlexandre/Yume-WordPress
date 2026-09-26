@@ -799,3 +799,15 @@
 		transition: none;
 	}
 }
+
+/* Confirmation d'un désabonnement par lien d'e-mail (rien n'est appliqué avant le bouton). */
+.yn-account .yn-desabo {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.yn-account .yn-desabo__texte,
+.yn-account .yn-desabo__formulaire {
+	margin: 0;
+}
