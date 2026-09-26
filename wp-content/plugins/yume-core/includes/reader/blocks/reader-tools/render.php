@@ -18,7 +18,9 @@ namespace Yume\Core\Reader;
 defined( 'ABSPATH' ) || exit;
 
 $yume_chapitre = chapitre_courant( $block ?? null );
-if ( ! $yume_chapitre ) {
+// Page « Illustrations » d'un tome : même barre, sans chapitre (ni suivi, ni marque-page).
+$yume_illus = $yume_chapitre ? 0 : tome_illustrations_courant();
+if ( ! $yume_chapitre && ! $yume_illus ) {
 	if ( apercu_editeur() ) {
 		printf(
 			'<div %1$s><p class="yn-muted yn-reader-tools__apercu">%2$s</p></div>',
@@ -29,7 +31,7 @@ if ( ! $yume_chapitre ) {
 	return;
 }
 
-$yume_config   = configuration( $yume_chapitre );
+$yume_config   = $yume_illus ? configuration_illustrations( $yume_illus ) : configuration( $yume_chapitre );
 $yume_oeuvre   = (int) $yume_config['oeuvre'];
 $yume_tome     = (int) $yume_config['tome'];
 $yume_url_tome = $yume_tome && 'publish' === get_post_status( $yume_tome ) ? (string) get_permalink( $yume_tome ) : '';
@@ -38,13 +40,18 @@ $yume_retour   = '' !== $yume_url_tome ? $yume_url_tome : $yume_url_oeu;
 $yume_nom_oeu  = $yume_oeuvre ? wp_strip_all_tags( get_the_title( $yume_oeuvre ) ) : '';
 $yume_lib_tome = $yume_tome && function_exists( 'yume_libelle_tome' ) ? yume_libelle_tome( $yume_tome ) : '';
 $yume_lib_ct   = $yume_tome && function_exists( 'yume_libelle_tome' ) ? yume_libelle_tome( $yume_tome, true ) : '';
-$yume_lib_chap = function_exists( 'yume_libelle_chapitre' ) ? yume_libelle_chapitre( $yume_chapitre ) : wp_strip_all_tags( get_the_title( $yume_chapitre ) );
-$yume_minutes  = (int) get_post_meta( $yume_chapitre, 'yume_temps_lecture', true );
+if ( $yume_illus ) {
+	$yume_lib_chap = __( 'Illustrations', 'yume-core' );
+	$yume_minutes  = 0;
+} else {
+	$yume_lib_chap = function_exists( 'yume_libelle_chapitre' ) ? yume_libelle_chapitre( $yume_chapitre ) : wp_strip_all_tags( get_the_title( $yume_chapitre ) );
+	$yume_minutes  = (int) get_post_meta( $yume_chapitre, 'yume_temps_lecture', true );
+}
 
 // Position du chapitre parmi les chapitres publiés du tome.
 $yume_rang  = 0;
 $yume_total = 0;
-if ( $yume_tome && function_exists( 'yume_get_chapitres' ) ) {
+if ( $yume_chapitre && $yume_tome && function_exists( 'yume_get_chapitres' ) ) {
 	$yume_ids   = array_map( 'intval', wp_list_pluck( yume_get_chapitres( $yume_tome ), 'ID' ) );
 	$yume_total = count( $yume_ids );
 	$yume_pos   = array_search( $yume_chapitre, $yume_ids, true );
@@ -60,6 +67,11 @@ if ( $yume_rang && $yume_total ) {
 if ( $yume_minutes > 0 ) {
 	/* translators: %d : durée de lecture en minutes. */
 	$yume_details .= '<span class="yn-reader-tools__duree"> · ' . esc_html( sprintf( __( '~%d min', 'yume-core' ), $yume_minutes ) ) . '</span>';
+}
+if ( $yume_illus && function_exists( 'yume_illustrations_tome' ) ) {
+	$yume_nb_illus = count( yume_illustrations_tome( $yume_illus ) );
+	/* translators: %d : nombre d'illustrations du tome. */
+	$yume_details .= '<span class="yn-reader-tools__rang"> · ' . esc_html( sprintf( _n( '%d planche', '%d planches', $yume_nb_illus, 'yume-core' ), $yume_nb_illus ) ) . '</span>';
 }
 
 // Illustration de l'œuvre en arrière-plan (réglage « Opacité du fond »).
@@ -86,7 +98,8 @@ if ( is_user_logged_in() ) {
 	/* translators: %s : pseudo du membre. */
 	$yume_lien_compte = '<a class="yn-reader-tools__compte yn-reader-tools__compte--membre" href="' . esc_url( $yume_url_compte ) . '" aria-label="' . esc_attr( sprintf( __( 'Mon compte (%s)', 'yume-core' ), $yume_nom_membre ) ) . '" title="' . esc_attr__( 'Mon compte', 'yume-core' ) . '"><span aria-hidden="true">' . esc_html( $yume_initiale ) . '</span></a>';
 } else {
-	$yume_url_cnx     = function_exists( '\Yume\Core\Social\url_connexion' ) ? \Yume\Core\Social\url_connexion( (string) get_permalink( $yume_chapitre ) ) : wp_login_url( (string) get_permalink( $yume_chapitre ) );
+	$yume_ici         = $yume_illus ? (string) $yume_config['url'] : (string) get_permalink( $yume_chapitre );
+	$yume_url_cnx     = function_exists( '\Yume\Core\Social\url_connexion' ) ? \Yume\Core\Social\url_connexion( $yume_ici ) : wp_login_url( $yume_ici );
 	$yume_lien_compte = '<a class="yn-btn yn-btn--primary yn-btn--sm yn-reader-tools__compte" href="' . esc_url( $yume_url_cnx ) . '">' . esc_html__( 'Connexion', 'yume-core' ) . '</a>';
 }
 
@@ -126,9 +139,11 @@ $yume_attributs = get_block_wrapper_attributes(
 						<span class="yn-visually-hidden"><?php echo esc_html( $yume_lib_tome ); ?></span>
 					</a>
 				<?php endif; ?>
-				<button type="button" class="yn-reader-tools__icone yn-reader-tools__js" data-yn-action="marque-page" aria-label="<?php esc_attr_e( 'Marque-page : enregistrer ma position', 'yume-core' ); ?>" title="<?php esc_attr_e( 'Marque-page : enregistrer ma position', 'yume-core' ); ?>">
-					<?php echo $yume_icone( '<path d="M6 3h12v18l-6-4-6 4z"></path>', 'yn-reader-tools__marque' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-				</button>
+				<?php if ( ! $yume_illus ) : ?>
+					<button type="button" class="yn-reader-tools__icone yn-reader-tools__js" data-yn-action="marque-page" aria-label="<?php esc_attr_e( 'Marque-page : enregistrer ma position', 'yume-core' ); ?>" title="<?php esc_attr_e( 'Marque-page : enregistrer ma position', 'yume-core' ); ?>">
+						<?php echo $yume_icone( '<path d="M6 3h12v18l-6-4-6 4z"></path>', 'yn-reader-tools__marque' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+					</button>
+				<?php endif; ?>
 				<button type="button" class="yn-reader-tools__icone yn-reader-tools__js" data-yn-action="theme" aria-label="<?php esc_attr_e( 'Changer le thème de lecture (Nuit, Papier, Sépia)', 'yume-core' ); ?>" title="<?php esc_attr_e( 'Changer le thème de lecture', 'yume-core' ); ?>">
 					<?php
 					// phpcs:disable WordPress.Security.EscapeOutput -- icônes constantes.
@@ -144,7 +159,7 @@ $yume_attributs = get_block_wrapper_attributes(
 				<?php echo $yume_lien_compte; // phpcs:ignore WordPress.Security.EscapeOutput -- échappé ci-dessus. ?>
 			</div>
 		</div>
-		<div class="yn-reader-tools__progression yn-bar yn-reader-tools__js" role="progressbar" aria-label="<?php esc_attr_e( 'Progression dans le chapitre', 'yume-core' ); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="<?php esc_attr_e( '0 % du chapitre', 'yume-core' ); ?>" data-yn-progression><span style="--v:0%"></span></div>
+		<div class="yn-reader-tools__progression yn-bar yn-reader-tools__js" role="progressbar" aria-label="<?php echo esc_attr( $yume_illus ? __( 'Progression dans les illustrations', 'yume-core' ) : __( 'Progression dans le chapitre', 'yume-core' ) ); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="<?php echo esc_attr( $yume_illus ? __( '0 % des illustrations', 'yume-core' ) : __( '0 % du chapitre', 'yume-core' ) ); ?>" data-yn-portee="<?php echo esc_attr( $yume_illus ? __( 'des illustrations', 'yume-core' ) : __( 'du chapitre', 'yume-core' ) ); ?>" data-yn-progression><span style="--v:0%"></span></div>
 		<div class="yn-reader-tools__reprise" data-yn-reprise hidden>
 			<p class="yn-reader-tools__reprise-texte" data-yn-reprise-texte></p>
 			<button type="button" class="yn-btn yn-btn--primary yn-btn--sm" data-yn-action="reprendre"></button>

@@ -426,7 +426,7 @@ function ligne_tome( \WP_Post $tome, string $oeuvre ): string {
 		'classes' => array( 'yn-tome-list__ligne' ),
 		'nom'     => $nom,
 		'details' => array_values( $details ),
-		'lire'    => bouton_lire( (int) $stats['premier'], __( 'Lire en ligne', 'yume-core' ), $contexte ),
+		'lire'    => bouton_commencer( $id, (int) $stats['premier'], __( 'Lire en ligne', 'yume-core' ), $contexte ),
 	);
 	/**
 	 * Filtre une ligne de la liste des tomes (ex. progression du lecteur : « Reprendre »,
@@ -549,29 +549,101 @@ function rendu_tome_list( array $attributs = array(), $bloc = null ): string {
  */
 
 /**
+ * Légende d'une illustration (texte brut, vide si aucune).
+ *
+ * @param int $image_id Pièce jointe.
+ */
+function legende_illustration( int $image_id ): string {
+	return trim( wp_strip_all_tags( (string) wp_get_attachment_caption( $image_id ) ) );
+}
+
+/**
+ * Texte alternatif d'une illustration : celui de la médiathèque, sinon « Illustration N — Œuvre, Tome 9 ».
+ *
+ * @param int    $image_id Pièce jointe.
+ * @param int    $numero   Rang de l'illustration (à partir de 1).
+ * @param string $contexte Œuvre et tome.
+ */
+function alt_illustration( int $image_id, int $numero, string $contexte ): string {
+	$alt = trim( wp_strip_all_tags( (string) get_post_meta( $image_id, '_wp_attachment_image_alt', true ) ) );
+	if ( '' === $alt ) {
+		/* translators: 1 : numéro de l'illustration, 2 : œuvre et tome. */
+		$alt = sprintf( __( 'Illustration %1$d — %2$s', 'yume-core' ), $numero, $contexte );
+	}
+	return $alt;
+}
+
+/**
+ * Le membre connecté a-t-il une position de lecture enregistrée dans ce tome ? (Un visiteur
+ * n'a de position que dans son navigateur : voir bouton_commencer().)
+ *
+ * @param int $tome_id Tome.
+ */
+function lecture_dans_tome( int $tome_id ): bool {
+	$user_id = get_current_user_id();
+	if ( $user_id <= 0 || ! function_exists( 'yume_get_progression' ) || ! function_exists( 'yume_get_oeuvre_id' ) ) {
+		return false;
+	}
+	foreach ( yume_get_progression( $user_id, yume_get_oeuvre_id( $tome_id ) ) as $ligne ) {
+		if ( (int) ( $ligne['tome_id'] ?? 0 ) === $tome_id ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Bouton « Commencer la lecture » / « Lire en ligne » d'un tome : il ouvre la page
+ * Illustrations quand le tome en a une et que le lecteur n'a pas encore de position dans ce
+ * tome, sinon le premier chapitre. Pour un visiteur (position dans localStorage), le script
+ * debut-lecture.js ramène le lien au premier chapitre si yn.progression désigne ce tome.
+ *
+ * @param int    $tome_id   Tome.
+ * @param int    $premier   Premier chapitre publié du tome.
+ * @param string $texte     Texte visible.
+ * @param string $precision Précision pour les lecteurs d'écran.
+ * @param bool   $petit     Bouton compact.
+ */
+function bouton_commencer( int $tome_id, int $premier, string $texte, string $precision = '', bool $petit = true ): string {
+	$chapitre      = $premier ? lien_public( $premier ) : '';
+	$illustrations = '' !== $chapitre && function_exists( 'yume_url_illustrations' ) ? yume_url_illustrations( $tome_id ) : '';
+	if ( '' === $illustrations || lecture_dans_tome( $tome_id ) ) {
+		return '' !== $chapitre ? bouton_lire_url( $chapitre, $texte, $precision, $petit ) : '';
+	}
+	if ( wp_script_is( 'yume-debut-lecture', 'registered' ) ) {
+		wp_enqueue_script( 'yume-debut-lecture' );
+	}
+	return bouton_lire_url(
+		$illustrations,
+		$texte,
+		$precision,
+		$petit,
+		array(
+			'data-yn-debut-chapitre' => $chapitre,
+			'data-yn-debut-tome'     => (string) $tome_id,
+			'data-yn-debut-oeuvre'   => (string) ( function_exists( 'yume_get_oeuvre_id' ) ? yume_get_oeuvre_id( $tome_id ) : 0 ),
+		)
+	);
+}
+
+/**
  * Galerie des illustrations d'un tome (légendes, lien vers l'image en grand).
  *
  * @param int    $tome_id  ID du tome.
  * @param string $contexte Œuvre et tome (textes alternatifs).
  */
 function galerie_tome( int $tome_id, string $contexte ): string {
-	$ids = array_values( array_unique( array_filter( array_map( 'absint', (array) get_post_meta( $tome_id, 'yume_illustrations', true ) ) ) ) );
-	$ids = array_values( array_filter( $ids, 'wp_attachment_is_image' ) );
+	$ids = yume_illustrations_tome( $tome_id );
 	if ( ! $ids ) {
 		return '';
 	}
-	_prime_post_caches( $ids, false, true );
 	$items = '';
 	foreach ( $ids as $rang => $image_id ) {
 		$numero  = $rang + 1;
-		$legende = trim( wp_strip_all_tags( (string) wp_get_attachment_caption( $image_id ) ) );
-		$alt     = trim( wp_strip_all_tags( (string) get_post_meta( $image_id, '_wp_attachment_image_alt', true ) ) );
-		if ( '' === $alt ) {
-			/* translators: 1 : numéro de l'illustration, 2 : œuvre et tome. */
-			$alt = sprintf( __( 'Illustration %1$d — %2$s', 'yume-core' ), $numero, $contexte );
-		}
-		$grande = wp_get_attachment_image_url( $image_id, 'full' );
-		$image  = (string) wp_get_attachment_image(
+		$legende = legende_illustration( $image_id );
+		$alt     = alt_illustration( $image_id, $numero, $contexte );
+		$grande  = wp_get_attachment_image_url( $image_id, 'full' );
+		$image   = (string) wp_get_attachment_image(
 			$image_id,
 			'medium_large',
 			false,
@@ -582,8 +654,8 @@ function galerie_tome( int $tome_id, string $contexte ): string {
 				'sizes'   => '(min-width: 1000px) 240px, 45vw',
 			)
 		);
-		$items .= '<li class="yn-galerie__item"><figure class="yn-galerie__figure">';
-		$items .= is_string( $grande ) && '' !== $grande
+		$items  .= '<li class="yn-galerie__item"><figure class="yn-galerie__figure">';
+		$items  .= is_string( $grande ) && '' !== $grande
 			? '<a class="yn-galerie__lien" href="' . esc_url( $grande ) . '">' . $image . '<span class="yn-visually-hidden"> ' . esc_html__( '(voir l’image en grand)', 'yume-core' ) . '</span></a>'
 			: $image;
 		/* translators: %d : numéro de l'illustration. */
@@ -669,7 +741,7 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
 
 	$lire = '';
 	if ( ! empty( $stats['premier'] ) ) {
-		$lire = bouton_lire( (int) $stats['premier'], __( 'Commencer la lecture', 'yume-core' ), $contexte, false );
+		$lire = bouton_commencer( $tome_id, (int) $stats['premier'], __( 'Commencer la lecture', 'yume-core' ), $contexte, false );
 	}
 	$actions = $lire . boutons_telechargement( $tome_id, $contexte, false );
 	if ( '' !== $lien_oeu ) {
@@ -767,12 +839,28 @@ function rendu_tome_toc( array $attributs = array(), $bloc = null ): string {
 	}
 	$html .= '</div>';
 
+	// Page Illustrations (planches avant le chapitre 1) : première entrée du sommaire.
+	$illustrations = yume_url_illustrations( $tome_id );
+	$entree_illus  = '';
+	if ( '' !== $illustrations ) {
+		$nombre       = count( yume_illustrations_tome( $tome_id ) );
+		$actuel       = tome_illustrations_contexte( $bloc ) === $tome_id;
+		$entree_illus = '<li class="yn-toc__item yn-toc__item--illustrations' . ( $actuel ? ' is-current' : '' ) . '"><a class="yn-toc__lien" href="' . esc_url( $illustrations ) . '"' . ( $actuel ? ' aria-current="page"' : '' ) . '>'
+			. '<span class="yn-toc__numero">' . esc_html__( 'Illustrations', 'yume-core' ) . '</span>'
+			/* translators: %s : nombre d'illustrations. */
+			. '<span class="yn-toc__sous-titre">' . esc_html( sprintf( _n( '%s planche', '%s planches', $nombre, 'yume-core' ), nombre_fr( $nombre ) ) ) . '</span>'
+			. '<span class="yn-toc__duree yn-muted"></span></a></li>';
+	}
+
 	if ( ! $liste ) {
+		if ( '' !== $entree_illus ) {
+			$html .= '<ol class="yn-card yn-toc__liste">' . $entree_illus . '</ol>';
+		}
 		$html .= '<p class="yn-card yn-toc__vide yn-muted">' . esc_html__( 'Aucun chapitre en ligne pour ce tome.', 'yume-core' ) . '</p>';
 		return $html . '</nav>';
 	}
 
-	$html .= '<ol class="yn-card yn-toc__liste">';
+	$html .= '<ol class="yn-card yn-toc__liste">' . $entree_illus;
 	foreach ( $liste as $chapitre ) {
 		$cid        = (int) $chapitre->ID;
 		$libelle    = libelle_chapitre( $cid );

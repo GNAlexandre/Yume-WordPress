@@ -320,10 +320,10 @@ function yume_tl_noeud( array $document, string $type ): array {
  */
 
 yume_tl_test(
-	'enregistre les 12 blocs du module (apiVersion 3, catégorie yume, rendu serveur, style)',
+	'enregistre les 13 blocs du module (apiVersion 3, catégorie yume, rendu serveur, style)',
 	static function () {
 		$registre = WP_Block_Type_Registry::get_instance();
-		foreach ( array( 'library-menu', 'banner', 'latest-releases', 'library-grid', 'oeuvre-header', 'oeuvre-infos', 'tome-list', 'tome-header', 'tome-toc', 'chapter-header', 'chapter-nav', 'partenaires' ) as $nom ) {
+		foreach ( array( 'library-menu', 'banner', 'latest-releases', 'library-grid', 'oeuvre-header', 'oeuvre-infos', 'tome-list', 'tome-header', 'tome-toc', 'chapter-header', 'chapter-nav', 'tome-illustrations', 'partenaires' ) as $nom ) {
 			$type = $registre->get_registered( 'yume/' . $nom );
 			yume_assert_true( $type instanceof WP_Block_Type, 'yume/' . $nom . ' enregistré' );
 			yume_assert_same( 'yume', $type->category, 'catégorie de ' . $nom );
@@ -965,7 +965,8 @@ yume_tl_test(
 		yume_assert_contains( '<dt class="yn-label">Traduction</dt><dd>Calumi</dd>', $html );
 		yume_assert_not_contains( '<dt class="yn-label">Édition</dt>', $html, 'rôle vide omis' );
 		yume_assert_contains( 'Équivaut au tome 9 de l’édition anglaise.', $html );
-		yume_assert_contains( 'href="' . esc_url( get_permalink( $c1 ) ) . '">Commencer la lecture', $html );
+		yume_assert_contains( 'href="' . esc_url( yume_url_illustrations( $tome ) ) . '" data-yn-debut-chapitre="' . esc_attr( get_permalink( $c1 ) ) . '"', $html, 'galerie : la lecture commence par la page Illustrations' );
+		yume_assert_contains( '>Commencer la lecture', $html );
 		yume_assert_contains( 'href="https://www.clictune.com/pdf9" target="_blank" rel="noopener">PDF', $html );
 		yume_assert_contains( 'href="https://www.clictune.com/epub9" target="_blank" rel="noopener">EPUB', $html );
 		yume_assert_contains( 'Fiche de l’œuvre', $html );
@@ -1743,5 +1744,185 @@ yume_test(
 			)
 		);
 		yume_assert_contains( 'yn-partenaire__monogramme', yume_tl_rendu( 'partenaires' ) );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Page « Illustrations » d'un tome
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Tome 1 illustré (galerie de trois planches) et ses trois chapitres, puis un tome 2 sans galerie.
+ *
+ * @return array{o:int,t1:int,t2:int,c:int[],d:int[],i:int[]}
+ */
+function yume_tl_illustre(): array {
+	flush_rewrite_rules( false );
+	$o  = yume_tl_oeuvre( 'Les Lanternes' );
+	$i  = array(
+		yume_tl_image( 'planche-1.jpg', '', 'Frontispice' ),
+		yume_tl_image( 'planche-2.jpg', 'Mira sur le toit' ),
+		yume_tl_image( 'planche-3.jpg' ),
+	);
+	$t1 = yume_tl_tome( $o, 1, array( 'meta_input' => array( 'yume_illustrations' => $i ) ) );
+	$t2 = yume_tl_tome( $o, 2 );
+	return array(
+		'o'  => $o,
+		't1' => $t1,
+		't2' => $t2,
+		'c'  => array( yume_tl_chapitre( $t1, 1 ), yume_tl_chapitre( $t1, 2 ), yume_tl_chapitre( $t1, 3 ) ),
+		'd'  => array( yume_tl_chapitre( $t2, 1 ), yume_tl_chapitre( $t2, 2 ) ),
+		'i'  => $i,
+	);
+}
+
+/**
+ * Place la requête principale sur la page Illustrations d'un tome.
+ *
+ * @param int $tome_id Tome.
+ */
+function yume_tl_aller_illustrations( int $tome_id ): void {
+	global $wp_query, $wp_the_query, $post;
+	// phpcs:disable WordPress.WP.GlobalVariablesOverride -- restaurées par yume_tl_test().
+	$wp_query     = new WP_Query(
+		array(
+			'p'                       => $tome_id,
+			'post_type'               => 'yume_tome',
+			'yume_page_illustrations' => 1,
+		)
+	);
+	$wp_the_query = $wp_query;
+	$post         = get_post( $tome_id );
+	// phpcs:enable
+}
+
+yume_tl_test(
+	'page Illustrations : en-tête, planches (grande taille, chargement différé, légendes, alt, image en grand), Commencer la lecture',
+	static function () {
+		$s = yume_tl_illustre();
+		yume_assert_same( '', yume_tl_rendu( 'tome-illustrations' ), 'sans contexte : rien' );
+		yume_assert_same( '', yume_tl_rendu( 'tome-illustrations', array(), $s['t2'] ), 'tome sans galerie : rien' );
+
+		yume_tl_aller_illustrations( $s['t1'] );
+		$url = yume_url_illustrations( $s['t1'] );
+		yume_assert_true( '' !== $url );
+
+		$entete = yume_tl_rendu( 'chapter-header', array(), $s['t1'] );
+		yume_assert_contains( 'class="yn-chapter-header yn-chapter-header--illustrations wp-block-yume-chapter-header"', $entete );
+		yume_assert_contains( '<h1 class="yn-chapter-header__titre">Illustrations</h1><p class="yn-subtitle">Tome 1</p>', $entete );
+		yume_assert_contains( '>Les Lanternes</a>', $entete, 'fil d’Ariane : œuvre' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $s['t1'] ) ) . '">Tome 1</a>', $entete, 'fil d’Ariane : tome' );
+		yume_assert_contains( 'aria-current="page"><span>Illustrations</span>', $entete );
+		yume_assert_contains( '3 illustrations', $entete );
+
+		$planches = yume_tl_rendu( 'tome-illustrations', array(), $s['t1'] );
+		yume_assert_true( 0 === strpos( $planches, '<div class="yn-tome-illustrations wp-block-yume-tome-illustrations">' ), $planches );
+		yume_assert_same( 3, yume_tl_compte( '<figure class="yn-illustration yn-tome-illustrations__planche"', $planches ) );
+		yume_assert_true( strpos( $planches, 'planche-1.jpg' ) < strpos( $planches, 'planche-2.jpg' ) && strpos( $planches, 'planche-2.jpg' ) < strpos( $planches, 'planche-3.jpg' ), 'ordre de lecture' );
+		yume_assert_same( 1, yume_tl_compte( 'loading="eager"', $planches ), 'première planche chargée tout de suite' );
+		yume_assert_same( 2, yume_tl_compte( 'loading="lazy"', $planches ), 'les suivantes en différé' );
+		yume_assert_contains( 'alt="Illustration 1 — Les Lanternes, Tome 1"', $planches, 'alt de repli, comme la galerie' );
+		yume_assert_contains( 'alt="Mira sur le toit"', $planches );
+		yume_assert_contains( '<figcaption>Frontispice</figcaption>', $planches );
+		yume_assert_same( 1, yume_tl_compte( '<figcaption>', $planches ), 'légende seulement si elle existe' );
+		yume_assert_contains( '<a class="yn-tome-illustrations__lien" href="' . esc_url( wp_get_attachment_url( $s['i'][1] ) ) . '">', $planches, 'lien vers l’image en grand' );
+
+		$nav = yume_tl_rendu( 'chapter-nav', array(), $s['t1'] );
+		yume_assert_contains( 'yn-chapter-nav--illustrations', $nav );
+		yume_assert_contains( 'rel="next" href="' . esc_url( get_permalink( $s['c'][0] ) ) . '"', $nav );
+		yume_assert_contains( 'Commencer la lecture<span aria-hidden="true"> · </span><span class="yn-visually-hidden"> : </span>Chapitre 1', $nav );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $s['t1'] ) ) . '">', $nav, 'Sommaire du tome' );
+		yume_assert_not_contains( 'rel="prev"', $nav );
+
+		// La galerie de la page du tome reste en place.
+		yume_tl_aller( $s['t1'] );
+		$fiche = yume_tl_rendu( 'tome-header', array(), $s['t1'] );
+		yume_assert_contains( 'Illustrations <span class="yn-muted">(3)</span>', $fiche );
+		yume_assert_same( '', yume_tl_rendu( 'chapter-header', array(), $s['t1'] ), 'page du tome : pas d’en-tête de lecture' );
+	}
+);
+
+yume_tl_test(
+	'page Illustrations : « précédent » du chapitre 1 (et rel=prev), les autres chapitres inchangés',
+	static function () {
+		$s   = yume_tl_illustre();
+		$url = yume_url_illustrations( $s['t1'] );
+
+		$nav = yume_tl_rendu( 'chapter-nav', array(), $s['c'][0] );
+		yume_assert_contains( 'rel="prev" href="' . esc_url( $url ) . '"', $nav, 'chapitre 1 → Illustrations' );
+		yume_assert_contains( '<span class="yn-visually-hidden">Page précédente : </span>Illustrations', $nav );
+		yume_assert_contains( '<link rel="prev" href="' . esc_url( $url ) . '" />', balises_voisins( $s['c'][0] ) );
+
+		$nav = yume_tl_rendu( 'chapter-nav', array(), $s['c'][1] );
+		yume_assert_contains( 'rel="prev" href="' . esc_url( get_permalink( $s['c'][0] ) ) . '"', $nav, 'chapitre 2 → chapitre 1' );
+
+		// Tome 2 sans galerie : son chapitre 1 revient au dernier chapitre du tome 1.
+		$nav = yume_tl_rendu( 'chapter-nav', array(), $s['d'][0] );
+		yume_assert_contains( 'rel="prev" href="' . esc_url( get_permalink( $s['c'][2] ) ) . '"', $nav );
+		yume_assert_not_contains( '/illustrations/', $nav );
+
+		// Galerie ajoutée au tome 2 : le chapitre 1 du tome 2 est précédé de ses illustrations.
+		update_post_meta( $s['t2'], 'yume_illustrations', array( $s['i'][2] ) );
+		$nav = yume_tl_rendu( 'chapter-nav', array(), $s['d'][0] );
+		yume_assert_contains( 'rel="prev" href="' . esc_url( yume_url_illustrations( $s['t2'] ) ) . '"', $nav );
+	}
+);
+
+yume_tl_test(
+	'page Illustrations : première entrée du sommaire du tome',
+	static function () {
+		$s    = yume_tl_illustre();
+		$url  = yume_url_illustrations( $s['t1'] );
+		$html = yume_tl_rendu( 'tome-toc', array(), $s['t1'] );
+		yume_assert_contains( '<li class="yn-toc__item yn-toc__item--illustrations"><a class="yn-toc__lien" href="' . esc_url( $url ) . '"><span class="yn-toc__numero">Illustrations</span><span class="yn-toc__sous-titre">3 planches</span>', $html );
+		yume_assert_true( strpos( $html, 'yn-toc__item--illustrations' ) < strpos( $html, esc_url( get_permalink( $s['c'][0] ) ) ), 'avant le chapitre 1' );
+		yume_assert_same( 4, yume_tl_compte( '<li class="yn-toc__item', $html ) );
+		yume_assert_not_contains( 'yn-toc__item--illustrations', yume_tl_rendu( 'tome-toc', array(), $s['t2'] ), 'tome sans galerie' );
+
+		// Sur la page Illustrations, l'entrée est la page courante.
+		yume_tl_aller_illustrations( $s['t1'] );
+		yume_assert_contains( 'yn-toc__item--illustrations is-current"><a class="yn-toc__lien" href="' . esc_url( $url ) . '" aria-current="page">', yume_tl_rendu( 'tome-toc', array(), $s['t1'] ) );
+	}
+);
+
+yume_tl_test(
+	'page Illustrations : « Commencer la lecture » / « Lire en ligne » y mènent sans position dans le tome',
+	static function () {
+		if ( ! function_exists( 'Yume\Core\Reader\enregistrer_progression' ) ) {
+			return;
+		}
+		$s   = yume_tl_illustre();
+		$url = yume_url_illustrations( $s['t1'] );
+		$c1  = esc_url( get_permalink( $s['c'][0] ) );
+
+		$fiche = yume_tl_rendu( 'tome-header', array(), $s['t1'] );
+		yume_assert_contains( 'href="' . esc_url( $url ) . '" data-yn-debut-chapitre="' . $c1 . '" data-yn-debut-tome="' . $s['t1'] . '" data-yn-debut-oeuvre="' . $s['o'] . '">Commencer la lecture', $fiche, 'visiteur' );
+		yume_assert_true( wp_script_is( 'yume-debut-lecture', 'enqueued' ), 'script des positions locales' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $s['d'][0] ) ) . '">Commencer la lecture', yume_tl_rendu( 'tome-header', array(), $s['t2'] ), 'tome sans galerie : chapitre 1' );
+		$liste = yume_tl_rendu( 'tome-list', array(), $s['o'] );
+		yume_assert_contains( 'href="' . esc_url( $url ) . '" data-yn-debut-chapitre="' . $c1 . '"', $liste, 'ligne du tome 1 : Lire en ligne → Illustrations' );
+
+		// Membre sans position : Illustrations ; position dans le tome 2 : tome 1 toujours par les illustrations.
+		$u = yume_factory_user();
+		wp_set_current_user( $u );
+		yume_assert_contains( 'href="' . esc_url( $url ) . '"', yume_tl_rendu( 'tome-header', array(), $s['t1'] ) );
+		\Yume\Core\Reader\enregistrer_progression( $u, $s['d'][0], 4, 30 );
+		wp_cache_flush();
+		yume_assert_contains( 'href="' . esc_url( $url ) . '"', yume_tl_rendu( 'tome-header', array(), $s['t1'] ), 'position dans un autre tome' );
+
+		// Position dans le tome 1 : le bouton ouvre le premier chapitre (les reprises gardent leur ancre).
+		\Yume\Core\Reader\enregistrer_progression( $u, $s['c'][1], 7, 40 );
+		wp_cache_flush();
+		$fiche = yume_tl_rendu( 'tome-header', array(), $s['t1'] );
+		yume_assert_contains( 'href="' . $c1 . '">Commencer la lecture', $fiche );
+		yume_assert_not_contains( 'data-yn-debut', $fiche );
+		if ( has_filter( 'yume_bibliotheque_ligne_tome' ) ) {
+			$liste = yume_tl_rendu( 'tome-list', array(), $s['o'] );
+			yume_assert_contains( esc_url( get_permalink( $s['c'][1] ) . '#yn-p-8' ) . '">Reprendre', $liste, 'Reprendre : chapitre et ancre' );
+			yume_assert_not_contains( '/illustrations/', $liste );
+		}
+		wp_set_current_user( 0 );
 	}
 );

@@ -49,6 +49,24 @@ function chapitre_courant( $bloc = null ): int {
 }
 
 /**
+ * Tome dont la requête principale affiche la page « Illustrations », ou 0.
+ */
+function tome_illustrations_courant(): int {
+	if ( ! function_exists( 'yume_est_page_illustrations' ) || ! yume_est_page_illustrations() ) {
+		return 0;
+	}
+	$id = (int) get_queried_object_id();
+	return 'yume_tome' === get_post_type( $id ) ? $id : 0;
+}
+
+/**
+ * La page affichée est-elle une page de lecture (chapitre ou page Illustrations d'un tome) ?
+ */
+function page_de_lecture(): bool {
+	return is_singular( 'yume_chapitre' ) || tome_illustrations_courant() > 0;
+}
+
+/**
  * Polices : slug => pile CSS (pour les scripts).
  *
  * @return array<string,string>
@@ -90,15 +108,17 @@ function configuration( int $chapitre_id ): array {
 	$tome_id   = function_exists( 'yume_get_tome_id' ) ? yume_get_tome_id( $chapitre_id ) : 0;
 	$prev      = function_exists( 'yume_chapitre_voisin' ) ? yume_chapitre_voisin( $chapitre_id, 'prev' ) : null;
 	$next      = function_exists( 'yume_chapitre_voisin' ) ? yume_chapitre_voisin( $chapitre_id, 'next' ) : null;
-	$membre    = donnees_membre( $oeuvre_id );
-	$connecte  = is_user_logged_in();
+	// Premier chapitre d'un tome qui a une page Illustrations : ← y ramène.
+	$illus    = function_exists( 'yume_url_illustrations_avant' ) ? yume_url_illustrations_avant( $chapitre_id ) : '';
+	$membre   = donnees_membre( $oeuvre_id );
+	$connecte = is_user_logged_in();
 	return array(
 		'chapitre'    => $chapitre_id,
 		'tome'        => $tome_id,
 		'oeuvre'      => $oeuvre_id,
 		'titre'       => titre_position( $chapitre_id ),
 		'url'         => (string) get_permalink( $chapitre_id ),
-		'prev'        => $prev ? (string) get_permalink( $prev ) : '',
+		'prev'        => '' !== $illus ? $illus : ( $prev ? (string) get_permalink( $prev ) : '' ),
 		'next'        => $next ? (string) get_permalink( $next ) : '',
 		'connecte'    => $connecte,
 		'rest'        => $connecte ? esc_url_raw( rest_url( REST_NS . '/' ) ) : '',
@@ -113,12 +133,45 @@ function configuration( int $chapitre_id ): array {
 }
 
 /**
- * Script en ligne (en-tête des pages de chapitre, juste après celui du thème) : applique les
- * réglages mémorisés avant le premier rendu, sans attendre le script de la barre. Pour un
- * membre, les réglages du compte l'emportent et sont recopiés dans le stockage local.
+ * Configuration du script de la barre de lecture sur la page « Illustrations » d'un tome :
+ * aucun chapitre (chapitre = 0) donc aucun suivi de lecture ni marque-page — la position
+ * enregistrée du lecteur n'est jamais remplacée —, → ouvre le premier chapitre du tome.
+ *
+ * @param int $tome_id Tome.
+ * @return array<string,mixed>
+ */
+function configuration_illustrations( int $tome_id ): array {
+	$oeuvre_id = function_exists( 'yume_get_oeuvre_id' ) ? yume_get_oeuvre_id( $tome_id ) : 0;
+	$chapitres = function_exists( 'yume_get_chapitres' ) ? yume_get_chapitres( $tome_id ) : array();
+	$membre    = donnees_membre( $oeuvre_id );
+	$connecte  = is_user_logged_in();
+	return array(
+		'chapitre'    => 0,
+		'tome'        => $tome_id,
+		'oeuvre'      => $oeuvre_id,
+		'titre'       => __( 'Illustrations', 'yume-core' ),
+		'url'         => function_exists( 'yume_url_illustrations' ) ? yume_url_illustrations( $tome_id ) : '',
+		'prev'        => '',
+		'next'        => $chapitres ? (string) get_permalink( $chapitres[0] ) : '',
+		'connecte'    => $connecte,
+		'rest'        => $connecte ? esc_url_raw( rest_url( REST_NS . '/' ) ) : '',
+		'nonce'       => $connecte ? wp_create_nonce( 'wp_rest' ) : '',
+		'progression' => $membre['progression'],
+		'reglages'    => $membre['reglages'],
+		'defauts'     => defauts_reglages(),
+		'bornes'      => bornes_reglages(),
+		'polices'     => piles_polices(),
+		'themes'      => libelles_themes(),
+	);
+}
+
+/**
+ * Script en ligne (en-tête des pages de lecture : chapitres et page Illustrations, juste après
+ * celui du thème) : applique les réglages mémorisés avant le premier rendu, sans attendre le
+ * script de la barre. Pour un membre, les réglages du compte l'emportent et sont recopiés dans le stockage local.
  */
 function script_initialisation(): void {
-	if ( ! is_singular( 'yume_chapitre' ) ) {
+	if ( ! page_de_lecture() ) {
 		return;
 	}
 	$serveur = reglages_enregistres( get_current_user_id() );
@@ -151,12 +204,12 @@ add_action( 'wp_head', __NAMESPACE__ . '\\script_initialisation', 1 );
  * Hors chapitre, pour un membre : le thème choisi avec la bascule de l'en-tête (événement
  * « yn:theme » du thème) est aussi enregistré sur le compte. Sinon, le thème du compte,
  * imposé à l'ouverture d'un chapitre (script_initialisation), annulerait ce choix partout.
- * Sur un chapitre, la barre de lecture s'en charge déjà. Un compte encore sans réglages reçoit
+ * Sur une page de lecture, la barre de lecture s'en charge déjà. Un compte encore sans réglages reçoit
  * le jeu complet de l'appareil (yn.reglages), pour que le serveur ne le complète pas avec les
  * valeurs par défaut.
  */
 function script_theme_membre(): void {
-	if ( ! is_user_logged_in() || is_admin() || is_singular( 'yume_chapitre' ) ) {
+	if ( ! is_user_logged_in() || is_admin() || page_de_lecture() ) {
 		return;
 	}
 	$donnees = array(

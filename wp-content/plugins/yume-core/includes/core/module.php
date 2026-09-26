@@ -17,6 +17,7 @@ require_once __DIR__ . '/api.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/content.php';
 require_once __DIR__ . '/routing.php';
+require_once __DIR__ . '/illustrations.php';
 require_once __DIR__ . '/visibility.php';
 require_once __DIR__ . '/meta.php';
 require_once __DIR__ . '/cache.php';

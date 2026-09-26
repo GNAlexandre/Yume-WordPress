@@ -188,13 +188,28 @@ function boutons_telechargement( int $tome_id, string $contexte, bool $petit = t
  */
 function bouton_lire( int $chapitre_id, string $texte, string $precision = '', bool $petit = true ): string {
 	$url = $chapitre_id ? lien_public( $chapitre_id ) : '';
-	if ( '' === $url ) {
-		return '';
+	return '' !== $url ? bouton_lire_url( $url, $texte, $precision, $petit ) : '';
+}
+
+/**
+ * Bouton de lecture en ligne vers une adresse donnée.
+ *
+ * @param string               $url       Adresse.
+ * @param string               $texte     Texte visible.
+ * @param string               $precision Précision pour les lecteurs d'écran.
+ * @param bool                 $petit     Bouton compact.
+ * @param array<string,string> $donnees   Attributs data-* supplémentaires (nom => valeur).
+ */
+function bouton_lire_url( string $url, string $texte, string $precision = '', bool $petit = true, array $donnees = array() ): string {
+	$extra = '';
+	foreach ( $donnees as $nom => $valeur ) {
+		$extra .= ' ' . esc_attr( (string) $nom ) . '="' . esc_attr( (string) $valeur ) . '"';
 	}
 	return sprintf(
-		'<a class="%1$s" href="%2$s">%3$s%4$s</a>',
+		'<a class="%1$s" href="%2$s"%3$s>%4$s%5$s</a>',
 		esc_attr( 'yn-btn yn-btn--primary' . ( $petit ? ' yn-btn--sm' : '' ) . ' yn-lire' ),
 		esc_url( $url ),
+		$extra,
 		esc_html( $texte ),
 		'' !== $precision ? '<span class="yn-visually-hidden"> — ' . esc_html( $precision ) . '</span>' : ''
 	);

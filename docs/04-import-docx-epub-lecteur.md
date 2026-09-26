@@ -78,6 +78,30 @@ avertissements) et l'éditeur peut **prévisualiser chaque chapitre** avant de p
 Sans JavaScript, tout ce qui précède s'affiche. Le JS ajoute : panneau de réglages, marque-page,
 raccourcis clavier (←/→ chapitres, `s` réglages), bascule de thème, sauvegarde de progression.
 
+### 4.1 bis Page « Illustrations » `/lire/{oeuvre}/{tome}/illustrations/`
+
+Les images placées **avant le premier chapitre** du DOCX / EPUB (`front_images`) forment la galerie du tome
+(`yume_illustrations`, affichée sur la page du tome). Elles ont aussi leur page de lecture, avant le
+chapitre 1, comme les planches couleur d'un light novel imprimé :
+
+```
+[Barre : ◀ Œuvre · Tome 7   Illustrations · 3 planches     Σ Sommaire  ☾ Thème  ⚙ Paramètres ]
+        Œuvre › Tome 7 › Illustrations
+        Illustrations                       ← h1
+        Tome 7                              ← sous-titre
+        [planche 1 pleine largeur]          ← taille large, clic : image en grand
+        légende (s'il y en a une)
+        [planche 2] …
+[Fin :            Sommaire du tome · Commencer la lecture · Chapitre 1 ▶ ]
+```
+
+Page virtuelle (aucun contenu créé) : voir le contrat §3 (routage, visibilité, canonique, `noindex`),
+§10 (blocs) et §14 (aucune position enregistrée). Le chapitre 1 a « ◀ Illustrations » comme précédent, le
+sommaire du tome liste « Illustrations » en premier et « Commencer la lecture » y mène tant que le lecteur
+n'a pas de position dans le tome. Un vrai chapitre de nature « Illustrations » (titre « Illustrations » ou
+« Galerie » dans le DOCX) garde l'adresse : la page virtuelle n'est alors pas créée. Les réglages de lecture
+(thème Nuit / Papier / Sépia, largeur de colonne, opacité du fond) s'appliquent comme sur un chapitre.
+
 ### 4.2 Paramètres de lecture (variables CSS)
 
 | Réglage | Variable | Défaut | Plage |

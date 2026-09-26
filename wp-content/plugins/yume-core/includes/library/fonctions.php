@@ -158,6 +158,19 @@ function tome_contexte( $bloc = null ): int {
 }
 
 /**
+ * Tome dont la requête principale affiche la page « Illustrations » (visible), ou 0.
+ *
+ * @param \WP_Block|null $bloc Instance du bloc.
+ */
+function tome_illustrations_contexte( $bloc = null ): int {
+	if ( ! function_exists( 'yume_est_page_illustrations' ) || ! yume_est_page_illustrations() ) {
+		return 0;
+	}
+	$tome_id = tome_contexte( $bloc );
+	return $tome_id && TYPE_TOME === get_post_type( $tome_id ) && (int) get_queried_object_id() === $tome_id ? $tome_id : 0;
+}
+
+/**
  * Chapitre du contexte, visible, ou 0.
  *
  * @param \WP_Block|null $bloc Instance du bloc.

@@ -7,5 +7,5 @@
 
 return array(
 	'dependencies' => array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-	'version'      => '2.0.0-dev.2',
+	'version'      => '2.0.0-dev.3',
 );

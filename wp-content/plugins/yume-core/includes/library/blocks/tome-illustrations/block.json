@@ -1,0 +1,29 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/tome-illustrations",
+	"title": "Illustrations du tome",
+	"category": "yume",
+	"icon": "format-gallery",
+	"description": "Planches du tome (galerie importée avant le chapitre 1), pleine largeur de la colonne de lecture, l’une sous l’autre, avec légendes et lien vers l’image en grand. Posé dans le modèle « Illustrations du tome ».",
+	"keywords": [
+		"illustrations",
+		"galerie",
+		"lecture",
+		"tome"
+	],
+	"textdomain": "yume-core",
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false,
+		"multiple": false
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}

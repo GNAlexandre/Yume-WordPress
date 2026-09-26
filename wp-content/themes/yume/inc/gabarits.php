@@ -59,6 +59,41 @@ function yume_theme_hierarchie_page( $modeles ) {
 add_filter( 'page_template_hierarchy', 'yume_theme_hierarchie_page' );
 
 /**
+ * Page « Illustrations » d'un tome (/lire/{oeuvre}/{tome}/illustrations/, voir l'extension :
+ * yume_est_page_illustrations()) : l'objet de la requête est le tome, mais la page est une
+ * page de lecture. Le modèle « yume-illustrations » passe avant ceux du tome.
+ *
+ * @param string[] $modeles Hiérarchie des modèles de contenu seul (single-yume_tome-{slug}.php…).
+ * @return string[]
+ */
+function yume_theme_hierarchie_illustrations( $modeles ) {
+	if ( ! is_array( $modeles ) || ! function_exists( 'yume_est_page_illustrations' ) || ! yume_est_page_illustrations() ) {
+		return $modeles;
+	}
+	array_unshift( $modeles, 'yume-illustrations.php' );
+	return $modeles;
+}
+add_filter( 'single_template_hierarchy', 'yume_theme_hierarchie_illustrations' );
+
+/**
+ * Nom et description du modèle « yume-illustrations » dans l'éditeur de site.
+ *
+ * @param array<string,array{title:string,description:string}> $types Types de modèles.
+ * @return array<string,array{title:string,description:string}>
+ */
+function yume_theme_types_modeles( $types ) {
+	if ( ! is_array( $types ) ) {
+		return $types;
+	}
+	$types['yume-illustrations'] = array(
+		'title'       => _x( 'Illustrations du tome', 'Template name', 'yume' ),
+		'description' => __( 'Page de lecture des illustrations d’un tome, avant le chapitre 1 (/lire/{œuvre}/{tome}/illustrations/).', 'yume' ),
+	);
+	return $types;
+}
+add_filter( 'default_template_types', 'yume_theme_types_modeles' );
+
+/**
  * Classes du <body> : thème Yume et lecteur.
  *
  * @param string[] $classes Classes existantes.
@@ -69,6 +104,9 @@ function yume_theme_classes_document( $classes ) {
 	$classes[] = 'yume';
 	if ( is_singular( 'yume_chapitre' ) ) {
 		$classes[] = 'yume-lecture';
+	} elseif ( function_exists( 'yume_est_page_illustrations' ) && yume_est_page_illustrations() ) {
+		$classes[] = 'yume-lecture';
+		$classes[] = 'yume-illustrations';
 	}
 	return $classes;
 }

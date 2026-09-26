@@ -20,6 +20,9 @@ function contenu_seo(): int {
 	if ( ! is_singular( array( TYPE_OEUVRE, TYPE_TOME, TYPE_CHAPITRE ) ) ) {
 		return 0;
 	}
+	if ( function_exists( 'yume_est_page_illustrations' ) && yume_est_page_illustrations() ) {
+		return 0; // Page Illustrations d'un tome (noindex) : pas de second Book pour le tome.
+	}
 	$id = (int) get_queried_object_id();
 	return $id && 'publish' === get_post_status( $id ) ? $id : 0;
 }
@@ -404,8 +407,14 @@ function balises_voisins( int $chapitre_id ): string {
 	if ( TYPE_CHAPITRE !== get_post_type( $chapitre_id ) || ! function_exists( 'yume_chapitre_voisin' ) ) {
 		return '';
 	}
-	$html = '';
+	$html          = '';
+	$illustrations = function_exists( 'yume_url_illustrations_avant' ) ? yume_url_illustrations_avant( $chapitre_id ) : '';
 	foreach ( array( 'prev', 'next' ) as $sens ) {
+		if ( 'prev' === $sens && '' !== $illustrations ) {
+			// Premier chapitre du tome : la page Illustrations le précède.
+			$html .= '<link rel="prev" href="' . esc_url( $illustrations ) . "\" />\n";
+			continue;
+		}
 		$voisin = yume_chapitre_voisin( $chapitre_id, $sens );
 		if ( $voisin instanceof \WP_Post ) {
 			$html .= '<link rel="' . esc_attr( $sens ) . '" href="' . esc_url( (string) get_permalink( $voisin ) ) . "\" />\n";
