@@ -87,6 +87,22 @@ d'archives de termes, pas de modèle `taxonomy-*`) : leurs liens mènent à `/bi
 `chapitre-N` (`chapitre-12-5` pour 12.5), les spéciaux prennent leur libellé (`postface`) ; les mots
 réservés (`feed`, `embed`, `page`, `comment-page-N`) reçoivent `-2`.
 
+**Page « Illustrations » d'un tome** (`includes/core/illustrations.php`) : `/lire/{oeuvre}/{slug-tome}/illustrations/`,
+page de lecture virtuelle (aucun contenu créé) placée avant le chapitre 1, comme les planches couleur d'un
+light novel imprimé. Elle existe quand le tome a une galerie (`yume_illustrations`, images placées avant le
+premier chapitre du DOCX / EPUB ; pièces jointes absentes ou non images ignorées) **et** qu'aucun chapitre du
+tome (statut actif) n'occupe le segment `illustrations` : un vrai chapitre (nature `illustrations`) garde
+toujours l'adresse. Résolution : la règle des chapitres ; si aucun chapitre ne correspond,
+`resoudre_illustrations()` renvoie le **tome** (`p` + `post_type=yume_tome`) avec la variable privée
+`yume_page_illustrations=1`, mêmes règles de visibilité que la page du tome (`est_consultable()`, hiérarchie) ;
+404 sans galerie, tome ou œuvre masqués, et pour `…/illustrations/feed|embed|trackback|N|comment-page-N/`.
+Variante non canonique (`/Illustrations/`, ancien slug) : 301. Balises : titre « Illustrations · {tome} »,
+`rel=canonical` = son adresse, **`noindex, follow`** et absente du plan du site (page sans texte dont les
+images sont déjà indexées sur la page du tome), pas de lien court ni de JSON-LD. Le thème l'affiche avec le
+modèle `templates/yume-illustrations.html` (filtre `single_template_hierarchy`, classes `yume-lecture
+yume-illustrations`) : `yume/reader-tools`, puis dans `article.yn-reader` `yume/chapter-header`,
+`yume/tome-illustrations`, `yume/chapter-nav`.
+
 Taxonomie `yume_oeuvre_liee` (non hiérarchique, sur `post`) : slug = slug de l'œuvre ; relie les
 articles d'actualité à une œuvre. Termes créés/synchronisés automatiquement avec les œuvres.
 
@@ -184,8 +200,8 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `emails_lecteurs` | `true` | social |
 | `banniere_id` | `0` | bibliothèque (bloc bannière), thème |
 | `kofi_url` | `https://ko-fi.com/ynovel` | thème |
-| `discord_invite` | `https://discord.gg/yumenovel` | thème |
-| `twitter_url` | `https://x.com/Roshidere_FR` | thème |
+| `discord_invite` | `https://discord.gg/SMBZqhgUv8` | thème |
+| `twitter_url` | `https://x.com/YumeNovel` | thème |
 | `jours_sortie` | `['mercredi','samedi','dimanche']` | planning |
 | `modele_annonce` | `Le {nature} {numero} de {oeuvre} est disponible !` | publication |
 | `github_repo` | `GNAlexandre/Yume-WordPress` | updater |
@@ -245,6 +261,10 @@ yume_libelle_chapitre( int $chapitre_id ): string;                    // « Chap
 yume_types(): array; yume_statuts(): array; yume_natures_tome(): array; yume_etapes(): array; // slug => libellé
 yume_liens_telechargement( int $tome_id ): array;                     // ['pdf'=>url|'' , 'epub'=>url|'']
 yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool;
+yume_illustrations_tome( int $tome_id ): array;                       // int[] images de la galerie (yume_illustrations) valables, ordre de lecture
+yume_url_illustrations( int $tome_id ): string;                       // /lire/{o}/{tome}/illustrations/ ou '' (pas de page : §3)
+yume_est_page_illustrations(): bool;                                  // requête principale = page Illustrations (objet de la requête : le tome)
+yume_url_illustrations_avant( int $chapitre_id ): string;             // page Illustrations qui précède ce chapitre (premier publié du tome) ou ''
 yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion','actualites','mentions-legales','accueil' → URL de la page (option yume_pages) ; filtre yume_url_page
 ```
 
@@ -307,6 +327,22 @@ Dépublication d'un tome (`publish` → autre statut, hors corbeille) : planning
 brouillon. Son retour en ligne rétablit la sortie (journal `publie` avec `retour`) **sans** réémettre
 `yume_tome_publie` (ni annonce Discord ni e-mails).
 
+**Ajout au catalogue (sans annonce)** — `Service::publier( $tome_id, $quand, array( 'sans_annonce' => true ) )`
+(`Service::ajouter_au_catalogue()`), pour mettre en lecture en ligne un tome déjà paru (PDF/EPUB
+seuls) : chapitres publiés ou programmés normalement, mais **aucun** `yume_tome_publie` ni
+`yume_chapitre_publie` pour l'opération (filtre `yume_core_notifier` coupé le temps de l'opération,
+comme la migration), aucun article d'annonce créé, mis à jour ou publié (déjà à la préparation :
+`preparer()` avec `sans_annonce`), donc ni Discord, ni e-mail, ni récapitulatif hebdomadaire. Les
+chapitres et le tome jamais annoncé (`_yume_publie_notifie` vide ou `ignore`) reçoivent
+`_yume_publie_notifie = catalogue` (`Service::NOTIFIE_CATALOGUE`) : core n'émet rien, même quand le
+cron publie une sortie programmée, et une sortie ultérieure de nouveaux chapitres est annoncée par
+`yume_chapitre_publie` (jamais `yume_tome_publie` pour le contenu ancien). Tome déjà paru,
+publication immédiate : les chapitres prennent la date du tome (`yume_derniere_sortie` inchangée).
+Tome pas encore en ligne : étape planning `publie` sans ligne `publie` du journal public. Journal :
+champ `lecture_ajoutee` (`{chapitres, programme}`, jamais public). Défaut (formulaire, REST) :
+`Service::sans_annonce_par_defaut()` = vrai pour un tome au statut `publish`, faux sinon ; le
+service seul vaut faux par défaut.
+
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 
 Le contenu est stocké en **blocs Gutenberg** (modifiable dans l'éditeur) avec ces classes :
@@ -345,18 +381,19 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/oeuvre-header` | bibliothèque | — | `.yn-oeuvre-header` | Couverture, badges, titres alternatifs, fiche (auteur, illustrateur, éditeur VO, traduit), synopsis |
 | `yume/oeuvre-infos` | bibliothèque | — | `.yn-oeuvre-infos` | Cartes « Équipe de traduction » (`yume_equipe`, `yume_source_traduction`) et « Liens » (`yume_liens`) de la maquette Oeuvre |
 | `yume/tome-list` | bibliothèque | — | `.yn-tome-list` | Tomes publiés de l'œuvre (couverture, libellé, nb chapitres, date, Lire / PDF / EPUB) |
-| `yume/tome-header` | bibliothèque | — | `.yn-tome-header` | Couverture, libellé, crédits, équivalence, boutons PDF / EPUB, galerie d'illustrations |
-| `yume/tome-toc` | bibliothèque | — | `.yn-toc` | Sommaire du tome (chapitres + temps de lecture) |
-| `yume/chapter-header` | bibliothèque | — | `.yn-chapter-header` | Fil d'Ariane, « Chapitre N », sous-titre, crédits, temps de lecture |
-| `yume/chapter-nav` | bibliothèque | — | `.yn-chapter-nav` | Précédent · Sommaire · Suivant (liens `rel=prev/next`) |
+| `yume/tome-header` | bibliothèque | — | `.yn-tome-header` | Couverture, libellé, crédits, équivalence, « Commencer la lecture », boutons PDF / EPUB, galerie d'illustrations (inchangée). « Commencer la lecture » (et « Lire en ligne » des lignes de `yume/tome-list`) ouvre la page Illustrations quand le tome en a une et que le lecteur n'a pas de position dans ce tome (membre : table `progression` ; visiteur : attributs `data-yn-debut-chapitre|tome|oeuvre` et script `yume-debut-lecture` qui remet le premier chapitre si `yn.progression[oeuvre].tome_id` = ce tome) ; les « Reprendre » gardent chapitre et ancre |
+| `yume/tome-toc` | bibliothèque | — | `.yn-toc` | Sommaire du tome (chapitres + temps de lecture) ; entrée « Illustrations · N planches » en tête (`.yn-toc__item--illustrations`) quand le tome a une page Illustrations |
+| `yume/chapter-header` | bibliothèque | — | `.yn-chapter-header` | Fil d'Ariane, « Chapitre N », sous-titre, crédits, temps de lecture. Page Illustrations : `.yn-chapter-header--illustrations`, fil œuvre › tome › Illustrations, h1 « Illustrations », tome en sous-titre, nombre d'illustrations |
+| `yume/chapter-nav` | bibliothèque | — | `.yn-chapter-nav` | Précédent · Sommaire · Suivant (liens `rel=prev/next`). Premier chapitre publié d'un tome qui a une page Illustrations : « Précédent » = « Illustrations » (aussi `<link rel=prev>` et ← du lecteur). Page Illustrations : `.yn-chapter-nav--illustrations`, Sommaire du tome · « Commencer la lecture · Chapitre 1 » (`rel=next`, premier chapitre publié) |
+| `yume/tome-illustrations` | bibliothèque | — | `.yn-tome-illustrations` | Planches de la galerie du tome, l'une sous l'autre, pleine largeur de la colonne (`--yn-width`), taille `large` (première `eager`/`fetchpriority=high`, suivantes `loading=lazy`), `figure.yn-illustration` + `figcaption` seulement s'il y a une légende, alt de la galerie (« Illustration N — Œuvre, Tome 9 » à défaut), lien vers l'image en grand ; rien sans galerie |
 | `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Sans carte propre (le thème fournit la carte). Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
 | `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent |
 | `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
-| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, « Retirer du planning » en admin-post `yume_planning_retrait`) et `?vue=journal` (journal complet paginé, filtres œuvre / tome) |
-| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`) |
+| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, « Retirer du planning » en admin-post `yume_planning_retrait`) `?vue=journal` (journal complet paginé, filtres œuvre / tome) `?vue=lecture` (« Lecture à compléter », capacité `yume_publier` : tomes publiés sans aucun chapitre publié, groupés par œuvre, progression « X tomes sur Y ont la lecture en ligne », filtre `oeuvre`, bouton « Ajouter le DOCX » → `yume_url_page( 'publier' )?tome=ID` ; voir `includes/planning/lecture-a-completer.php`) et `?vue=reglages` (capacité `yume_reglages` : tous les champs de `sections_reglages()` / `champs_reglages()` visibles pour l'utilisateur — mêmes règles `capability` / `verrouille` que Yume → Réglages —, enregistrés en admin-post `yume_reglages_equipe` avec nonce puis `update_option()`, donc `assainir_reglages()` ; images par ID ou adresse, sans `wp.media` ; voir `includes/planning/reglages-equipe.php`) |
+| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`), case « Ajout au catalogue » (`sans_annonce` : champ caché `0` + case `1`, cochée d'office pour un tome publié ; récapitulatif sans « Article d'annonce » ni « Notifications » quand elle est cochée), note « remplacés en place » quand le tome a déjà des chapitres |
 | `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) ; avertissement sur un membre responsable de tomes en cours, lien « Modifier dans l'administration » (administrateur) pour les comptes non modifiables ici |
 | `yume/partenaires` | bibliothèque | `title` (string, « Nos partenaires ») | `.yn-partenaires` | Section de l'accueil : logo (initiales à défaut), nom, description, lien en nouvel onglet ; réglage `partenaires` (§6) |
-| `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture : progression, sommaire, marque-page, thème, panneau Paramètres |
+| `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture : progression, sommaire, marque-page, thème, panneau Paramètres. Page Illustrations : même barre (retour et Sommaire vers le tome, réglages, thème, compte) sans marque-page, configuration `chapitre: 0` (aucun suivi, position jamais écrite), `next` = chapitre 1 |
 | `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte |
 | `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
 | `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) |
@@ -409,8 +446,8 @@ sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sa
 | `DELETE /tomes/(?P<id>\d+)/planning` | planning | `yume_maj_planning_tous` — retire le tome du planning (`retirer_tome()`, §7) |
 | `GET /planning/journal` | planning | public (sans notes d'équipe) |
 | `POST /publications/analyse` | publication | `yume_publier` — multipart `source` (DOCX/EPUB) → rapport sans rien créer |
-| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) |
-| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` |
+| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) ; `sans_annonce` (booléen) : aucun article d'annonce préparé ; réponse `sans_annonce` (valeur retenue) |
+| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` ; `sans_annonce` (booléen) : ajout au catalogue sans annonce (§8) ; **absent : vrai si le tome est déjà publié (`publish`), faux sinon** (même règle pour `POST /publications`) ; réponse `sans_annonce` |
 | `GET /moi` | lecteurs | connecté |
 | `GET, PUT /moi/reglages` | lecture | connecté |
 | `GET, PUT /moi/progression` | lecture | connecté |
@@ -469,6 +506,10 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 API du thème pour les autres scripts : `window.ynTheme.set( 'nuit'|'papier'|'sepia' )` si elle existe
 (sinon poser l'attribut et `localStorage['yn.theme']`) ; événement `document` `yn:theme`
 (`detail.theme`) à chaque changement ; classe `html.yn-js` quand JavaScript est actif.
+
+La page Illustrations d'un tome n'écrit jamais `yn.progression` ni `PUT /moi/progression` (pas de
+chapitre ; la REST refuse un ID de tome) : elle ne compte pas dans les pourcentages et ne remplace pas une
+position plus avancée. Le script `yume-debut-lecture` (bibliothèque) lit seulement `yn.progression`.
 
 Ancre de reprise : `#yn-p-N` (paragraphe numéroté à partir de 1) dans l'URL d'un chapitre ; le lecteur y
 défile directement. Elle est produite par la REST, la page compte, `yume/oeuvre-actions`,

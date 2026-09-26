@@ -877,3 +877,327 @@
 	flex-shrink: 1;
 	max-width: 45%;
 }
+
+/* Vue « Réglages » (?vue=reglages) : une carte par section, champs en grille. */
+.yn-reglages {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.yn-reglages__section {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 20px;
+	scroll-margin-top: 24px;
+}
+
+.yn-reglages__section > h2 {
+	font-size: 20px;
+}
+
+.yn-reglages__champs {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 18px 20px;
+	align-items: start;
+}
+
+.yn-reglages__champ--large {
+	grid-column: 1 / -1;
+}
+
+.yn-reglages__champ {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yn-team__champ textarea {
+	box-sizing: border-box;
+	width: 100%;
+	font-size: 14px;
+}
+
+.yn-reglages__champ input:disabled {
+	opacity: 1;
+	cursor: not-allowed;
+}
+
+.yn-reglages__aide {
+	display: block;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.yn-reglages .yn-reglages__groupe > legend {
+	float: left;
+	width: 100%;
+	margin-bottom: 4px;
+	padding: 0;
+}
+
+.yn-reglages__cases {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	clear: both;
+}
+
+.yn-reglages .yn-reglages__case {
+	min-height: 32px;
+	font-size: 14px;
+}
+
+.yn-reglages__champ--case {
+	align-self: center;
+}
+
+.yn-reglages__media-ligne {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+}
+
+.yn-reglages__media-ligne input {
+	flex: 1 1 200px;
+	width: auto;
+	min-width: 0;
+	max-width: 420px;
+}
+
+.yn-reglages__vignette {
+	display: block;
+	width: auto;
+	max-width: 120px;
+	height: auto;
+	max-height: 64px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius);
+	object-fit: contain;
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-reglages__logo .yn-reglages__vignette {
+	margin-top: 6px;
+	padding: 4px;
+	/* Même fond clair que les cartes de l'accueil : un logo sombre ou transparent reste lisible. */
+	background: #ece4ef;
+}
+
+.yn-team .yn-reglages__mediatheque {
+	align-self: flex-start;
+	color: var(--wp--preset--color--accent);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.yn-reglages__partenaires {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+}
+
+.yn-reglages__partenaires-liste {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+	gap: 14px;
+}
+
+.yn-reglages__partenaire {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px 14px;
+	min-width: 0;
+	margin: 0;
+	padding: 12px 14px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius);
+}
+
+.yn-reglages__partenaire > legend {
+	padding: 0 4px;
+}
+
+.yn-reglages__ajout > summary {
+	padding: 4px 0;
+}
+
+.yn-reglages__retour:empty {
+	display: none;
+}
+
+.yn-reglages__retour {
+	padding: 12px 16px;
+	border: 1px solid currentcolor;
+	border-radius: var(--yn-radius);
+	scroll-margin-top: 24px;
+}
+
+.yn-reglages__retour ul {
+	margin: 6px 0 0;
+	padding-left: 20px;
+	font-weight: 400;
+}
+
+.yn-reglages__envoi {
+	justify-content: flex-end;
+}
+
+@media (max-width: 699.98px) {
+	.yn-reglages__section {
+		padding: 16px;
+	}
+
+	.yn-reglages__champs,
+	.yn-reglages__partenaire {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-reglages__envoi .yn-btn {
+		width: 100%;
+	}
+}
+
+/* Vue « Lecture à compléter » (?vue=lecture) : progression, puis une carte par œuvre. */
+.yn-lecture__progression {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 18px 20px;
+}
+
+.yn-lecture__resume {
+	font-size: 16px;
+}
+
+.yn-lecture__resume strong {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-lecture__progression .yn-bar {
+	height: 8px;
+}
+
+.yn-lecture__oeuvre {
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+	overflow: hidden;
+}
+
+.yn-lecture__oeuvre-tete {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 4px 16px;
+	padding: 16px 20px 12px;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	font-size: 14px;
+}
+
+.yn-team .yn-lecture__oeuvre-tete h3 {
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 18px;
+	overflow-wrap: anywhere;
+}
+
+.yn-team .yn-lecture__tomes {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-lecture__tome {
+	display: grid;
+	grid-template-columns: 48px minmax(0, 1fr) auto;
+	gap: 16px;
+	align-items: center;
+	margin: 0;
+	padding: 12px 20px;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	scroll-margin-top: 24px;
+}
+
+.yn-team .yn-lecture__tome:last-child {
+	border-bottom: 0;
+}
+
+.yn-lecture__couverture {
+	display: block;
+	width: 48px;
+	aspect-ratio: 2 / 3;
+	overflow: hidden;
+	border-radius: 4px;
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-lecture__couverture img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.yn-lecture__sans-couverture {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100%;
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 18px;
+	font-weight: 800;
+}
+
+.yn-lecture__infos {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.yn-lecture__libelle {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-lecture__puces {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.yn-lecture__actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+@media (max-width: 699.98px) {
+	.yn-lecture__oeuvre-tete {
+		padding: 14px 16px 10px;
+	}
+
+	.yn-team .yn-lecture__tome {
+		grid-template-columns: 48px minmax(0, 1fr);
+		gap: 10px 14px;
+		padding: 12px 16px;
+	}
+
+	.yn-lecture__actions {
+		grid-column: 1 / -1;
+		justify-content: stretch;
+	}
+
+	.yn-lecture__actions .yn-btn {
+		flex: 1 1 140px;
+		justify-content: center;
+		text-align: center;
+	}
+}

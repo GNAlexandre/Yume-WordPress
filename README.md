@@ -5,7 +5,7 @@ thème, plugin métier, scripts de migration et documentation, déployés sur Wo
 
 ## État
 
-**v2.0.0-dev, prête pour relecture.** Le thème `yume` et le plugin `yume-core` sont complets
+**Version 2.0.0 en développement, prête pour relecture** (numéro exact et historique : [CHANGELOG.md](CHANGELOG.md)). Le thème `yume` et le plugin `yume-core` sont complets
 (bibliothèque, lecteur en ligne généré depuis le DOCX, planning public, espace équipe, publication
 par glisser-déposer, comptes lecteurs, migration de l'ancien site), testés sur SQLite et MariaDB,
 et vérifiés sur une préproduction locale. **Rien n'est publié sur yumenovel.fr** avant le « Go »

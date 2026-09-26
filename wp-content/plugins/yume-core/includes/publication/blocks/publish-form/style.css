@@ -600,11 +600,48 @@
 	font-weight: 600;
 }
 
-.yn-publish__option--confirmer {
+.yn-publish__option--confirmer,
+.yn-publish__option--catalogue {
 	padding: 12px 14px;
 	border: 1px solid var(--wp--preset--color--filet);
 	border-left: 3px solid var(--wp--preset--color--accent);
 	border-radius: var(--yn-radius, 6px);
+}
+
+.yn-publish__option input[type="checkbox"] {
+	flex-shrink: 0;
+	margin-top: 3px;
+}
+
+/* Ajout au catalogue : libellé puis aide, sous la case. */
+.yn-publish__option-texte {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.yn-publish__option-aide {
+	font-size: 13px;
+}
+
+/* Lignes du récapitulatif masquées selon le mode (annonce ou ajout au catalogue). */
+.yn-publish__recap-liste li[hidden] {
+	display: none;
+}
+
+/* Tome qui a déjà des chapitres : le nouveau fichier les remplace en place. */
+.yn-publish__remplacement {
+	max-width: 460px;
+	margin: 4px 0 0;
+	padding: 10px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-left: 3px solid var(--wp--preset--color--avertissement);
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--carte);
+	color: var(--wp--preset--color--texte);
+	font-size: 13px;
+	text-align: left;
 }
 
 .yn-publish__actions {

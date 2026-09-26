@@ -11,6 +11,8 @@
  *   (au plus toutes les 10 s, et au départ de la page avec fetch keepalive).
  * - Marque-page explicite avec retour visuel ; bandeau « Reprendre au paragraphe N ».
  * - Raccourcis : ← / → chapitre précédent / suivant, « s » paramètres (inactifs dans un champ).
+ * - Page « Illustrations » d'un tome (config.chapitre = 0) : ni suivi ni marque-page, la
+ *   position enregistrée n'est jamais remplacée ; → ouvre le premier chapitre.
  *
  * JavaScript sans étape de build (ES2019), sans dépendance.
  */
@@ -818,7 +820,7 @@
 		}
 		if ( barre ) {
 			barre.setAttribute( 'aria-valuenow', String( pourcentage ) );
-			barre.setAttribute( 'aria-valuetext', pourcentage + ' % du chapitre' );
+			barre.setAttribute( 'aria-valuetext', pourcentage + ' % ' + ( barre.getAttribute( 'data-yn-portee' ) || 'du chapitre' ) );
 		}
 		if ( texteProgression ) {
 			texteProgression.textContent = ' · ' + pourcentage + ' %';

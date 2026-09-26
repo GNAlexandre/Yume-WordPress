@@ -43,8 +43,8 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- les liens **Publier un tome** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
-  **Membres et rôles** et **Réglages (rappels, Discord)** ;
+- les liens **Publier un tome** et **Lecture à compléter** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
+  **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
 Sous chaque tâche (et chaque tome de *Tous les tomes*), des raccourcis mènent directement au bon
@@ -83,6 +83,23 @@ Depuis le planning public (`/planning/`), un membre connecté a un bouton **Modi
 mises à jour, page par page, avec des filtres par œuvre et par tome ; cochez **Inclure les rappels
 automatiques** pour voir aussi les rappels et signalements. Cliquer sur le nom d'un tome filtre le
 journal sur ce tome.
+
+### Réglages (`/equipe/?vue=reglages`, gérants et administrateurs)
+
+L'entrée **Réglages** du menu affiche tous les réglages du site dans l'espace équipe, sans passer
+par l'administration : *Site et réseaux*, *Planning et rappels*, *Annonces et notifications*,
+*Partenaires* (et *Mises à jour* pour l'administrateur seulement ; voir la section 8 pour le
+détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
+bas de page) : un message en haut de la vue confirme l'enregistrement ou liste ce qui a été
+refusé (par exemple un partenaire sans lien valide, ou un lien qui n'est pas un webhook Discord ;
+l'ancienne valeur est alors conservée).
+
+- **Images** (bannière du site, logos des partenaires) : saisissez l'**ID** de l'image ou son
+  **adresse** (copiée depuis la médiathèque) ; un aperçu s'affiche une fois enregistrée. Le lien
+  **Choisir dans la médiathèque** ouvre l'administration dans un nouvel onglet (pour la bannière :
+  la page *Yume → Réglages* et son sélecteur d'images).
+- **Ouvrir dans l'administration** (en haut à droite) ouvre la page *Yume → Réglages*, qui reste
+  disponible et enregistre exactement les mêmes réglages.
 
 ## 4. Mettre à jour son planning
 
@@ -193,10 +210,46 @@ même ce tome sans chapitre ni lien de téléchargement »).
 - prévient : message sur le salon Discord des sorties, e-mail aux lecteurs qui suivent l'œuvre,
   newsletter si elle est activée.
 
+Si le tome a **déjà des chapitres**, le formulaire le rappelle sous la zone de dépôt : un nouveau
+fichier les **remplace en place**, par numéro (mêmes adresses, commentaires conservés) ; les
+chapitres absents du nouveau fichier restent en ligne, sauf si vous cochez « Mettre en brouillon les
+chapitres absents du nouveau fichier ».
+
 Le DOCX n'est **pas conservé** sur le serveur : seuls les chapitres et les illustrations restent.
 La publication est réversible : dépublier un tome le retire du site, remet son annonce en brouillon
 et ramène son planning à l'étape **Édition** ; le remettre en ligne rétablit « Publié » sans
 nouvelle annonce aux lecteurs.
+
+### 5.4 Ajouter la lecture en ligne aux tomes déjà parus
+
+Après la migration, beaucoup de tomes sont en ligne avec leurs seuls liens PDF / EPUB. Leur ajouter
+la lecture en ligne ne doit pas être présenté aux lecteurs comme une nouveauté : c'est un **ajout
+au catalogue**, sans annonce.
+
+1. Espace équipe → **Lecture à compléter** (`/equipe/?vue=lecture`, éditeurs et gérants) : la liste
+   des tomes parus qui n'ont aucun chapitre en ligne, par œuvre, avec la progression « X tomes sur Y
+   ont la lecture en ligne », un filtre par œuvre et, pour chaque tome, sa couverture et ses liens
+   PDF / EPUB présents.
+2. **Ajouter le DOCX** ouvre le formulaire de publication déjà rempli pour ce tome. La case
+   **« Ajout au catalogue : ne pas annoncer (pas d'article, pas de Discord, pas d'e-mail) »** est
+   **cochée d'office** (elle l'est pour tout tome déjà publié ; elle est décochée pour un nouveau
+   tome, un brouillon ou un tome programmé). Le récapitulatif « Ce qui sera créé » indique alors
+   « Aucune annonce » au lieu de l'article et des notifications.
+3. Déposez le DOCX, vérifiez les chapitres détectés, puis **Publier maintenant**.
+
+Le site met les chapitres en ligne (lecture, sommaire, navigation) **sans** article dans
+« Sorties », sans message Discord, sans e-mail aux lecteurs et sans compter le tome dans le
+récapitulatif hebdomadaire. Les chapitres prennent la date de sortie du tome : ils n'apparaissent
+pas comme nouveautés. Le journal de l'équipe note « lecture en ligne ajoutée (sans annonce) »
+(visible de l'équipe seulement), et le tome **quitte la liste** « Lecture à compléter ».
+
+Si plus tard de nouveaux chapitres sont ajoutés à ce tome **sans** cocher la case, ils sont annoncés
+normalement comme de nouveaux chapitres (jamais comme la sortie du tome entier). Pour annoncer
+quand même un tome déjà paru, décochez la case avant de publier.
+
+En ligne de commande : `docx2chapters.php publish … --publier maintenant --sans-annonce`
+(`--avec-annonce` pour forcer l'annonce ; sans l'une ni l'autre, le site choisit comme le
+formulaire). Voir `tools/docx2chapters/README.md`.
 
 ## 6. Corriger un chapitre
 
@@ -243,7 +296,7 @@ Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approu
   vôtre, ne sont modifiables que par un administrateur (*Comptes* dans l'administration, où vous
   pouvez aussi créer un compte ou modifier un profil) ; l'administrateur a pour cela un lien
   **Modifier dans l'administration** sur la ligne de ces comptes.
-- **Yume → Réglages** (administration) :
+- **Réglages** (menu de l'espace équipe, ou *Yume → Réglages* dans l'administration) :
   - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),
     heure des rappels, jour du récapitulatif ;

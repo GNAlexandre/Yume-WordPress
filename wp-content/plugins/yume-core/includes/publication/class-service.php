@@ -18,6 +18,13 @@
  * chapitres ajoutés d'un coup à un tome déjà en ligne forment UNE sortie (annoncer_groupe()),
  * immédiate ou programmée (tâche cron unique yume_publication_sortie_groupee).
  *
+ * Ajout au catalogue (option sans_annonce) : la lecture en ligne d'un tome déjà paru (tome migré
+ * avec ses seuls PDF/EPUB) est mise en ligne sans rien annoncer : ni article d'annonce, ni
+ * yume_tome_publie / yume_chapitre_publie (donc ni Discord, ni e-mail, ni récapitulatif
+ * hebdomadaire). Les chapitres prennent la date de sortie du tome et sont marqués
+ * (_yume_publie_notifie = « catalogue »), comme le tome : une sortie ultérieure (nouveaux
+ * chapitres) est annoncée comme telle, jamais le contenu ancien comme une nouveauté.
+ *
  * @package Yume\Core
  */
 
@@ -45,6 +52,12 @@ final class Service {
 
 	/** Méta de core : événement de publication traité. */
 	private const META_NOTIFIE = '_yume_publie_notifie';
+
+	/**
+	 * Valeur de _yume_publie_notifie d'un tome ou d'un chapitre mis en ligne par un ajout au
+	 * catalogue (sans annonce) : core n'émet jamais d'événement pour lui.
+	 */
+	public const NOTIFIE_CATALOGUE = 'catalogue';
 
 	/** Méta du module social : sortie notée (verrou d'alerte, date du récapitulatif hebdomadaire). */
 	private const META_ALERTE = '_yume_alerte_envoyee';
@@ -275,6 +288,8 @@ final class Service {
 			'date_sortie'     => sanitize_text_field( (string) ( $brut['date_sortie'] ?? '' ) ),
 			'couverture_id'   => absint( $brut['couverture_id'] ?? 0 ),
 			'retirer_absents' => rest_sanitize_boolean( $brut['retirer_absents'] ?? false ),
+			// Null : selon le tome (déjà paru : sans annonce), voir sans_annonce_par_defaut().
+			'sans_annonce'    => isset( $brut['sans_annonce'] ) && '' !== $brut['sans_annonce'] ? rest_sanitize_boolean( $brut['sans_annonce'] ) : null,
 		);
 		$numero_saisi = $brut['numero'] ?? '';
 		if ( null === $champs['numero'] && ( ! is_scalar( $numero_saisi ) || '' !== trim( (string) $numero_saisi ) ) ) {
@@ -312,6 +327,18 @@ final class Service {
 			);
 		}
 		return $champs;
+	}
+
+	/**
+	 * Mode « Ajout au catalogue (sans annonce) » par défaut : oui pour un tome déjà paru
+	 * (statut publish : tome migré avec ses seuls PDF/EPUB), non pour un nouveau tome, un
+	 * brouillon ou un tome programmé.
+	 *
+	 * @param int|\WP_Post|null $tome Tome (ou null : nouveau tome).
+	 */
+	public static function sans_annonce_par_defaut( $tome ): bool {
+		$tome = $tome ? get_post( $tome ) : null;
+		return $tome instanceof \WP_Post && 'yume_tome' === $tome->post_type && 'publish' === $tome->post_status;
 	}
 
 	/**
@@ -735,9 +762,12 @@ final class Service {
 	 *
 	 * @param array<string,mixed> $brut     Champs : oeuvre_id, nature, numero, titre, date_sortie,
 	 *                                      lien_pdf, lien_epub, credits{traduction,relecture,edition},
-	 *                                      couverture_id, retirer_absents, tome_id.
+	 *                                      couverture_id, retirer_absents, tome_id, sans_annonce
+	 *                                      (null ou absent : sans_annonce_par_defaut() ; vrai :
+	 *                                      aucun article d'annonce créé ni mis à jour).
 	 * @param array<string,mixed> $fichiers Fichiers ($_FILES) : source (DOCX/EPUB), couverture.
-	 * @return array<string,mixed>|\WP_Error Rapport : tome, chapitres, disparus, article, import, avertissements.
+	 * @return array<string,mixed>|\WP_Error Rapport : tome, chapitres, disparus, article, import,
+	 *                                      avertissements, sans_annonce.
 	 */
 	public static function preparer( array $brut, array $fichiers = array() ) {
 		self::relever_limites();
@@ -776,8 +806,9 @@ final class Service {
 			if ( ! $tome && $champs['tome_id'] && 'yume_tome' === get_post_type( $champs['tome_id'] ) && 'trash' !== get_post_status( $champs['tome_id'] ) && current_user_can( 'edit_post', $champs['tome_id'] ) ) {
 				$tome = get_post( $champs['tome_id'] );
 			}
-			$reutilise = null !== $tome;
-			$tome_id   = self::enregistrer_tome( $tome, $champs, $oeuvre );
+			$reutilise    = null !== $tome;
+			$sans_annonce = null === $champs['sans_annonce'] ? self::sans_annonce_par_defaut( $tome ) : (bool) $champs['sans_annonce'];
+			$tome_id      = self::enregistrer_tome( $tome, $champs, $oeuvre );
 			if ( is_wp_error( $tome_id ) ) {
 				return $tome_id;
 			}
@@ -848,32 +879,35 @@ final class Service {
 			$precedent = is_array( $precedent ) ? $precedent : array();
 			update_post_meta( $tome_id, self::META, array_merge( $precedent, array( 'titre' => $champs['titre'] ) ) );
 
-			// Article d'annonce.
-			$speciaux = array();
-			$nb       = 0;
-			foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chap ) {
-				if ( get_post_meta( $chap->ID, self::META_RETIRE, true ) ) {
-					continue;
+			// Article d'annonce (aucun pour un ajout au catalogue sans annonce).
+			$article_id = 0;
+			if ( ! $sans_annonce ) {
+				$speciaux = array();
+				$nb       = 0;
+				foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chap ) {
+					if ( get_post_meta( $chap->ID, self::META_RETIRE, true ) ) {
+						continue;
+					}
+					$nature = (string) get_post_meta( $chap->ID, 'yume_nature', true );
+					if ( '' === $nature || 'chapitre' === $nature ) {
+						++$nb;
+					} else {
+						$speciaux[] = yume_libelle_chapitre( (int) $chap->ID );
+					}
 				}
-				$nature = (string) get_post_meta( $chap->ID, 'yume_nature', true );
-				if ( '' === $nature || 'chapitre' === $nature ) {
-					++$nb;
-				} else {
-					$speciaux[] = yume_libelle_chapitre( (int) $chap->ID );
+				$credits    = get_post_meta( $tome_id, 'yume_credits', true );
+				$article_id = Annonce::preparer(
+					$tome_id,
+					array(
+						'nb_chapitres' => $nb,
+						'speciaux'     => $speciaux,
+						'credits'      => is_array( $credits ) ? $credits : array(),
+					)
+				);
+				if ( is_wp_error( $article_id ) ) {
+					$avert[]    = $article_id->get_error_message();
+					$article_id = 0;
 				}
-			}
-			$credits    = get_post_meta( $tome_id, 'yume_credits', true );
-			$article_id = Annonce::preparer(
-				$tome_id,
-				array(
-					'nb_chapitres' => $nb,
-					'speciaux'     => $speciaux,
-					'credits'      => is_array( $credits ) ? $credits : array(),
-				)
-			);
-			if ( is_wp_error( $article_id ) ) {
-				$avert[]    = $article_id->get_error_message();
-				$article_id = 0;
 			}
 
 			$meta = array_merge(
@@ -916,6 +950,7 @@ final class Service {
 				'article'        => $article_id ? self::resume_contenu( get_post( $article_id ) ) : null,
 				'import'         => $resultat && $source ? self::rapport_analyse( $resultat, $source ) : null,
 				'avertissements' => array_values( array_unique( $avert ) ),
+				'sans_annonce'   => $sans_annonce,
 			);
 			if ( null !== $rapport['import'] ) {
 				foreach ( $rapport['import']['chapitres'] as $i => $c ) {
@@ -1213,9 +1248,12 @@ final class Service {
 	 * explicite (option confirmer_vide) ; sinon erreur yume_tome_vide (409) : les lecteurs
 	 * prévenus n'auraient rien à lire.
 	 *
+	 * Option sans_annonce (défaut false) : ajout au catalogue, voir ajouter_au_catalogue().
+	 *
 	 * @param int                 $tome_id Tome.
 	 * @param string              $quand   « maintenant » ou date ISO.
-	 * @param array<string,mixed> $options confirmer_vide (bool, défaut false).
+	 * @param array<string,mixed> $options confirmer_vide (bool, défaut false), sans_annonce
+	 *                                     (bool, défaut false).
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function publier( int $tome_id, string $quand = 'maintenant', array $options = array() ) {
@@ -1256,6 +1294,9 @@ final class Service {
 				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true )
 			)
 		);
+		if ( ! empty( $options['sans_annonce'] ) ) {
+			return self::ajouter_au_catalogue( $tome, $a_publier, $date, $local, $gmt );
+		}
 		// Tome déjà en ligne qui reçoit plusieurs chapitres d'un coup (tome migré avec ses seuls
 		// PDF/EPUB mis en lecture en ligne, nouveaux chapitres en bloc) : une seule sortie, et
 		// non un événement yume_chapitre_publie (e-mails, Discord) par chapitre, que la sortie
@@ -1344,11 +1385,175 @@ final class Service {
 		);
 		$tome = get_post( $tome_id );
 		return array(
-			'tome'      => array_merge( self::resume_contenu( $tome ), array( 'libelle' => yume_libelle_tome( $tome_id ) ) ),
-			'statut'    => $tome->post_status,
-			'date'      => mysql_to_rfc3339( $tome->post_date ),
-			'chapitres' => $publies,
-			'article'   => $article_id ? self::resume_contenu( get_post( $article_id ) ) : null,
+			'tome'         => array_merge( self::resume_contenu( $tome ), array( 'libelle' => yume_libelle_tome( $tome_id ) ) ),
+			'statut'       => $tome->post_status,
+			'date'         => mysql_to_rfc3339( $tome->post_date ),
+			'chapitres'    => $publies,
+			'article'      => $article_id ? self::resume_contenu( get_post( $article_id ) ) : null,
+			'sans_annonce' => false,
 		);
+	}
+
+	/**
+	 * Ajout au catalogue (sans annonce) : les chapitres en attente du tome (et le tome s'il
+	 * n'est pas encore en ligne) sont publiés ou programmés comme d'habitude (lecture, sommaire,
+	 * étape du planning), mais rien n'est annoncé pour cette opération :
+	 *
+	 * - aucun yume_tome_publie ni yume_chapitre_publie (ni Discord, ni e-mail, ni récapitulatif
+	 *   hebdomadaire) : filtre yume_core_notifier coupé pendant l'opération et chapitres marqués
+	 *   _yume_publie_notifie = « catalogue » (une sortie programmée publiée plus tard par le cron
+	 *   reste muette) ;
+	 * - aucun article d'annonce créé, mis à jour ou publié ;
+	 * - tome marqué « catalogue » s'il n'avait jamais été annoncé : une vraie sortie ultérieure
+	 *   (nouveaux chapitres) sera annoncée comme telle, jamais le contenu ancien comme une nouveauté ;
+	 * - tome déjà paru, publication immédiate : les chapitres prennent la date de sortie du tome
+	 *   (la « dernière sortie » de l'œuvre et les listes de nouveautés ne bougent pas) ;
+	 * - journal de l'équipe : « lecture en ligne ajoutée (sans annonce) » (ligne non publique).
+	 *
+	 * @param \WP_Post                $tome      Tome.
+	 * @param \WP_Post[]              $a_publier Chapitres à publier.
+	 * @param \DateTimeImmutable|null $date      Date programmée (null : maintenant).
+	 * @param string                  $local     Date locale « Y-m-d H:i:s ».
+	 * @param string                  $gmt       Date GMT « Y-m-d H:i:s ».
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	private static function ajouter_au_catalogue( \WP_Post $tome, array $a_publier, ?\DateTimeImmutable $date, string $local, string $gmt ) {
+		$tome_id    = (int) $tome->ID;
+		$immediat   = null === $date;
+		$statut     = $immediat ? 'publish' : 'future';
+		$deja_sorti = 'publish' === $tome->post_status;
+		if ( $deja_sorti && $immediat && '' !== (string) $tome->post_date_gmt && ! str_starts_with( (string) $tome->post_date_gmt, '0000-00-00' ) ) {
+			$local = (string) $tome->post_date;
+			$gmt   = (string) $tome->post_date_gmt;
+		}
+
+		// Une sortie groupée programmée auparavant est remplacée par celle-ci.
+		self::annuler_sortie_groupee( $tome_id );
+
+		$muet = static function (): bool {
+			return false;
+		};
+		add_filter( 'yume_core_notifier', $muet, 99 );
+		try {
+			$notifie = (string) get_post_meta( $tome_id, self::META_NOTIFIE, true );
+			if ( '' === $notifie || 'ignore' === $notifie ) {
+				update_post_meta( $tome_id, self::META_NOTIFIE, self::NOTIFIE_CATALOGUE );
+			}
+			delete_post_meta( $tome_id, '_yume_notification_en_attente' );
+			$publies = 0;
+			$ids     = array();
+			foreach ( $a_publier as $chapitre ) {
+				$chapitre_id = (int) $chapitre->ID;
+				$valeur      = (string) get_post_meta( $chapitre_id, self::META_NOTIFIE, true );
+				if ( '' === $valeur || 'ignore' === $valeur ) {
+					update_post_meta( $chapitre_id, self::META_NOTIFIE, self::NOTIFIE_CATALOGUE );
+				}
+				$ok = wp_update_post(
+					array(
+						'ID'            => $chapitre_id,
+						'post_status'   => $statut,
+						'post_date'     => $local,
+						'post_date_gmt' => $gmt,
+						'edit_date'     => true,
+					),
+					true
+				);
+				if ( ! is_wp_error( $ok ) ) {
+					++$publies;
+					$ids[] = $chapitre_id;
+				}
+			}
+			if ( ! $deja_sorti ) {
+				$donnees = array(
+					'ID'            => $tome_id,
+					'post_status'   => $statut,
+					'post_date'     => $local,
+					'post_date_gmt' => $gmt,
+					'edit_date'     => true,
+				);
+				if ( self::slug_a_poser( $tome ) ) {
+					$donnees['post_name'] = self::slug_tome_existant( $tome_id );
+				}
+				$ok = wp_update_post( $donnees, true );
+				if ( is_wp_error( $ok ) ) {
+					return $ok;
+				}
+			}
+		} finally {
+			remove_filter( 'yume_core_notifier', $muet, 99 );
+		}
+
+		if ( ! $immediat && 'future' === get_post_status( $tome_id ) ) {
+			self::caler_date_cible( $tome_id, $date );
+		}
+		clean_post_cache( $tome_id );
+		self::planning_catalogue( $tome_id, $deja_sorti, $immediat, $publies );
+
+		$meta = get_post_meta( $tome_id, self::META, true );
+		$meta = is_array( $meta ) ? $meta : array();
+		update_post_meta(
+			$tome_id,
+			self::META,
+			array_merge(
+				$meta,
+				array(
+					'sortie'       => $immediat ? 'maintenant' : $date->format( DATE_ATOM ),
+					'sortie_par'   => get_current_user_id(),
+					'sortie_le'    => current_time( 'mysql', true ),
+					'sans_annonce' => true,
+				)
+			)
+		);
+		$tome = get_post( $tome_id );
+		return array(
+			'tome'         => array_merge( self::resume_contenu( $tome ), array( 'libelle' => yume_libelle_tome( $tome_id ) ) ),
+			'statut'       => $tome->post_status,
+			'date'         => mysql_to_rfc3339( $tome->post_date ),
+			'chapitres'    => $publies,
+			'article'      => null,
+			'sans_annonce' => true,
+		);
+	}
+
+	/**
+	 * Planning après un ajout au catalogue (module planning chargé) : un tome qui vient d'être mis
+	 * en ligne passe à l'étape « publié » (sans ligne « publie » du journal public, qui compterait
+	 * comme une sortie), puis une ligne d'équipe « lecture en ligne ajoutée (sans annonce) ».
+	 *
+	 * @param int  $tome_id    Tome.
+	 * @param bool $deja_sorti Le tome était déjà en ligne.
+	 * @param bool $immediat   Publication immédiate.
+	 * @param int  $publies    Chapitres publiés ou programmés.
+	 */
+	private static function planning_catalogue( int $tome_id, bool $deja_sorti, bool $immediat, int $publies ): void {
+		$user_id = get_current_user_id();
+		if ( ! $deja_sorti && $immediat && 'publish' === get_post_status( $tome_id ) && function_exists( '\Yume\Core\Planning\mettre_a_jour' ) ) {
+			\Yume\Core\Planning\mettre_a_jour(
+				$tome_id,
+				array(
+					'etape'      => 'publie',
+					'avancement' => array(
+						'traduction' => 100,
+						'relecture'  => 100,
+						'edition'    => 100,
+					),
+					'bloque'     => false,
+				),
+				$user_id,
+				array( 'forcer' => true )
+			);
+		}
+		if ( $publies > 0 && function_exists( 'yume_journal_planning' ) ) {
+			yume_journal_planning(
+				$tome_id,
+				$user_id,
+				'lecture_ajoutee',
+				'',
+				array(
+					'chapitres' => $publies,
+					'programme' => ! $immediat,
+				)
+			);
+		}
 	}
 }

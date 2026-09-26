@@ -77,8 +77,8 @@ html[data-yn-theme="sepia"] .yn-partenaires {
 	align-items: center;
 	justify-content: center;
 	box-sizing: border-box;
-	height: 76px;
-	padding: 10px;
+	height: 120px;
+	padding: 12px;
 	overflow: hidden;
 	border-radius: var(--yn-radius, 6px);
 	background: var(--yn-partenaire-fond-logo);
@@ -160,9 +160,9 @@ html:not([data-yn-theme]) .yn-partenaires .yn-partenaire__logo--monogramme {
 	}
 
 	.yn-partenaires .yn-partenaire__logo {
-		width: 96px;
-		height: 60px;
-		padding: 8px;
+		width: 88px;
+		height: 72px;
+		padding: 6px;
 	}
 
 	.yn-partenaires .yn-partenaire__monogramme {

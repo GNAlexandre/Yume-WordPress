@@ -48,8 +48,9 @@ Bon à savoir :
 - l'administration de WordPress peut rester en partie en anglais si la traduction n'a pas pu
   être téléchargée ; le site public est en français ;
 - aucun e-mail ne part et aucun webhook Discord n'est configuré ;
-- les pages institutionnelles (L'équipe, FAQ, Contact…) sont de courtes pages de démonstration ; sur
-  le vrai site, ce sont les pages existantes, conservées par la migration ;
+- les pages du menu « Yume Novel » et « Contact » reprennent le contenu du site actuel ; la FAQ,
+  « Nos réseaux » et « Contact » sont dans leur version réécrite, celle que la migration mettra en
+  ligne ;
 - pour commenter, il faut être connecté (par exemple avec `lecteur` / `lecteur`), comme sur le vrai
   site après la migration ;
 - une adresse qui n'existe pas affiche l'accueil dans Playground au lieu de la page 404 : c'est

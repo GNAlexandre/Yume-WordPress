@@ -2609,3 +2609,211 @@ yume_test(
 		yume_assert_true( in_array( $autoload, array( 'yes', 'on', 'auto-on' ), true ), 'autoload : ' . $autoload );
 	}
 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Page « Illustrations » d'un tome (/lire/{oeuvre}/{tome}/illustrations/)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Illustration de galerie (pièce jointe image avec fichier déclaré, sans fichier réel).
+ *
+ * @param string $nom Nom du fichier.
+ */
+function yume_tc_illustration( string $nom = 'planche.jpg' ): int {
+	$id = yume_tc_image();
+	update_post_meta( $id, '_wp_attached_file', '2026/09/' . $nom );
+	return $id;
+}
+
+/**
+ * Œuvre, tome (numéro improbable) et deux chapitres publiés, sans événements.
+ *
+ * @param int $numero Numéro du tome.
+ * @return array{o:int,t:int,c1:int,c2:int,slug:string}
+ */
+function yume_tc_tome_illustre( int $numero ): array {
+	return yume_tc_sans_evenements(
+		static function () use ( $numero ): array {
+			$o = yume_tc_oeuvre( 'Brume-Haute ' . $numero );
+			$t = yume_tc_tome( $o, $numero );
+			return array(
+				'o'    => $o,
+				't'    => $t,
+				'c1'   => yume_tc_chapitre( $t, 1 ),
+				'c2'   => yume_tc_chapitre( $t, 2 ),
+				'slug' => (string) get_post_field( 'post_name', $o ),
+			);
+		}
+	);
+}
+
+yume_test(
+	'page Illustrations : route 200 avec une galerie, 404 sans galerie, en flux, paginée ou tome masqué',
+	function () {
+		flush_rewrite_rules( false );
+		$s   = yume_tc_tome_illustre( 7931 );
+		$url = home_url( '/lire/' . $s['slug'] . '/tome-7931/illustrations/' );
+		$qv  = yume_tc_parse( $url );
+		yume_assert_same( '404', $qv['error'] ?? '', 'sans galerie : 404' );
+		yume_assert_same( '', yume_url_illustrations( $s['t'] ) );
+
+		// Pièces jointes absentes ou non images : toujours pas de page.
+		update_post_meta( $s['t'], 'yume_illustrations', array( 999999, yume_tc_image() ) );
+		yume_assert_same( '404', yume_tc_parse( $url )['error'] ?? '', 'galerie sans image valable : 404' );
+
+		$i1 = yume_tc_illustration( 'planche-1.jpg' );
+		$i2 = yume_tc_illustration( 'planche-2.jpg' );
+		update_post_meta( $s['t'], 'yume_illustrations', array( $i2, $i1, $i2, 999999 ) );
+		yume_assert_same( array( $i2, $i1 ), yume_illustrations_tome( $s['t'] ), 'ordre de lecture, sans doublon ni pièce absente' );
+		yume_assert_same( $url, yume_url_illustrations( $s['t'] ) );
+
+		$qv = yume_tc_parse( $url );
+		yume_assert_same( $s['t'], (int) ( $qv['p'] ?? 0 ), 'résolue vers le tome' );
+		yume_assert_same( 'yume_tome', $qv['post_type'] ?? '' );
+		yume_assert_same( 1, (int) ( $qv['yume_page_illustrations'] ?? 0 ) );
+		yume_assert_true( empty( $qv['yume_non_canonique'] ), 'adresse canonique' );
+		$q = new WP_Query( $qv );
+		yume_assert_true( $q->is_singular( 'yume_tome' ) );
+		yume_assert_false( $q->is_404() );
+		yume_assert_same( 1, (int) $q->post_count );
+		yume_assert_same( $s['t'], (int) $q->get_queried_object_id() );
+		yume_assert_same( $s['t'], url_to_postid( $url ) );
+
+		// Le tome et ses chapitres gardent leurs adresses.
+		yume_assert_same( $s['c1'], (int) ( yume_tc_parse( get_permalink( $s['c1'] ) )['p'] ?? 0 ) );
+		$qv = yume_tc_parse( get_permalink( $s['t'] ) );
+		yume_assert_same( $s['t'], (int) ( $qv['p'] ?? 0 ) );
+		yume_assert_true( empty( $qv['yume_page_illustrations'] ), 'page du tome : pas la page Illustrations' );
+
+		// Variante de casse : résolue puis redirigée (non canonique).
+		$qv = yume_tc_parse( home_url( '/lire/' . $s['slug'] . '/tome-7931/Illustrations/' ) );
+		yume_assert_same( $s['t'], (int) ( $qv['p'] ?? 0 ) );
+		yume_assert_same( 1, (int) ( $qv['yume_non_canonique'] ?? 0 ) );
+
+		// Flux, intégration, pagination : jamais la page.
+		foreach ( array( 'feed/', 'embed/', '2/', 'comment-page-2/' ) as $suffixe ) {
+			yume_assert_same( '404', yume_tc_parse( $url . $suffixe )['error'] ?? '', 'illustrations/' . $suffixe );
+		}
+
+		// Tome dépublié, puis œuvre dépubliée (visibilité héritée) : 404.
+		wp_update_post(
+			array(
+				'ID'          => $s['t'],
+				'post_status' => 'draft',
+			)
+		);
+		yume_assert_same( '404', yume_tc_parse( $url )['error'] ?? '', 'tome brouillon : 404' );
+		wp_update_post(
+			array(
+				'ID'          => $s['t'],
+				'post_status' => 'publish',
+			)
+		);
+		yume_assert_same( $s['t'], (int) ( yume_tc_parse( $url )['p'] ?? 0 ) );
+		wp_update_post(
+			array(
+				'ID'          => $s['o'],
+				'post_status' => 'draft',
+			)
+		);
+		yume_assert_same( '404', yume_tc_parse( $url )['error'] ?? '', 'œuvre brouillon : 404' );
+	}
+);
+
+yume_test(
+	'page Illustrations : un vrai chapitre « illustrations » du tome garde l’adresse',
+	function () {
+		flush_rewrite_rules( false );
+		$s = yume_tc_tome_illustre( 7932 );
+		update_post_meta( $s['t'], 'yume_illustrations', array( yume_tc_illustration() ) );
+		$url = home_url( '/lire/' . $s['slug'] . '/tome-7932/illustrations/' );
+		yume_assert_same( $url, yume_url_illustrations( $s['t'] ) );
+
+		$reel = yume_tc_sans_evenements(
+			static function () use ( $s ): int {
+				return yume_tc_chapitre(
+					$s['t'],
+					null,
+					array(
+						'post_title'  => 'Illustrations',
+						'post_name'   => 'illustrations',
+						'post_status' => 'draft',
+						'menu_order'  => -1,
+						'meta_input'  => array( 'yume_nature' => 'illustrations' ),
+					)
+				);
+			}
+		);
+		// Brouillon : l'adresse lui est réservée, aucune page virtuelle (404 pour un visiteur).
+		yume_assert_same( '', yume_url_illustrations( $s['t'] ) );
+		yume_assert_same( '404', yume_tc_parse( $url )['error'] ?? '' );
+
+		yume_tc_sans_evenements(
+			static function () use ( $reel ): void {
+				wp_update_post(
+					array(
+						'ID'          => $reel,
+						'post_status' => 'publish',
+					)
+				);
+			}
+		);
+		yume_assert_same( $url, get_permalink( $reel ) );
+		$qv = yume_tc_parse( $url );
+		yume_assert_same( $reel, (int) ( $qv['p'] ?? 0 ), 'le chapitre réel l’emporte' );
+		yume_assert_same( 'yume_chapitre', $qv['post_type'] ?? '' );
+		yume_assert_true( empty( $qv['yume_page_illustrations'] ) );
+		yume_assert_same( '', yume_url_illustrations_avant( $s['c1'] ), 'pas de page virtuelle avant le chapitre 1' );
+	}
+);
+
+yume_test(
+	'page Illustrations : titre, adresse canonique, noindex, absente du plan du site',
+	function () {
+		global $wp_query, $wp_the_query;
+		flush_rewrite_rules( false );
+		$s = yume_tc_tome_illustre( 7933 );
+		update_post_meta( $s['t'], 'yume_illustrations', array( yume_tc_illustration() ) );
+		$url = yume_url_illustrations( $s['t'] );
+
+		$avant_q   = $wp_query;
+		$avant_the = $wp_the_query;
+		try {
+			// phpcs:disable WordPress.WP.GlobalVariablesOverride -- requête principale simulée puis restaurée.
+			$wp_query     = new WP_Query( yume_tc_parse( $url ) );
+			$wp_the_query = $wp_query;
+			// phpcs:enable
+			yume_assert_true( yume_est_page_illustrations() );
+			yume_assert_same( $url, wp_get_canonical_url( $s['t'] ) );
+			$robots = apply_filters( 'wp_robots', array( 'max-image-preview' => 'large' ) );
+			yume_assert_true( ! empty( $robots['noindex'] ) && ! empty( $robots['follow'] ), 'noindex, follow' );
+			$titre = apply_filters( 'document_title_parts', array( 'title' => 'x' ) );
+			yume_assert_same( 'Illustrations · ' . get_the_title( $s['t'] ), $titre['title'] );
+			yume_assert_same( '', wp_get_shortlink( $s['t'] ) );
+			yume_assert_same( '', yume_url_illustrations_avant( $s['c2'] ), 'seul le premier chapitre est précédé des illustrations' );
+			yume_assert_same( $url, yume_url_illustrations_avant( $s['c1'] ) );
+
+			// Page du tome : rien ne change.
+			// phpcs:disable WordPress.WP.GlobalVariablesOverride
+			$wp_query     = new WP_Query( yume_tc_parse( get_permalink( $s['t'] ) ) );
+			$wp_the_query = $wp_query;
+			// phpcs:enable
+			yume_assert_false( yume_est_page_illustrations() );
+			yume_assert_same( get_permalink( $s['t'] ), wp_get_canonical_url( $s['t'] ) );
+			yume_assert_true( empty( apply_filters( 'wp_robots', array() )['noindex'] ) );
+		} finally {
+			// phpcs:disable WordPress.WP.GlobalVariablesOverride
+			$wp_query     = $avant_q;
+			$wp_the_query = $avant_the;
+			// phpcs:enable
+		}
+
+		// Plan du site : les URL des tomes seulement (aucune page virtuelle).
+		$fournisseur = wp_sitemaps_get_server()->registry->get_provider( 'posts' );
+		$adresses    = $fournisseur ? wp_list_pluck( $fournisseur->get_url_list( 1, 'yume_tome' ), 'loc' ) : array();
+		yume_assert_true( in_array( get_permalink( $s['t'] ), $adresses, true ), 'tome dans le plan du site' );
+		yume_assert_false( in_array( $url, $adresses, true ), 'page Illustrations absente du plan du site' );
+	}
+);

@@ -25,6 +25,9 @@ php tools/docx2chapters/docx2chapters.php publish tome.docx \
 # … et publication immédiate ou programmée
 php tools/docx2chapters/docx2chapters.php publish tome.docx … --publier maintenant
 php tools/docx2chapters/docx2chapters.php publish tome.docx … --publier 2026-09-27T13:00
+
+# Tome déjà paru (PDF/EPUB seuls) : ajouter la lecture en ligne sans rien annoncer
+php tools/docx2chapters/docx2chapters.php publish tome.docx … --numero 3 --publier maintenant --sans-annonce
 ```
 
 `php tools/docx2chapters/docx2chapters.php aide` liste toutes les options.
@@ -57,6 +60,12 @@ un fichier illisible n'est jamais envoyé.
   brouillon créé par le planning), il est mis à jour : ses adresses sont conservées et ses
   chapitres sont remplacés en place, sans doublon. `--retirer-absents` met en brouillon les
   chapitres qui ne sont plus dans le fichier.
+- **Annonce** : `--sans-annonce` met la lecture en ligne sans article d'annonce, ni message
+  Discord, ni e-mail aux lecteurs (ajout au catalogue d'un tome déjà paru) ; `--avec-annonce`
+  force l'annonce. Sans l'une ni l'autre, le site choisit : **sans annonce pour un tome déjà
+  publié**, avec annonce pour un nouveau tome, un brouillon ou un tome programmé (paramètre REST
+  `sans_annonce`, contrat §12). Les chapitres d'un tome déjà paru ajoutés sans annonce prennent la
+  date de sortie du tome.
 - **Liens PDF / EPUB** : uniquement des liens externes (ClicTune, Mega…). Les fichiers PDF et EPUB
   ne sont jamais hébergés sur le site.
 - Le DOCX envoyé n'est pas conservé sur le serveur : il est supprimé après le découpage.

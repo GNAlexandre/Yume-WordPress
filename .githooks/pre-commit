@@ -1,0 +1,15 @@
+#!/bin/sh
+# Une version par commit : refuse un commit dont la version n'est pas supérieure à celle de HEAD,
+# ou dont les fichiers de version sont incohérents (tools/build/version.php).
+# Activation (une fois par clone) : git config core.hooksPath .githooks
+#
+# Avant de committer : php tools/build/version.php --suivante "ce que change le commit"
+RACINE="$(git rev-parse --show-toplevel)"
+if ! git rev-parse --verify -q HEAD >/dev/null; then
+	exit 0 # Premier commit du dépôt.
+fi
+if ! command -v php >/dev/null 2>&1; then
+	echo "pre-commit : php introuvable, contrôle de version ignoré." >&2
+	exit 0
+fi
+exec php "$RACINE/tools/build/version.php" --verifier --depuis=HEAD

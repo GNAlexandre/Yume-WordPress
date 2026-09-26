@@ -6,6 +6,8 @@
  *   /oeuvres/{oeuvre}/{slug-tome}/                tome
  *   /lire/{oeuvre}/{slug-tome}/{numero|slug}/     chapitre (numéro pour les chapitres, slug pour
  *                                                 les spéciaux : prologue, postface…)
+ *   /lire/{oeuvre}/{slug-tome}/illustrations/     page Illustrations du tome (illustrations.php),
+ *                                                 quand aucun chapitre n'occupe ce segment
  *
  * Les slugs de tomes ne sont uniques qu'au sein d'une œuvre et ceux des chapitres qu'au sein
  * d'un tome : la résolution d'une URL passe donc par l'œuvre (et le tome). Les variables de
@@ -537,6 +539,33 @@ function resoudre_chapitre( string $o, string $t, string $c ): ?array {
 }
 
 /**
+ * Résout la page Illustrations d'un tome (/lire/{oeuvre}/{tome}/illustrations/) : tome
+ * consultable (hiérarchie comprise) ayant une page Illustrations, sans flux, intégration,
+ * rétrolien ni pagination.
+ *
+ * @param string              $o  Segment d'œuvre normalisé.
+ * @param string              $t  Segment de tome normalisé.
+ * @param string              $c  Segment brut (« illustrations », casse ou encodage libres).
+ * @param array<string,mixed> $qv Variables de requête.
+ * @return array{id:int,canonique:bool}|null
+ */
+function resoudre_illustrations( string $o, string $t, string $c, array $qv ): ?array {
+	foreach ( array( 'feed', 'embed', 'tb', 'cpage', 'page' ) as $cle ) {
+		if ( ! empty( $qv[ $cle ] ) ) {
+			return null;
+		}
+	}
+	$tome = resoudre_tome( $o, $t, true );
+	if ( ! $tome || ! a_page_illustrations( $tome['id'] ) ) {
+		return null;
+	}
+	return array(
+		'id'        => $tome['id'],
+		'canonique' => $tome['canonique'] && SEGMENT_ILLUSTRATIONS === $c,
+	);
+}
+
+/**
  * Traduit les variables yume_route_* en requête WordPress (p + post_type) ou en 404.
  *
  * @param array<string,mixed> $qv Variables de requête.
@@ -559,6 +588,14 @@ function resoudre_requete( array $qv ): array {
 	if ( '' !== $c && '' !== $t ) {
 		$cible = resoudre_chapitre( $o, $t, $c );
 		$type  = CPT_CHAPITRE;
+		if ( ! $cible && SEGMENT_ILLUSTRATIONS === normaliser_segment( $c ) ) {
+			// Page Illustrations du tome (illustrations.php) : aucun chapitre à cette adresse.
+			$cible = resoudre_illustrations( $o, $t, $c, $qv );
+			if ( $cible ) {
+				$type                   = CPT_TOME;
+				$qv[ QV_ILLUSTRATIONS ] = 1;
+			}
+		}
 	} elseif ( '' !== $t ) {
 		$cible = resoudre_tome( $o, $t, true );
 		$type  = CPT_TOME;
@@ -632,22 +669,26 @@ function redirection_canonique(): void {
 	if ( ! $post instanceof \WP_Post ) {
 		return;
 	}
-	$cible = get_permalink( $post );
+	// Page Illustrations : sa propre adresse (ni flux, ni intégration, ni pagination possibles).
+	$illustrations = (bool) get_query_var( QV_ILLUSTRATIONS );
+	$cible         = $illustrations ? url_illustrations( (int) $post->ID ) : get_permalink( $post );
 	if ( ! $cible ) {
 		return;
 	}
-	if ( is_feed() ) {
-		$cible = get_post_comments_feed_link( $post->ID, (string) get_query_var( 'feed' ) );
-	} elseif ( is_embed() ) {
-		$cible = (string) get_post_embed_url( $post );
-	} elseif ( ! str_contains( $cible, '?' ) ) {
-		$page = (int) get_query_var( 'page' );
-		if ( $page > 1 ) {
-			$cible = trailingslashit( $cible ) . user_trailingslashit( (string) $page, 'single_paged' );
-		}
-		$cpage = (int) get_query_var( 'cpage' );
-		if ( $cpage > 0 ) {
-			$cible = trailingslashit( $cible ) . user_trailingslashit( 'comment-page-' . $cpage, 'commentpaged' );
+	if ( ! $illustrations ) {
+		if ( is_feed() ) {
+			$cible = get_post_comments_feed_link( $post->ID, (string) get_query_var( 'feed' ) );
+		} elseif ( is_embed() ) {
+			$cible = (string) get_post_embed_url( $post );
+		} elseif ( ! str_contains( $cible, '?' ) ) {
+			$page = (int) get_query_var( 'page' );
+			if ( $page > 1 ) {
+				$cible = trailingslashit( $cible ) . user_trailingslashit( (string) $page, 'single_paged' );
+			}
+			$cpage = (int) get_query_var( 'cpage' );
+			if ( $cpage > 0 ) {
+				$cible = trailingslashit( $cible ) . user_trailingslashit( 'comment-page-' . $cpage, 'commentpaged' );
+			}
 		}
 	}
 	$requete = isset( $_SERVER['QUERY_STRING'] ) ? (string) wp_unslash( $_SERVER['QUERY_STRING'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized

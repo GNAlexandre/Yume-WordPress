@@ -9,12 +9,16 @@
 defined( 'ABSPATH' ) || exit;
 
 use function Yume\Core\Core\defauts_reglages;
+use function Yume\Core\Core\est_page_illustrations;
 use function Yume\Core\Core\ids_par_meta;
+use function Yume\Core\Core\images_galerie;
 use function Yume\Core\Core\numero_fr;
 use function Yume\Core\Core\numero_ou_null;
 use function Yume\Core\Core\san_url;
 use function Yume\Core\Core\statuts_demandes;
 use function Yume\Core\Core\termes_taxonomie;
+use function Yume\Core\Core\url_illustrations;
+use function Yume\Core\Core\url_illustrations_avant;
 
 /**
  * Lit un réglage Yume (option yume_reglages).
@@ -525,4 +529,43 @@ function yume_url_page( string $cle ): string {
 	 * @param string $cle Clé de page.
 	 */
 	return (string) apply_filters( 'yume_url_page', $url, $cle );
+}
+
+/**
+ * Images de la galerie d'un tome (métadonnée yume_illustrations : images placées avant le
+ * premier chapitre), dans l'ordre de lecture ; pièces jointes absentes ou non images ignorées.
+ *
+ * @param int $tome_id Tome.
+ * @return int[]
+ */
+function yume_illustrations_tome( int $tome_id ): array {
+	return images_galerie( $tome_id );
+}
+
+/**
+ * Adresse de la page « Illustrations » d'un tome (/lire/{oeuvre}/{tome}/illustrations/), ou
+ * chaîne vide si le tome n'en a pas (galerie vide, chapitre réel « illustrations », liens simples).
+ *
+ * @param int $tome_id Tome.
+ */
+function yume_url_illustrations( int $tome_id ): string {
+	return url_illustrations( $tome_id );
+}
+
+/**
+ * La requête principale affiche-t-elle la page « Illustrations » d'un tome (l'objet de la
+ * requête est alors le tome) ?
+ */
+function yume_est_page_illustrations(): bool {
+	return est_page_illustrations();
+}
+
+/**
+ * Page « Illustrations » qui précède un chapitre dans l'ordre de lecture (premier chapitre
+ * publié d'un tome qui en a une), ou chaîne vide.
+ *
+ * @param int $chapitre_id Chapitre.
+ */
+function yume_url_illustrations_avant( int $chapitre_id ): string {
+	return url_illustrations_avant( $chapitre_id );
 }

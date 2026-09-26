@@ -29,6 +29,7 @@ function noms_blocs(): array {
 		'tome-toc',
 		'chapter-header',
 		'chapter-nav',
+		'tome-illustrations',
 		'partenaires',
 	);
 }
@@ -48,6 +49,25 @@ function enregistrer_style_commun(): void {
 	);
 }
 add_action( 'init', __NAMESPACE__ . '\\enregistrer_style_commun', 5 );
+
+/**
+ * Script des boutons « Commencer la lecture » d'un tome qui a une page Illustrations
+ * (bouton_commencer()) : mis en file par le rendu du bouton, chargé en pied de page.
+ */
+function enregistrer_script_debut_lecture(): void {
+	$fichier = __DIR__ . '/assets/debut-lecture.js';
+	wp_register_script(
+		'yume-debut-lecture',
+		plugins_url( 'assets/debut-lecture.js', __FILE__ ),
+		array(),
+		( defined( 'YUME_CORE_VERSION' ) ? YUME_CORE_VERSION : '2' ) . '.' . ( is_readable( $fichier ) ? (string) filemtime( $fichier ) : '0' ),
+		array(
+			'in_footer' => true,
+			'strategy'  => 'defer',
+		)
+	);
+}
+add_action( 'init', __NAMESPACE__ . '\\enregistrer_script_debut_lecture', 5 );
 
 /**
  * Enregistre les blocs du module.

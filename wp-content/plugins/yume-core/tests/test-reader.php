@@ -607,3 +607,181 @@ yume_test(
 		yume_assert_contains( 'config.reglages ? { theme: theme } : Object.assign( copie( enVigueur ), { theme: theme } )', $js, 'MET-8' );
 	}
 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Page « Illustrations » d'un tome
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Donne au tome d'une série une galerie de deux planches.
+ *
+ * @param int $tome_id Tome.
+ * @return int[] Pièces jointes.
+ */
+function yume_tr_galerie( int $tome_id ): array {
+	$ids = array();
+	foreach ( array( 'planche-a.jpg', 'planche-b.jpg' ) as $nom ) {
+		$id = (int) wp_insert_attachment(
+			array(
+				'post_title'     => $nom,
+				'post_mime_type' => 'image/jpeg',
+				'post_status'    => 'inherit',
+			),
+			'2026/09/' . $nom
+		);
+		update_post_meta( $id, '_wp_attached_file', '2026/09/' . $nom );
+		$ids[] = $id;
+	}
+	update_post_meta( $tome_id, 'yume_illustrations', $ids );
+	flush_rewrite_rules( false );
+	return $ids;
+}
+
+/**
+ * Place la requête principale sur la page Illustrations d'un tome, exécute $rappel, restaure.
+ *
+ * @param int      $tome_id Tome.
+ * @param callable $rappel  Fonction.
+ * @return mixed
+ */
+function yume_tr_sur_illustrations( int $tome_id, callable $rappel ) {
+	global $wp_query, $wp_the_query, $post;
+	$avant = array( $wp_query, $wp_the_query, $post );
+	// phpcs:disable WordPress.WP.GlobalVariablesOverride -- contexte simulé puis restauré.
+	$wp_query     = new WP_Query(
+		array(
+			'p'                       => $tome_id,
+			'post_type'               => 'yume_tome',
+			'yume_page_illustrations' => 1,
+		)
+	);
+	$wp_the_query = $wp_query;
+	$post         = get_post( $tome_id );
+	try {
+		return $rappel();
+	} finally {
+		list( $wp_query, $wp_the_query, $post ) = $avant;
+	}
+	// phpcs:enable
+}
+
+yume_test(
+	'page Illustrations : barre de lecture sans chapitre ni marque-page, → chapitre 1, réglages appliqués',
+	function () {
+		$s = yume_tr_serie( 3 );
+		yume_tr_galerie( $s['tome'] );
+		$url  = yume_url_illustrations( $s['tome'] );
+		$html = yume_tr_sur_illustrations( $s['tome'], static fn() => yume_render_block( 'yume/reader-tools' ) );
+		yume_assert_contains( 'class="yn-reader-tools wp-block-yume-reader-tools"', $html );
+		yume_assert_not_contains( 'data-yn-action="marque-page"', $html, 'pas de marque-page' );
+		yume_assert_contains( 'data-yn-action="theme"', $html );
+		yume_assert_contains( 'id="yn-parametres-lecture"', $html, 'panneau Paramètres' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $s['tome'] ) ) . '"', $html, 'retour et sommaire du tome' );
+		yume_assert_contains( '<span>Illustrations</span>', $html );
+		yume_assert_contains( '2 planches', $html );
+		yume_assert_contains( 'data-yn-portee="des illustrations"', $html );
+		yume_assert_contains( 'Connexion', $html );
+		preg_match( '/data-yn-lecteur="([^"]+)"/', $html, $m );
+		$config = json_decode( html_entity_decode( $m[1], ENT_QUOTES ), true );
+		yume_assert_same( 0, $config['chapitre'], 'aucun chapitre : aucun suivi de lecture' );
+		yume_assert_same( $s['tome'], $config['tome'] );
+		yume_assert_same( $s['oeuvre'], $config['oeuvre'] );
+		yume_assert_same( $url, $config['url'] );
+		yume_assert_same( '', $config['prev'] );
+		yume_assert_same( get_permalink( $s['chapitres'][0] ), $config['next'] );
+
+		// Réglages de lecture appliqués avant le premier rendu (largeur de colonne comprise).
+		$init = yume_tr_sur_illustrations(
+			$s['tome'],
+			static function () {
+				ob_start();
+				script_initialisation();
+				return (string) ob_get_clean();
+			}
+		);
+		yume_assert_contains( 'id="yume-lecture-init"', $init );
+		yume_assert_contains( '--yn-width', $init );
+
+		// Chapitre 1 : ← mène aux illustrations ; chapitre 2 inchangé.
+		$c1 = yume_tr_sur( $s['chapitres'][0], static fn() => yume_render_block( 'yume/reader-tools' ) );
+		preg_match( '/data-yn-lecteur="([^"]+)"/', $c1, $m );
+		yume_assert_same( $url, json_decode( html_entity_decode( $m[1], ENT_QUOTES ), true )['prev'] );
+		$c2 = yume_tr_sur( $s['chapitres'][1], static fn() => yume_render_block( 'yume/reader-tools' ) );
+		preg_match( '/data-yn-lecteur="([^"]+)"/', $c2, $m );
+		yume_assert_same( get_permalink( $s['chapitres'][0] ), json_decode( html_entity_decode( $m[1], ENT_QUOTES ), true )['prev'] );
+
+		// Le suivi du script exige un chapitre (config.chapitre) : rien n'est enregistré ici.
+		$js = (string) file_get_contents( YUME_CORE_DIR . 'includes/reader/blocks/reader-tools/view.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		yume_assert_contains( 'const suiviPossible = !! ( article && config.oeuvre && config.chapitre );', $js );
+	}
+);
+
+yume_test(
+	'page Illustrations : modèle « yume-illustrations » du thème, classes de lecture',
+	function () {
+		if ( 'yume' !== get_template() ) {
+			return;
+		}
+		$s = yume_tr_serie( 1 );
+		yume_tr_galerie( $s['tome'] );
+		$modeles = yume_tr_sur_illustrations( $s['tome'], static fn() => apply_filters( 'single_template_hierarchy', array( 'single-yume_tome.php', 'single.php' ) ) );
+		yume_assert_same( 'yume-illustrations.php', $modeles[0] );
+		$classes = yume_tr_sur_illustrations( $s['tome'], static fn() => get_body_class() );
+		yume_assert_true( in_array( 'yume-lecture', $classes, true ) && in_array( 'yume-illustrations', $classes, true ) );
+		yume_assert_same( array( 'single-yume_tome.php' ), yume_tr_sur( $s['tome'], static fn() => apply_filters( 'single_template_hierarchy', array( 'single-yume_tome.php' ) ) ), 'page du tome inchangée' );
+
+		yume_tr_sur_illustrations( $s['tome'], static fn() => get_single_template() );
+		yume_assert_true( str_ends_with( (string) ( $GLOBALS['_wp_current_template_id'] ?? '' ), '//yume-illustrations' ), 'modèle de blocs résolu : ' . ( $GLOBALS['_wp_current_template_id'] ?? '' ) );
+		$gabarit = (string) file_get_contents( get_theme_root() . '/yume/templates/yume-illustrations.html' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		foreach ( array( 'wp:yume/reader-tools', 'wp:yume/chapter-header', 'wp:yume/tome-illustrations', 'wp:yume/chapter-nav', '"className":"yn-reader"' ) as $bloc ) {
+			yume_assert_contains( $bloc, $gabarit );
+		}
+	}
+);
+
+yume_test(
+	'page Illustrations : jamais une position de lecture, pourcentages du tome inchangés',
+	function () {
+		$s = yume_tr_serie( 3 );
+		$u = yume_factory_user();
+		yume_rest(
+			'PUT',
+			'/yume/v1/moi/progression',
+			array(
+				'chapitre_id' => $s['chapitres'][1],
+				'paragraphe'  => 5,
+				'pourcentage' => 50,
+			),
+			$u
+		);
+		$avancement = function_exists( 'Yume\Core\Social\avancement_tome' ) ? \Yume\Core\Social\avancement_tome( $s['tome'], $s['chapitres'][1], 50 ) : null;
+
+		yume_tr_galerie( $s['tome'] );
+		// Le tome (objet de la page Illustrations) n'est pas un chapitre : refusé par la REST.
+		$r = yume_rest( 'PUT', '/yume/v1/moi/progression', array( 'chapitre_id' => $s['tome'] ), $u );
+		yume_assert_same( 400, $r->get_status() );
+		$lignes = lignes_progression( $u );
+		yume_assert_same( 1, count( $lignes ) );
+		yume_assert_same( $s['chapitres'][1], $lignes[0]['chapitre_id'], 'le marque-page reste sur le chapitre 2' );
+		yume_assert_same( 5, $lignes[0]['paragraphe'] );
+		yume_assert_same( 50, $lignes[0]['pourcentage'] );
+
+		// La barre de la page Illustrations d'un membre ne porte aucun chapitre à enregistrer.
+		wp_set_current_user( $u );
+		$html = yume_tr_sur_illustrations( $s['tome'], static fn() => yume_render_block( 'yume/reader-tools' ) );
+		wp_set_current_user( 0 );
+		preg_match( '/data-yn-lecteur="([^"]+)"/', $html, $m );
+		$config = json_decode( html_entity_decode( $m[1], ENT_QUOTES ), true );
+		yume_assert_same( 0, $config['chapitre'] );
+		yume_assert_same( $s['chapitres'][1], (int) $config['progression']['chapitre_id'], 'position du compte transmise telle quelle' );
+
+		if ( null !== $avancement ) {
+			yume_assert_same( $avancement, \Yume\Core\Social\avancement_tome( $s['tome'], $s['chapitres'][1], 50 ), 'avancement dans le tome inchangé' );
+			yume_assert_same( 100, \Yume\Core\Social\avancement_tome( $s['tome'], $s['chapitres'][2], 100 ) );
+		}
+		// Le rang « N sur M » des chapitres ne compte pas la page Illustrations.
+		yume_assert_contains( '1 sur 3', yume_tr_sur( $s['chapitres'][0], static fn() => yume_render_block( 'yume/reader-tools' ) ) );
+	}
+);

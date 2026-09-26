@@ -1,0 +1,49 @@
+/**
+ * yume/tome-illustrations — planches de la page « Illustrations » d'un tome, dans .yn-reader :
+ * pleine largeur de la colonne (réglage « Largeur de colonne », --yn-width), l'une sous
+ * l'autre, couleurs du thème de lecture (Nuit, Papier, Sépia).
+ */
+.yn-tome-illustrations {
+	display: grid;
+	gap: clamp(28px, 5vw, 48px);
+	margin-block-start: 2em;
+}
+
+.yn-tome-illustrations .yn-tome-illustrations__planche {
+	margin: 0;
+	text-align: center;
+}
+
+.yn-tome-illustrations__lien {
+	display: block;
+	border-radius: 8px;
+	text-decoration: none;
+}
+
+.yn-tome-illustrations__lien:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 4px;
+}
+
+.yn-tome-illustrations .yn-tome-illustrations__planche img {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	height: auto;
+	margin-inline: auto;
+	border-radius: 8px;
+	background: var(--wp--preset--color--carte);
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+	cursor: zoom-in;
+}
+
+.yn-tome-illustrations .yn-tome-illustrations__planche figcaption {
+	margin-top: 0.6em;
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 0.8em;
+	line-height: 1.4;
+	text-align: center;
+	-webkit-hyphens: manual;
+	hyphens: manual;
+}

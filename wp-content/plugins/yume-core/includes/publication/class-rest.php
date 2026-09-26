@@ -7,6 +7,11 @@
  *                                               tome et chapitres en brouillon (ou mis à jour), rapport ;
  * - POST /yume/v1/publications/(?P<id>\d+)/publier  « quand » = maintenant | date ISO.
  *
+ * Paramètre booléen « sans_annonce » (création et publication) : ajout au catalogue, sans
+ * article d'annonce, ni Discord, ni e-mail (Service::ajouter_au_catalogue()). Absent, il vaut
+ * vrai pour un tome déjà paru (statut publish) et faux sinon (nouveau tome, brouillon, tome
+ * programmé) : Service::sans_annonce_par_defaut().
+ *
  * Les fichiers téléversés sont contrôlés (type réel, extension, taille) et supprimés après
  * traitement. Authentification : cookie + nonce wp_rest (formulaire) ou mot de passe
  * d'application (outil en ligne de commande).
@@ -80,6 +85,7 @@ final class Rest {
 						'type'        => 'boolean',
 						'default'     => false,
 					),
+					'sans_annonce'   => self::argument_sans_annonce(),
 				),
 			)
 		);
@@ -153,6 +159,19 @@ final class Rest {
 				'type'        => 'boolean',
 				'default'     => false,
 			),
+			'sans_annonce'    => self::argument_sans_annonce(),
+		);
+	}
+
+	/**
+	 * Argument « sans_annonce » (sans valeur par défaut : absent, il dépend du tome).
+	 *
+	 * @return array<string,mixed>
+	 */
+	private static function argument_sans_annonce(): array {
+		return array(
+			'description' => __( 'Ajout au catalogue sans annonce (ni article, ni Discord, ni e-mail). Absent : vrai pour un tome déjà publié, faux sinon.', 'yume-core' ),
+			'type'        => 'boolean',
 		);
 	}
 
@@ -213,7 +232,7 @@ final class Rest {
 	 */
 	private static function champs( \WP_REST_Request $requete ): array {
 		$champs = array();
-		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'credits', 'couverture_id', 'retirer_absents', 'credits_traduction', 'credits_relecture', 'credits_edition' ) as $cle ) {
+		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'credits', 'couverture_id', 'retirer_absents', 'sans_annonce', 'credits_traduction', 'credits_relecture', 'credits_edition' ) as $cle ) {
 			if ( null !== $requete->get_param( $cle ) ) {
 				$champs[ $cle ] = $requete->get_param( $cle );
 			}
@@ -278,7 +297,16 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function publier( \WP_REST_Request $requete ) {
-		$resultat = Service::publier( (int) $requete['id'], (string) $requete->get_param( 'quand' ), array( 'confirmer_vide' => (bool) $requete->get_param( 'confirmer_vide' ) ) );
+		$id           = (int) $requete['id'];
+		$sans_annonce = $requete->get_param( 'sans_annonce' );
+		$resultat     = Service::publier(
+			$id,
+			(string) $requete->get_param( 'quand' ),
+			array(
+				'confirmer_vide' => (bool) $requete->get_param( 'confirmer_vide' ),
+				'sans_annonce'   => null === $sans_annonce ? Service::sans_annonce_par_defaut( $id ) : (bool) $sans_annonce,
+			)
+		);
 		return is_wp_error( $resultat ) ? self::erreur( $resultat ) : rest_ensure_response( $resultat );
 	}
 }

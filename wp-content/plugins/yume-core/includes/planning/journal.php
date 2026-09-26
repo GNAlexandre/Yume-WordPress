@@ -6,7 +6,8 @@
  * Champs journalisés : etape, avancement, responsables, date_cible, bloque, bloque_raison,
  * note_equipe (jamais publique), et les événements creation, publie (sortie complète, partielle,
  * retour en ligne, dernier chapitre), depublie, chapitre_publie, retire (tome retiré du planning), etape_forcee (équipe seulement), rappel, signalement
- * (gérants, non public) et digest (non public).
+ * (gérants, non public), digest (non public) et lecture_ajoutee (lecture en ligne d'un tome
+ * déjà paru ajoutée sans annonce : équipe seulement).
  *
  * @package Yume\Core
  */
@@ -21,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string[]
  */
 function champs_evenements(): array {
-	return array( 'creation', 'publie', 'depublie', 'chapitre_publie', 'retire', 'etape_forcee', 'rappel', 'signalement', 'digest' );
+	return array( 'creation', 'publie', 'depublie', 'chapitre_publie', 'retire', 'etape_forcee', 'rappel', 'signalement', 'digest', 'lecture_ajoutee' );
 }
 
 /**
@@ -30,7 +31,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee' );
 }
 
 /**
@@ -403,6 +404,15 @@ function texte_changement( $ligne, bool $equipe ): string {
 
 		case 'chapitre_publie':
 			return '';
+
+		case 'lecture_ajoutee':
+			$infos = is_array( $nouveau ) ? $nouveau : array();
+			$nb    = (int) ( $infos['chapitres'] ?? 0 );
+			return ! empty( $infos['programme'] )
+				/* translators: %d : nombre de chapitres */
+				? sprintf( _n( 'lecture en ligne programmée (sans annonce) : %d chapitre', 'lecture en ligne programmée (sans annonce) : %d chapitres', $nb, 'yume-core' ), $nb )
+				/* translators: %d : nombre de chapitres */
+				: sprintf( _n( 'lecture en ligne ajoutée (sans annonce) : %d chapitre', 'lecture en ligne ajoutée (sans annonce) : %d chapitres', $nb, 'yume-core' ), $nb );
 
 		case 'rappel':
 			$infos = is_array( $nouveau ) ? $nouveau : array();

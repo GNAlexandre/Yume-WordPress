@@ -205,10 +205,8 @@ Pour WordPress 6.6 : `tools/localenv/setup.sh --dossier /tmp/yume-66 --version 6
 > automatiquement par le site : **pas de tag sans Go**.
 
 1. **Numéro de version** (versionnage sémantique : correctif `2.0.1`, fonctionnalité `2.1.0`,
-   rupture `3.0.0`). Mettre le même numéro à trois endroits :
-   - `wp-content/plugins/yume-core/yume-core.php` : en-tête `Version:` **et** constante
-     `YUME_CORE_VERSION` ;
-   - `wp-content/themes/yume/style.css` : en-tête `Version:`.
+   rupture `3.0.0`) : `php tools/build/version.php --suivante=release "Yume Novel 2.0.0"` (ou
+   `=patch`, `=minor`, `=major`, ou `--fixer=2.1.0`) ; voir « Une version par commit » ci-dessous.
    Changer `YUME_CORE_VERSION` relance l'installation des modules (`yume_core_install` : tables via
    `dbDelta`, rôles, options) au premier chargement : c'est ainsi que les migrations de schéma sont
    appliquées sur le site.
@@ -230,6 +228,27 @@ Pour WordPress 6.6 : `tools/localenv/setup.sh --dossier /tmp/yume-66 --version 6
    version apparaît dans *Tableau de bord → Mises à jour* ; si *Yume → Réglages → Mises à jour
    automatiques* est coché (défaut), WordPress l'installe seul lors de son passage de mises à jour
    automatiques suivant. Le thème suit le même chemin avec `yume.zip`.
+
+### Une version par commit
+
+**Chaque commit augmente la version** et ajoute une entrée à `CHANGELOG.md`. Avant de committer :
+
+```sh
+php tools/build/version.php --suivante "Ce que change le commit, en une phrase"
+```
+
+- Numérotation : `2.0.0-dev.1`, `2.0.0-dev.2`, … pendant le développement ; `2.0.0` à la release
+  (`--suivante=release`) ; puis `2.0.1-dev.1`, … jusqu'à la suivante (`--suivante=patch|minor|major`).
+  `version_compare()` classe `2.0.0-dev.N` avant `2.0.0` : un site en release ne « redescend » jamais.
+- Le script écrit la même version aux cinq emplacements : en-tête `Version:` et constante
+  `YUME_CORE_VERSION` du plugin, en-tête `Version:` du thème (`style.css`), `Stable tag` et entrée
+  du `readme.txt` du thème, asset de l'éditeur du bloc `theme-toggle`.
+- `php tools/build/version.php` affiche la version ; `--verifier` contrôle la cohérence et l'entrée
+  du CHANGELOG ; `--verifier --depuis=HEAD` exige en plus une version supérieure au commit précédent.
+- **Hook git** (refuse un commit sans nouvelle version) : `git config core.hooksPath .githooks`,
+  une fois par clone (fait par `tools/localenv/setup.sh`).
+- **CI** : l'étape « Version cohérente et augmentée » du job Syntaxe échoue si la version n'a pas
+  augmenté depuis le commit précédent (push) ou depuis la branche cible (pull request).
 
 Préversion : un tag `v2.1.0-beta.1` (autorisé depuis n'importe quelle branche) crée une release
 marquée « pre-release » que les sites **ignorent** ; pratique pour faire tester l'archive. Seules les

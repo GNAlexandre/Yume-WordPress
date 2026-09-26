@@ -1226,9 +1226,32 @@ final class Migration_Executor extends Migration_Moteur {
 	}
 
 	/**
+	 * Contenu révisé livré avec l'extension pour une page conservée (contenus/<slug>.html,
+	 * par exemple la FAQ réécrite par l'équipe), ou '' s'il n'y en a pas.
+	 *
+	 * @param string $slug Slug de la page.
+	 */
+	public static function contenu_revise( string $slug ): string {
+		$slug = sanitize_key( $slug );
+		if ( '' === $slug ) {
+			return '';
+		}
+		$fichier = __DIR__ . '/contenus/' . $slug . '.html';
+		$contenu = is_readable( $fichier ) ? (string) file_get_contents( $fichier ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local de l'extension.
+		/**
+		 * Filtre le contenu révisé d'une page conservée par la migration ('' : aucun).
+		 *
+		 * @param string $contenu Contenu (blocs).
+		 * @param string $slug    Slug de la page.
+		 */
+		return trim( (string) apply_filters( 'yume_migration_contenu_revise', $contenu, $slug ) );
+	}
+
+	/**
 	 * Page conservée telle quelle (institutionnelle) : ses couleurs de fond et de texte en ligne
 	 * sont retirées (illisibles dans les thèmes Nuit et Papier) et ses liens-images sans texte
-	 * reçoivent un texte alternatif. Le contenu d'origine est gardé pour l'annulation.
+	 * reçoivent un texte alternatif. Si l'extension livre un contenu révisé pour cette page
+	 * (contenu_revise()), il remplace le contenu. Le contenu d'origine est gardé pour l'annulation.
 	 *
 	 * @param array $p Page du plan (pages.conserver[]).
 	 */
@@ -1240,7 +1263,8 @@ final class Migration_Executor extends Migration_Moteur {
 			// Déjà traitée (reprise, relance) : une retouche faite depuis par l'équipe est gardée.
 			return;
 		}
-		$contenu = Html::alt_liens_images( Html::sans_couleurs( (string) $post->post_content ) );
+		$revise  = self::contenu_revise( (string) $post->post_name );
+		$contenu = '' !== $revise ? $revise : Html::alt_liens_images( Html::sans_couleurs( (string) $post->post_content ) );
 		if ( $contenu === $post->post_content ) {
 			return;
 		}
@@ -1254,8 +1278,13 @@ final class Migration_Executor extends Migration_Moteur {
 		$wpdb->update( $wpdb->posts, array( 'post_content' => $contenu ), array( 'ID' => $id ) );
 		clean_post_cache( $id );
 		$this->compter( 'pages_nettoyees' );
-		/* translators: %s: titre. */
-		$this->message( sprintf( __( 'Page conservée « %s » : couleurs en ligne retirées, textes alternatifs ajoutés.', 'yume-core' ), $post->post_title ) );
+		$this->message(
+			'' !== $revise
+				/* translators: %s: titre. */
+				? sprintf( __( 'Page conservée « %s » : contenu remplacé par la version révisée livrée avec l’extension.', 'yume-core' ), $post->post_title )
+				/* translators: %s: titre. */
+				: sprintf( __( 'Page conservée « %s » : couleurs en ligne retirées, textes alternatifs ajoutés.', 'yume-core' ), $post->post_title )
+		);
 	}
 
 	/**
