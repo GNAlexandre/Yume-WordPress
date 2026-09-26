@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
 
 <!-- wp:buttons -->
 <div class="wp-block-buttons"><!-- wp:button {"className":"yn-lien-discord"} -->
-<div class="wp-block-button yn-lien-discord"><a class="wp-block-button__link wp-element-button" href="https://discord.gg/tuMB3rmmWB"><?php esc_html_e( 'Rejoindre le Discord', 'yume' ); ?></a></div>
+<div class="wp-block-button yn-lien-discord"><a class="wp-block-button__link wp-element-button" href="https://discord.gg/yumenovel"><?php esc_html_e( 'Rejoindre le Discord', 'yume' ); ?></a></div>
 <!-- /wp:button -->
 
 <!-- wp:button {"className":"is-style-yn-kofi yn-lien-kofi"} -->

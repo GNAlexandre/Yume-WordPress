@@ -327,7 +327,7 @@ function yume_preprod_complements(): void {
 			),
 			array(
 				'label' => 'Fil Discord de l’œuvre',
-				'url'   => (string) yume_setting( 'discord_invite', 'https://discord.gg/tuMB3rmmWB' ),
+				'url'   => (string) yume_setting( 'discord_invite', 'https://discord.gg/yumenovel' ),
 			),
 		)
 	);

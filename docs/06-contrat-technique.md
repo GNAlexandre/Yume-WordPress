@@ -184,7 +184,7 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `emails_lecteurs` | `true` | social |
 | `banniere_id` | `0` | bibliothèque (bloc bannière), thème |
 | `kofi_url` | `https://ko-fi.com/ynovel` | thème |
-| `discord_invite` | `https://discord.gg/tuMB3rmmWB` | thème |
+| `discord_invite` | `https://discord.gg/yumenovel` | thème |
 | `twitter_url` | `https://x.com/Roshidere_FR` | thème |
 | `jours_sortie` | `['mercredi','samedi','dimanche']` | planning |
 | `modele_annonce` | `Le {nature} {numero} de {oeuvre} est disponible !` | publication |
