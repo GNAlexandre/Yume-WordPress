@@ -146,6 +146,11 @@ final class Formulaire {
 			}
 		}
 		$champs['retirer_absents'] = ! empty( $_POST['retirer_absents'] );
+		// Case « Ajout au catalogue » : champ caché « 0 » suivi de la case « 1 » (la dernière
+		// valeur l'emporte) ; absente, la valeur par défaut dépend du tome.
+		if ( isset( $_POST['sans_annonce'] ) && is_scalar( $_POST['sans_annonce'] ) ) {
+			$champs['sans_annonce'] = rest_sanitize_boolean( sanitize_text_field( wp_unslash( (string) $_POST['sans_annonce'] ) ) );
+		}
 		// « Tome du planning » choisi : il est la cible ; ses œuvre, nature et numéro complètent
 		// les champs laissés vides (sans JavaScript, rien n'a été prérempli).
 		$planning = isset( $_POST['tome_planning'] ) ? absint( $_POST['tome_planning'] ) : 0;
@@ -221,12 +226,17 @@ final class Formulaire {
 				$sortie = Service::publier(
 					$tome_id,
 					'publier' === $etape ? 'maintenant' : (string) $champs['date_sortie'],
-					array( 'confirmer_vide' => ! empty( $_POST['confirmer_vide'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié plus haut.
+					array(
+						'confirmer_vide' => ! empty( $_POST['confirmer_vide'] ), // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié plus haut.
+						'sans_annonce'   => ! empty( $rapport['sans_annonce'] ),
+					)
 				);
 				if ( is_wp_error( $sortie ) ) {
 					$type      = 'erreur';
 					$message   = __( 'Le brouillon est enregistré, mais la publication a échoué :', 'yume-core' ) . ' ' . $sortie->get_error_message();
 					$confirmer = 'yume_tome_vide' === $sortie->get_error_code();
+				} elseif ( ! empty( $sortie['sans_annonce'] ) ) {
+					$message = self::message_catalogue( $sortie );
 				} elseif ( 'publish' === $sortie['statut'] ) {
 					/* translators: %s : titre du tome */
 					$message = sprintf( __( '%s est en ligne ! Les chapitres, l’annonce et les notifications sont partis.', 'yume-core' ), $sortie['tome']['titre'] );
@@ -262,6 +272,29 @@ final class Formulaire {
 			// Le DOCX n'est jamais conservé, même en cas d'erreur.
 			Fichiers::supprimer( $fichiers['source'] );
 		}
+	}
+
+	/**
+	 * Message de succès d'un ajout au catalogue (sans annonce).
+	 *
+	 * @param array<string,mixed> $sortie Résultat de Service::publier().
+	 */
+	public static function message_catalogue( array $sortie ): string {
+		$nb = (int) $sortie['chapitres'];
+		if ( 'publish' !== $sortie['statut'] ) {
+			return sprintf(
+				/* translators: 1: titre du tome, 2: date */
+				__( '%1$s : lecture en ligne programmée le %2$s, sans annonce (ni article, ni Discord, ni e-mail).', 'yume-core' ),
+				$sortie['tome']['titre'],
+				self::date_fr( ( new \DateTimeImmutable( (string) $sortie['date'], wp_timezone() ) )->getTimestamp(), 'long' )
+			);
+		}
+		return sprintf(
+			/* translators: 1: titre du tome, 2: nombre de chapitres */
+			_n( '%1$s : lecture en ligne ajoutée (%2$d chapitre), sans annonce : ni article, ni Discord, ni e-mail.', '%1$s : lecture en ligne ajoutée (%2$d chapitres), sans annonce : ni article, ni Discord, ni e-mail.', $nb, 'yume-core' ),
+			$sortie['tome']['titre'],
+			$nb
+		);
 	}
 
 	/**
@@ -319,6 +352,7 @@ final class Formulaire {
 				'edition'    => '',
 			),
 			'couverture_id' => 0,
+			'sans_annonce'  => false,
 			'tome'          => null,
 		);
 		$tome = isset( $_GET['tome'] ) ? get_post( absint( $_GET['tome'] ) ) : null;
@@ -336,6 +370,7 @@ final class Formulaire {
 					'lien_epub'     => (string) get_post_meta( $tome->ID, 'yume_lien_epub', true ),
 					'credits'       => is_array( $credits ) ? array_merge( $v['credits'], $credits ) : $v['credits'],
 					'couverture_id' => (int) get_post_thumbnail_id( $tome->ID ),
+					'sans_annonce'  => Service::sans_annonce_par_defaut( $tome ),
 					'tome'          => $tome,
 					'meta'          => $meta,
 				)
@@ -348,6 +383,7 @@ final class Formulaire {
 				}
 			}
 		}
+		$v['sans_annonce'] = (bool) $v['sans_annonce'];
 		if ( '' === $v['nature'] || ! isset( yume_natures_tome()[ $v['nature'] ] ) ) {
 			$v['nature'] = 'tome';
 		}
@@ -381,7 +417,7 @@ final class Formulaire {
 	 * par numéro.
 	 *
 	 * @param int $inclure Tome à proposer quel que soit son statut (tome ouvert par ?tome=ID).
-	 * @return array<int,array<string,mixed>> Liste de {id, oeuvre_id, libelle, nature, numero, titre, date_sortie, programme}.
+	 * @return array<int,array<string,mixed>> Liste de {id, oeuvre_id, libelle, nature, numero, titre, date_sortie, programme, publie}.
 	 */
 	public static function tomes_planning( int $inclure = 0 ): array {
 		$posts  = get_posts(
@@ -422,6 +458,7 @@ final class Formulaire {
 					'id'        => (int) $tome->ID,
 					'libelle'   => $libelle,
 					'programme' => 'future' === $tome->post_status,
+					'publie'    => 'publish' === $tome->post_status,
 					'tri'       => (float) get_post_meta( $tome->ID, 'yume_numero', true ),
 				)
 			);

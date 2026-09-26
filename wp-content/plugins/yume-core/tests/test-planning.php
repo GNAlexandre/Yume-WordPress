@@ -2214,12 +2214,12 @@ yume_tp_test(
 		yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
 		preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0], $liens, PREG_SET_ORDER );
 		$libelles = array_map( static fn( $l ) => html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), $liens );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
 		$equipe = esc_url( yume_url_page( 'equipe' ) );
 		yume_assert_same( $equipe, $liens[0][1] );
 		yume_assert_same( $equipe . '#yn-mes-taches', $liens[1][1] );
-		yume_assert_same( esc_url( get_permalink( $page ) ), $liens[6][1] );
-		yume_assert_same( ' aria-current="page"', $liens[6][2] );
+		yume_assert_same( esc_url( get_permalink( $page ) ), $liens[7][1] );
+		yume_assert_same( ' aria-current="page"', $liens[7][2] );
 		yume_assert_same( 1, substr_count( $m[0], 'aria-current' ) );
 
 		// Membres : chacun avec son rôle ; lecteur absent de la liste.

@@ -10,7 +10,7 @@
  *       --user pseudo --app-password "xxxx xxxx xxxx xxxx xxxx xxxx" --oeuvre 12 --numero 10 \
  *       [--nature tome] [--titre "…"] [--pdf URL] [--epub URL] [--couverture image.jpg] \
  *       [--traduction X] [--relecture Y] [--edition Z] [--retirer-absents] \
- *       [--publier maintenant|AAAA-MM-JJTHH:MM]
+ *       [--publier maintenant|AAAA-MM-JJTHH:MM] [--sans-annonce|--avec-annonce]
  *
  * Voir tools/docx2chapters/README.md. Utilise le convertisseur du plugin
  * (wp-content/plugins/yume-core/includes/import/), qui n'a besoin d'aucune fonction WordPress.
@@ -66,6 +66,10 @@ Options de publish :
   --traduction X --relecture Y --edition Z
   --retirer-absents                       met en brouillon les chapitres absents du fichier
   --publier maintenant|AAAA-MM-JJTHH:MM   publie tout de suite, ou programme la sortie
+  --sans-annonce                          ajout au catalogue : ni article d'annonce, ni Discord,
+                                          ni e-mail (défaut du site pour un tome déjà publié)
+  --avec-annonce                          annonce la sortie même si le tome est déjà publié
+                                          (défaut du site pour un nouveau tome)
 
 Options de convert et analyse :
   --sans-typographie                      n'ajoute pas d'espaces insécables devant ? ! : ;
@@ -87,7 +91,7 @@ AIDE;
 function yume_d2c_arguments( array $argv ): array {
 	$positionnels = array();
 	$options      = array();
-	$drapeaux     = array( 'retirer-absents', 'sans-typographie', 'json', 'aide', 'help' );
+	$drapeaux     = array( 'retirer-absents', 'sans-annonce', 'avec-annonce', 'sans-typographie', 'json', 'aide', 'help' );
 	for ( $i = 0, $n = count( $argv ); $i < $n; $i++ ) {
 		$arg = $argv[ $i ];
 		if ( str_starts_with( $arg, '--' ) ) {
@@ -331,6 +335,16 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	if ( '' === $pass ) {
 		yume_d2c_erreur( 'mot de passe d’application manquant (--app-password ou YUME_APP_PASSWORD).', 2 );
 	}
+	if ( ! empty( $o['sans-annonce'] ) && ! empty( $o['avec-annonce'] ) ) {
+		yume_d2c_erreur( '--sans-annonce et --avec-annonce sont incompatibles.', 2 );
+	}
+	// Absent : le site choisit (sans annonce pour un tome déjà publié, avec sinon).
+	$annonce = array();
+	if ( ! empty( $o['sans-annonce'] ) ) {
+		$annonce['sans_annonce'] = '1';
+	} elseif ( ! empty( $o['avec-annonce'] ) ) {
+		$annonce['sans_annonce'] = '0';
+	}
 	$nature = (string) ( $o['nature'] ?? 'tome' );
 	if ( ! isset( $o['numero'] ) && ! in_array( $nature, array( 'ex', 'bonus' ), true ) ) {
 		yume_d2c_erreur( 'option --numero manquante.', 2 );
@@ -363,6 +377,7 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	if ( ! empty( $o['retirer-absents'] ) ) {
 		$champs['retirer_absents'] = '1';
 	}
+	$champs += $annonce;
 	if ( ! empty( $o['couverture'] ) ) {
 		$couv = (string) $o['couverture'];
 		if ( ! is_readable( $couv ) ) {
@@ -394,16 +409,19 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	if ( ! empty( $json['article'] ) ) {
 		echo '  Annonce : ' . $json['article']['titre'] . ' (' . $json['article']['etat'] . ') ' . $json['article']['edition'] . "\n";
 	}
+	if ( ! empty( $json['sans_annonce'] ) ) {
+		echo "  Ajout au catalogue : aucune annonce (ni article, ni Discord, ni e-mail).\n";
+	}
 	foreach ( (array) ( $json['avertissements'] ?? array() ) as $w ) {
 		echo '  ▲ ' . $w . "\n";
 	}
 
 	if ( ! empty( $o['publier'] ) && is_string( $o['publier'] ) ) {
-		list( $statut, $sortie ) = yume_d2c_post( yume_d2c_url( (string) $o['site'], 'yume/v1/publications/' . (int) $tome['id'] . '/publier', $jolie ), array( 'quand' => $o['publier'] ), (string) $o['user'], $pass );
+		list( $statut, $sortie ) = yume_d2c_post( yume_d2c_url( (string) $o['site'], 'yume/v1/publications/' . (int) $tome['id'] . '/publier', $jolie ), array( 'quand' => $o['publier'] ) + ( $annonce ? $annonce : array( 'sans_annonce' => empty( $json['sans_annonce'] ) ? '0' : '1' ) ), (string) $o['user'], $pass );
 		if ( $statut < 200 || $statut >= 300 || null === $sortie ) {
 			yume_d2c_erreur( 'brouillon enregistré, mais la publication a échoué : ' . ( $sortie['message'] ?? 'HTTP ' . $statut ) );
 		}
-		echo "\n" . ( 'publish' === $sortie['statut'] ? 'Publié : ' . $sortie['tome']['lien'] : 'Sortie programmée le ' . $sortie['date'] ) . "\n";
+		echo "\n" . ( 'publish' === $sortie['statut'] ? 'Publié : ' . $sortie['tome']['lien'] : 'Sortie programmée le ' . $sortie['date'] ) . ( ! empty( $sortie['sans_annonce'] ) ? ' (sans annonce)' : '' ) . "\n";
 	}
 }
 

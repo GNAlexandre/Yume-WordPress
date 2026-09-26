@@ -11,7 +11,10 @@
  * - aperçu du chapitre 1 dans un nouvel onglet ;
  * - liste « Tome du planning » limitée aux tomes de l'œuvre choisie, qui préremplit nature,
  *   numéro et titre et cible ce tome (pas de doublon) ;
- * - tome sans chapitre ni lien PDF/EPUB : confirmation explicite avant de publier.
+ * - tome sans chapitre ni lien PDF/EPUB : confirmation explicite avant de publier ;
+ * - case « Ajout au catalogue » (sans annonce) : cochée d'office pour un tome déjà publié
+ *   (tant qu'elle n'a pas été touchée), récapitulatif et messages adaptés, valeur envoyée
+ *   explicitement à la publication.
  *
  * JavaScript ES2019 sans dépendance ; nonce wp_rest envoyé en X-WP-Nonce.
  */
@@ -129,6 +132,11 @@
 		var planning = form.querySelector( '[data-yn-planning]' );
 		var planningOrigine = planning ? planning.cloneNode( true ) : null;
 		var confirmerVide = form.querySelector( '[data-yn-confirmer-vide]' );
+		var sansAnnonce = form.querySelector( '[data-yn-sans-annonce]' );
+		var sansAnnonceTouchee = false;
+		var recapAnnonce = racine.querySelector( '[data-yn-recap-annonce]' );
+		var recapNotifications = racine.querySelector( '[data-yn-recap-notifications]' );
+		var recapCatalogue = racine.querySelector( '[data-yn-recap-catalogue]' );
 		var declencheur = null;
 		var sourceAEnvoyer = false;
 		var analyseCourante = 0;
@@ -249,6 +257,35 @@
 			}
 		}
 
+		function modeCatalogue() {
+			return !! ( sansAnnonce && sansAnnonce.checked );
+		}
+
+		function majModeAnnonce() {
+			var muet = modeCatalogue();
+			if ( recapAnnonce ) {
+				recapAnnonce.hidden = muet;
+			}
+			if ( recapNotifications ) {
+				recapNotifications.hidden = muet;
+			}
+			if ( recapCatalogue ) {
+				recapCatalogue.hidden = ! muet;
+			}
+		}
+
+		/**
+		 * Valeur par défaut de la case « Ajout au catalogue » : cochée pour un tome déjà
+		 * publié, décochée sinon, tant que l'utilisateur ne l'a pas changée lui-même.
+		 */
+		function defautAnnonce( publie ) {
+			if ( ! sansAnnonce || sansAnnonceTouchee ) {
+				return;
+			}
+			sansAnnonce.checked = !! publie;
+			majModeAnnonce();
+		}
+
 		function afficherFiche( fichier, format, details, type ) {
 			fiche.hidden = false;
 			ficheFormat.className = 'yn-chip yn-chip--' + ( type || 'info' );
@@ -307,6 +344,7 @@
 				if ( rapport.tome_existant && etat ) {
 					etat.textContent = 'Tome existant (' + rapport.tome_existant.etat.toLowerCase() + ') : mise à jour';
 				}
+				defautAnnonce( rapport.tome_existant ? rapport.tome_existant.statut === 'publish' : false );
 				if ( rapport.tome_existant ) {
 					texte += ' ' + rapport.tome_existant.titre + ' existe déjà (' + rapport.tome_existant.etat.toLowerCase() + ') : il sera mis à jour, ses adresses sont conservées.';
 				}
@@ -417,9 +455,11 @@
 				if ( etat ) {
 					etat.textContent = 'Nouveau tome';
 				}
+				defautAnnonce( false );
 				majRecap( null );
 				return;
 			}
+			defautAnnonce( option.getAttribute( 'data-publie' ) === '1' );
 			var oeuvre = form.querySelector( '[data-yn-oeuvre]' );
 			var nature = form.querySelector( '[data-yn-nature]' );
 			var numero = form.querySelector( '[data-yn-numero]' );
@@ -462,7 +502,11 @@
 				date.focus();
 				return;
 			}
-			if ( etape === 'publier' && ! window.confirm( 'Publier maintenant ? Les chapitres seront en ligne et les lecteurs qui suivent l’œuvre seront prévenus.' ) ) {
+			if ( etape === 'publier' && ! window.confirm(
+				modeCatalogue()
+					? 'Mettre la lecture en ligne maintenant ? Ajout au catalogue : aucune annonce (ni article, ni Discord, ni e-mail).'
+					: 'Publier maintenant ? Les chapitres seront en ligne et les lecteurs qui suivent l’œuvre seront prévenus.'
+			) ) {
 				return;
 			}
 			var fenetre = etape === 'apercu' ? window.open( '', '_blank' ) : null;
@@ -515,6 +559,8 @@
 					var sortir = function ( confirme ) {
 						var sortieDonnees = new FormData();
 						sortieDonnees.append( 'quand', etape === 'publier' ? 'maintenant' : date.value );
+						// Toujours explicite : sans ce champ, l'API choisit selon le statut du tome.
+						sortieDonnees.append( 'sans_annonce', rapport.sans_annonce ? '1' : '0' );
 						if ( confirme ) {
 							sortieDonnees.append( 'confirmer_vide', '1' );
 						}
@@ -527,13 +573,24 @@
 						} );
 					};
 					return sortir( !! ( confirmerVide && confirmerVide.checked ) ).then( function ( sortie ) {
+						var dateSortie = new Date( sortie.date ).toLocaleString( 'fr-FR', { dateStyle: 'full', timeStyle: 'short' } );
+						var texteSortie;
+						if ( sortie.sans_annonce ) {
+							texteSortie = sortie.statut === 'publish'
+								? sortie.tome.titre + ' : lecture en ligne ajoutée (' + sortie.chapitres + ( sortie.chapitres > 1 ? ' chapitres' : ' chapitre' ) + '), sans annonce : ni article, ni Discord, ni e-mail.'
+								: sortie.tome.titre + ' : lecture en ligne programmée le ' + dateSortie + ', sans annonce (ni article, ni Discord, ni e-mail).';
+						} else {
+							texteSortie = sortie.statut === 'publish'
+								? sortie.tome.titre + ' est en ligne ! Les chapitres, l’annonce et les notifications sont partis.'
+								: sortie.tome.titre + ' sortira le ' + dateSortie + '.';
+						}
 						if ( etat ) {
-							etat.textContent = sortie.statut === 'publish' ? 'Tome publié' : 'Sortie programmée';
+							etat.textContent = sortie.sans_annonce
+								? ( sortie.statut === 'publish' ? 'Lecture en ligne ajoutée' : 'Lecture en ligne programmée' )
+								: ( sortie.statut === 'publish' ? 'Tome publié' : 'Sortie programmée' );
 						}
 						annoncer(
-							sortie.statut === 'publish'
-								? sortie.tome.titre + ' est en ligne ! Les chapitres, l’annonce et les notifications sont partis.'
-								: sortie.tome.titre + ' sortira le ' + new Date( sortie.date ).toLocaleString( 'fr-FR', { dateStyle: 'full', timeStyle: 'short' } ) + '.',
+							texteSortie,
 							'succes',
 							[ [ sortie.statut === 'publish' ? sortie.tome.lien : sortie.tome.apercu, sortie.statut === 'publish' ? 'Voir le tome' : 'Prévisualiser le tome' ] ]
 						);
@@ -641,6 +698,13 @@
 		if ( planning ) {
 			planning.addEventListener( 'change', choisirPlanning );
 			filtrerPlanning();
+		}
+		if ( sansAnnonce ) {
+			sansAnnonce.addEventListener( 'change', function () {
+				sansAnnonceTouchee = true;
+				majModeAnnonce();
+			} );
+			majModeAnnonce();
 		}
 		form.addEventListener( 'click', function ( e ) {
 			var bouton = e.target.closest ? e.target.closest( 'button[type="submit"]' ) : null;

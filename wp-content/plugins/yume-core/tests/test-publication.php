@@ -1675,3 +1675,421 @@ yume_test(
 		}
 	)
 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Ajout au catalogue (sans annonce)
+ * -----------------------------------------------------------------------------
+ */
+
+if ( ! function_exists( 'yume_tpub_tome_migre' ) ) {
+	/**
+	 * Tome migré : publié il y a un mois avec ses seuls liens PDF/EPUB, jamais annoncé.
+	 *
+	 * @param int $oeuvre Œuvre.
+	 * @param int $numero Numéro.
+	 * @return array{0:int,1:string} Tome, date GMT de sortie.
+	 */
+	function yume_tpub_tome_migre( int $oeuvre, int $numero = 10 ): array {
+		$ancienne = gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS );
+		add_filter( 'yume_core_notifier', '__return_false' );
+		try {
+			$tome = yume_factory_post(
+				array(
+					'post_type'     => 'yume_tome',
+					'post_title'    => 'Tome migré — Tome ' . $numero,
+					'post_name'     => 'tome-' . $numero,
+					'post_status'   => 'publish',
+					'post_date'     => get_date_from_gmt( $ancienne ),
+					'post_date_gmt' => $ancienne,
+					'meta_input'    => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_numero'    => $numero,
+						'yume_nature'    => 'tome',
+						'yume_lien_pdf'  => 'https://www.clictune.com/pdf' . $numero,
+					),
+				)
+			);
+		} finally {
+			remove_filter( 'yume_core_notifier', '__return_false' );
+		}
+		if ( function_exists( 'Yume\Core\Core\etat_set' ) ) {
+			\Yume\Core\Core\etat_set( 'publies_yume_tome', array() );
+		}
+		return array( $tome, $ancienne );
+	}
+
+	/**
+	 * Compte les événements de sortie et les appels Discord pendant $corps.
+	 *
+	 * @param callable $corps Corps (reçoit le compteur).
+	 * @return stdClass tome, chapitre, alertes (IDs reçus), discord (URL appelées).
+	 */
+	function yume_tpub_compter( callable $corps ): stdClass {
+		$n          = new stdClass();
+		$n->tome    = array();
+		$n->chap    = array();
+		$n->alertes = array();
+		$n->discord = array();
+		$tome       = static function ( $id ) use ( $n ) {
+			$n->tome[] = (int) $id;
+		};
+		$chap       = static function ( $id ) use ( $n ) {
+			$n->chap[] = (int) $id;
+		};
+		$alertes    = static function ( $id ) use ( $n ) {
+			$n->alertes[] = (int) $id;
+		};
+		$http       = static function ( $pre, $args, $url ) use ( $n ) {
+			if ( str_contains( (string) $url, 'discord.com' ) ) {
+				$n->discord[] = (string) $url;
+				return array(
+					'headers'  => array(),
+					'body'     => '',
+					'response' => array(
+						'code'    => 204,
+						'message' => '',
+					),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			}
+			return $pre;
+		};
+		$reglages   = get_option( 'yume_reglages', array() );
+		update_option( 'yume_reglages', array_merge( is_array( $reglages ) ? $reglages : array(), array( 'discord_webhook_sorties' => 'https://discord.com/api/webhooks/1/sorties' ) ) );
+		add_action( 'yume_tome_publie', $tome, 1 );
+		add_action( 'yume_chapitre_publie', $chap, 1 );
+		add_action( 'yume_alertes_envoyees', $alertes, 1 );
+		add_filter( 'pre_http_request', $http, 10, 3 );
+		try {
+			$corps( $n );
+		} finally {
+			remove_action( 'yume_tome_publie', $tome, 1 );
+			remove_action( 'yume_chapitre_publie', $chap, 1 );
+			remove_action( 'yume_alertes_envoyees', $alertes, 1 );
+			remove_filter( 'pre_http_request', $http, 10 );
+			update_option( 'yume_reglages', $reglages );
+		}
+		return $n;
+	}
+
+	/**
+	 * Articles de la catégorie « Sorties » (tous statuts vivants).
+	 *
+	 * @return int[]
+	 */
+	function yume_tpub_sorties(): array {
+		return get_posts(
+			array(
+				'post_type'        => 'post',
+				'post_status'      => array( 'publish', 'future', 'draft', 'pending', 'private' ),
+				'category_name'    => 'sorties',
+				'posts_per_page'   => 100,
+				'fields'           => 'ids',
+				'suppress_filters' => true,
+			)
+		);
+	}
+}
+
+yume_test(
+	'catalogue : tome migré (PDF seul) mis en lecture en ligne sans annonce — aucun événement, article, Discord ni alerte',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre                  = yume_tpub_oeuvre( 'Catalogue muet' );
+			list( $tome, $ancienne ) = yume_tpub_tome_migre( $oeuvre );
+			yume_assert_true( Service::sans_annonce_par_defaut( $tome ), 'tome publié : sans annonce par défaut' );
+			$sorties_avant = yume_tpub_sorties();
+			$n             = yume_tpub_compter(
+				function () use ( $ctx, $oeuvre, $tome ) {
+					$r = yume_tpub_preparer( $ctx, $oeuvre, array( 'lien_epub' => '' ) );
+					yume_assert_same( $tome, (int) $r['tome']['id'], 'tome migré réutilisé' );
+					yume_assert_true( $r['sans_annonce'], 'préparation : défaut sans annonce pour un tome publié' );
+					yume_assert_same( null, $r['article'], 'aucun article préparé' );
+					$sortie = Service::publier( $tome, 'maintenant', array( 'sans_annonce' => true ) );
+					yume_assert_false( is_wp_error( $sortie ), is_wp_error( $sortie ) ? $sortie->get_error_message() : '' );
+					yume_assert_same( 13, $sortie['chapitres'] );
+					yume_assert_true( $sortie['sans_annonce'] );
+					yume_assert_same( null, $sortie['article'] );
+				}
+			);
+			yume_assert_same( array(), $n->tome, 'aucun yume_tome_publie' );
+			yume_assert_same( array(), $n->chap, 'aucun yume_chapitre_publie' );
+			yume_assert_same( array(), $n->alertes, 'aucune alerte e-mail' );
+			yume_assert_same( array(), $n->discord, 'aucun message Discord' );
+			yume_assert_same( 0, Annonce::existant( $tome ), 'aucun article d’annonce' );
+			yume_assert_same( $sorties_avant, yume_tpub_sorties(), 'rien de nouveau dans « Sorties »' );
+
+			$chapitres = yume_get_chapitres( $tome );
+			yume_assert_same( 13, count( $chapitres ), 'chapitres en ligne' );
+			foreach ( $chapitres as $chapitre ) {
+				yume_assert_same( $ancienne, $chapitre->post_date_gmt, 'chapitre daté de la sortie du tome' );
+				yume_assert_same( Service::NOTIFIE_CATALOGUE, get_post_meta( $chapitre->ID, '_yume_publie_notifie', true ) );
+				yume_assert_same( '', (string) get_post_meta( $chapitre->ID, '_yume_alerte_envoyee', true ), 'hors récapitulatif hebdomadaire' );
+			}
+			yume_assert_same( 'publish', get_post_status( $tome ) );
+			yume_assert_same( $ancienne, get_post_field( 'post_date_gmt', $tome ), 'date du tome conservée' );
+			yume_assert_same( Service::NOTIFIE_CATALOGUE, get_post_meta( $tome, '_yume_publie_notifie', true ), 'tome marqué « catalogue »' );
+			yume_assert_same( 13, (int) get_post_meta( $tome, 'yume_nb_chapitres', true ), 'nombre de chapitres recalculé' );
+			yume_assert_true( (bool) apply_filters( 'yume_core_notifier', true, get_post( $tome ), 'yume_tome_publie' ), 'filtre yume_core_notifier rétabli' );
+			yume_assert_same( 'https://www.clictune.com/pdf10', get_post_meta( $tome, 'yume_lien_pdf', true ) );
+			$meta = get_post_meta( $tome, Service::META, true );
+			yume_assert_true( ! empty( $meta['sans_annonce'] ) );
+
+			// Journal de l'équipe : ligne non publique.
+			if ( function_exists( 'Yume\Core\Planning\lire_journal' ) ) {
+				$lignes = \Yume\Core\Planning\lire_journal(
+					array(
+						'tome_id' => $tome,
+						'champs'  => array( 'lecture_ajoutee' ),
+					)
+				);
+				yume_assert_same( 1, count( $lignes ), 'journal : lecture en ligne ajoutée' );
+				yume_assert_same( 0, (int) $lignes[0]->public, 'ligne réservée à l’équipe' );
+				yume_assert_contains( 'lecture en ligne ajoutée (sans annonce) : 13 chapitres', \Yume\Core\Planning\texte_changement( $lignes[0], true ) );
+				yume_assert_same(
+					array(),
+					\Yume\Core\Planning\lire_journal(
+						array(
+							'tome_id' => $tome,
+							'public'  => true,
+							'champs'  => array( 'lecture_ajoutee', 'publie' ),
+						)
+					)
+				);
+			}
+
+			// Plus tard, de vrais nouveaux chapitres : annoncés comme chapitres, jamais le tome ancien.
+			$nouveaux = array();
+			foreach ( array( 14, 15 ) as $i => $numero ) {
+				$nouveaux[] = yume_factory_post(
+					array(
+						'post_type'    => 'yume_chapitre',
+						'post_title'   => 'Chapitre ' . $numero,
+						'post_status'  => 'draft',
+						'post_content' => '<!-- wp:paragraph --><p>Texte.</p><!-- /wp:paragraph -->',
+						'menu_order'   => 20 + $i,
+						'meta_input'   => array(
+							'yume_tome_id' => $tome,
+							'yume_numero'  => $numero,
+							'yume_nature'  => 'chapitre',
+						),
+					)
+				);
+			}
+			$n = yume_tpub_compter(
+				function () use ( $tome ) {
+					Service::publier( $tome, 'maintenant' );
+				}
+			);
+			yume_assert_same( array(), $n->tome, 'le tome n’est pas « sorti » une seconde fois' );
+			yume_assert_same( 1, count( $n->chap ), 'une sortie groupée des nouveaux chapitres' );
+		}
+	)
+);
+
+yume_test(
+	'catalogue : un nouveau tome publié ensuite est toujours annoncé (article, yume_tome_publie, Discord)',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre        = yume_tpub_oeuvre( 'Catalogue puis nouveauté' );
+			list( $migre ) = yume_tpub_tome_migre( $oeuvre, 3 );
+			$n             = yume_tpub_compter(
+				function () use ( $ctx, $oeuvre, $migre ) {
+					yume_tpub_preparer( $ctx, $oeuvre, array( 'numero' => '3' ) );
+					Service::publier( $migre, 'maintenant', array( 'sans_annonce' => true ) );
+				}
+			);
+			yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->discord ) );
+
+			$n = yume_tpub_compter(
+				function ( $n ) use ( $ctx, $oeuvre ) {
+					$r = yume_tpub_preparer( $ctx, $oeuvre, array( 'numero' => '4' ) );
+					yume_assert_false( $r['sans_annonce'], 'nouveau tome : avec annonce par défaut' );
+					yume_assert_true( is_array( $r['article'] ), 'article d’annonce préparé' );
+					$sortie = Service::publier( (int) $r['tome']['id'], 'maintenant' );
+					yume_assert_true( is_array( $sortie['article'] ) && 'publish' === $sortie['article']['statut'], 'annonce publiée' );
+					yume_assert_same( array( (int) $r['tome']['id'] ), $n->tome, 'yume_tome_publie émis' );
+				}
+			);
+			yume_assert_same( 1, count( $n->discord ), 'message Discord de la sortie' );
+			yume_assert_same( array(), $n->chap );
+		}
+	)
+);
+
+yume_test(
+	'catalogue : case « Ajout au catalogue » cochée pour un tome publié, décochée pour un brouillon ou un nouveau tome ; récapitulatif',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre        = yume_tpub_oeuvre( 'Catalogue formulaire' );
+			list( $migre ) = yume_tpub_tome_migre( $oeuvre, 2 );
+			$brouillon     = yume_tpub_preparer( $ctx, $oeuvre, array( 'numero' => '5' ) );
+			$rendu         = static function ( int $tome ): string {
+				$_GET['tome'] = (string) $tome;
+				try {
+					return yume_render_block( 'yume/publish-form' );
+				} finally {
+					unset( $_GET['tome'] );
+				}
+			};
+			$case          = '#<input id="yn-publish-sans-annonce" type="checkbox" name="sans_annonce" value="1"[^>]*>#';
+
+			$html = $rendu( $migre );
+			yume_assert_true( (bool) preg_match( $case, $html, $m ), 'case présente' );
+			yume_assert_contains( 'checked', $m[0], 'tome publié : cochée' );
+			yume_assert_contains( '<input type="hidden" name="sans_annonce" value="0">', $html, 'décochée = « 0 » envoyé' );
+			yume_assert_contains( 'Ajout au catalogue : ne pas annoncer (pas d’article, pas de Discord, pas d’e-mail)', $html );
+			yume_assert_contains( '<li data-yn-recap-annonce hidden>', $html, 'pas d’« Article d’annonce »' );
+			yume_assert_contains( '<li data-yn-recap-notifications hidden>', $html, 'pas de « Notifications »' );
+			yume_assert_contains( '<li data-yn-recap-catalogue >', $html, 'ligne « Aucune annonce » visible' );
+			yume_assert_not_contains( 'data-yn-remplacement', $html, 'aucun chapitre : pas de note de remplacement' );
+
+			$html = $rendu( (int) $brouillon['tome']['id'] );
+			preg_match( $case, $html, $m );
+			yume_assert_not_contains( 'checked', $m[0], 'brouillon : décochée' );
+			yume_assert_contains( '<li data-yn-recap-annonce >', $html );
+			yume_assert_contains( '<li data-yn-recap-catalogue hidden>', $html );
+			yume_assert_contains( 'Ce tome a déjà 13 chapitres. Un nouveau fichier les remplace en place', $html, 'note de remplacement' );
+
+			$html = yume_render_block( 'yume/publish-form' );
+			preg_match( $case, $html, $m );
+			yume_assert_not_contains( 'checked', $m[0], 'nouveau tome : décochée' );
+		}
+	)
+);
+
+yume_test(
+	'catalogue : REST sans_annonce (absent : selon le statut du tome ; explicite : respecté)',
+	yume_tpub(
+		function ( $ctx ) {
+			$editeur                 = yume_factory_user( 'yume_editeur' );
+			$oeuvre                  = yume_tpub_oeuvre( 'Catalogue REST' );
+			list( $tome, $ancienne ) = yume_tpub_tome_migre( $oeuvre, 6 );
+			$champs                  = array(
+				'oeuvre_id' => $oeuvre,
+				'nature'    => 'tome',
+				'numero'    => '6',
+			);
+			$n                       = yume_tpub_compter(
+				function () use ( $ctx, $editeur, $champs, $tome ) {
+					$cree = yume_rest( 'POST', '/yume/v1/publications', $champs, $editeur, array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) ) );
+					yume_assert_same( 200, $cree->get_status() );
+					yume_assert_true( $cree->get_data()['sans_annonce'], 'absent + tome publié : sans annonce' );
+					yume_assert_same( null, $cree->get_data()['article'] );
+					$sortie = yume_rest( 'POST', '/yume/v1/publications/' . $tome . '/publier', array( 'quand' => 'maintenant' ), $editeur );
+					yume_assert_same( 200, $sortie->get_status() );
+					yume_assert_true( $sortie->get_data()['sans_annonce'] );
+					yume_assert_same( 13, $sortie->get_data()['chapitres'] );
+				}
+			);
+			yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->alertes, $n->discord ) );
+			yume_assert_same( 0, Annonce::existant( $tome ) );
+			yume_assert_same( $ancienne, yume_get_chapitres( $tome )[0]->post_date_gmt );
+
+			// Nouveau tome : avec annonce par défaut ; sans_annonce explicite respecté.
+			$n = yume_tpub_compter(
+				function () use ( $ctx, $editeur, $oeuvre ) {
+					$cree = yume_rest(
+						'POST',
+						'/yume/v1/publications',
+						array(
+							'oeuvre_id'    => $oeuvre,
+							'numero'       => '7',
+							'sans_annonce' => 'true',
+						),
+						$editeur,
+						array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) )
+					);
+					yume_assert_same( 201, $cree->get_status() );
+					yume_assert_true( $cree->get_data()['sans_annonce'] );
+					$id     = (int) $cree->get_data()['tome']['id'];
+					$sortie = yume_rest(
+						'POST',
+						'/yume/v1/publications/' . $id . '/publier',
+						array(
+							'quand'        => 'maintenant',
+							'sans_annonce' => '1',
+						),
+						$editeur
+					);
+					yume_assert_same( 'publish', $sortie->get_data()['statut'] );
+					yume_assert_true( $sortie->get_data()['sans_annonce'] );
+					yume_assert_same( 0, Annonce::existant( $id ) );
+					yume_assert_same( Service::NOTIFIE_CATALOGUE, get_post_meta( $id, '_yume_publie_notifie', true ) );
+				}
+			);
+			yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->discord ), 'nouveau tome ajouté sans annonce : muet' );
+
+			$n = yume_tpub_compter(
+				function ( $n ) use ( $ctx, $editeur, $oeuvre ) {
+					$cree = yume_rest(
+						'POST',
+						'/yume/v1/publications',
+						array(
+							'oeuvre_id' => $oeuvre,
+							'numero'    => '8',
+						),
+						$editeur,
+						array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) )
+					);
+					yume_assert_same( 201, $cree->get_status(), wp_json_encode( $cree->get_data() ) );
+					yume_assert_false( $cree->get_data()['sans_annonce'], 'absent + nouveau tome : avec annonce' );
+					$id = (int) $cree->get_data()['tome']['id'];
+					yume_assert_false( yume_rest( 'POST', '/yume/v1/publications/' . $id . '/publier', array( 'quand' => 'maintenant' ), $editeur )->get_data()['sans_annonce'] );
+					yume_assert_same( array( $id ), $n->tome );
+				}
+			);
+			yume_assert_same( 1, count( $n->discord ) );
+		}
+	)
+);
+
+yume_test(
+	'catalogue : formulaire sans JavaScript, case cochée → publication sans annonce et message adapté',
+	yume_tpub(
+		function ( $ctx ) {
+			$editeur = yume_factory_user( 'yume_editeur' );
+			wp_set_current_user( $editeur );
+			$oeuvre       = yume_tpub_oeuvre( 'Catalogue sans JS' );
+			list( $tome ) = yume_tpub_tome_migre( $oeuvre, 9 );
+			$redirige     = static function ( $url ) {
+				throw new RuntimeException( 'redirection:' . $url );
+			};
+			$n            = yume_tpub_compter(
+				function () use ( $ctx, $oeuvre, $tome, $redirige ) {
+					add_filter( 'wp_redirect', $redirige, 1 );
+					$_POST  = array(
+						'action'        => 'yume_publication',
+						'_yume_nonce'   => wp_create_nonce( 'yume_publication' ),
+						'etape'         => 'publier',
+						'oeuvre_id'     => (string) $oeuvre,
+						'tome_planning' => (string) $tome,
+						'numero'        => '9',
+						'sans_annonce'  => '1',
+					);
+					$_FILES = array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) );
+					try {
+						Formulaire::traiter();
+					} catch ( RuntimeException $e ) {
+						yume_assert_contains( 'tome=' . $tome, $e->getMessage() );
+					} finally {
+						remove_filter( 'wp_redirect', $redirige, 1 );
+						$_POST  = array();
+						$_FILES = array();
+					}
+				}
+			);
+			$retour       = get_transient( Formulaire::RETOUR . $editeur );
+			yume_assert_same( 'succes', $retour['type'] );
+			yume_assert_contains( 'lecture en ligne ajoutée (13 chapitres), sans annonce', $retour['message'] );
+			yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->discord ) );
+			yume_assert_same( 13, count( yume_get_chapitres( $tome ) ) );
+			yume_assert_same( 0, Annonce::existant( $tome ) );
+		}
+	)
+);

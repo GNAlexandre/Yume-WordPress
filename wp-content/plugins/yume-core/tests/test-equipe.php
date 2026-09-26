@@ -232,13 +232,14 @@ yume_te_test(
 		$nav      = navigation_equipe( 'tableau', 2 );
 		$entrees  = yume_te_nav( $nav );
 		$libelles = array_column( $entrees, 0 );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
-		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[7][1], 'réglages dans l’espace équipe' );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
+		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[8][1], 'réglages dans l’espace équipe' );
+		yume_assert_same( url_vue_equipe( 'lecture' ), $entrees[3][1], 'lecture à compléter dans l’espace équipe' );
 		yume_assert_not_contains( 'page=yume-reglages', $nav, 'plus la page de l’administration' );
-		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[4][1] );
-		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[5][1] );
-		yume_assert_contains( 'vue=planning', $entrees[4][1] );
-		yume_assert_true( yume_url_page( 'planning' ) !== $entrees[4][1], 'plus le planning public' );
+		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[5][1] );
+		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[6][1] );
+		yume_assert_contains( 'vue=planning', $entrees[5][1] );
+		yume_assert_true( yume_url_page( 'planning' ) !== $entrees[5][1], 'plus le planning public' );
 		yume_assert_same( '#yn-team', $entrees[0][1], 'ancres sur le tableau de bord' );
 		yume_assert_same( ' aria-current="true"', $entrees[0][2] );
 		yume_assert_contains( '2 en retard', $nav, 'signature historique conservée' );
@@ -246,11 +247,12 @@ yume_te_test(
 		yume_assert_contains( esc_url( wp_logout_url( home_url( '/' ) ) ), $nav );
 
 		foreach ( array(
-			'planning' => 4,
-			'journal'  => 5,
+			'planning' => 5,
+			'journal'  => 6,
 			'publier'  => 2,
-			'membres'  => 6,
-			'reglages' => 7,
+			'lecture'  => 3,
+			'membres'  => 7,
+			'reglages' => 8,
 		) as $cle => $index ) {
 			$html    = navigation_equipe( $cle );
 			$entrees = yume_te_nav( $html );
@@ -1066,5 +1068,160 @@ yume_te_test(
 		yume_assert_same( 'https://ko-fi.com/ynovel', yume_setting( 'kofi_url' ) );
 		yume_assert_true( has_action( 'admin_post_yume_reglages_equipe' ) > 0 );
 		yume_assert_true( has_action( 'admin_post_nopriv_yume_reglages_equipe' ) > 0 );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Lecture à compléter
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Chapitre publié (ou brouillon) d'un tome, sans notification.
+ *
+ * @param int    $tome_id Tome.
+ * @param int    $numero  Numéro.
+ * @param string $statut  Statut.
+ */
+function yume_te_chapitre( int $tome_id, int $numero, string $statut = 'publish' ): int {
+	add_filter( 'yume_core_notifier', '__return_false' );
+	try {
+		return yume_factory_post(
+			array(
+				'post_type'    => 'yume_chapitre',
+				'post_title'   => 'Chapitre ' . $numero,
+				'post_status'  => $statut,
+				'post_content' => '<!-- wp:paragraph --><p>Texte.</p><!-- /wp:paragraph -->',
+				'meta_input'   => array(
+					'yume_tome_id' => $tome_id,
+					'yume_numero'  => $numero,
+					'yume_nature'  => 'chapitre',
+				),
+			)
+		);
+	} finally {
+		remove_filter( 'yume_core_notifier', '__return_false' );
+	}
+}
+
+yume_te_test(
+	'lecture à compléter : tomes parus sans chapitre en ligne, par œuvre, progression, filtre, boutons ; le tome quitte la liste une fois ses chapitres en ligne',
+	function () {
+		$d       = yume_te_jeu();
+		$d['t8'] = yume_te_tome( $d['grimgar'], 8, array( 'yume_etape' => 'publie' ), 'publish' );
+		$d['r1'] = yume_te_tome(
+			$d['raven'],
+			1,
+			array(
+				'yume_etape'     => 'publie',
+				'yume_lien_pdf'  => 'https://www.clictune.com/r1',
+				'yume_lien_epub' => 'https://www.clictune.com/r1e',
+			),
+			'publish'
+		);
+		yume_te_chapitre( $d['t8'], 1 );
+		yume_te_chapitre( $d['r1'], 1, 'draft' );
+
+		$html = yume_te_rendu( $d['editeur'], array( 'vue' => 'lecture' ) );
+		yume_assert_contains( '<h2 class="yn-team__bonjour">Lecture en ligne à compléter</h2>', $html );
+		yume_assert_contains( '1 tome sur 3 a la lecture en ligne', $html, 'progression' );
+		yume_assert_contains( '2 à compléter', $html );
+		yume_assert_contains( '--v:33%', $html, 'barre de progression' );
+		yume_assert_contains( 'id="yn-lecture-' . $d['t9'] . '"', $html, 'T.9 publié sans chapitre' );
+		yume_assert_contains( 'id="yn-lecture-' . $d['r1'] . '"', $html, 'Raven T.1 : chapitre en brouillon seulement' );
+		foreach ( array( 't8', 't10', 't11', 'raven3' ) as $cle ) {
+			yume_assert_not_contains( 'id="yn-lecture-' . $d[ $cle ] . '"', $html, $cle . ' absent' );
+		}
+		yume_assert_true( strpos( $html, '>Grimgar</h3>' ) < strpos( $html, '>Raven</h3>' ), 'œuvres par titre' );
+		yume_assert_contains( '1 à compléter sur 2 tomes parus', $html );
+		yume_assert_contains( esc_url( add_query_arg( 'tome', $d['t9'], yume_url_page( 'publier' ) ) ) . '">Ajouter le DOCX', $html );
+		yume_assert_contains( esc_url( get_permalink( $d['r1'] ) ) . '">Voir la fiche', $html );
+		yume_assert_contains( 'PDF présent', $html );
+		yume_assert_contains( 'EPUB présent', $html );
+		yume_assert_contains( 'Pas de PDF', $html, 'T.9 sans lien' );
+		yume_assert_contains( '1 chapitre préparé, pas encore en ligne', $html );
+		yume_assert_contains( '<span class="yn-visually-hidden"> — Grimgar, Tome 9</span>', $html, 'bouton explicite pour les lecteurs d’écran' );
+		yume_assert_contains( 'name="vue" value="lecture"', $html, 'filtre GET' );
+		yume_assert_contains( '>Grimgar (1)</option>', $html );
+		$nav = yume_te_nav( $html );
+		yume_assert_same( 'Lecture à compléter', $nav[3][0] );
+		yume_assert_same( ' aria-current="page"', $nav[3][2], 'entrée active' );
+		yume_assert_same( 1, substr_count( $html, 'aria-current' ) );
+
+		// Filtre par œuvre.
+		$raven = yume_te_rendu(
+			$d['editeur'],
+			array(
+				'vue'    => 'lecture',
+				'oeuvre' => (string) $d['raven'],
+			)
+		);
+		yume_assert_contains( 'id="yn-lecture-' . $d['r1'] . '"', $raven );
+		yume_assert_not_contains( 'id="yn-lecture-' . $d['t9'] . '"', $raven );
+		yume_assert_contains( '0 tome sur 1 a la lecture en ligne', $raven );
+		yume_assert_contains( '>Toutes les œuvres</a>', $raven );
+
+		// Chapitres mis en ligne : le tome quitte la liste.
+		yume_te_chapitre( $d['t9'], 1 );
+		$apres = yume_te_rendu( $d['gerant'], array( 'vue' => 'lecture' ) );
+		yume_assert_not_contains( 'id="yn-lecture-' . $d['t9'] . '"', $apres, 'T.9 complété' );
+		yume_assert_contains( '2 tomes sur 3 ont la lecture en ligne', $apres );
+		yume_assert_not_contains( '>Grimgar</h3>', $apres, 'œuvre complète masquée' );
+
+		// Tout complété.
+		yume_te_chapitre( $d['r1'], 2 );
+		$fini = yume_te_rendu( $d['admin'], array( 'vue' => 'lecture' ) );
+		yume_assert_contains( 'Tous les tomes parus ont leur lecture en ligne.', $fini );
+		yume_assert_contains( '3 tomes sur 3 ont la lecture en ligne', $fini );
+	}
+);
+
+yume_te_test(
+	'lecture à compléter : réservée à yume_publier (traducteur refusé, sans entrée de navigation), visiteur renvoyé à la connexion',
+	function () {
+		$d    = yume_te_jeu();
+		$html = yume_te_rendu( $d['calumi'], array( 'vue' => 'lecture' ) );
+		yume_assert_contains( 'Lecture en ligne à compléter', $html );
+		yume_assert_contains( 'Seuls les rôles « Éditeur Yume » et « Gérant »', $html );
+		yume_assert_not_contains( 'id="yn-lecture-' . $d['t9'] . '"', $html );
+		yume_assert_not_contains( 'Lecture à compléter', implode( '|', array_column( yume_te_nav( $html ), 0 ) ) );
+		$lecteur = yume_te_rendu( $d['lecteur'], array( 'vue' => 'lecture' ) );
+		yume_assert_not_contains( 'yn-lecture-', $lecteur );
+		yume_assert_contains( 'Espace réservé à l’équipe', $lecteur );
+		$visiteur = yume_te_rendu( 0, array( 'vue' => 'lecture' ) );
+		yume_assert_contains( 'Se connecter', $visiteur );
+		yume_assert_not_contains( 'yn-lecture-', $visiteur );
+	}
+);
+
+yume_te_test(
+	'journal : « lecture en ligne ajoutée (sans annonce) » réservé à l’équipe',
+	function () {
+		$d  = yume_te_jeu();
+		$id = journaliser(
+			$d['t9'],
+			$d['editeur'],
+			'lecture_ajoutee',
+			'',
+			array(
+				'chapitres' => 12,
+				'programme' => false,
+			)
+		);
+		yume_assert_true( $id > 0 );
+		$lignes = lire_journal( array( 'tome_id' => $d['t9'] ) );
+		yume_assert_same( 0, (int) $lignes[0]->public );
+		$entrees = grouper_journal( $lignes, true );
+		yume_assert_contains( 'lecture en ligne ajoutée (sans annonce) : 12 chapitres', implode( ' ', $entrees[0]['parties'] ) );
+		yume_assert_same(
+			array(),
+			lire_journal(
+				array(
+					'tome_id' => $d['t9'],
+					'public'  => true,
+				)
+			)
+		);
 	}
 );

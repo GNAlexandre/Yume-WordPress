@@ -134,7 +134,7 @@ if ( $yume_tome ) {
 									echo '<optgroup label="' . esc_attr( $yume_oeuvres[ $yume_groupe ] ?? get_the_title( $yume_groupe ) ) . '">';
 								endif;
 								?>
-								<option value="<?php echo esc_attr( (string) $yume_p['id'] ); ?>" data-oeuvre="<?php echo esc_attr( (string) $yume_p['oeuvre_id'] ); ?>" data-nature="<?php echo esc_attr( $yume_p['nature'] ); ?>" data-numero="<?php echo esc_attr( $yume_p['numero'] ); ?>" data-titre="<?php echo esc_attr( $yume_p['titre'] ); ?>" data-date="<?php echo esc_attr( $yume_p['date_sortie'] ); ?>" <?php selected( (int) $v['tome_id'], $yume_p['id'] ); ?>><?php echo esc_html( $yume_p['libelle'] ); ?></option>
+								<option value="<?php echo esc_attr( (string) $yume_p['id'] ); ?>" data-oeuvre="<?php echo esc_attr( (string) $yume_p['oeuvre_id'] ); ?>" data-nature="<?php echo esc_attr( $yume_p['nature'] ); ?>" data-numero="<?php echo esc_attr( $yume_p['numero'] ); ?>" data-titre="<?php echo esc_attr( $yume_p['titre'] ); ?>" data-date="<?php echo esc_attr( $yume_p['date_sortie'] ); ?>" data-publie="<?php echo $yume_p['publie'] ? '1' : '0'; ?>" <?php selected( (int) $v['tome_id'], $yume_p['id'] ); ?>><?php echo esc_html( $yume_p['libelle'] ); ?></option>
 								<?php
 							endforeach;
 							if ( null !== $yume_groupe ) {
@@ -224,6 +224,24 @@ if ( $yume_tome ) {
 							?>
 						</span>
 						<span class="yn-bar yn-publish__progression" data-yn-progression hidden><span style="--v:0%"></span></span>
+						<?php if ( $yume_tome && $yume_chaps ) : ?>
+							<p class="yn-publish__remplacement" id="yn-publish-remplacement" data-yn-remplacement>
+								<?php
+								echo esc_html(
+									sprintf(
+										/* translators: %d : nombre de chapitres du tome */
+										_n(
+											'Ce tome a déjà %d chapitre. Un nouveau fichier le remplace en place, par numéro : mêmes adresses, commentaires conservés. Un chapitre absent du nouveau fichier reste en ligne, sauf si vous cochez « Mettre en brouillon les chapitres absents ».',
+											'Ce tome a déjà %d chapitres. Un nouveau fichier les remplace en place, par numéro : mêmes adresses, commentaires conservés. Les chapitres absents du nouveau fichier restent en ligne, sauf si vous cochez « Mettre en brouillon les chapitres absents ».',
+											count( $yume_chaps ),
+											'yume-core'
+										),
+										count( $yume_chaps )
+									)
+								);
+								?>
+							</p>
+						<?php endif; ?>
 					</div>
 				</div>
 
@@ -304,9 +322,10 @@ if ( $yume_tome ) {
 							}
 							?>
 						</span></li>
-						<li><span class="yn-chip yn-chip--ok" aria-hidden="true">✓</span><span data-yn-recap-annonce><?php echo wp_kses( __( '<strong>Article d’annonce</strong> dans « Sorties » (modifiable)', 'yume-core' ), array( 'strong' => array() ) ); ?></span></li>
+						<li data-yn-recap-annonce <?php echo $v['sans_annonce'] ? 'hidden' : ''; ?>><span class="yn-chip yn-chip--ok" aria-hidden="true">✓</span><span><?php echo wp_kses( __( '<strong>Article d’annonce</strong> dans « Sorties » (modifiable)', 'yume-core' ), array( 'strong' => array() ) ); ?></span></li>
 						<li><span class="yn-chip yn-chip--ok" aria-hidden="true">✓</span><span><?php echo wp_kses( __( '<strong>Planning</strong> : étape « Publié », 100 %', 'yume-core' ), array( 'strong' => array() ) ); ?></span></li>
-						<li><span class="yn-chip yn-chip--ok" aria-hidden="true">✓</span><span><?php echo wp_kses( __( '<strong>Notifications</strong> : Discord (#sorties) et e-mail aux lecteurs qui suivent l’œuvre', 'yume-core' ), array( 'strong' => array() ) ); ?></span></li>
+						<li data-yn-recap-notifications <?php echo $v['sans_annonce'] ? 'hidden' : ''; ?>><span class="yn-chip yn-chip--ok" aria-hidden="true">✓</span><span><?php echo wp_kses( __( '<strong>Notifications</strong> : Discord (#sorties) et e-mail aux lecteurs qui suivent l’œuvre', 'yume-core' ), array( 'strong' => array() ) ); ?></span></li>
+						<li data-yn-recap-catalogue <?php echo $v['sans_annonce'] ? '' : 'hidden'; ?>><span class="yn-chip yn-chip--info" aria-hidden="true">–</span><span><?php echo wp_kses( __( '<strong>Aucune annonce</strong> : ajout au catalogue, ni article, ni Discord, ni e-mail', 'yume-core' ), array( 'strong' => array() ) ); ?></span></li>
 					</ul>
 				</div>
 
@@ -325,6 +344,15 @@ if ( $yume_tome ) {
 						<input id="yn-publish-edition" type="text" name="credits[edition]" value="<?php echo esc_attr( (string) $v['credits']['edition'] ); ?>" autocomplete="off">
 					</p>
 				</fieldset>
+
+				<div class="yn-publish__option yn-publish__option--catalogue">
+					<input type="hidden" name="sans_annonce" value="0">
+					<input id="yn-publish-sans-annonce" type="checkbox" name="sans_annonce" value="1" aria-describedby="yn-publish-sans-annonce-aide" data-yn-sans-annonce <?php checked( $v['sans_annonce'] ); ?>>
+					<span class="yn-publish__option-texte">
+						<label for="yn-publish-sans-annonce"><?php esc_html_e( 'Ajout au catalogue : ne pas annoncer (pas d’article, pas de Discord, pas d’e-mail)', 'yume-core' ); ?></label>
+						<span id="yn-publish-sans-annonce-aide" class="yn-muted yn-publish__option-aide"><?php esc_html_e( 'Pour un tome déjà paru (PDF/EPUB seuls) : sa lecture en ligne est ajoutée sans être présentée comme une nouveauté. Cochée d’office quand le tome est déjà publié.', 'yume-core' ); ?></span>
+					</span>
+				</div>
 
 				<?php if ( $yume_chaps ) : ?>
 					<p class="yn-publish__option">

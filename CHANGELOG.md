@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.2 — 2026-09-26
+
+- Ajout au catalogue sans annonce (formulaire, REST, CLI : cochée par défaut pour un tome déjà en ligne) et page « Lecture à compléter » de l'espace équipe.
+
 ## 2.0.0-dev.1 — 2026-09-26
 
 - Versionnage : une version par commit (tools/build/version.php, CHANGELOG.md, hook pre-commit, contrôle en CI).

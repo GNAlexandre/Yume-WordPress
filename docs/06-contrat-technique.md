@@ -307,6 +307,22 @@ Dépublication d'un tome (`publish` → autre statut, hors corbeille) : planning
 brouillon. Son retour en ligne rétablit la sortie (journal `publie` avec `retour`) **sans** réémettre
 `yume_tome_publie` (ni annonce Discord ni e-mails).
 
+**Ajout au catalogue (sans annonce)** — `Service::publier( $tome_id, $quand, array( 'sans_annonce' => true ) )`
+(`Service::ajouter_au_catalogue()`), pour mettre en lecture en ligne un tome déjà paru (PDF/EPUB
+seuls) : chapitres publiés ou programmés normalement, mais **aucun** `yume_tome_publie` ni
+`yume_chapitre_publie` pour l'opération (filtre `yume_core_notifier` coupé le temps de l'opération,
+comme la migration), aucun article d'annonce créé, mis à jour ou publié (déjà à la préparation :
+`preparer()` avec `sans_annonce`), donc ni Discord, ni e-mail, ni récapitulatif hebdomadaire. Les
+chapitres et le tome jamais annoncé (`_yume_publie_notifie` vide ou `ignore`) reçoivent
+`_yume_publie_notifie = catalogue` (`Service::NOTIFIE_CATALOGUE`) : core n'émet rien, même quand le
+cron publie une sortie programmée, et une sortie ultérieure de nouveaux chapitres est annoncée par
+`yume_chapitre_publie` (jamais `yume_tome_publie` pour le contenu ancien). Tome déjà paru,
+publication immédiate : les chapitres prennent la date du tome (`yume_derniere_sortie` inchangée).
+Tome pas encore en ligne : étape planning `publie` sans ligne `publie` du journal public. Journal :
+champ `lecture_ajoutee` (`{chapitres, programme}`, jamais public). Défaut (formulaire, REST) :
+`Service::sans_annonce_par_defaut()` = vrai pour un tome au statut `publish`, faux sinon ; le
+service seul vaut faux par défaut.
+
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 
 Le contenu est stocké en **blocs Gutenberg** (modifiable dans l'éditeur) avec ces classes :
@@ -352,8 +368,8 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Sans carte propre (le thème fournit la carte). Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
 | `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent |
 | `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
-| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, « Retirer du planning » en admin-post `yume_planning_retrait`) `?vue=journal` (journal complet paginé, filtres œuvre / tome) et `?vue=reglages` (capacité `yume_reglages` : tous les champs de `sections_reglages()` / `champs_reglages()` visibles pour l'utilisateur — mêmes règles `capability` / `verrouille` que Yume → Réglages —, enregistrés en admin-post `yume_reglages_equipe` avec nonce puis `update_option()`, donc `assainir_reglages()` ; images par ID ou adresse, sans `wp.media` ; voir `includes/planning/reglages-equipe.php`) |
-| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`) |
+| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, « Retirer du planning » en admin-post `yume_planning_retrait`) `?vue=journal` (journal complet paginé, filtres œuvre / tome) `?vue=lecture` (« Lecture à compléter », capacité `yume_publier` : tomes publiés sans aucun chapitre publié, groupés par œuvre, progression « X tomes sur Y ont la lecture en ligne », filtre `oeuvre`, bouton « Ajouter le DOCX » → `yume_url_page( 'publier' )?tome=ID` ; voir `includes/planning/lecture-a-completer.php`) et `?vue=reglages` (capacité `yume_reglages` : tous les champs de `sections_reglages()` / `champs_reglages()` visibles pour l'utilisateur — mêmes règles `capability` / `verrouille` que Yume → Réglages —, enregistrés en admin-post `yume_reglages_equipe` avec nonce puis `update_option()`, donc `assainir_reglages()` ; images par ID ou adresse, sans `wp.media` ; voir `includes/planning/reglages-equipe.php`) |
+| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`), case « Ajout au catalogue » (`sans_annonce` : champ caché `0` + case `1`, cochée d'office pour un tome publié ; récapitulatif sans « Article d'annonce » ni « Notifications » quand elle est cochée), note « remplacés en place » quand le tome a déjà des chapitres |
 | `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) ; avertissement sur un membre responsable de tomes en cours, lien « Modifier dans l'administration » (administrateur) pour les comptes non modifiables ici |
 | `yume/partenaires` | bibliothèque | `title` (string, « Nos partenaires ») | `.yn-partenaires` | Section de l'accueil : logo (initiales à défaut), nom, description, lien en nouvel onglet ; réglage `partenaires` (§6) |
 | `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture : progression, sommaire, marque-page, thème, panneau Paramètres |
@@ -409,8 +425,8 @@ sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sa
 | `DELETE /tomes/(?P<id>\d+)/planning` | planning | `yume_maj_planning_tous` — retire le tome du planning (`retirer_tome()`, §7) |
 | `GET /planning/journal` | planning | public (sans notes d'équipe) |
 | `POST /publications/analyse` | publication | `yume_publier` — multipart `source` (DOCX/EPUB) → rapport sans rien créer |
-| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) |
-| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` |
+| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) ; `sans_annonce` (booléen) : aucun article d'annonce préparé ; réponse `sans_annonce` (valeur retenue) |
+| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` ; `sans_annonce` (booléen) : ajout au catalogue sans annonce (§8) ; **absent : vrai si le tome est déjà publié (`publish`), faux sinon** (même règle pour `POST /publications`) ; réponse `sans_annonce` |
 | `GET /moi` | lecteurs | connecté |
 | `GET, PUT /moi/reglages` | lecture | connecté |
 | `GET, PUT /moi/progression` | lecture | connecté |
