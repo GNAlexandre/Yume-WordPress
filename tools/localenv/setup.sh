@@ -461,6 +461,11 @@ if [ "$LIENS" = 1 ]; then
 	[ "$ETAT" = active ] || attention "yume-core n'est pas actif (statut : $ETAT) : voir $WP/wp-content/debug.log"
 fi
 
+# Hook git « une version par commit » (tools/build/version.php, .githooks/pre-commit).
+if git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1; then
+	git -C "$REPO" config core.hooksPath .githooks || attention "hook git non activé (git config core.hooksPath .githooks)"
+fi
+
 cat <<EOF
 
 [localenv] Environnement prêt.

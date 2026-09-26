@@ -38,6 +38,8 @@ jobs:
         php: ['8.1', '8.2', '8.3', '8.4']
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -47,6 +49,20 @@ jobs:
 
       - name: php -l (erreurs et dépréciations)
         run: tools/build/lint.sh
+
+      - name: Version cohérente et augmentée (tools/build/version.php)
+        if: ${{ matrix.php == '8.3' }}
+        run: |
+          # Une version par commit : cohérente partout, entrée dans CHANGELOG.md, et supérieure à
+          # celle du commit précédent (push) ou de la branche cible (pull request).
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            php tools/build/version.php --verifier --depuis=FETCH_HEAD
+          elif git rev-parse -q --verify HEAD~1 >/dev/null; then
+            php tools/build/version.php --verifier --depuis=HEAD~1
+          else
+            php tools/build/version.php --verifier
+          fi
 
       - name: Blueprints Playground à jour (tools/playground/demo.php)
         if: ${{ matrix.php == '8.3' }}
