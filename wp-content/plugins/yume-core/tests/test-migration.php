@@ -2186,6 +2186,13 @@ yume_test(
 		yume_assert_contains( 'https://discord.gg/SMBZqhgUv8', $faq );
 		yume_assert_contains( '/bibliotheque/?type=light-novel', $faq );
 		yume_assert_not_contains( 'yumenovel.wordpress.com', $faq, 'liens vers le nouveau site' );
+		foreach ( array( 'a-propos', 'contactez-nous' ) as $slug ) {
+			$page = Migration_Executor::contenu_revise( $slug );
+			yume_assert_contains( 'https://discord.gg/SMBZqhgUv8', $page, $slug );
+			yume_assert_contains( 'https://x.com/YumeNovel', $page, $slug );
+			yume_assert_not_contains( 'Roshidere_FR', $page, $slug );
+			yume_assert_not_contains( 'tuMB3rmmWB', $page, $slug );
+		}
 		yume_assert_same( '', Migration_Executor::contenu_revise( 'page-sans-revision' ) );
 		yume_assert_same( '', Migration_Executor::contenu_revise( '../../yume-core' ), 'slug assaini' );
 
