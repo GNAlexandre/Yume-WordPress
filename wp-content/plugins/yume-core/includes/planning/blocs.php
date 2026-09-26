@@ -78,13 +78,56 @@ function pastille( string $etat, string $texte = '', array $attrs = array() ): s
 }
 
 /**
+ * Le tome de cette ligne a-t-il une sortie programmée (statut future) pas encore parue ?
+ *
+ * @param array $ligne Ligne (programme, etat).
+ */
+function est_programme( array $ligne ): bool {
+	return ! empty( $ligne['programme'] ) && 'publie' !== ( $ligne['etat'] ?? '' );
+}
+
+/**
+ * Libellé d'une sortie programmée (« Programmé le sam. 3 oct. »).
+ *
+ * @param array $ligne Ligne.
+ */
+function texte_programme( array $ligne ): string {
+	if ( function_exists( __NAMESPACE__ . '\\libelle_etat_ligne' ) ) {
+		return libelle_etat_ligne( $ligne );
+	}
+	return __( 'Programmé', 'yume-core' );
+}
+
+/**
+ * Pastille de l'état d'une ligne : « Programmé le … » (style distinct) pour une sortie
+ * programmée, sinon la pastille de l'état (détaillée hors « à l'heure » si demandé).
+ *
+ * @param array $ligne  Ligne.
+ * @param bool  $detail Texte détaillé (« En retard de 3 j », « Bloqué · raison »).
+ * @param array $attrs  Attributs supplémentaires.
+ */
+function pastille_ligne( array $ligne, bool $detail = true, array $attrs = array() ): string {
+	if ( ! est_programme( $ligne ) ) {
+		return pastille( $ligne['etat'], $detail && 'a_lheure' !== $ligne['etat'] ? texte_etat( $ligne ) : '', $attrs );
+	}
+	$html = '<span class="yn-chip yn-chip--new yn-chip--programme"';
+	foreach ( $attrs as $nom => $valeur ) {
+		$html .= ' ' . esc_attr( $nom ) . '="' . esc_attr( (string) $valeur ) . '"';
+	}
+	return $html . '><span aria-hidden="true">◷</span> ' . esc_html( texte_programme( $ligne ) ) . '</span>';
+}
+
+/**
  * Texte de l'état d'une ligne : « En retard de 3 j », « Sans nouvelles depuis 16 j »,
- * « Bloqué · relecteur manquant ».
+ * « Bloqué · relecteur manquant », « Programmé le sam. 3 oct. ».
  *
  * @param array $ligne Ligne.
  */
 function texte_etat( array $ligne ): string {
 	$etats = etats();
+	if ( est_programme( $ligne ) && 'a_lheure' === $ligne['etat'] ) {
+		return texte_programme( $ligne );
+	}
 	if ( 'en_retard' === $ligne['etat'] && $ligne['jours_retard'] > 0 ) {
 		return 'date' === $ligne['motif_retard']
 			/* translators: %d : jours */
@@ -106,6 +149,9 @@ function texte_etat( array $ligne ): string {
  * @param array $ligne Ligne.
  */
 function cellule_etat( array $ligne ): string {
+	if ( est_programme( $ligne ) && 'bloque' !== $ligne['etat'] ) {
+		return pastille_ligne( $ligne );
+	}
 	if ( 'bloque' !== $ligne['etat'] || '' === $ligne['bloque_raison'] ) {
 		return pastille( $ligne['etat'] );
 	}
@@ -173,11 +219,13 @@ function date_entree( int $ts ): string {
 /**
  * Entrées du journal en HTML (liste).
  *
- * @param array  $entrees Entrées regroupées.
- * @param string $classe  Classe de la liste.
- * @param bool   $court   Date courte (heure du jour, « hier », « 20 sept. »).
+ * @param array         $entrees Entrées regroupées.
+ * @param string        $classe  Classe de la liste.
+ * @param bool          $court   Date courte (heure du jour, « hier », « 20 sept. »).
+ * @param callable|null $lien    Adresse du tome de chaque entrée (tome_id => URL) : le nom du
+ *                               tome devient un lien (journal de l'équipe filtré par tome).
  */
-function liste_journal( array $entrees, string $classe, bool $court = false ): string {
+function liste_journal( array $entrees, string $classe, bool $court = false, ?callable $lien = null ): string {
 	$html = '<ol class="' . esc_attr( $classe ) . '">';
 	foreach ( $entrees as $e ) {
 		if ( $court ) {
@@ -189,7 +237,8 @@ function liste_journal( array $entrees, string $classe, bool $court = false ): s
 		$html .= '<li><time class="yn-muted" datetime="' . esc_attr( gmdate( 'c', $e['ts'] ) ) . '">' . esc_html( $quand ) . '</time>';
 		$html .= '<span class="yn-journal__texte"><b>' . esc_html( $e['auteur'] ) . '</b>';
 		if ( '' !== $e['cible'] ) {
-			$html .= ' · ' . esc_html( $e['cible'] );
+			$url   = $lien && $e['tome_id'] ? (string) $lien( (int) $e['tome_id'] ) : '';
+			$html .= ' · ' . ( '' !== $url ? '<a href="' . esc_url( $url ) . '">' . esc_html( $e['cible'] ) . '</a>' : esc_html( $e['cible'] ) );
 		}
 		if ( $e['parties'] ) {
 			$html .= ' · ' . esc_html( implode( ', ', $e['parties'] ) );
@@ -299,7 +348,7 @@ function rendu_upcoming( array $attributs ): string {
 		$html .= '<li class="yn-upcoming__item">';
 		$html .= '<span class="yn-label yn-upcoming__date">' . esc_html( $date ) . '</span>';
 		$html .= '<span class="yn-upcoming__titre">' . $titre . ' · ' . esc_html( libelle_prochaine_sortie( $l ) ) . '</span>';
-		$html .= '<span class="yn-upcoming__etat">' . pastille( $l['etat'], $texte ) . '</span>';
+		$html .= '<span class="yn-upcoming__etat">' . ( est_programme( $l ) && 'a_lheure' === $l['etat'] ? pastille_ligne( $l ) : pastille( $l['etat'], $texte ) ) . '</span>';
 		$html .= '</li>';
 	}
 	return $html . '</ul></div>';
@@ -469,7 +518,13 @@ function rendu_planning( array $attributs ): string {
 		$intro .= ' ' . sprintf( __( 'Les jours de sortie habituels sont %s.', 'yume-core' ), $jours );
 	}
 	$intro .= ' ' . __( 'Les dates sont indicatives : la relecture décide.', 'yume-core' );
-	$html  .= '<p class="yn-muted yn-planning__texte">' . esc_html( $intro ) . '</p></div>';
+	$html  .= '<p class="yn-muted yn-planning__texte">' . esc_html( $intro ) . '</p>';
+	// Membre de l'équipe connecté : passerelle vers la gestion du planning (espace équipe).
+	$equipe = current_user_can( 'yume_voir_equipe' ) && function_exists( __NAMESPACE__ . '\\url_vue_equipe' );
+	if ( $equipe ) {
+		$html .= '<p class="yn-planning__equipe-tete"><a class="yn-btn yn-btn--sm yn-btn--primary" href="' . esc_url( url_vue_equipe( 'planning' ) ) . '">' . esc_html__( 'Modifier dans l’espace équipe', 'yume-core' ) . '</a></p>';
+	}
+	$html .= '</div>';
 
 	if ( $avec_filtres ) {
 		$html .= '<nav class="yn-planning__filtres" aria-label="' . esc_attr__( 'Filtrer le planning', 'yume-core' ) . '">';
@@ -563,7 +618,12 @@ function rendu_planning( array $attributs ): string {
 				$oeuvre = '<a href="' . esc_url( $l['url_oeuvre'] ) . '">' . $oeuvre . '</a>';
 			}
 			$html .= '<tr class="yn-planning__ligne yn-planning__ligne--' . esc_attr( $l['etat'] ) . '" role="row">';
-			$html .= '<th scope="row" role="rowheader"><span class="yn-planning__oeuvre">' . $oeuvre . '</span><span class="yn-muted yn-planning__tome">' . esc_html( complement_tome( $l ) ) . '</span></th>';
+			$html .= '<th scope="row" role="rowheader"><span class="yn-planning__oeuvre">' . $oeuvre . '</span><span class="yn-muted yn-planning__tome">' . esc_html( complement_tome( $l ) ) . '</span>';
+			if ( $equipe ) {
+				$tid   = (int) $l['tome_id'];
+				$html .= '<a class="yn-planning__modifier" href="' . esc_url( url_vue_equipe( 'planning', array( 'tome' => $tid ) ) . '#yn-tome-' . $tid ) . '">' . esc_html__( 'Modifier dans l’espace équipe', 'yume-core' ) . '<span class="yn-visually-hidden"> : ' . esc_html( $l['oeuvre'] . ' · ' . $l['tome'] ) . '</span></a>';
+			}
+			$html .= '</th>';
 			foreach ( $cols as $etape => $nom ) {
 				$html .= '<td role="cell" data-label="' . esc_attr( $nom ) . '">' . cellule_etape( $l, $etape ) . '</td>';
 			}
@@ -604,6 +664,7 @@ function rendu_planning( array $attributs ): string {
 	$html      .= '<li>' . pastille( 'bloque' ) . ' ' . esc_html__( 'il manque quelqu’un :', 'yume-core' ) . ' ';
 	$html      .= '' !== $invitation ? '<a href="' . esc_url( $invitation ) . '">' . esc_html__( 'rejoindre l’équipe', 'yume-core' ) . '</a>.' : esc_html__( 'rejoignez l’équipe !', 'yume-core' );
 	$html      .= '</li>';
+	$html      .= '<li><span class="yn-chip yn-chip--new yn-chip--programme"><span aria-hidden="true">◷</span> ' . esc_html__( 'Programmé', 'yume-core' ) . '</span> ' . esc_html__( 'la sortie est programmée : le tome paraîtra tout seul à cette date.', 'yume-core' ) . '</li>';
 	$html      .= '<li>' . pastille( 'publie' ) . ' ' . esc_html__( 'le tome est sorti : bonne lecture !', 'yume-core' ) . '</li>';
 	$html      .= '</ul></section></div>';
 
@@ -686,7 +747,7 @@ function rendu_oeuvre_planning( array $attributs, $bloc = null ): string {
 		$html .= barre( $pct, variante_barre( $l, $etape ) ) . '</li>';
 	}
 	$html .= '</ul>';
-	$html .= '<p class="yn-oeuvre-planning__etat">' . pastille( $l['etat'], 'a_lheure' === $l['etat'] ? '' : texte_etat( $l ) ) . '</p>';
+	$html .= '<p class="yn-oeuvre-planning__etat">' . pastille_ligne( $l ) . '</p>';
 	if ( $lignes ) {
 		$autres = array();
 		foreach ( array_slice( $lignes, 0, 3 ) as $autre ) {

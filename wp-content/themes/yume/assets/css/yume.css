@@ -1965,6 +1965,17 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 	color: var(--wp--preset--color--accent);
 }
 
+/* Commentaires réservés aux comptes : invitation lisible à la place du formulaire. */
+.yn-commentaires .must-log-in.yn-commentaires__invitation {
+	margin: 0;
+	color: var(--wp--preset--color--texte);
+	font-size: 15px;
+}
+
+.yn-commentaires .yn-commentaires__invitation a {
+	font-weight: 700;
+}
+
 @media (min-width: 700px) {
 	.yn-commentaires .comment-form {
 		display: grid;

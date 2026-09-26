@@ -616,6 +616,133 @@
 	color: var(--wp--preset--color--texte-fort);
 }
 
+/* Déconnexion (sous le nom, toujours visible). */
+.yn-team__sortie {
+	padding: 0 14px;
+	font-size: 14px;
+}
+
+.yn-team .yn-team__sortie a {
+	color: var(--wp--preset--color--texte);
+	text-decoration: underline;
+}
+
+/* Titre de section avec lien à droite. */
+.yn-team__section-tete {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 4px 16px;
+	font-size: 14px;
+}
+
+.yn-team__section-tete > h2 {
+	font-size: 20px;
+}
+
+.yn-team__carte .yn-team__section-tete > h2 {
+	font-size: inherit;
+}
+
+/* Corps d'une ligne dépliée : formulaire puis raccourcis. */
+.yn-team__corps {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 0 20px 20px;
+}
+
+.yn-team__corps > .yn-team__gestion {
+	padding: 0;
+}
+
+.yn-team__statut {
+	font-size: 13px;
+}
+
+/* Raccourcis d'un tome (publier, administration, fiche, historique) et retrait. */
+.yn-team__liens {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px 16px;
+	padding-top: 12px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	font-size: 14px;
+}
+
+.yn-team .yn-team__raccourcis {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 18px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-team__raccourcis a {
+	color: var(--wp--preset--color--accent);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.yn-team .yn-team__raccourcis a:hover,
+.yn-team .yn-team__raccourcis a:focus-visible {
+	text-decoration: underline;
+}
+
+.yn-team__retrait {
+	margin: 0;
+}
+
+.yn-team .yn-team__retirer {
+	border-color: var(--wp--preset--color--erreur);
+	color: var(--wp--preset--color--erreur);
+}
+
+/* Erreur d'une ligne (étape prématurée…) : encadrée pour être vue. */
+.yn-team__gestion > .yn-team__retour--erreur {
+	padding: 10px 14px;
+	border: 1px solid var(--wp--preset--color--erreur);
+	border-radius: var(--yn-radius);
+}
+
+.yn-team__lecture {
+	font-size: 14px;
+}
+
+/* Filtres des vues « Planning complet » et « Journal ». */
+.yn-team__filtres {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+	gap: 12px 16px;
+	align-items: end;
+	padding: 16px 20px;
+}
+
+.yn-team__champ--case {
+	align-self: center;
+}
+
+.yn-team__case {
+	white-space: normal;
+}
+
+.yn-team__pages {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: center;
+	gap: 12px;
+	font-size: 14px;
+}
+
+.yn-team--vue .yn-team__journal {
+	font-size: 14px;
+}
+
 @media (max-width: 1199.98px) {
 	.yn-team__colonnes {
 		grid-template-columns: minmax(0, 1fr);
@@ -653,6 +780,10 @@
 
 	.yn-team__moi {
 		display: none;
+	}
+
+	.yn-team__sortie {
+		padding: 0 4px;
 	}
 
 	.yn-team__chiffres {
@@ -714,8 +845,23 @@
 		padding: 14px 16px;
 	}
 
-	.yn-team__gestion {
+	.yn-team__gestion,
+	.yn-team__corps {
 		padding: 0 16px 16px;
+	}
+
+	.yn-team__corps > .yn-team__gestion {
+		padding: 0;
+	}
+
+	.yn-team__filtres {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		padding: 14px 16px;
+	}
+
+	.yn-team__filtres .yn-team__action,
+	.yn-team__filtres .yn-team__champ--case {
+		grid-column: 1 / -1;
 	}
 }
 

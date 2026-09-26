@@ -9,6 +9,8 @@
  * - réponse à un commentaire → e-mail à l'auteur du commentaire parent (préférence
  *   « Réponses à mes commentaires »).
  *
+ * Chaque e-mail se termine par des liens de désabonnement en un clic (desabonnement.php).
+ *
  * Tout dépend du réglage emails_lecteurs. Envoi par la file du module planning
  * (yume_queue_email) si elle existe, sinon wp_mail avec un gabarit HTML sobre.
  *
@@ -48,14 +50,25 @@ function bouton_email( string $url, string $texte ): string {
 }
 
 /**
- * Mention de fin : pourquoi cet e-mail, et lien de gestion vers la page compte.
+ * Mention de fin : pourquoi cet e-mail, lien de gestion vers la page compte et liens de
+ * désabonnement en un clic (sans connexion, signés pour chaque destinataire par
+ * envoyer_email()) : le plus précis d'abord (cette œuvre, ou les réponses aux commentaires),
+ * puis « toutes les alertes ».
  *
- * @param string $raison Raison (texte).
- * @param string $ancre  Rubrique du compte.
+ * @param string $raison    Raison (texte).
+ * @param string $ancre     Rubrique du compte.
+ * @param string $portee    Désabonnement précis proposé : oeuvre, commentaires ou tout.
+ * @param int    $oeuvre_id Œuvre (portée « oeuvre »).
  */
-function pied_email( string $raison, string $ancre = 'yn-favoris' ): string {
-	return '<p style="margin:24px 0 0;font-size:13px;color:#5e4a73;">' . esc_html( $raison ) . ' '
-		. '<a href="' . esc_url( url_compte() . '#' . $ancre ) . '">' . esc_html__( 'Modifier mes alertes', 'yume-core' ) . '</a></p>';
+function pied_email( string $raison, string $ancre = 'yn-favoris', string $portee = 'tout', int $oeuvre_id = 0 ): string {
+	$liens = array( '<a href="' . esc_url( url_compte() . '#' . $ancre ) . '">' . esc_html__( 'Modifier mes alertes', 'yume-core' ) . '</a>' );
+	if ( 'oeuvre' === $portee && $oeuvre_id > 0 ) {
+		$liens[] = lien_desabonnement( 'oeuvre', $oeuvre_id, __( 'Ne plus être alerté pour cette œuvre', 'yume-core' ) );
+	} elseif ( 'commentaires' === $portee ) {
+		$liens[] = lien_desabonnement( 'commentaires', 0, __( 'Ne plus recevoir les réponses à mes commentaires', 'yume-core' ) );
+	}
+	$liens[] = lien_desabonnement( 'tout', 0, __( 'Me désabonner de toutes les alertes', 'yume-core' ) );
+	return '<p style="margin:24px 0 0;font-size:13px;color:#5e4a73;">' . esc_html( $raison ) . ' ' . implode( ' · ', $liens ) . '</p>';
 }
 
 /**
@@ -71,6 +84,8 @@ function envoyer_email( int $user_id, string $sujet, string $corps, string $cont
 	if ( ! $user || ! is_email( $user->user_email ) ) {
 		return false;
 	}
+	// Liens de désabonnement du pied : signés pour ce destinataire.
+	$corps = personnaliser_desabonnement( $corps, $user_id );
 	if ( function_exists( 'yume_queue_email' ) ) {
 		yume_queue_email( $user_id, $sujet, $corps, $contexte );
 		return true;
@@ -189,7 +204,7 @@ function message_sortie( int $post_id, array $groupe = array() ): array {
 			$corps .= '<p style="margin:8px 0 0;font-size:14px;">' . esc_html__( 'Télécharger :', 'yume-core' ) . ' ' . implode( ' · ', $morceaux ) . '</p>';
 		}
 	}
-	$corps .= pied_email( __( 'Vous recevez cet e-mail car cette œuvre est dans vos favoris avec l’alerte « Immédiate ».', 'yume-core' ) );
+	$corps .= pied_email( __( 'Vous recevez cet e-mail car cette œuvre est dans vos favoris avec l’alerte « Immédiate ».', 'yume-core' ), 'yn-favoris', 'oeuvre', (int) $oeuvre_id );
 	return array(
 		'sujet' => $sujet,
 		'corps' => $corps,
@@ -505,7 +520,7 @@ function notifier_reponse( \WP_Comment $reponse ): bool {
 	$extrait = wp_trim_words( wp_strip_all_tags( (string) $reponse->comment_content ), 60, '…' );
 	$corps   = '<blockquote style="margin:0 0 12px;padding:8px 16px;border-left:3px solid #b23a71;color:#2a1240;">' . esc_html( $extrait ) . '</blockquote>'
 		. bouton_email( (string) get_comment_link( $reponse ), __( 'Voir la réponse', 'yume-core' ) )
-		. pied_email( __( 'Vous recevez cet e-mail car une personne a répondu à l’un de vos commentaires.', 'yume-core' ), 'yn-alertes' );
+		. pied_email( __( 'Vous recevez cet e-mail car une personne a répondu à l’un de vos commentaires.', 'yume-core' ), 'yn-alertes', 'commentaires' );
 	return envoyer_email( $destinataire, $sujet, $corps, 'reponse_commentaire' );
 }
 

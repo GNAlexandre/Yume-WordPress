@@ -146,6 +146,19 @@ final class Formulaire {
 			}
 		}
 		$champs['retirer_absents'] = ! empty( $_POST['retirer_absents'] );
+		// « Tome du planning » choisi : il est la cible ; ses œuvre, nature et numéro complètent
+		// les champs laissés vides (sans JavaScript, rien n'a été prérempli).
+		$planning = isset( $_POST['tome_planning'] ) ? absint( $_POST['tome_planning'] ) : 0;
+		$tome     = $planning ? get_post( $planning ) : null;
+		if ( $tome instanceof \WP_Post && 'yume_tome' === $tome->post_type && 'trash' !== $tome->post_status && current_user_can( 'edit_post', $tome->ID ) ) {
+			$champs['tome_id'] = (string) $tome->ID;
+			$prerempli         = self::valeurs_tome( $tome );
+			foreach ( array( 'oeuvre_id', 'nature', 'numero', 'titre' ) as $cle ) {
+				if ( '' === (string) ( $champs[ $cle ] ?? '' ) ) {
+					$champs[ $cle ] = (string) $prerempli[ $cle ];
+				}
+			}
+		}
 		// phpcs:enable
 		return $champs;
 	}
@@ -200,14 +213,20 @@ final class Formulaire {
 				wp_safe_redirect( self::adresse_retour( (int) ( $champs['tome_id'] ?? 0 ) ) );
 				exit;
 			}
-			$tome_id = (int) $rapport['tome']['id'];
-			$message = '';
-			$type    = 'succes';
+			$tome_id   = (int) $rapport['tome']['id'];
+			$message   = '';
+			$type      = 'succes';
+			$confirmer = false;
 			if ( 'publier' === $etape || 'programmer' === $etape ) {
-				$sortie = Service::publier( $tome_id, 'publier' === $etape ? 'maintenant' : (string) $champs['date_sortie'] );
+				$sortie = Service::publier(
+					$tome_id,
+					'publier' === $etape ? 'maintenant' : (string) $champs['date_sortie'],
+					array( 'confirmer_vide' => ! empty( $_POST['confirmer_vide'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié plus haut.
+				);
 				if ( is_wp_error( $sortie ) ) {
-					$type    = 'erreur';
-					$message = __( 'Le brouillon est enregistré, mais la publication a échoué :', 'yume-core' ) . ' ' . $sortie->get_error_message();
+					$type      = 'erreur';
+					$message   = __( 'Le brouillon est enregistré, mais la publication a échoué :', 'yume-core' ) . ' ' . $sortie->get_error_message();
+					$confirmer = 'yume_tome_vide' === $sortie->get_error_code();
 				} elseif ( 'publish' === $sortie['statut'] ) {
 					/* translators: %s : titre du tome */
 					$message = sprintf( __( '%s est en ligne ! Les chapitres, l’annonce et les notifications sont partis.', 'yume-core' ), $sortie['tome']['titre'] );
@@ -224,9 +243,10 @@ final class Formulaire {
 			}
 			self::memoriser(
 				array(
-					'type'    => $type,
-					'message' => $message,
-					'rapport' => array(
+					'type'      => $type,
+					'message'   => $message,
+					'confirmer' => $confirmer,
+					'rapport'   => array(
 						'avertissements' => $rapport['avertissements'],
 						'import'         => $rapport['import'] ? array(
 							'resume'    => $rapport['import']['resume'],
@@ -307,16 +327,11 @@ final class Formulaire {
 			$meta    = get_post_meta( $tome->ID, Service::META, true );
 			$meta    = is_array( $meta ) ? $meta : array();
 			$credits = get_post_meta( $tome->ID, 'yume_credits', true );
-			$numero  = get_post_meta( $tome->ID, 'yume_numero', true );
 			$v       = array_merge(
 				$v,
+				self::valeurs_tome( $tome ),
 				array(
 					'tome_id'       => (int) $tome->ID,
-					'oeuvre_id'     => (int) get_post_meta( $tome->ID, 'yume_oeuvre_id', true ),
-					'nature'        => (string) get_post_meta( $tome->ID, 'yume_nature', true ),
-					'numero'        => is_numeric( $numero ) ? str_replace( '.', ',', rtrim( rtrim( number_format( (float) $numero, 3, '.', '' ), '0' ), '.' ) ) : '',
-					'titre'         => (string) ( $meta['titre'] ?? '' ),
-					'date_sortie'   => (string) ( $meta['date_sortie'] ?? '' ),
 					'lien_pdf'      => (string) get_post_meta( $tome->ID, 'yume_lien_pdf', true ),
 					'lien_epub'     => (string) get_post_meta( $tome->ID, 'yume_lien_epub', true ),
 					'credits'       => is_array( $credits ) ? array_merge( $v['credits'], $credits ) : $v['credits'],
@@ -325,9 +340,6 @@ final class Formulaire {
 					'meta'          => $meta,
 				)
 			);
-			if ( 'future' === $tome->post_status ) {
-				$v['date_sortie'] = substr( str_replace( ' ', 'T', $tome->post_date ), 0, 16 );
-			}
 		}
 		if ( $retour && ! empty( $retour['champs'] ) && is_array( $retour['champs'] ) ) {
 			foreach ( $retour['champs'] as $cle => $valeur ) {
@@ -340,6 +352,121 @@ final class Formulaire {
 			$v['nature'] = 'tome';
 		}
 		return $v;
+	}
+
+	/**
+	 * Champs préremplis depuis un tome existant : œuvre, nature, numéro (« 26,5 »), titre
+	 * saisi à la dernière préparation, date de sortie (programmée, sinon saisie).
+	 *
+	 * @param \WP_Post $tome Tome.
+	 * @return array{oeuvre_id:int,nature:string,numero:string,titre:string,date_sortie:string}
+	 */
+	public static function valeurs_tome( \WP_Post $tome ): array {
+		$meta   = get_post_meta( $tome->ID, Service::META, true );
+		$meta   = is_array( $meta ) ? $meta : array();
+		$numero = get_post_meta( $tome->ID, 'yume_numero', true );
+		$nature = (string) get_post_meta( $tome->ID, 'yume_nature', true );
+		return array(
+			'oeuvre_id'   => (int) get_post_meta( $tome->ID, 'yume_oeuvre_id', true ),
+			'nature'      => '' === $nature ? 'tome' : $nature,
+			'numero'      => is_numeric( $numero ) ? str_replace( '.', ',', rtrim( rtrim( number_format( (float) $numero, 3, '.', '' ), '0' ), '.' ) ) : '',
+			'titre'       => (string) ( $meta['titre'] ?? '' ),
+			'date_sortie' => 'future' === $tome->post_status ? substr( str_replace( ' ', 'T', $tome->post_date ), 0, 16 ) : (string) ( $meta['date_sortie'] ?? '' ),
+		);
+	}
+
+	/**
+	 * Tomes du planning proposés dans la liste « Tome du planning » : tomes non sortis
+	 * (brouillons, en attente, programmés) que l'utilisateur peut modifier, par œuvre puis
+	 * par numéro.
+	 *
+	 * @param int $inclure Tome à proposer quel que soit son statut (tome ouvert par ?tome=ID).
+	 * @return array<int,array<string,mixed>> Liste de {id, oeuvre_id, libelle, nature, numero, titre, date_sortie, programme}.
+	 */
+	public static function tomes_planning( int $inclure = 0 ): array {
+		$posts  = get_posts(
+			array(
+				'post_type'        => 'yume_tome',
+				'post_status'      => array( 'draft', 'pending', 'future' ),
+				'posts_per_page'   => 300, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- tomes en préparation (quelques dizaines).
+				'orderby'          => 'menu_order',
+				'order'            => 'ASC',
+				'no_found_rows'    => true,
+				'suppress_filters' => true,
+			)
+		);
+		$ouvert = $inclure ? get_post( $inclure ) : null;
+		if ( $ouvert instanceof \WP_Post && 'yume_tome' === $ouvert->post_type && ! in_array( $ouvert->post_status, array( 'draft', 'pending', 'future', 'trash', 'auto-draft' ), true ) ) {
+			$posts[] = $ouvert;
+		}
+		$liste = array();
+		foreach ( $posts as $tome ) {
+			if ( ! current_user_can( 'edit_post', $tome->ID ) ) {
+				continue;
+			}
+			$valeurs = self::valeurs_tome( $tome );
+			if ( ! $valeurs['oeuvre_id'] ) {
+				continue;
+			}
+			$libelle = yume_libelle_tome( (int) $tome->ID );
+			if ( 'future' === $tome->post_status ) {
+				/* translators: 1: libellé du tome, 2: date */
+				$libelle = sprintf( __( '%1$s · programmé le %2$s', 'yume-core' ), $libelle, self::date_fr( (int) strtotime( $tome->post_date_gmt . ' UTC' ) ) );
+			} elseif ( 'publish' === $tome->post_status ) {
+				/* translators: %s : libellé du tome */
+				$libelle = sprintf( __( '%s · en ligne', 'yume-core' ), $libelle );
+			}
+			$liste[] = array_merge(
+				$valeurs,
+				array(
+					'id'        => (int) $tome->ID,
+					'libelle'   => $libelle,
+					'programme' => 'future' === $tome->post_status,
+					'tri'       => (float) get_post_meta( $tome->ID, 'yume_numero', true ),
+				)
+			);
+		}
+		usort(
+			$liste,
+			static function ( array $a, array $b ): int {
+				return array( $a['oeuvre_id'], 'ex' === $a['nature'], $a['tri'] ) <=> array( $b['oeuvre_id'], 'ex' === $b['nature'], $b['tri'] );
+			}
+		);
+		return $liste;
+	}
+
+	/**
+	 * Navigation de l'espace équipe : celle du tableau de bord (module planning), page
+	 * « Publier un tome » marquée comme courante ; null si le module planning est absent.
+	 */
+	private static function navigation(): ?string {
+		if ( ! function_exists( '\Yume\Core\Planning\navigation_equipe' ) ) {
+			return null;
+		}
+		$retards = 0;
+		if ( function_exists( '\Yume\Core\Planning\taches' ) && function_exists( 'yume_get_planning' ) ) {
+			$lignes = yume_get_planning(
+				array(
+					'a_venir' => true,
+					'public'  => false,
+				)
+			);
+			foreach ( \Yume\Core\Planning\taches( $lignes, get_current_user_id() ) as $tache ) {
+				if ( 'en_retard' === ( $tache['ligne']['etat'] ?? '' ) && empty( $tache['attente'] ) ) {
+					++$retards;
+				}
+			}
+		}
+		$html = (string) \Yume\Core\Planning\navigation_equipe( 'publier', $retards );
+		if ( ! str_contains( $html, 'aria-current="page"' ) ) {
+			$url = esc_url( '' !== self::url_page() ? self::url_page() : (string) yume_url_page( 'publier' ) );
+			$pos = strpos( $html, 'href="' . $url . '"' );
+			if ( false !== $pos ) {
+				$pos += strlen( 'href="' . $url . '"' );
+				$html = substr( $html, 0, $pos ) . ' aria-current="page"' . substr( $html, $pos );
+			}
+		}
+		return $html;
 	}
 
 	/**

@@ -11,18 +11,19 @@ namespace Yume\Core\Publication;
 
 defined( 'ABSPATH' ) || exit;
 
-$yume_oeuvres  = self::oeuvres();
-$yume_natures  = yume_natures_tome();
-$yume_tome     = $v['tome'] instanceof \WP_Post ? $v['tome'] : null;
-$yume_meta     = (array) ( $v['meta'] ?? array() );
-$yume_chaps    = $yume_tome ? yume_get_chapitres( (int) $yume_tome->ID, array( 'status' => 'any' ) ) : array();
-$yume_equipe   = function_exists( 'yume_url_page' ) ? yume_url_page( 'equipe' ) : home_url( '/' );
-$yume_planning = function_exists( 'yume_url_page' ) ? yume_url_page( 'planning' ) : home_url( '/' );
-$yume_max      = Fichiers::taille_lisible( Fichiers::taille_max_source() );
-$yume_couv     = $v['couverture_id'] ? wp_get_attachment_image_url( (int) $v['couverture_id'], 'medium' ) : '';
-$yume_date_lib = self::libelle_date( (string) $v['date_sortie'] );
-$yume_import   = is_array( $retour['rapport']['import'] ?? null ) ? $retour['rapport']['import'] : null;
-$yume_avert    = $retour ? (array) ( $retour['rapport']['avertissements'] ?? array() ) : array();
+$yume_oeuvres   = self::oeuvres();
+$yume_natures   = yume_natures_tome();
+$yume_tome      = $v['tome'] instanceof \WP_Post ? $v['tome'] : null;
+$yume_meta      = (array) ( $v['meta'] ?? array() );
+$yume_chaps     = $yume_tome ? yume_get_chapitres( (int) $yume_tome->ID, array( 'status' => 'any' ) ) : array();
+$yume_equipe    = function_exists( 'yume_url_page' ) ? yume_url_page( 'equipe' ) : home_url( '/' );
+$yume_planning  = function_exists( 'yume_url_page' ) ? yume_url_page( 'planning' ) : home_url( '/' );
+$yume_max       = Fichiers::taille_lisible( Fichiers::taille_max_source() );
+$yume_couv      = $v['couverture_id'] ? wp_get_attachment_image_url( (int) $v['couverture_id'], 'medium' ) : '';
+$yume_date_lib  = self::libelle_date( (string) $v['date_sortie'] );
+$yume_import    = is_array( $retour['rapport']['import'] ?? null ) ? $retour['rapport']['import'] : null;
+$yume_avert     = $retour ? (array) ( $retour['rapport']['avertissements'] ?? array() ) : array();
+$yume_planifies = self::tomes_planning( $yume_tome ? (int) $yume_tome->ID : 0 );
 
 // Libellé d'état (puce en haut à droite).
 if ( $yume_tome ) {
@@ -40,35 +41,40 @@ if ( $yume_tome ) {
 ?>
 <div class="yn-publish__cadre">
 	<?php
-	// Navigation de l'espace équipe : mêmes entrées, même ordre et mêmes cibles que celle du
-	// tableau de bord (/equipe/, bloc yume/team-dashboard), WCAG 3.2.3.
-	$yume_nav = array(
-		array( __( 'Tableau de bord', 'yume-core' ), $yume_equipe, false ),
-		array( __( 'Mes tâches', 'yume-core' ), $yume_equipe . '#yn-mes-taches', false ),
-		array( __( 'Publier un tome', 'yume-core' ), '' !== self::url_page() ? self::url_page() : (string) get_permalink(), true ),
-	);
-	if ( current_user_can( 'yume_maj_planning_tous' ) ) {
-		$yume_nav[] = array( __( 'Tous les tomes', 'yume-core' ), $yume_equipe . '#yn-tous-les-tomes', false );
-	}
-	$yume_nav[] = array( __( 'Planning complet', 'yume-core' ), $yume_planning, false );
-	$yume_nav[] = array( __( 'Journal', 'yume-core' ), $yume_equipe . '#yn-team-journal', false );
-	// Page « Membres et rôles » de l'espace équipe, sinon la liste des utilisateurs de l'administration.
-	$yume_membres = function_exists( '\Yume\Core\Planning\url_membres' ) ? \Yume\Core\Planning\url_membres() : ( current_user_can( 'list_users' ) ? admin_url( 'users.php' ) : '' );
-	if ( '' !== $yume_membres ) {
-		$yume_nav[] = array( __( 'Membres et rôles', 'yume-core' ), $yume_membres, false );
-	}
-	if ( current_user_can( 'yume_reglages' ) ) {
-		$yume_nav[] = array( __( 'Réglages (rappels, Discord)', 'yume-core' ), admin_url( 'admin.php?page=yume-reglages' ), false );
-	}
-	?>
-	<nav class="yn-publish__nav" aria-label="<?php esc_attr_e( 'Espace équipe', 'yume-core' ); ?>">
-		<a class="yn-publish__marque" href="<?php echo esc_url( $yume_equipe ); ?>"><span class="yn-publish__pastille" aria-hidden="true"></span><?php esc_html_e( 'Yume · Équipe', 'yume-core' ); ?></a>
-		<ul class="yn-publish__menu">
-			<?php foreach ( $yume_nav as $yume_entree ) : ?>
-				<li><a href="<?php echo esc_url( $yume_entree[1] ); ?>"<?php echo $yume_entree[2] ? ' aria-current="page" class="is-actif"' : ''; ?>><?php echo esc_html( $yume_entree[0] ); ?></a></li>
-			<?php endforeach; ?>
-		</ul>
-	</nav>
+	// Navigation de l'espace équipe : celle du tableau de bord (module planning), sinon une
+	// copie des mêmes entrées, même ordre et mêmes cibles (WCAG 3.2.3).
+	$yume_nav_equipe = self::navigation();
+	if ( null !== $yume_nav_equipe ) :
+		echo $yume_nav_equipe; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML échappé par navigation_equipe().
+	else :
+		$yume_nav = array(
+			array( __( 'Tableau de bord', 'yume-core' ), $yume_equipe, false ),
+			array( __( 'Mes tâches', 'yume-core' ), $yume_equipe . '#yn-mes-taches', false ),
+			array( __( 'Publier un tome', 'yume-core' ), '' !== self::url_page() ? self::url_page() : (string) get_permalink(), true ),
+		);
+		if ( current_user_can( 'yume_maj_planning_tous' ) ) {
+			$yume_nav[] = array( __( 'Tous les tomes', 'yume-core' ), $yume_equipe . '#yn-tous-les-tomes', false );
+		}
+		$yume_nav[] = array( __( 'Planning complet', 'yume-core' ), $yume_planning, false );
+		$yume_nav[] = array( __( 'Journal', 'yume-core' ), $yume_equipe . '#yn-team-journal', false );
+		// Page « Membres et rôles » de l'espace équipe, sinon la liste des utilisateurs de l'administration.
+		$yume_membres = function_exists( '\Yume\Core\Planning\url_membres' ) ? \Yume\Core\Planning\url_membres() : ( current_user_can( 'list_users' ) ? admin_url( 'users.php' ) : '' );
+		if ( '' !== $yume_membres ) {
+			$yume_nav[] = array( __( 'Membres et rôles', 'yume-core' ), $yume_membres, false );
+		}
+		if ( current_user_can( 'yume_reglages' ) ) {
+			$yume_nav[] = array( __( 'Réglages (rappels, Discord)', 'yume-core' ), admin_url( 'admin.php?page=yume-reglages' ), false );
+		}
+		?>
+		<nav class="yn-publish__nav" aria-label="<?php esc_attr_e( 'Espace équipe', 'yume-core' ); ?>">
+			<a class="yn-publish__marque" href="<?php echo esc_url( $yume_equipe ); ?>"><span class="yn-publish__pastille" aria-hidden="true"></span><?php esc_html_e( 'Yume · Équipe', 'yume-core' ); ?></a>
+			<ul class="yn-publish__menu">
+				<?php foreach ( $yume_nav as $yume_entree ) : ?>
+					<li><a href="<?php echo esc_url( $yume_entree[1] ); ?>"<?php echo $yume_entree[2] ? ' aria-current="page" class="is-actif"' : ''; ?>><?php echo esc_html( $yume_entree[0] ); ?></a></li>
+				<?php endforeach; ?>
+			</ul>
+		</nav>
+	<?php endif; ?>
 
 	<div class="yn-publish__page">
 		<div class="yn-publish__entete">
@@ -104,7 +110,7 @@ if ( $yume_tome ) {
 			<div class="yn-publish__principal">
 				<fieldset class="yn-card yn-publish__champs">
 					<legend class="yn-visually-hidden"><?php esc_html_e( 'Informations du tome', 'yume-core' ); ?></legend>
-					<p class="yn-publish__champ yn-publish__champ--4">
+					<p class="yn-publish__champ yn-publish__champ--3">
 						<label for="yn-publish-oeuvre" class="yn-label"><?php esc_html_e( 'Œuvre', 'yume-core' ); ?></label>
 						<select id="yn-publish-oeuvre" name="oeuvre_id" required data-yn-oeuvre>
 							<option value=""><?php esc_html_e( '— Choisir une œuvre —', 'yume-core' ); ?></option>
@@ -112,6 +118,31 @@ if ( $yume_tome ) {
 								<option value="<?php echo esc_attr( (string) $yume_id ); ?>" <?php selected( (int) $v['oeuvre_id'], $yume_id ); ?>><?php echo esc_html( $yume_libelle ); ?></option>
 							<?php endforeach; ?>
 						</select>
+					</p>
+					<p class="yn-publish__champ yn-publish__champ--3" data-yn-planning-champ>
+						<label for="yn-publish-planning" class="yn-label"><?php esc_html_e( 'Tome du planning', 'yume-core' ); ?></label>
+						<select id="yn-publish-planning" name="tome_planning" aria-describedby="yn-publish-planning-aide" data-yn-planning>
+							<option value=""><?php esc_html_e( '— Nouveau tome —', 'yume-core' ); ?></option>
+							<?php
+							$yume_groupe = null;
+							foreach ( $yume_planifies as $yume_p ) :
+								if ( $yume_groupe !== $yume_p['oeuvre_id'] ) :
+									if ( null !== $yume_groupe ) {
+										echo '</optgroup>';
+									}
+									$yume_groupe = $yume_p['oeuvre_id'];
+									echo '<optgroup label="' . esc_attr( $yume_oeuvres[ $yume_groupe ] ?? get_the_title( $yume_groupe ) ) . '">';
+								endif;
+								?>
+								<option value="<?php echo esc_attr( (string) $yume_p['id'] ); ?>" data-oeuvre="<?php echo esc_attr( (string) $yume_p['oeuvre_id'] ); ?>" data-nature="<?php echo esc_attr( $yume_p['nature'] ); ?>" data-numero="<?php echo esc_attr( $yume_p['numero'] ); ?>" data-titre="<?php echo esc_attr( $yume_p['titre'] ); ?>" data-date="<?php echo esc_attr( $yume_p['date_sortie'] ); ?>" <?php selected( (int) $v['tome_id'], $yume_p['id'] ); ?>><?php echo esc_html( $yume_p['libelle'] ); ?></option>
+								<?php
+							endforeach;
+							if ( null !== $yume_groupe ) {
+								echo '</optgroup>';
+							}
+							?>
+						</select>
+						<span id="yn-publish-planning-aide" class="yn-muted yn-publish__aide"><?php esc_html_e( 'Un tome déjà prévu au planning : sa nature, son numéro et son titre sont repris, sans créer de doublon.', 'yume-core' ); ?></span>
 					</p>
 					<p class="yn-publish__champ">
 						<label for="yn-publish-nature" class="yn-label"><?php esc_html_e( 'Nature', 'yume-core' ); ?></label>
@@ -134,11 +165,11 @@ if ( $yume_tome ) {
 						<label for="yn-publish-date" class="yn-label"><?php esc_html_e( 'Sortie', 'yume-core' ); ?></label>
 						<input id="yn-publish-date" name="date_sortie" type="datetime-local" value="<?php echo esc_attr( (string) $v['date_sortie'] ); ?>" data-yn-date>
 					</p>
-					<p class="yn-publish__champ yn-publish__champ--3">
+					<p class="yn-publish__champ yn-publish__champ--2">
 						<label for="yn-publish-pdf" class="yn-label"><?php esc_html_e( 'Lien de téléchargement · PDF', 'yume-core' ); ?></label>
 						<input id="yn-publish-pdf" name="lien_pdf" type="url" value="<?php echo esc_attr( (string) $v['lien_pdf'] ); ?>" placeholder="https://www.clictune.com/…" data-yn-lien="pdf" aria-describedby="yn-publish-liens-aide">
 					</p>
-					<p class="yn-publish__champ yn-publish__champ--3">
+					<p class="yn-publish__champ yn-publish__champ--2">
 						<label for="yn-publish-epub" class="yn-label"><?php esc_html_e( 'Lien de téléchargement · EPUB', 'yume-core' ); ?></label>
 						<input id="yn-publish-epub" name="lien_epub" type="url" value="<?php echo esc_attr( (string) $v['lien_epub'] ); ?>" placeholder="https://www.clictune.com/…" data-yn-lien="epub" aria-describedby="yn-publish-liens-aide">
 					</p>
@@ -299,6 +330,13 @@ if ( $yume_tome ) {
 					<p class="yn-publish__option">
 						<input id="yn-publish-retirer" type="checkbox" name="retirer_absents" value="1">
 						<label for="yn-publish-retirer"><?php esc_html_e( 'Mettre en brouillon les chapitres absents du nouveau fichier', 'yume-core' ); ?></label>
+					</p>
+				<?php endif; ?>
+
+				<?php if ( ! empty( $retour['confirmer'] ) ) : ?>
+					<p class="yn-publish__option yn-publish__option--confirmer">
+						<input id="yn-publish-confirmer-vide" type="checkbox" name="confirmer_vide" value="1" data-yn-confirmer-vide>
+						<label for="yn-publish-confirmer-vide"><?php esc_html_e( 'Publier quand même ce tome sans chapitre ni lien de téléchargement', 'yume-core' ); ?></label>
 					</p>
 				<?php endif; ?>
 

@@ -24,7 +24,9 @@
 	align-items: start;
 }
 
-/* Navigation de l'espace équipe. */
+/* Navigation de l'espace équipe (repli sans le module planning : .yn-publish__nav ; sinon
+   celle du tableau de bord, .yn-team__nav, mise en forme ici comme sur /equipe/). */
+.yn-publish .yn-team__nav,
 .yn-publish__nav {
 	position: sticky;
 	top: 16px;
@@ -38,6 +40,7 @@
 	background: var(--wp--preset--color--bande);
 }
 
+.yn-publish .yn-team__nav ul,
 .yn-publish__menu {
 	display: flex;
 	flex-direction: column;
@@ -47,11 +50,13 @@
 	list-style: none;
 }
 
+.yn-publish .yn-team__nav li,
 .yn-publish__menu li {
 	margin: 0;
 	padding: 0;
 }
 
+.yn-publish .yn-team__nav ul a,
 .yn-publish .yn-publish__nav a {
 	display: flex;
 	align-items: center;
@@ -66,11 +71,13 @@
 	text-decoration: none;
 }
 
+.yn-publish .yn-team__nav ul a:hover,
 .yn-publish .yn-publish__nav a:hover {
 	background: var(--wp--preset--color--selection);
 	color: var(--wp--preset--color--texte-fort);
 }
 
+.yn-publish .yn-team__nav a[aria-current="page"],
 .yn-publish .yn-publish__nav a.is-actif {
 	border-left-color: var(--wp--preset--color--accent);
 	background: var(--wp--preset--color--selection);
@@ -84,6 +91,61 @@
 	font-family: var(--wp--preset--font-family--titres);
 	font-size: 18px;
 	font-weight: 800;
+}
+
+.yn-publish .yn-team__nav .yn-chip {
+	min-height: 20px;
+	margin-left: auto;
+	padding: 1px 8px;
+}
+
+.yn-publish .yn-team__moi {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+	padding: 12px 14px 0;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	line-height: 1.25;
+}
+
+.yn-publish .yn-team__moi > span:last-child {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.yn-publish .yn-team__avatar {
+	display: inline-flex;
+	flex: 0 0 32px;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-weight: 700;
+}
+
+.yn-publish .yn-team__nom {
+	overflow: hidden;
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.yn-publish .yn-team__sortie {
+	margin: 0;
+	padding: 0 14px;
+	font-size: 14px;
+}
+
+.yn-publish .yn-team__sortie a {
+	color: var(--wp--preset--color--texte);
+	text-decoration: underline;
 }
 
 .yn-publish__pastille {
@@ -538,6 +600,13 @@
 	font-weight: 600;
 }
 
+.yn-publish__option--confirmer {
+	padding: 12px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-left: 3px solid var(--wp--preset--color--accent);
+	border-radius: var(--yn-radius, 6px);
+}
+
 .yn-publish__actions {
 	display: flex;
 	flex-direction: column;
@@ -632,6 +701,7 @@
 		gap: 20px;
 	}
 
+	.yn-publish .yn-team__nav,
 	.yn-publish__nav {
 		position: static;
 		flex-direction: row;
@@ -640,15 +710,29 @@
 		overflow-x: auto;
 	}
 
+	.yn-publish .yn-team__nav ul,
 	.yn-publish__menu {
 		flex-direction: row;
 		gap: 4px;
 	}
 
+	.yn-publish .yn-team__nav li,
+	.yn-publish .yn-team__nav ul a,
 	.yn-publish__menu li,
 	.yn-publish__nav a {
 		flex-shrink: 0;
 		min-height: 40px;
+		white-space: nowrap;
+	}
+
+	.yn-publish .yn-team__moi {
+		display: none;
+	}
+
+	.yn-publish .yn-team__sortie {
+		flex-shrink: 0;
+		align-self: center;
+		padding: 0 4px;
 		white-space: nowrap;
 	}
 

@@ -609,7 +609,7 @@ yume_test(
 				)
 			);
 			yume_assert_same( 'grimgar-of-fantasy-and-ash-arc-11', get_post( $admin )->post_name );
-			Service::publier( $admin, 'maintenant' );
+			Service::publier( $admin, 'maintenant', array( 'confirmer_vide' => true ) );
 			yume_assert_same( 'arc-11', get_post( $admin )->post_name );
 
 			// Un tome déjà en ligne garde toujours son adresse.
@@ -766,18 +766,22 @@ yume_test(
 		function () {
 			wp_set_current_user( yume_factory_user( 'administrator' ) );
 			$html = yume_render_block( 'yume/publish-form' );
-			preg_match( '#<nav class="yn-publish__nav".*?</nav>#s', $html, $m );
+			// Navigation du tableau de bord (module planning) : mêmes entrées, même ordre, mêmes cibles.
+			preg_match( '#<nav class="yn-team__nav".*?</nav>#s', $html, $m );
 			yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
-			preg_match_all( '#<li><a href="([^"]*)"[^>]*>([^<]*)</a></li>#', $m[0], $liens, PREG_SET_ORDER );
-			$libelles = array_map( static fn( $l ) => html_entity_decode( $l[2], ENT_QUOTES, 'UTF-8' ), $liens );
-			yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages (rappels, Discord)' ), $libelles );
-			$equipe = esc_url( yume_url_page( 'equipe' ) );
-			yume_assert_same( $equipe . '#yn-mes-taches', $liens[1][1] );
-			yume_assert_same( $equipe . '#yn-tous-les-tomes', $liens[3][1] );
-			yume_assert_same( $equipe . '#yn-team-journal', $liens[5][1] );
+			$entrees  = static function ( string $nav ): array {
+				preg_match_all( '#<li><a href="([^"]*)"[^>]*>([^<]*)#', $nav, $liens, PREG_SET_ORDER );
+				return array_map( static fn( $l ) => array( $l[1], trim( html_entity_decode( $l[2], ENT_QUOTES, 'UTF-8' ) ) ), $liens );
+			};
+			$publier  = $entrees( $m[0] );
+			$tableau  = $entrees( \Yume\Core\Planning\navigation_equipe( 'membres' ) );
+			$libelles = array_column( $publier, 1 );
+			yume_assert_same( array_column( $tableau, 1 ), $libelles, 'mêmes entrées que le tableau de bord' );
+			yume_assert_same( array_column( $tableau, 0 ), array_column( $publier, 0 ), 'mêmes cibles' );
+			yume_assert_contains( 'Publier un tome', implode( '|', $libelles ) );
 			yume_assert_not_contains( 'edit.php?post_type=yume_tome', $m[0] );
 			yume_assert_same( 1, substr_count( $m[0], 'aria-current="page"' ) );
-			yume_assert_contains( 'aria-current="page" class="is-actif">Publier un tome', $m[0] );
+			yume_assert_true( (bool) preg_match( '#aria-current="page"[^>]*>Publier un tome#', $m[0] ), 'page courante : Publier un tome' );
 		}
 	)
 );
@@ -1368,4 +1372,306 @@ yume_test(
 			remove_filter( 'yume_core_notifier', '__return_false', 99 );
 		}
 	}
+);
+
+yume_test(
+	'SCAN-16 : tome sans chapitre ni lien PDF/EPUB refusé sans confirmation explicite (service, REST, formulaire)',
+	yume_tpub(
+		function ( $ctx ) {
+			$editeur = yume_factory_user( 'yume_editeur' );
+			wp_set_current_user( $editeur );
+			$oeuvre = yume_tpub_oeuvre( 'Tome vide' );
+			$r      = Service::preparer(
+				array(
+					'oeuvre_id' => $oeuvre,
+					'nature'    => 'tome',
+					'numero'    => '3',
+				)
+			);
+			$tome   = (int) $r['tome']['id'];
+			yume_assert_true( Service::tome_vide( $tome ) );
+			$refus = Service::publier( $tome, 'maintenant' );
+			yume_assert_true( is_wp_error( $refus ) );
+			yume_assert_same( 'yume_tome_vide', $refus->get_error_code() );
+			yume_assert_same( 409, $refus->get_error_data()['status'] );
+			yume_assert_same( 'draft', get_post_status( $tome ), 'rien n’est publié' );
+			yume_assert_same( array(), $ctx->emis, 'aucune annonce ni notification' );
+			yume_assert_same( 'draft', get_post_status( Annonce::existant( $tome ) ), 'annonce restée en brouillon' );
+
+			// REST : 409, puis confirmation explicite.
+			$rest = yume_rest( 'POST', '/yume/v1/publications/' . $tome . '/publier', array(), $editeur );
+			yume_assert_same( 409, $rest->get_status() );
+			yume_assert_same( 'yume_tome_vide', $rest->get_data()['code'] );
+			$quand = wp_date( 'Y-m-d\TH:i', time() + 2 * DAY_IN_SECONDS );
+			$rest  = yume_rest(
+				'POST',
+				'/yume/v1/publications/' . $tome . '/publier',
+				array(
+					'quand'          => $quand,
+					'confirmer_vide' => true,
+				),
+				$editeur
+			);
+			yume_assert_same( 200, $rest->get_status() );
+			yume_assert_same( 'future', get_post_status( $tome ) );
+
+			// Un lien PDF suffit.
+			$lien = Service::preparer(
+				array(
+					'oeuvre_id' => $oeuvre,
+					'nature'    => 'tome',
+					'numero'    => '4',
+					'lien_pdf'  => 'https://www.clictune.com/pdf4',
+				)
+			);
+			wp_set_current_user( $editeur );
+			yume_assert_false( Service::tome_vide( (int) $lien['tome']['id'] ) );
+			yume_assert_same( 'publish', Service::publier( (int) $lien['tome']['id'], 'maintenant' )['statut'] );
+
+			// Formulaire sans JavaScript : refus, case de confirmation proposée, puis publication.
+			$vide     = Service::preparer(
+				array(
+					'oeuvre_id' => $oeuvre,
+					'nature'    => 'tome',
+					'numero'    => '5',
+				)
+			);
+			$vide_id  = (int) $vide['tome']['id'];
+			$redirige = static function ( $url ) {
+				throw new RuntimeException( 'redirection:' . $url );
+			};
+			$envoyer  = static function ( array $post ) use ( $redirige ) {
+				add_filter( 'wp_redirect', $redirige, 1 );
+				$_POST  = $post;
+				$_FILES = array();
+				try {
+					Formulaire::traiter();
+				} catch ( RuntimeException $e ) {
+					unset( $e );
+				} finally {
+					remove_filter( 'wp_redirect', $redirige, 1 );
+					$_POST = array();
+				}
+			};
+			$post     = array(
+				'action'      => 'yume_publication',
+				'_yume_nonce' => wp_create_nonce( 'yume_publication' ),
+				'etape'       => 'publier',
+				'oeuvre_id'   => (string) $oeuvre,
+				'tome_id'     => (string) $vide_id,
+				'nature'      => 'tome',
+				'numero'      => '5',
+			);
+			$envoyer( $post );
+			$retour = get_transient( Formulaire::RETOUR . $editeur );
+			yume_assert_same( 'erreur', $retour['type'] );
+			yume_assert_true( $retour['confirmer'] );
+			yume_assert_same( 'draft', get_post_status( $vide_id ) );
+			$html = yume_render_block( 'yume/publish-form' );
+			yume_assert_contains( 'name="confirmer_vide"', $html );
+			yume_assert_contains( 'aucun chapitre ni lien', $html );
+			$envoyer( array_merge( $post, array( 'confirmer_vide' => '1' ) ) );
+			yume_assert_same( 'publish', get_post_status( $vide_id ) );
+			yume_assert_not_contains( 'name="confirmer_vide"', yume_render_block( 'yume/publish-form' ) );
+		}
+	)
+);
+
+yume_test(
+	'SCAN-04 : tome dépublié → annonce en brouillon ; republié → la même annonce revient (pas de doublon)',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$r       = yume_tpub_preparer( $ctx, yume_tpub_oeuvre( 'Annonce qui suit' ) );
+			$tome    = (int) $r['tome']['id'];
+			$sortie  = Service::publier( $tome, 'maintenant' );
+			$article = (int) $sortie['article']['id'];
+			yume_assert_same( 'publish', get_post_status( $article ) );
+			$date = get_post( $article )->post_date_gmt;
+
+			// Dépublication depuis l'administration.
+			wp_update_post(
+				array(
+					'ID'          => $tome,
+					'post_status' => 'draft',
+				)
+			);
+			yume_assert_same( 'draft', get_post_status( $article ), 'annonce retirée avec le tome' );
+			yume_assert_true( is_array( get_post_meta( $article, Annonce::META_RETIREE, true ) ) );
+
+			// Retour en ligne par le formulaire de publication : même article, date d'origine.
+			Service::publier( $tome, 'maintenant' );
+			yume_assert_same( 'publish', get_post_status( $article ) );
+			yume_assert_same( $date, get_post( $article )->post_date_gmt, 'date d’origine conservée' );
+			yume_assert_same( '', get_post_meta( $article, Annonce::META_RETIREE, true ) );
+			yume_assert_same( $article, Annonce::existant( $tome ) );
+			$annonces = get_posts(
+				array(
+					'post_type'   => 'post',
+					'post_status' => 'any',
+					'fields'      => 'ids',
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+					'meta_key'    => Annonce::META_TOME,
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+					'meta_value'  => (string) $tome,
+				)
+			);
+			yume_assert_same( array( $article ), array_map( 'intval', $annonces ), 'une seule annonce' );
+
+			// Corbeille puis republication depuis l'administration.
+			wp_trash_post( $tome );
+			yume_assert_same( 'draft', get_post_status( $article ) );
+			wp_untrash_post( $tome );
+			wp_update_post(
+				array(
+					'ID'          => $tome,
+					'post_status' => 'publish',
+				)
+			);
+			yume_assert_same( 'publish', get_post_status( $article ), 'annonce republiée depuis l’administration' );
+
+			// Une annonce jamais parue (tome programmé puis déprogrammé) redevient brouillon et suit la nouvelle date.
+			$r2      = yume_tpub_preparer( $ctx, yume_tpub_oeuvre( 'Annonce programmée' ) );
+			$tome2   = (int) $r2['tome']['id'];
+			$quand   = wp_date( 'Y-m-d\TH:i', time() + 3 * DAY_IN_SECONDS );
+			$sortie2 = Service::publier( $tome2, $quand );
+			$art2    = (int) $sortie2['article']['id'];
+			yume_assert_same( 'future', get_post_status( $art2 ) );
+			wp_update_post(
+				array(
+					'ID'          => $tome2,
+					'post_status' => 'draft',
+				)
+			);
+			yume_assert_same( 'draft', get_post_status( $art2 ), 'annonce programmée retirée' );
+			Service::publier( $tome2, 'maintenant' );
+			yume_assert_same( 'publish', get_post_status( $art2 ) );
+			yume_assert_true( strtotime( get_post( $art2 )->post_date_gmt . ' UTC' ) <= time(), 'date de la sortie effective' );
+		}
+	)
+);
+
+yume_test(
+	'SCAN-05 : programmer une sortie cale la date cible du planning sur la date programmée (journalisé)',
+	yume_tpub(
+		function ( $ctx ) {
+			$editeur = yume_factory_user( 'yume_editeur' );
+			wp_set_current_user( $editeur );
+			$r    = yume_tpub_preparer( $ctx, yume_tpub_oeuvre( 'Date cible' ) );
+			$tome = (int) $r['tome']['id'];
+			update_post_meta( $tome, 'yume_date_cible', '2026-01-15' );
+			$quand = wp_date( 'Y-m-d\TH:i', time() + 10 * DAY_IN_SECONDS );
+			Service::publier( $tome, $quand );
+			yume_assert_same( 'future', get_post_status( $tome ) );
+			if ( ! function_exists( '\Yume\Core\Planning\mettre_a_jour' ) ) {
+				return;
+			}
+			yume_assert_same( substr( $quand, 0, 10 ), get_post_meta( $tome, 'yume_date_cible', true ) );
+			if ( function_exists( '\Yume\Core\Planning\table_journal' ) ) {
+				global $wpdb;
+				$table = \Yume\Core\Planning\table_journal();
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$ligne = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE tome_id = %d AND champ = 'date_cible' ORDER BY id DESC LIMIT 1", $tome ), ARRAY_A );
+				yume_assert_true( is_array( $ligne ), 'changement journalisé' );
+				yume_assert_contains( substr( $quand, 0, 10 ), (string) $ligne['nouveau'] );
+				yume_assert_same( $editeur, (int) $ligne['user_id'] );
+			}
+		}
+	)
+);
+
+yume_test(
+	'SCAN-07 : liste « Tome du planning » (brouillons et programmés), préremplissage et cible sans doublon',
+	yume_tpub(
+		function ( $ctx ) {
+			$editeur = yume_factory_user( 'yume_editeur' );
+			wp_set_current_user( $editeur );
+			$oeuvre    = yume_tpub_oeuvre( 'Planning vers publication' );
+			$autre     = yume_tpub_oeuvre( 'Autre œuvre' );
+			$planifie  = yume_factory_post(
+				array(
+					'post_type'   => 'yume_tome',
+					'post_status' => 'draft',
+					'post_title'  => 'Planning vers publication — Arc 26,5',
+					'meta_input'  => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_numero'    => 26.5,
+						'yume_nature'    => 'arc',
+					),
+				)
+			);
+			$programme = yume_factory_post(
+				array(
+					'post_type'   => 'yume_tome',
+					'post_status' => 'future',
+					'post_date'   => wp_date( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ),
+					'post_title'  => 'Autre œuvre — Tome 2',
+					'meta_input'  => array(
+						'yume_oeuvre_id' => $autre,
+						'yume_numero'    => 2,
+						'yume_nature'    => 'tome',
+					),
+				)
+			);
+			$publie    = yume_factory_post(
+				array(
+					'post_type'  => 'yume_tome',
+					'post_title' => 'Autre œuvre — Tome 1',
+					'meta_input' => array(
+						'yume_oeuvre_id' => $autre,
+						'yume_numero'    => 1,
+						'yume_nature'    => 'tome',
+					),
+				)
+			);
+			$html      = yume_render_block( 'yume/publish-form' );
+			yume_assert_contains( 'name="tome_planning"', $html );
+			yume_assert_contains( 'Tome du planning', $html );
+			yume_assert_true( (bool) preg_match( '#<option value="' . $planifie . '" data-oeuvre="' . $oeuvre . '" data-nature="arc" data-numero="26,5"#', $html ), 'brouillon proposé avec ses données' );
+			yume_assert_true( (bool) preg_match( '#<option value="' . $programme . '"[^>]*>[^<]*programmé le#', $html ), 'programmé proposé' );
+			yume_assert_not_contains( '<option value="' . $publie . '"', $html, 'tome sorti non proposé' );
+			yume_assert_contains( '<optgroup label="Planning vers publication', $html );
+
+			// ?tome=ID : toujours prérempli, et sélectionné dans la liste.
+			$_GET['tome'] = (string) $planifie;
+			try {
+				$html = yume_render_block( 'yume/publish-form' );
+			} finally {
+				unset( $_GET['tome'] );
+			}
+			yume_assert_true( (bool) preg_match( '#<option value="' . $planifie . '"[^>]*selected#', $html ), 'tome ouvert sélectionné' );
+			yume_assert_contains( 'name="tome_id" value="' . $planifie . '"', $html );
+			yume_assert_contains( 'value="26,5"', $html );
+
+			// Envoi sans JavaScript : le tome choisi est la cible, nature et numéro repris.
+			$avant    = count( yume_get_tomes( $oeuvre, array( 'status' => 'any' ) ) );
+			$redirige = static function ( $url ) {
+				throw new RuntimeException( 'redirection:' . $url );
+			};
+			add_filter( 'wp_redirect', $redirige, 1 );
+			$_POST  = array(
+				'action'        => 'yume_publication',
+				'_yume_nonce'   => wp_create_nonce( 'yume_publication' ),
+				'etape'         => 'brouillon',
+				'oeuvre_id'     => (string) $oeuvre,
+				'tome_planning' => (string) $planifie,
+				'numero'        => '',
+				'lien_pdf'      => 'https://www.clictune.com/arc26',
+			);
+			$_FILES = array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) );
+			try {
+				Formulaire::traiter();
+			} catch ( RuntimeException $e ) {
+				yume_assert_contains( 'tome=' . $planifie, $e->getMessage() );
+			} finally {
+				remove_filter( 'wp_redirect', $redirige, 1 );
+				$_POST  = array();
+				$_FILES = array();
+			}
+			yume_assert_same( 'succes', get_transient( Formulaire::RETOUR . $editeur )['type'] );
+			yume_assert_same( $avant, count( yume_get_tomes( $oeuvre, array( 'status' => 'any' ) ) ), 'aucun doublon' );
+			yume_assert_same( 'https://www.clictune.com/arc26', get_post_meta( $planifie, 'yume_lien_pdf', true ) );
+			yume_assert_true( count( yume_get_chapitres( $planifie, array( 'status' => 'any' ) ) ) > 0, 'chapitres rattachés au tome du planning' );
+		}
+	)
 );

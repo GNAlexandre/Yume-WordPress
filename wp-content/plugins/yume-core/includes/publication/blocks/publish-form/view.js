@@ -8,7 +8,10 @@
  *   détectés, nombre de mots, avertissements, rien n'est créé ;
  * - enregistrement via l'API REST (POST /yume/v1/publications) avec barre de progression,
  *   puis publication ou programmation (POST /yume/v1/publications/{id}/publier) ;
- * - aperçu du chapitre 1 dans un nouvel onglet.
+ * - aperçu du chapitre 1 dans un nouvel onglet ;
+ * - liste « Tome du planning » limitée aux tomes de l'œuvre choisie, qui préremplit nature,
+ *   numéro et titre et cible ce tome (pas de doublon) ;
+ * - tome sans chapitre ni lien PDF/EPUB : confirmation explicite avant de publier.
  *
  * JavaScript ES2019 sans dépendance ; nonce wp_rest envoyé en X-WP-Nonce.
  */
@@ -83,7 +86,9 @@
 						? 'Fichier trop volumineux pour le serveur.'
 						: 'Le serveur n’a pas pu traiter la demande (erreur ' + xhr.status + ').';
 				}
-				rejeter( new Error( message ) );
+				var erreur = new Error( message );
+				erreur.code = json && json.code ? json.code : '';
+				rejeter( erreur );
 			} );
 			xhr.addEventListener( 'error', function () {
 				rejeter( new Error( 'Connexion au site impossible : vérifiez votre connexion et réessayez.' ) );
@@ -121,6 +126,9 @@
 		var recapTome = racine.querySelector( '[data-yn-recap-tome]' );
 		var recapChapitres = racine.querySelector( '[data-yn-recap-chapitres]' );
 		var boutons = form.querySelectorAll( 'button[type="submit"]' );
+		var planning = form.querySelector( '[data-yn-planning]' );
+		var planningOrigine = planning ? planning.cloneNode( true ) : null;
+		var confirmerVide = form.querySelector( '[data-yn-confirmer-vide]' );
 		var declencheur = null;
 		var sourceAEnvoyer = false;
 		var analyseCourante = 0;
@@ -363,6 +371,84 @@
 			resultat.hidden = false;
 		}
 
+		/**
+		 * Liste « Tome du planning » : seulement les tomes de l'œuvre choisie (toutes les
+		 * œuvres, groupées, si aucune n'est choisie).
+		 */
+		function filtrerPlanning() {
+			if ( ! planning ) {
+				return;
+			}
+			var oeuvre = form.querySelector( '[data-yn-oeuvre]' );
+			var choisie = oeuvre ? oeuvre.value : '';
+			var actuelle = planning.value;
+			planning.textContent = '';
+			if ( ! choisie ) {
+				Array.prototype.forEach.call( planningOrigine.children, function ( enfant ) {
+					planning.appendChild( enfant.cloneNode( true ) );
+				} );
+			} else {
+				planning.appendChild( planningOrigine.querySelector( 'option[value=""]' ).cloneNode( true ) );
+				var trouves = 0;
+				Array.prototype.forEach.call( planningOrigine.querySelectorAll( 'option[data-oeuvre]' ), function ( option ) {
+					if ( option.getAttribute( 'data-oeuvre' ) === choisie ) {
+						planning.appendChild( option.cloneNode( true ) );
+						trouves++;
+					}
+				} );
+				if ( ! trouves ) {
+					var vide = el( 'option', '', 'Aucun tome en préparation pour cette œuvre' );
+					vide.disabled = true;
+					vide.value = '-';
+					planning.appendChild( vide );
+				}
+			}
+			var garde = actuelle && planning.querySelector( 'option[value="' + actuelle + '"]' );
+			planning.value = garde ? actuelle : '';
+			if ( actuelle && ! garde && tome.value === actuelle ) {
+				tome.value = '';
+			}
+		}
+
+		function choisirPlanning() {
+			var option = planning.options[ planning.selectedIndex ];
+			if ( ! option || ! option.value || option.value === '-' ) {
+				tome.value = '';
+				if ( etat ) {
+					etat.textContent = 'Nouveau tome';
+				}
+				majRecap( null );
+				return;
+			}
+			var oeuvre = form.querySelector( '[data-yn-oeuvre]' );
+			var nature = form.querySelector( '[data-yn-nature]' );
+			var numero = form.querySelector( '[data-yn-numero]' );
+			var titre = form.elements.namedItem( 'titre' );
+			if ( oeuvre && ! oeuvre.value ) {
+				oeuvre.value = option.getAttribute( 'data-oeuvre' ) || '';
+				filtrerPlanning();
+				planning.value = option.value;
+			}
+			if ( nature && option.getAttribute( 'data-nature' ) ) {
+				nature.value = option.getAttribute( 'data-nature' );
+			}
+			if ( numero ) {
+				numero.value = option.getAttribute( 'data-numero' ) || '';
+			}
+			if ( titre && option.getAttribute( 'data-titre' ) ) {
+				titre.value = option.getAttribute( 'data-titre' );
+			}
+			if ( date && option.getAttribute( 'data-date' ) && ! date.value ) {
+				date.value = option.getAttribute( 'data-date' );
+				majDate();
+			}
+			tome.value = option.value;
+			if ( etat ) {
+				etat.textContent = 'Tome du planning : mise à jour';
+			}
+			majRecap( null );
+		}
+
 		function envoyer( evenement ) {
 			var etape = declencheur && declencheur.value ? declencheur.value : 'brouillon';
 			declencheur = null;
@@ -396,6 +482,9 @@
 			requete( rest + 'publications', donnees, nonce, sourceAEnvoyer ? progres : null ).then( function ( rapport ) {
 				rapportCourant = rapport;
 				tome.value = rapport.tome.id;
+				if ( planning && planning.querySelector( 'option[value="' + rapport.tome.id + '"]' ) ) {
+					planning.value = String( rapport.tome.id );
+				}
 				sourceAEnvoyer = false;
 				source.value = '';
 				couverture.value = '';
@@ -423,9 +512,21 @@
 					return null;
 				}
 				if ( etape === 'publier' || etape === 'programmer' ) {
-					var sortieDonnees = new FormData();
-					sortieDonnees.append( 'quand', etape === 'publier' ? 'maintenant' : date.value );
-					return requete( rest + 'publications/' + rapport.tome.id + '/publier', sortieDonnees, nonce, null ).then( function ( sortie ) {
+					var sortir = function ( confirme ) {
+						var sortieDonnees = new FormData();
+						sortieDonnees.append( 'quand', etape === 'publier' ? 'maintenant' : date.value );
+						if ( confirme ) {
+							sortieDonnees.append( 'confirmer_vide', '1' );
+						}
+						return requete( rest + 'publications/' + rapport.tome.id + '/publier', sortieDonnees, nonce, null ).catch( function ( erreur ) {
+							// Tome sans chapitre ni lien PDF/EPUB : confirmation explicite.
+							if ( ! confirme && erreur.code === 'yume_tome_vide' && window.confirm( erreur.message + '\n\nPublier quand même ce tome vide ?' ) ) {
+								return sortir( true );
+							}
+							throw erreur;
+						} );
+					};
+					return sortir( !! ( confirmerVide && confirmerVide.checked ) ).then( function ( sortie ) {
 						if ( etat ) {
 							etat.textContent = sortie.statut === 'publish' ? 'Tome publié' : 'Sortie programmée';
 						}
@@ -530,10 +631,17 @@
 			var champ = form.elements.namedItem( nom );
 			if ( champ ) {
 				champ.addEventListener( 'change', function () {
+					if ( nom === 'oeuvre_id' ) {
+						filtrerPlanning();
+					}
 					majRecap( null );
 				} );
 			}
 		} );
+		if ( planning ) {
+			planning.addEventListener( 'change', choisirPlanning );
+			filtrerPlanning();
+		}
 		form.addEventListener( 'click', function ( e ) {
 			var bouton = e.target.closest ? e.target.closest( 'button[type="submit"]' ) : null;
 			if ( bouton ) {

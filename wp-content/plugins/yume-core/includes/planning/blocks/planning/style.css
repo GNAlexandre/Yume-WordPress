@@ -382,3 +382,22 @@ a.yn-planning__filtre[aria-current="true"] {
 		flex-basis: auto;
 	}
 }
+
+/* Passerelle vers l'espace équipe (membres connectés seulement). */
+.yn-planning__equipe-tete {
+	margin: 0;
+}
+
+.yn-planning .yn-planning__modifier {
+	display: inline-block;
+	margin-top: 4px;
+	color: var(--wp--preset--color--accent);
+	font-size: 12px;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.yn-planning .yn-planning__modifier:hover,
+.yn-planning .yn-planning__modifier:focus-visible {
+	text-decoration: underline;
+}

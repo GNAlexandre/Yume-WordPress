@@ -1,0 +1,877 @@
+<?php
+/**
+ * Tests de l'espace équipe (façade) : navigation partagée (vues, « Publier », déconnexion),
+ * vue « Planning complet » (?vue=planning : tous les tomes vivants, filtres, formulaire par
+ * ligne, raccourcis, « Retirer du planning », erreur affichée sur la ligne), raccourcis de
+ * « Mes tâches » et de « Tous les tomes », vue « Journal » (?vue=journal : pagination, filtre
+ * par tome), avertissements de la page « Membres et rôles » et passerelle du planning public.
+ *
+ * Lancement : tools/localenv/test.sh equipe
+ *
+ * @package Yume\Core
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+use function Yume\Core\Planning\grouper_journal;
+use function Yume\Core\Planning\journaliser;
+use function Yume\Core\Planning\lire_journal;
+use function Yume\Core\Planning\navigation_equipe;
+use function Yume\Core\Planning\retour_formulaire;
+use function Yume\Core\Planning\table_journal;
+use function Yume\Core\Planning\table_notifications;
+use function Yume\Core\Planning\traiter_formulaire_maj;
+use function Yume\Core\Planning\traiter_formulaire_retrait;
+use function Yume\Core\Planning\url_vue_equipe;
+
+/*
+ * -----------------------------------------------------------------------------
+ * Aides propres à ces tests (préfixe yume_te_)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Déclare un test isolé des contenus existants (œuvres, tomes, chapitres, journal, file
+ * d'e-mails vidés dans la transaction du test, annulée ensuite par le lanceur).
+ *
+ * @param string   $nom   Nom.
+ * @param callable $corps Corps.
+ */
+function yume_te_test( string $nom, callable $corps ): void {
+	yume_test(
+		$nom,
+		static function () use ( $corps ) {
+			global $wpdb;
+			$types = "'yume_oeuvre', 'yume_tome', 'yume_chapitre'";
+			$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE post_id IN ( SELECT ID FROM {$wpdb->posts} WHERE post_type IN ( $types ) )" ); // phpcs:ignore
+			$wpdb->query( "DELETE FROM {$wpdb->posts} WHERE post_type IN ( $types )" ); // phpcs:ignore
+			$wpdb->query( 'DELETE FROM ' . table_journal() ); // phpcs:ignore
+			$wpdb->query( 'DELETE FROM ' . table_notifications() ); // phpcs:ignore
+			wp_cache_flush();
+			\Yume\Core\Core\installer_roles();
+			$get = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			try {
+				$corps();
+			} finally {
+				$_GET = $get; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				wp_set_current_user( 0 );
+			}
+		}
+	);
+}
+
+/**
+ * Crée un membre avec un pseudo.
+ *
+ * @param string $role Rôle.
+ * @param string $nom  Pseudo.
+ */
+function yume_te_membre( string $role, string $nom ): int {
+	$id = yume_factory_user( $role );
+	wp_update_user(
+		array(
+			'ID'           => $id,
+			'display_name' => $nom,
+		)
+	);
+	return $id;
+}
+
+/**
+ * Crée une œuvre publiée.
+ *
+ * @param string $titre Titre.
+ */
+function yume_te_oeuvre( string $titre ): int {
+	$id = yume_factory_post(
+		array(
+			'post_type'  => 'yume_oeuvre',
+			'post_title' => $titre,
+		)
+	);
+	wp_set_object_terms( $id, 'light-novel', 'yume_type' );
+	return $id;
+}
+
+/**
+ * Crée un tome (sans notification).
+ *
+ * @param int    $oeuvre_id Œuvre.
+ * @param int    $numero    Numéro.
+ * @param array  $meta      Méta de planning.
+ * @param string $statut    Statut.
+ */
+function yume_te_tome( int $oeuvre_id, int $numero, array $meta = array(), string $statut = 'draft' ): int {
+	add_filter( 'yume_core_notifier', '__return_false' );
+	try {
+		$args = array(
+			'post_type'   => 'yume_tome',
+			'post_title'  => get_the_title( $oeuvre_id ) . ' — Tome ' . $numero,
+			'post_status' => $statut,
+			'meta_input'  => array_merge(
+				array(
+					'yume_oeuvre_id'    => $oeuvre_id,
+					'yume_numero'       => $numero,
+					'yume_nature'       => 'tome',
+					'yume_etape'        => 'traduction',
+					'yume_derniere_maj' => gmdate( 'Y-m-d H:i:s' ),
+				),
+				$meta
+			),
+		);
+		if ( 'future' === $statut ) {
+			$args['post_date']     = gmdate( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS );
+			$args['post_date_gmt'] = $args['post_date'];
+		}
+		return yume_factory_post( $args );
+	} finally {
+		remove_filter( 'yume_core_notifier', '__return_false' );
+	}
+}
+
+/**
+ * Jeu de données : Calumi (traducteur), Pizz (éditeur), Hikari (gérant), un administrateur ;
+ * Grimgar T.10 (brouillon, relecture), T.11 (programmé), T.9 (publié il y a longtemps) ;
+ * Raven T.3 (brouillon, bloqué).
+ *
+ * @return array<string,int>
+ */
+function yume_te_jeu(): array {
+	$d            = array();
+	$d['calumi']  = yume_te_membre( 'yume_traducteur', 'Calumi' );
+	$d['editeur'] = yume_te_membre( 'yume_editeur', 'Pizz' );
+	$d['gerant']  = yume_te_membre( 'yume_gerant', 'Hikari' );
+	$d['admin']   = yume_te_membre( 'administrator', 'Proprio' );
+	$d['lecteur'] = yume_te_membre( 'subscriber', 'Kaede' );
+	$d['grimgar'] = yume_te_oeuvre( 'Grimgar' );
+	$d['raven']   = yume_te_oeuvre( 'Raven' );
+	$d['t10']     = yume_te_tome(
+		$d['grimgar'],
+		10,
+		array(
+			'yume_etape'        => 'traduction',
+			'yume_avancement'   => array(
+				'traduction' => 70,
+				'relecture'  => 0,
+				'edition'    => 0,
+			),
+			'yume_responsables' => array(
+				'traduction' => $d['calumi'],
+				'relecture'  => 0,
+				'edition'    => 0,
+			),
+		)
+	);
+	$d['t11']     = yume_te_tome( $d['grimgar'], 11, array(), 'future' );
+	$d['t9']      = yume_te_tome(
+		$d['grimgar'],
+		9,
+		array(
+			'yume_etape'        => 'publie',
+			'yume_avancement'   => array(
+				'traduction' => 100,
+				'relecture'  => 100,
+				'edition'    => 100,
+			),
+			'yume_derniere_maj' => gmdate( 'Y-m-d H:i:s', time() - 200 * DAY_IN_SECONDS ),
+		),
+		'publish'
+	);
+	$d['raven3']  = yume_te_tome(
+		$d['raven'],
+		3,
+		array(
+			'yume_bloque'        => true,
+			'yume_bloque_raison' => 'relecteur manquant',
+		)
+	);
+	return $d;
+}
+
+/**
+ * Rend l'espace équipe avec des paramètres GET, en tant qu'utilisateur.
+ *
+ * @param int   $user_id Utilisateur.
+ * @param array $get     Paramètres GET.
+ */
+function yume_te_rendu( int $user_id, array $get = array() ): string {
+	$_GET = $get; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	wp_set_current_user( $user_id );
+	return yume_render_block( 'yume/team-dashboard' );
+}
+
+/**
+ * Libellés et cibles des entrées de la navigation de l'espace équipe.
+ *
+ * @param string $html HTML.
+ * @return array<int,array{0:string,1:string,2:string}> libellé, href, attributs.
+ */
+function yume_te_nav( string $html ): array {
+	preg_match( '#<nav class="yn-team__nav".*?</nav>#s', $html, $m );
+	preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0] ?? '', $liens, PREG_SET_ORDER );
+	return array_map(
+		static fn( $l ) => array( html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), html_entity_decode( $l[1], ENT_QUOTES, 'UTF-8' ), $l[2] ),
+		$liens
+	);
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * Navigation
+ * -----------------------------------------------------------------------------
+ */
+
+yume_te_test(
+	'navigation : « Planning complet » et « Journal » mènent aux vues de l’espace équipe, entrée active, déconnexion',
+	function () {
+		$admin = yume_te_membre( 'administrator', 'Proprio' );
+		wp_set_current_user( $admin );
+		$nav      = navigation_equipe( 'tableau', 2 );
+		$entrees  = yume_te_nav( $nav );
+		$libelles = array_column( $entrees, 0 );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages (rappels, Discord)' ), $libelles );
+		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[4][1] );
+		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[5][1] );
+		yume_assert_contains( 'vue=planning', $entrees[4][1] );
+		yume_assert_true( yume_url_page( 'planning' ) !== $entrees[4][1], 'plus le planning public' );
+		yume_assert_same( '#yn-team', $entrees[0][1], 'ancres sur le tableau de bord' );
+		yume_assert_same( ' aria-current="true"', $entrees[0][2] );
+		yume_assert_contains( '2 en retard', $nav, 'signature historique conservée' );
+		yume_assert_contains( 'Se déconnecter', $nav );
+		yume_assert_contains( esc_url( wp_logout_url( home_url( '/' ) ) ), $nav );
+
+		foreach ( array(
+			'planning' => 4,
+			'journal'  => 5,
+			'publier'  => 2,
+			'membres'  => 6,
+		) as $cle => $index ) {
+			$html    = navigation_equipe( $cle );
+			$entrees = yume_te_nav( $html );
+			yume_assert_same( ' aria-current="page"', $entrees[ $index ][2], $cle );
+			yume_assert_same( 1, substr_count( $html, 'aria-current' ), $cle . ' : une seule entrée active' );
+			yume_assert_same( url_vue_equipe(), $entrees[0][1], $cle . ' : adresse complète du tableau de bord' );
+			yume_assert_same( url_vue_equipe() . '#yn-mes-taches', $entrees[1][1] );
+		}
+
+		// Traducteur : ni publier, ni tous les tomes, ni membres ; les vues restent proposées.
+		wp_set_current_user( yume_te_membre( 'yume_traducteur', 'Calumi' ) );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Planning complet', 'Journal' ), array_column( yume_te_nav( navigation_equipe( 'tableau' ) ), 0 ) );
+	}
+);
+
+yume_te_test(
+	'url_vue_equipe : paramètres vides ignorés, page équipe sans vue',
+	function () {
+		$base = yume_url_page( 'equipe' );
+		yume_assert_same( $base, url_vue_equipe() );
+		yume_assert_same( add_query_arg( 'vue', 'journal', $base ), url_vue_equipe( 'journal', array( 'tome' => 0 ) ) );
+		yume_assert_same(
+			add_query_arg(
+				array(
+					'vue'  => 'planning',
+					'tome' => 12,
+				),
+				$base
+			),
+			url_vue_equipe( 'planning', array( 'tome' => 12 ) )
+		);
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Planning complet
+ * -----------------------------------------------------------------------------
+ */
+
+yume_te_test(
+	'planning complet (administrateur) : tous les tomes vivants, raccourcis, retrait des seuls brouillons',
+	function () {
+		$d    = yume_te_jeu();
+		$html = yume_te_rendu( $d['admin'], array( 'vue' => 'planning' ) );
+		yume_assert_contains( '<h2 class="yn-team__bonjour">Planning complet</h2>', $html );
+		yume_assert_contains( 'Voir le planning public', $html );
+		foreach ( array( 't10', 't11', 't9', 'raven3' ) as $cle ) {
+			yume_assert_contains( 'id="yn-tome-' . $d[ $cle ] . '"', $html, $cle . ' listé' );
+		}
+		yume_assert_contains( '4 tomes', $html );
+		yume_assert_contains( 'Programmé le', $html, 'statut programmé affiché' );
+		yume_assert_not_contains( 'id="yn-mes-taches"', $html, 'pas le tableau de bord' );
+		yume_assert_contains( 'data-yn-rest=', $html, 'formulaires enregistrés en JavaScript' );
+
+		// Formulaire complet par ligne.
+		yume_assert_contains( 'name="responsables[relecture]"', $html );
+		yume_assert_contains( 'id="g' . $d['t10'] . '-etape"', $html );
+		yume_assert_contains( 'name="bloque_present"', $html );
+
+		// Raccourcis.
+		yume_assert_contains( esc_url( add_query_arg( 'tome', $d['t10'], yume_url_page( 'publier' ) ) ), $html, 'Publier ce tome' );
+		yume_assert_not_contains( esc_url( add_query_arg( 'tome', $d['t9'], yume_url_page( 'publier' ) ) ), $html, 'tome déjà publié' );
+		yume_assert_contains( esc_url( get_edit_post_link( $d['t10'], 'raw' ) ), $html, 'Modifier dans l’administration' );
+		yume_assert_contains( esc_url( get_permalink( $d['t9'] ) ) . '">Voir la fiche', $html );
+		yume_assert_same( 1, substr_count( $html, '>Voir la fiche' ), 'fiche : tomes publiés seulement' );
+		yume_assert_contains( esc_url( url_vue_equipe( 'journal', array( 'tome' => $d['t10'] ) ) ), $html, 'historique' );
+
+		// Retirer du planning : brouillons seulement, nonce, confirmation.
+		yume_assert_contains( 'name="action" value="yume_planning_retrait"', $html );
+		yume_assert_same( 2, substr_count( $html, 'value="yume_planning_retrait"' ), 'T.10 et Raven T.3' );
+		yume_assert_contains( 'name="tome_id" value="' . $d['raven3'] . '"', $html );
+		yume_assert_contains( 'data-yn-confirmer="Retirer', $html );
+	}
+);
+
+yume_te_test(
+	'planning complet : filtres œuvre, statut (publiés, programmés), état, responsable ; lien direct vers un tome',
+	function () {
+		$d     = yume_te_jeu();
+		$ids   = static function ( string $html ): array {
+			preg_match_all( '#<details class="yn-team__details" id="yn-tome-(\d+)"#', $html, $m );
+			$ids = array_map( 'intval', $m[1] );
+			sort( $ids );
+			return $ids;
+		};
+		$trier = static function ( array $ids ): array {
+			sort( $ids );
+			return $ids;
+		};
+		yume_assert_same(
+			$trier( array( $d['t10'], $d['t11'], $d['t9'] ) ),
+			$ids(
+				yume_te_rendu(
+					$d['gerant'],
+					array(
+						'vue'    => 'planning',
+						'oeuvre' => (string) $d['grimgar'],
+					)
+				)
+			)
+		);
+		yume_assert_same(
+			array( $d['t9'] ),
+			$ids(
+				yume_te_rendu(
+					$d['gerant'],
+					array(
+						'vue'    => 'planning',
+						'statut' => 'publish',
+					)
+				)
+			)
+		);
+		yume_assert_same(
+			array( $d['t11'] ),
+			$ids(
+				yume_te_rendu(
+					$d['gerant'],
+					array(
+						'vue'    => 'planning',
+						'statut' => 'future',
+					)
+				)
+			)
+		);
+		yume_assert_same(
+			array( $d['raven3'] ),
+			$ids(
+				yume_te_rendu(
+					$d['gerant'],
+					array(
+						'vue'  => 'planning',
+						'etat' => 'bloque',
+					)
+				)
+			)
+		);
+		yume_assert_same(
+			array( $d['t10'] ),
+			$ids(
+				yume_te_rendu(
+					$d['gerant'],
+					array(
+						'vue'         => 'planning',
+						'responsable' => (string) $d['calumi'],
+					)
+				)
+			)
+		);
+		$html = yume_te_rendu(
+			$d['gerant'],
+			array(
+				'vue'    => 'planning',
+				'statut' => 'nimporte',
+			)
+		);
+		yume_assert_same( 4, count( $ids( $html ) ), 'statut inconnu ignoré' );
+
+		$html = yume_te_rendu(
+			$d['gerant'],
+			array(
+				'vue'  => 'planning',
+				'tome' => (string) $d['raven3'],
+			)
+		);
+		yume_assert_same( array( $d['raven3'] ), $ids( $html ) );
+		yume_assert_contains( 'id="yn-tome-' . $d['raven3'] . '" open', $html, 'ligne dépliée' );
+		yume_assert_contains( 'Afficher tout le planning', $html );
+
+		// Formulaire de filtres : GET vers la page équipe, vue conservée.
+		yume_assert_contains( 'method="get"', $html );
+		yume_assert_contains( '<input type="hidden" name="vue" value="planning">', $html );
+		yume_assert_contains( 'name="statut"', $html );
+		yume_assert_contains( '<option value="publish">Publié</option>', $html );
+	}
+);
+
+yume_te_test(
+	'planning complet (traducteur) : formulaire de ses étapes seulement, lecture seule ailleurs, jamais de retrait',
+	function () {
+		$d    = yume_te_jeu();
+		$html = yume_te_rendu( $d['calumi'], array( 'vue' => 'planning' ) );
+		yume_assert_contains( 'id="yn-tome-' . $d['t10'] . '"', $html );
+		yume_assert_contains( 'data-yn-planning="' . $d['t10'] . '"', $html, 'son tome : formulaire' );
+		yume_assert_not_contains( 'data-yn-planning="' . $d['raven3'] . '"', $html, 'tome d’un autre : lecture seule' );
+		yume_assert_contains( 'Vous n’êtes pas responsable de ce tome', $html );
+		yume_assert_not_contains( 'name="responsables[', $html );
+		yume_assert_not_contains( 'yume_planning_retrait', $html );
+		yume_assert_not_contains( 'Publier ce tome', $html );
+		yume_assert_contains( 'Historique', $html );
+	}
+);
+
+yume_te_test(
+	'planning complet : l’erreur du service (étape prématurée) s’affiche sur la ligne, dépliée',
+	function () {
+		$d = yume_te_jeu();
+		wp_set_current_user( $d['editeur'] );
+		$retour = traiter_formulaire_maj(
+			array(
+				'tome_id'     => (string) $d['t10'],
+				'ancre'       => 'yn-tome-' . $d['t10'],
+				'_yume_nonce' => wp_create_nonce( 'yume_planning_maj_' . $d['t10'] ),
+				'etape'       => 'relecture',
+			),
+			$d['editeur']
+		);
+		yume_assert_same( 'erreur', $retour['type'] );
+		yume_assert_same( 'yn-tome-' . $d['t10'], $retour['cible'] );
+		retour_formulaire( $d['editeur'], $retour );
+		$html = yume_te_rendu( $d['editeur'], array( 'vue' => 'planning' ) );
+		yume_assert_contains( 'id="yn-tome-' . $d['t10'] . '" open', $html );
+		yume_assert_true( 1 === preg_match( '#id="yn-tome-' . $d['t10'] . '" open>.*?<p class="yn-team__retour yn-team__retour--erreur"[^>]*>' . preg_quote( esc_html( $retour['message'] ), '#' ) . '</p>#s', $html ), 'message dans la ligne' );
+		yume_assert_contains( 'Terminez d’abord', $retour['message'] );
+		yume_assert_same( 'traduction', get_post_meta( $d['t10'], 'yume_etape', true ) );
+	}
+);
+
+yume_te_test(
+	'planning complet : les étapes proposées sont celles permises à l’utilisateur',
+	function () {
+		$d = yume_te_jeu();
+		preg_match( '#<select id="g' . $d['t10'] . '-etape"[^>]*>(.*?)</select>#s', yume_te_rendu( $d['admin'], array( 'vue' => 'planning' ) ), $m );
+		yume_assert_true( ! empty( $m[1] ) );
+		foreach ( array( 'a_faire', 'traduction', 'relecture', 'edition' ) as $etape ) {
+			yume_assert_contains( 'value="' . $etape . '"', $m[1], $etape );
+		}
+		yume_assert_not_contains( 'value="publie"', $m[1], 'jamais « publié » pour un tome non publié' );
+	}
+);
+
+yume_te_test(
+	'Retirer du planning : brouillon à la corbeille, refus expliqué (publié, traducteur, nonce)',
+	function () {
+		$d    = yume_te_jeu();
+		$post = static function ( int $tome ): array {
+			return array(
+				'action'      => 'yume_planning_retrait',
+				'tome_id'     => (string) $tome,
+				'_yume_nonce' => wp_create_nonce( 'yume_planning_retrait_' . $tome ),
+			);
+		};
+
+		wp_set_current_user( $d['calumi'] );
+		$r = traiter_formulaire_retrait( $post( $d['t10'] ), $d['calumi'] );
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_same( 'draft', get_post_status( $d['t10'] ) );
+
+		wp_set_current_user( $d['editeur'] );
+		$r = traiter_formulaire_retrait( array_merge( $post( $d['t10'] ), array( '_yume_nonce' => 'x' ) ), $d['editeur'] );
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_contains( 'session', $r['message'] );
+
+		$r = traiter_formulaire_retrait( $post( $d['t9'] ), $d['editeur'] );
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_same( 'yn-tome-' . $d['t9'], $r['cible'], 'erreur affichée sur la ligne' );
+		yume_assert_same( 'publish', get_post_status( $d['t9'] ) );
+
+		$r = traiter_formulaire_retrait( $post( $d['raven3'] ), $d['editeur'] );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( 'yn-gestion-retour', $r['cible'] );
+		yume_assert_contains( 'Raven', $r['message'] );
+		yume_assert_same( 'trash', get_post_status( $d['raven3'] ) );
+
+		// Le message s'affiche en tête de la vue ; le tome n'est plus listé ; le journal le dit.
+		retour_formulaire( $d['editeur'], $r );
+		$html = yume_te_rendu( $d['editeur'], array( 'vue' => 'planning' ) );
+		yume_assert_true( 1 === preg_match( '#<div id="yn-gestion-retour"><p class="yn-team__retour yn-team__retour--ok"[^>]*>[^<]*Raven#', $html ) );
+		yume_assert_not_contains( 'id="yn-tome-' . $d['raven3'] . '"', $html );
+		$journal = grouper_journal( lire_journal( array( 'tome_id' => $d['raven3'] ) ), true );
+		yume_assert_contains( 'retiré du planning', implode( ' ', $journal[0]['parties'] ?? array() ) );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Tableau de bord : raccourcis, journal
+ * -----------------------------------------------------------------------------
+ */
+
+yume_te_test(
+	'tableau de bord : raccourcis sur « Mes tâches » et « Tous les tomes », liens vers les vues',
+	function () {
+		$d = yume_te_jeu();
+		update_post_meta(
+			$d['t10'],
+			'yume_responsables',
+			array(
+				'traduction' => $d['editeur'],
+				'relecture'  => 0,
+				'edition'    => 0,
+			)
+		);
+		$html = yume_te_rendu( $d['editeur'] );
+		preg_match( '#<form class="yn-card yn-team__tache[^"]*" id="yn-tache-' . $d['t10'] . '".*?</form>#s', $html, $carte );
+		yume_assert_true( ! empty( $carte[0] ), 'carte de tâche' );
+		yume_assert_contains( 'Publier ce tome', $carte[0] );
+		yume_assert_contains( 'Modifier dans l’administration', $carte[0] );
+		yume_assert_contains( 'Gérer dans le planning complet', $carte[0] );
+		yume_assert_not_contains( '<form', substr( $carte[0], 5 ), 'pas de formulaire imbriqué' );
+		yume_assert_contains( 'id="yn-tous-les-tomes"', $html );
+		yume_assert_contains( 'value="yume_planning_retrait"', $html, 'retrait depuis « Tous les tomes »' );
+		yume_assert_contains( esc_url( url_vue_equipe( 'planning' ) ), $html );
+		yume_assert_contains( esc_url( url_vue_equipe( 'journal' ) ) . '">Tout le journal', $html );
+
+		// Traducteur : raccourcis sans publication ni retrait.
+		update_post_meta(
+			$d['t10'],
+			'yume_responsables',
+			array(
+				'traduction' => $d['calumi'],
+				'relecture'  => 0,
+				'edition'    => 0,
+			)
+		);
+		$html = yume_te_rendu( $d['calumi'] );
+		yume_assert_contains( 'id="yn-tache-' . $d['t10'] . '"', $html );
+		yume_assert_contains( 'Historique', $html );
+		yume_assert_not_contains( 'Publier ce tome', $html );
+		yume_assert_not_contains( 'yume_planning_retrait', $html );
+	}
+);
+
+yume_te_test(
+	'vue Journal : tout le journal paginé, filtre par tome, rappels en option, réservé à l’équipe',
+	function () {
+		$d = yume_te_jeu();
+		for ( $i = 0; $i < 70; $i++ ) {
+			journaliser( $d['t10'], $d['calumi'], 'date_cible', '', gmdate( 'Y-m-d', time() + ( $i + 1 ) * DAY_IN_SECONDS ) );
+		}
+		journaliser( $d['raven3'], $d['gerant'], 'bloque', '0', '1' );
+		journaliser(
+			$d['raven3'],
+			0,
+			'rappel',
+			'',
+			array(
+				'destinataires' => array( $d['calumi'] ),
+				'motif'         => 'date',
+				'jours'         => 3,
+			)
+		);
+		global $wpdb;
+		// Horodatages distincts : les lignes ne sont pas regroupées en une seule mise à jour.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . table_journal() . ' SET created_at = DATE_SUB( %s, INTERVAL id MINUTE )', gmdate( 'Y-m-d H:i:s' ) ) ); // phpcs:ignore
+		if ( $wpdb->last_error ) {
+			// SQLite : pas de DATE_SUB.
+			$wpdb->query( 'UPDATE ' . table_journal() . " SET created_at = datetime( 'now', '-' || id || ' minutes' )" ); // phpcs:ignore
+		}
+
+		$html = yume_te_rendu( $d['calumi'], array( 'vue' => 'journal' ) );
+		yume_assert_contains( '<h2 class="yn-team__bonjour">Journal de l’équipe</h2>', $html );
+		yume_assert_contains( 'rel="next"', $html );
+		yume_assert_not_contains( 'rel="prev"', $html );
+		yume_assert_true( substr_count( $html, '<li><time' ) >= 50, 'une page pleine' );
+		yume_assert_not_contains( 'rappel envoyé', $html, 'rappels exclus par défaut' );
+		yume_assert_contains( esc_url( url_vue_equipe( 'journal', array( 'tome' => $d['t10'] ) ) ), $html, 'tome cliquable' );
+
+		$html = yume_te_rendu(
+			$d['calumi'],
+			array(
+				'vue' => 'journal',
+				'pg'  => '2',
+			)
+		);
+		yume_assert_contains( 'rel="prev"', $html );
+		yume_assert_not_contains( 'rel="next"', $html );
+
+		$html = yume_te_rendu(
+			$d['calumi'],
+			array(
+				'vue'     => 'journal',
+				'tome'    => (string) $d['raven3'],
+				'rappels' => '1',
+			)
+		);
+		yume_assert_contains( 'bloqué', $html );
+		yume_assert_contains( 'rappel envoyé à Calumi', $html );
+		yume_assert_not_contains( 'date cible :', $html, 'autres tomes exclus' );
+		yume_assert_contains( '<option value="' . $d['raven3'] . '" selected=\'selected\'>', $html );
+
+		// Hors équipe : message d'accès, pas de journal.
+		$html = yume_te_rendu( $d['lecteur'], array( 'vue' => 'journal' ) );
+		yume_assert_contains( 'Espace réservé à l’équipe', $html );
+		yume_assert_not_contains( 'yn-team__journal', $html );
+	}
+);
+
+yume_te_test(
+	'journal : textes « retiré du planning » et « étape forcée » (équipe seulement)',
+	function () {
+		$d = yume_te_jeu();
+		journaliser( $d['t10'], $d['admin'], 'retire', '', 'Grimgar T.10' );
+		journaliser(
+			$d['t11'],
+			$d['admin'],
+			'etape_forcee',
+			'traduction',
+			array(
+				'etape'      => 'relecture',
+				'avancement' => array(
+					'traduction' => 70,
+					'relecture'  => 0,
+					'edition'    => 0,
+				),
+			),
+			false
+		);
+		$champs = array( 'champs' => array( 'etape_forcee' ) );
+		$equipe = grouper_journal( lire_journal( array( 'tome_id' => $d['t11'] ) + $champs ), true );
+		yume_assert_same( array( 'étape forcée : relecture (traduction ' . \Yume\Core\Planning\pct( 70 ) . ')' ), $equipe[0]['parties'] );
+		yume_assert_same( array(), grouper_journal( lire_journal( array( 'tome_id' => $d['t11'] ) + $champs ), false ), 'jamais public' );
+		yume_assert_same(
+			array(),
+			lire_journal(
+				array(
+					'tome_id' => $d['t11'],
+					'public'  => true,
+				) + $champs
+			)
+		);
+		$retire = grouper_journal( lire_journal( array( 'tome_id' => $d['t10'] ) ), false );
+		yume_assert_same( array( 'retiré du planning' ), $retire[0]['parties'] );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Membres et rôles
+ * -----------------------------------------------------------------------------
+ */
+
+yume_te_test(
+	'Membres et rôles : membre responsable de tomes en cours signalé (nombre, tomes, lien filtré), lien administration',
+	function () {
+		$d       = yume_te_jeu();
+		$equipe  = yume_factory_post(
+			array(
+				'post_type'  => 'page',
+				'post_name'  => 'equipe',
+				'post_title' => 'Espace équipe',
+			)
+		);
+		$membres = yume_factory_post(
+			array(
+				'post_type'    => 'page',
+				'post_name'    => 'membres',
+				'post_title'   => 'Membres et rôles',
+				'post_parent'  => $equipe,
+				'post_content' => '<!-- wp:yume/team-members /-->',
+			)
+		);
+		update_option(
+			'yume_pages',
+			array(
+				'equipe'  => $equipe,
+				'membres' => $membres,
+			)
+		);
+		// Calumi : traduction de T.10 et édition de Raven T.3 (en cours) ; T.9 publié ignoré.
+		update_post_meta(
+			$d['raven3'],
+			'yume_responsables',
+			array(
+				'traduction' => 0,
+				'relecture'  => 0,
+				'edition'    => $d['calumi'],
+			)
+		);
+		update_post_meta(
+			$d['t9'],
+			'yume_responsables',
+			array(
+				'traduction' => $d['calumi'],
+				'relecture'  => 0,
+				'edition'    => 0,
+			)
+		);
+
+		wp_set_current_user( $d['gerant'] );
+		$html = yume_render_block( 'yume/team-members' );
+		preg_match( '#<li class="yn-team__ligne yn-team__membre" id="yn-membre-' . $d['calumi'] . '">.*?</li>#s', $html, $ligne );
+		yume_assert_true( ! empty( $ligne[0] ) );
+		yume_assert_contains( 'Calumi est responsable de 2 tomes en cours', $ligne[0] );
+		yume_assert_contains( 'Grimgar Tome 10', $ligne[0] );
+		yume_assert_contains( esc_url( url_vue_equipe( 'planning', array( 'responsable' => $d['calumi'] ) ) ), $ligne[0] );
+		yume_assert_contains( 'data-yn-confirmer="Retirer Calumi de l’équipe ? Il reste responsable de 2 tomes en cours."', $ligne[0] );
+		yume_assert_contains( 'value="yume_equipe_membres"', $ligne[0], 'le retrait reste possible' );
+		preg_match( '#<li class="yn-team__ligne yn-team__membre" id="yn-membre-' . $d['editeur'] . '">.*?</li>#s', $html, $autre );
+		yume_assert_not_contains( 'yn-team__membre-alerte', $autre[0] ?? '', 'aucun tome : aucun avertissement' );
+		yume_assert_not_contains( 'user-edit.php', $html, 'gérant : pas de lien administration' );
+
+		// Administrateur : lien vers user-edit.php sur les comptes non modifiables ici.
+		wp_set_current_user( $d['admin'] );
+		$html = yume_render_block( 'yume/team-members' );
+		preg_match( '#<li class="yn-team__ligne yn-team__membre" id="yn-membre-' . $d['gerant'] . '">.*?</li>#s', $html, $g );
+		yume_assert_contains( esc_url( admin_url( 'user-edit.php?user_id=' . $d['gerant'] ) ), $g[0] ?? '' );
+		preg_match( '#<li class="yn-team__ligne yn-team__membre" id="yn-membre-' . $d['calumi'] . '">.*?</li>#s', $html, $c );
+		yume_assert_not_contains( 'user-edit.php', $c[0] ?? '', 'compte modifiable : formulaire, pas de lien' );
+
+		// Après retrait : le message rappelle les tomes à réattribuer.
+		$r = \Yume\Core\Planning\traiter_formulaire_membres(
+			array(
+				'op'          => 'retrait',
+				'user_id'     => (string) $d['calumi'],
+				'_yume_nonce' => wp_create_nonce( 'yume_membres_' . $d['calumi'] ),
+			),
+			$d['admin']
+		);
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_contains( 'Il reste responsable de 2 tomes en cours', $r['message'] );
+		update_option( 'yume_pages', array() );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Planning public
+ * -----------------------------------------------------------------------------
+ */
+
+yume_te_test(
+	'planning public : passerelle « Modifier dans l’espace équipe » pour l’équipe seulement',
+	function () {
+		$d = yume_te_jeu();
+		wp_set_current_user( $d['calumi'] );
+		$html = yume_render_block( 'yume/planning' );
+		yume_assert_contains( 'yn-planning__equipe-tete', $html );
+		yume_assert_contains( esc_url( url_vue_equipe( 'planning' ) ) . '">Modifier dans l’espace équipe', $html );
+		yume_assert_contains( esc_url( url_vue_equipe( 'planning', array( 'tome' => $d['t10'] ) ) . '#yn-tome-' . $d['t10'] ), $html );
+		foreach ( array( $d['lecteur'], 0 ) as $uid ) {
+			wp_set_current_user( $uid );
+			$html = yume_render_block( 'yume/planning' );
+			yume_assert_not_contains( 'Modifier dans l’espace équipe', $html, (string) $uid );
+			yume_assert_not_contains( 'vue=planning', $html, (string) $uid );
+		}
+	}
+);
+
+yume_te_test(
+	'sortie programmée : pastille « Programmé le … » (style distinct) au lieu de « À l’heure »',
+	function () {
+		$d      = yume_te_jeu();
+		$ligne  = null;
+		$lignes = yume_get_planning(
+			array(
+				'gestion' => true,
+				'public'  => false,
+			)
+		);
+		foreach ( $lignes as $l ) {
+			if ( (int) $l['tome_id'] === $d['t11'] ) {
+				$ligne = $l;
+			}
+		}
+		yume_assert_true( is_array( $ligne ) && ! empty( $ligne['programme'] ), 'ligne programmée' );
+		$libelle = \Yume\Core\Planning\libelle_etat_ligne( $ligne );
+		yume_assert_contains( 'Programmé le', $libelle );
+		$puce = \Yume\Core\Planning\pastille_ligne( $ligne );
+		yume_assert_contains( 'yn-chip--programme', $puce );
+		yume_assert_contains( esc_html( $libelle ), $puce );
+		yume_assert_not_contains( 'À l’heure', $puce );
+
+		$html = yume_te_rendu(
+			$d['gerant'],
+			array(
+				'vue'    => 'planning',
+				'statut' => 'future',
+			)
+		);
+		yume_assert_contains( '<span class="yn-chip yn-chip--new yn-chip--programme" data-yn-puce="">', $html, 'vue de gestion' );
+		yume_assert_contains( esc_html( $libelle ), $html );
+
+		wp_set_current_user( $d['calumi'] );
+		$html = yume_render_block( 'yume/planning' );
+		yume_assert_contains( 'yn-chip--programme', $html, 'planning public' );
+		yume_assert_contains( esc_html( $libelle ), $html );
+	}
+);
+
+yume_te_test(
+	'journal : sortie partielle, retour en ligne, tome complet, dépublication',
+	function () {
+		$d     = yume_te_jeu();
+		$texte = static function ( string $champ, $ancien, $nouveau ) use ( $d ): array {
+			global $wpdb;
+			$wpdb->query( 'DELETE FROM ' . table_journal() ); // phpcs:ignore
+			journaliser( $d['t9'], 0, $champ, $ancien, $nouveau );
+			$e = grouper_journal( lire_journal( array( 'tome_id' => $d['t9'] ) ), true );
+			return array( implode( ', ', $e[0]['parties'] ?? array() ), (bool) ( $e[0]['publie'] ?? false ) );
+		};
+		yume_assert_same(
+			array( 'sortie partielle : 5 chapitres publiés sur 12', false ),
+			$texte(
+				'publie',
+				'',
+				array(
+					'chapitres' => 5,
+					'total'     => 12,
+					'partiel'   => true,
+				)
+			)
+		);
+		yume_assert_same(
+			array( 'remis en ligne, 12 chapitres', true ),
+			$texte(
+				'publie',
+				'',
+				array(
+					'chapitres' => 12,
+					'retour'    => true,
+				)
+			)
+		);
+		yume_assert_same(
+			array( 'dernier chapitre publié : tome complet', true ),
+			$texte(
+				'publie',
+				'',
+				array(
+					'chapitres' => 12,
+					'complet'   => true,
+				)
+			)
+		);
+		yume_assert_same( array( 'dépublié (repassé en brouillon)', false ), $texte( 'depublie', 'publish', 'draft' ) );
+		yume_assert_same( array( 'dépublié (passé en privé)', false ), $texte( 'depublie', 'publish', 'private' ) );
+	}
+);

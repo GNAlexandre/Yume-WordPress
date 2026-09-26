@@ -63,17 +63,22 @@ final class Rest {
 				'callback'            => array( self::class, 'publier' ),
 				'permission_callback' => array( self::class, 'peut_publier_tome' ),
 				'args'                => array(
-					'id'    => array(
+					'id'             => array(
 						'description' => __( 'Identifiant du tome.', 'yume-core' ),
 						'type'        => 'integer',
 						'minimum'     => 1,
 						'required'    => true,
 					),
-					'quand' => array(
+					'quand'          => array(
 						'description'       => __( '« maintenant » ou date de sortie ISO 8601 (heure du site si aucun fuseau).', 'yume-core' ),
 						'type'              => 'string',
 						'default'           => 'maintenant',
 						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'confirmer_vide' => array(
+						'description' => __( 'Confirme la publication d’un tome sans chapitre ni lien PDF/EPUB (sinon erreur yume_tome_vide, 409).', 'yume-core' ),
+						'type'        => 'boolean',
+						'default'     => false,
 					),
 				),
 			)
@@ -273,7 +278,7 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function publier( \WP_REST_Request $requete ) {
-		$resultat = Service::publier( (int) $requete['id'], (string) $requete->get_param( 'quand' ) );
+		$resultat = Service::publier( (int) $requete['id'], (string) $requete->get_param( 'quand' ), array( 'confirmer_vide' => (bool) $requete->get_param( 'confirmer_vide' ) ) );
 		return is_wp_error( $resultat ) ? self::erreur( $resultat ) : rest_ensure_response( $resultat );
 	}
 }

@@ -6,10 +6,44 @@
  *   résultat annoncé dans la zone aria-live du formulaire.
  * - « Ajouter au planning » : POST /yume/v1/planning/tomes.
  *
+ * - Confirmation (data-yn-confirmer sur le formulaire ou le bouton) : « Retirer du planning »,
+ *   « Retirer de l’équipe » d'un membre encore responsable de tomes.
+ * - Lien direct vers une ligne (#yn-tome-ID) : la ligne est dépliée.
+ *
  * Sans JavaScript, les mêmes formulaires sont envoyés à admin-post.php.
  */
 ( function () {
 	'use strict';
+
+	document.addEventListener(
+		'submit',
+		function ( evenement ) {
+			var formulaire = evenement.target;
+			var bouton = evenement.submitter;
+			var source = bouton && bouton.hasAttribute && bouton.hasAttribute( 'data-yn-confirmer' ) ? bouton : formulaire;
+			if ( ! source || ! source.hasAttribute || ! source.hasAttribute( 'data-yn-confirmer' ) ) {
+				return;
+			}
+			if ( ! window.confirm( source.getAttribute( 'data-yn-confirmer' ) ) ) {
+				evenement.preventDefault();
+				evenement.stopImmediatePropagation();
+			}
+		},
+		true
+	);
+
+	function deplierAncre() {
+		var id = window.location.hash.replace( /^#/, '' );
+		if ( ! /^yn-tome-\d+$/.test( id ) ) {
+			return;
+		}
+		var cible = document.getElementById( id );
+		if ( cible && cible.tagName === 'DETAILS' ) {
+			cible.open = true;
+		}
+	}
+	deplierAncre();
+	window.addEventListener( 'hashchange', deplierAncre );
 
 	var racine = document.querySelector( '.yn-team[data-yn-rest]' );
 	if ( ! racine || ! window.fetch || ! window.FormData ) {
@@ -85,6 +119,9 @@
 			zone.classList.add( 'yn-team__retour--' + type );
 		}
 		zone.textContent = texte;
+		if ( type === 'erreur' && zone.scrollIntoView ) {
+			zone.scrollIntoView( { block: 'nearest' } );
+		}
 	}
 
 	function majPastille( formulaire, tome ) {
@@ -93,11 +130,13 @@
 		if ( ! puce || ! tome || ! tome.etat ) {
 			return;
 		}
-		puce.className = 'yn-chip yn-chip--' + ( variantes[ tome.etat ] || 'info' );
+		/* Sortie programmée : « Programmé le … », style distinct (comme pastille_ligne()). */
+		var programme = !! tome.programme && tome.etat !== 'publie';
+		puce.className = programme ? 'yn-chip yn-chip--new yn-chip--programme' : 'yn-chip yn-chip--' + ( variantes[ tome.etat ] || 'info' );
 		puce.textContent = '';
 		var icone = document.createElement( 'span' );
 		icone.setAttribute( 'aria-hidden', 'true' );
-		icone.textContent = icones[ tome.etat ] || '●';
+		icone.textContent = programme ? '◷' : icones[ tome.etat ] || '●';
 		puce.appendChild( icone );
 		puce.appendChild( document.createTextNode( ' ' + ( tome.etat_libelle || '' ) ) );
 		carte.classList.toggle( 'yn-team__tache--retard', tome.etat === 'en_retard' );

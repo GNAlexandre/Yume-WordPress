@@ -143,7 +143,7 @@ function effacer_donnees( int $user_id ): int {
 	if ( function_exists( '\Yume\Core\Reader\supprimer_progression_par' ) ) {
 		$n += \Yume\Core\Reader\supprimer_progression_par( 'user_id', $user_id );
 	}
-	foreach ( array( META_ALERTES, META_EMAIL_ATTENTE, 'yume_reglages' ) as $cle ) {
+	foreach ( array( META_ALERTES, META_EMAIL_ATTENTE, META_JETON_DESABO, 'yume_reglages' ) as $cle ) {
 		if ( metadata_exists( 'user', $user_id, $cle ) ) {
 			delete_user_meta( $user_id, $cle );
 			++$n;

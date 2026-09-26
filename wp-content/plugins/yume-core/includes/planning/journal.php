@@ -4,8 +4,9 @@
  * et regroupement des lignes d'une même mise à jour.
  *
  * Champs journalisés : etape, avancement, responsables, date_cible, bloque, bloque_raison,
- * note_equipe (jamais publique), et les événements creation, publie, chapitre_publie,
- * rappel, signalement (gérants, non public) et digest (non public).
+ * note_equipe (jamais publique), et les événements creation, publie (sortie complète, partielle,
+ * retour en ligne, dernier chapitre), depublie, chapitre_publie, retire (tome retiré du planning), etape_forcee (équipe seulement), rappel, signalement
+ * (gérants, non public) et digest (non public).
  *
  * @package Yume\Core
  */
@@ -20,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string[]
  */
 function champs_evenements(): array {
-	return array( 'creation', 'publie', 'chapitre_publie', 'rappel', 'signalement', 'digest' );
+	return array( 'creation', 'publie', 'depublie', 'chapitre_publie', 'retire', 'etape_forcee', 'rappel', 'signalement', 'digest' );
 }
 
 /**
@@ -29,7 +30,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'signalement', 'digest' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest' );
 }
 
 /**
@@ -341,10 +342,64 @@ function texte_changement( $ligne, bool $equipe ): string {
 		case 'creation':
 			return __( 'ajouté au planning', 'yume-core' );
 
+		case 'retire':
+			return __( 'retiré du planning', 'yume-core' );
+
+		case 'etape_forcee':
+			if ( ! $equipe ) {
+				return '';
+			}
+			$infos   = is_array( $nouveau ) ? $nouveau : array();
+			$cible   = (string) ( $infos['etape'] ?? '' );
+			$av      = norm_avancement( is_array( $infos['avancement'] ?? null ) ? $infos['avancement'] : array() );
+			$parties = array();
+			foreach ( ETAPES_TRAVAIL as $etape ) {
+				if ( $etape === $cible ) {
+					break;
+				}
+				if ( $av[ $etape ] < 100 ) {
+					$parties[] = libelle_etape_min( $etape ) . ' ' . pct( $av[ $etape ] );
+				}
+			}
+			$libelle = isset( $etapes[ $cible ] ) ? mb_strtolower( $etapes[ $cible ] ) : $cible;
+			return $parties
+				/* translators: 1: étape forcée, 2: étapes inachevées (« traduction 70 % ») */
+				? sprintf( __( 'étape forcée : %1$s (%2$s)', 'yume-core' ), $libelle, implode( ', ', $parties ) )
+				/* translators: %s : étape forcée */
+				: sprintf( __( 'étape forcée : %s', 'yume-core' ), $libelle );
+
 		case 'publie':
-			$nb = is_array( $nouveau ) ? (int) ( $nouveau['chapitres'] ?? 0 ) : 0;
-			/* translators: %d : nombre de chapitres */
-			return $equipe && $nb ? sprintf( _n( '%d chapitre', '%d chapitres', $nb, 'yume-core' ), $nb ) : '';
+			$infos   = is_array( $nouveau ) ? $nouveau : array();
+			$nb      = (int) ( $infos['chapitres'] ?? 0 );
+			$parties = array();
+			if ( ! empty( $infos['retour'] ) ) {
+				$parties[] = __( 'remis en ligne', 'yume-core' );
+			}
+			if ( ! empty( $infos['partiel'] ) ) {
+				$total     = (int) ( $infos['total'] ?? 0 );
+				$parties[] = $total > 0
+					/* translators: 1: chapitres publiés, 2: total */
+					? sprintf( _n( 'sortie partielle : %1$d chapitre publié sur %2$d', 'sortie partielle : %1$d chapitres publiés sur %2$d', $nb, 'yume-core' ), $nb, $total )
+					: __( 'sortie partielle', 'yume-core' );
+			} elseif ( ! empty( $infos['complet'] ) ) {
+				$parties[] = __( 'dernier chapitre publié : tome complet', 'yume-core' );
+			} elseif ( $equipe && $nb ) {
+				/* translators: %d : nombre de chapitres */
+				$parties[] = sprintf( _n( '%d chapitre', '%d chapitres', $nb, 'yume-core' ), $nb );
+			}
+			return implode( ', ', $parties );
+
+		case 'depublie':
+			$statuts = array(
+				'draft'   => __( 'repassé en brouillon', 'yume-core' ),
+				'pending' => __( 'repassé en attente de relecture', 'yume-core' ),
+				'private' => __( 'passé en privé', 'yume-core' ),
+				'future'  => __( 'reprogrammé', 'yume-core' ),
+				'trash'   => __( 'mis à la corbeille', 'yume-core' ),
+			);
+			$statut  = is_string( $nouveau ) ? $nouveau : '';
+			/* translators: %s : nouveau statut (« repassé en brouillon ») */
+			return isset( $statuts[ $statut ] ) ? sprintf( __( 'dépublié (%s)', 'yume-core' ), $statuts[ $statut ] ) : __( 'dépublié', 'yume-core' );
 
 		case 'chapitre_publie':
 			return '';
@@ -432,7 +487,9 @@ function grouper_journal( array $lignes, bool $equipe, int $max = 0 ): array {
 		}
 		$courante['ids'][] = (int) $ligne->id;
 		if ( 'publie' === $champ ) {
-			$courante['publie'] = true;
+			// Une sortie partielle (chapitres restant à paraître) n'est pas encore « publié ».
+			$infos              = lire_valeur( $ligne->nouveau );
+			$courante['publie'] = $courante['publie'] || ! ( is_array( $infos ) && ! empty( $infos['partiel'] ) );
 		}
 		$texte = texte_changement( $ligne, $equipe );
 		if ( '' !== $texte ) {

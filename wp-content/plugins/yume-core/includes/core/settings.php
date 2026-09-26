@@ -73,12 +73,13 @@ function defauts_reglages(): array {
 		'emails_lecteurs'         => true,
 		'banniere_id'             => 0,
 		'kofi_url'                => 'https://ko-fi.com/ynovel',
-		'discord_invite'          => 'https://discord.gg/tuMB3rmmWB',
+		'discord_invite'          => 'https://discord.gg/yumenovel',
 		'twitter_url'             => 'https://x.com/Roshidere_FR',
 		'jours_sortie'            => array( 'mercredi', 'samedi', 'dimanche' ),
 		'modele_annonce'          => 'Le {nature} {numero} de {oeuvre} est disponible !',
 		'github_repo'             => 'GNAlexandre/Yume-WordPress',
 		'maj_auto'                => true,
+		'partenaires'             => partenaires_par_defaut(),
 	);
 	if ( did_action( 'init' ) ) {
 		foreach ( champs_reglages() as $champ ) {
@@ -100,6 +101,7 @@ function sections_reglages(): array {
 		'site'          => __( 'Site et réseaux', 'yume-core' ),
 		'planning'      => __( 'Planning et rappels', 'yume-core' ),
 		'notifications' => __( 'Annonces et notifications', 'yume-core' ),
+		'partenaires'   => __( 'Partenaires', 'yume-core' ),
 		'mises_a_jour'  => __( 'Mises à jour', 'yume-core' ),
 	);
 	/**
@@ -228,6 +230,17 @@ function champs_reglages(): array {
 			'description' => __( 'Variables : {nature}, {numero}, {oeuvre}.', 'yume-core' ),
 		),
 		array(
+			'key'         => 'partenaires',
+			'label'       => __( 'Partenaires de l’accueil', 'yume-core' ),
+			'type'        => 'partenaires',
+			'section'     => 'partenaires',
+			'description' => sprintf(
+				/* translators: %d : nombre maximal de partenaires */
+				__( 'Section « Nos partenaires » de l’accueil (bloc Partenaires), dans cet ordre : %d partenaires au plus. Logo : ID d’une image de la médiathèque ou adresse d’une image ; sans logo, les initiales du nom sont affichées. Vider le nom et le lien d’une ligne la supprime.', 'yume-core' ),
+				MAX_PARTENAIRES
+			),
+		),
+		array(
 			'key'         => 'github_repo',
 			'label'       => __( 'Dépôt GitHub', 'yume-core' ),
 			'type'        => 'text',
@@ -254,7 +267,7 @@ function champs_reglages(): array {
 	 */
 	$champs = (array) apply_filters( 'yume_reglages_champs', $champs );
 
-	$types  = array( 'text', 'url', 'number', 'checkbox', 'select', 'media', 'textarea', 'checkboxes' );
+	$types  = array( 'text', 'url', 'number', 'checkbox', 'select', 'media', 'textarea', 'checkboxes', 'partenaires' );
 	$propre = array();
 	$vues   = array();
 	foreach ( $champs as $champ ) {
@@ -328,6 +341,8 @@ function assainir_champ( array $champ, $valeur, $defaut ) {
 			return $id && 'attachment' === get_post_type( $id ) ? $id : 0;
 		case 'textarea':
 			return san_texte_long( $valeur );
+		case 'partenaires':
+			return assainir_partenaires( $valeur );
 		default:
 			return san_texte( $valeur );
 	}
@@ -448,7 +463,7 @@ function declarer_champs(): void {
 	}
 	foreach ( $champs as $champ ) {
 		$args = array( 'champ' => $champ );
-		if ( ! in_array( $champ['type'], array( 'checkbox', 'checkboxes', 'media' ), true ) ) {
+		if ( ! in_array( $champ['type'], array( 'checkbox', 'checkboxes', 'media', 'partenaires' ), true ) ) {
 			$args['label_for'] = 'yume-reglage-' . $champ['key'];
 		}
 		add_settings_field( 'yume_' . $champ['key'], esc_html( (string) $champ['label'] ), __NAMESPACE__ . '\\afficher_champ', PAGE_REGLAGES, 'yume_' . $champ['section'], $args );
@@ -522,6 +537,9 @@ function afficher_champ( array $args ): void {
 		case 'media':
 			champ_media( $id, $nom, (int) $valeur, (string) $champ['label'], false );
 			break;
+		case 'partenaires':
+			champ_partenaires( $id, $nom, $valeur, (string) $champ['label'], '' !== $desc ? $id . '-aide' : '' );
+			break;
 		case 'number':
 			printf(
 				'<input type="number" id="%1$s" name="%2$s" value="%3$s" class="small-text"%4$s%5$s%6$s%7$s />',
@@ -583,6 +601,201 @@ function champ_media( string $id, string $nom, $valeur, string $libelle, bool $m
 	printf( '<button type="button" class="button yume-media__choisir">%s</button> ', esc_html( $multiple ? __( 'Choisir les images', 'yume-core' ) : __( 'Choisir une image', 'yume-core' ) ) );
 	printf( '<button type="button" class="button-link yume-media__retirer"%2$s>%1$s</button>', esc_html__( 'Retirer', 'yume-core' ), $ids ? '' : ' hidden' );
 	echo '</span></div>';
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * Partenaires (section « Nos partenaires » de l'accueil, bloc yume/partenaires)
+ * -----------------------------------------------------------------------------
+ */
+
+/** Nombre maximal de partenaires. */
+const MAX_PARTENAIRES = 8;
+
+/**
+ * Partenaires de l'ancien site, affichés tant que le réglage n'a jamais été enregistré.
+ *
+ * Chaque ligne : nom, url, description, logo (ID de pièce jointe ou adresse d'image) et, pour
+ * ces lignes par défaut seulement, fichier : nom du fichier attendu. Le logo n'est retenu que si
+ * la pièce jointe porte bien ce fichier ; sinon il est cherché par nom de fichier (autre site,
+ * démonstration), et à défaut les initiales sont affichées (voir le module bibliothèque).
+ *
+ * @return array<int,array<string,mixed>>
+ */
+function partenaires_par_defaut(): array {
+	return array(
+		array(
+			'nom'         => 'MassNovel',
+			'url'         => 'https://massnovel.fr/',
+			'description' => 'Regroupe toutes les sorties de manhwa fantraduits en français',
+			'logo'        => 1317,
+			'fichier'     => 'logomassnovel-2.png',
+		),
+		array(
+			'nom'         => 'Novel Index',
+			'url'         => 'https://www.novel-index.com/',
+			'description' => 'Regroupe toutes les sorties de LNs fantraduits en français',
+			'logo'        => 1312,
+			'fichier'     => 'logo-1.png',
+		),
+		array(
+			'nom'         => 'Novel de l’Aube',
+			'url'         => 'https://noveldelaube.com/',
+			'description' => 'Team de fantraduction de LN japonais',
+			'logo'        => 2486,
+			'fichier'     => 'logo_ln-france4-1.webp',
+		),
+		array(
+			'nom'         => 'J-Garden',
+			'url'         => 'https://j-garden.fr/',
+			'description' => 'Team de fantraduction de LN/manga japonais',
+			'logo'        => 1313,
+			'fichier'     => 'cropped-jg-logo-original.png',
+		),
+	);
+}
+
+/**
+ * Assainit la liste des partenaires : nom et description (texte court), lien http(s)
+ * obligatoire, logo (ID d'une pièce jointe existante ou adresse http(s) d'image), fichier
+ * attendu du logo (lignes par défaut). Les lignes vides sont retirées ; une ligne sans lien
+ * valide est ignorée (avec un avertissement dans la page de réglages).
+ *
+ * @param mixed $valeur Liste saisie (formulaire : lignes indexées).
+ * @return array<int,array<string,mixed>>
+ */
+function assainir_partenaires( $valeur ): array {
+	$sortie = array();
+	foreach ( is_array( $valeur ) ? $valeur : array() as $ligne ) {
+		if ( ! is_array( $ligne ) ) {
+			continue;
+		}
+		$nom         = mb_substr( san_texte( $ligne['nom'] ?? '' ), 0, 80 );
+		$url_brute   = is_scalar( $ligne['url'] ?? null ) ? trim( (string) $ligne['url'] ) : '';
+		$url         = san_url( $url_brute );
+		$description = mb_substr( san_texte( $ligne['description'] ?? '' ), 0, 160 );
+		if ( '' === $nom && '' === $url_brute ) {
+			continue;
+		}
+		if ( '' === $nom || '' === $url || '' === (string) wp_parse_url( $url, PHP_URL_HOST ) ) {
+			if ( function_exists( 'add_settings_error' ) ) {
+				add_settings_error(
+					OPTION_REGLAGES,
+					'yume_partenaire_' . count( $sortie ),
+					sprintf(
+						/* translators: %s : nom du partenaire */
+						__( 'Partenaire « %s » ignoré : un nom et un lien http(s) sont nécessaires.', 'yume-core' ),
+						'' !== $nom ? $nom : $url_brute
+					)
+				);
+			}
+			continue;
+		}
+		$partenaire = array(
+			'nom'         => $nom,
+			'url'         => $url,
+			'description' => $description,
+			'logo'        => assainir_logo_partenaire( $ligne['logo'] ?? '' ),
+		);
+		$fichier    = is_scalar( $ligne['fichier'] ?? null ) ? sanitize_file_name( (string) $ligne['fichier'] ) : '';
+		if ( '' !== $fichier && is_int( $partenaire['logo'] ) ) {
+			$partenaire['fichier'] = $fichier;
+		}
+		$sortie[] = $partenaire;
+		if ( count( $sortie ) >= MAX_PARTENAIRES ) {
+			break;
+		}
+	}
+	return $sortie;
+}
+
+/**
+ * Logo d'un partenaire : ID d'une pièce jointe existante (entier), adresse http(s) ou ''.
+ *
+ * @param mixed $logo Valeur saisie.
+ * @return int|string
+ */
+function assainir_logo_partenaire( $logo ) {
+	if ( ! is_scalar( $logo ) ) {
+		return '';
+	}
+	$logo = trim( (string) $logo );
+	if ( '' === $logo ) {
+		return '';
+	}
+	if ( ctype_digit( $logo ) ) {
+		$id = (int) $logo;
+		return $id > 0 && 'attachment' === get_post_type( $id ) ? $id : '';
+	}
+	return san_url( $logo );
+}
+
+/**
+ * Tableau des partenaires de la page de réglages (lignes existantes puis lignes vides).
+ *
+ * @param string $id      Préfixe des ID des champs.
+ * @param string $nom     Attribut name du réglage.
+ * @param mixed  $valeur  Liste enregistrée (ou par défaut).
+ * @param string $libelle Libellé du réglage.
+ * @param string $aide    ID de la description (aria-describedby), ou ''.
+ */
+function champ_partenaires( string $id, string $nom, $valeur, string $libelle, string $aide ): void {
+	$lignes = is_array( $valeur ) ? array_values( array_filter( $valeur, 'is_array' ) ) : array();
+	/**
+	 * Filtre les partenaires affichés dans le formulaire : le module bibliothèque y remplace le
+	 * logo des lignes par défaut par la pièce jointe réellement trouvée sur ce site.
+	 *
+	 * @param array<int,array<string,mixed>> $lignes Partenaires.
+	 */
+	$lignes   = (array) apply_filters( 'yume_reglages_partenaires_formulaire', $lignes );
+	$lignes   = array_slice( $lignes, 0, MAX_PARTENAIRES );
+	$colonnes = array(
+		'nom'         => __( 'Nom', 'yume-core' ),
+		'url'         => __( 'Lien', 'yume-core' ),
+		'description' => __( 'Description (une ligne)', 'yume-core' ),
+		'logo'        => __( 'Logo (ID ou adresse)', 'yume-core' ),
+	);
+	printf(
+		'<fieldset class="yume-partenaires"%2$s><legend class="screen-reader-text">%1$s</legend>',
+		esc_html( $libelle ),
+		'' !== $aide ? ' aria-describedby="' . esc_attr( $aide ) . '"' : ''
+	);
+	echo '<table class="widefat striped yume-partenaires__table"><thead><tr><th scope="col" class="yume-partenaires__num">#</th>';
+	foreach ( $colonnes as $titre ) {
+		echo '<th scope="col">' . esc_html( $titre ) . '</th>';
+	}
+	echo '</tr></thead><tbody>';
+	for ( $i = 0; $i < MAX_PARTENAIRES; $i++ ) {
+		$ligne = $lignes[ $i ] ?? array();
+		echo '<tr><th scope="row" class="yume-partenaires__num">' . esc_html( (string) ( $i + 1 ) ) . '</th>';
+		foreach ( $colonnes as $cle => $titre ) {
+			$champ_id = $id . '-' . $i . '-' . $cle;
+			$brute    = $ligne[ $cle ] ?? '';
+			$brute    = is_scalar( $brute ) ? (string) $brute : '';
+			echo '<td>';
+			printf(
+				'<label class="screen-reader-text" for="%1$s">%2$s</label><input type="%3$s" id="%1$s" name="%4$s" value="%5$s" class="%6$s"%7$s />',
+				esc_attr( $champ_id ),
+				/* translators: 1: colonne, 2: numéro de ligne */
+				esc_html( sprintf( __( '%1$s du partenaire %2$d', 'yume-core' ), $titre, $i + 1 ) ),
+				'url' === $cle ? 'url' : 'text',
+				esc_attr( $nom . '[' . $i . '][' . $cle . ']' ),
+				esc_attr( $brute ),
+				'logo' === $cle ? 'regular-text code' : 'regular-text',
+				' placeholder="' . esc_attr( 'url' === $cle ? 'https://…' : $titre ) . '"'
+			);
+			if ( 'logo' === $cle && ctype_digit( $brute ) && (int) $brute > 0 ) {
+				$vignette = wp_get_attachment_image( (int) $brute, 'thumbnail', false, array( 'class' => 'yume-partenaires__vignette' ) );
+				if ( $vignette ) {
+					echo ' ' . $vignette; // phpcs:ignore WordPress.Security.EscapeOutput -- HTML produit par WordPress.
+				}
+			}
+			echo '</td>';
+		}
+		echo '</tr>';
+	}
+	echo '</tbody></table></fieldset>';
+	echo '<style>.yume-partenaires__table{table-layout:fixed}.form-table .yume-partenaires__table th,.form-table .yume-partenaires__table td{width:auto;padding:8px;vertical-align:top}.form-table .yume-partenaires__table .yume-partenaires__num{width:2em}.yume-partenaires__table input{width:100%;max-width:none}.yume-partenaires__vignette{display:block;max-width:96px;max-height:40px;width:auto;height:auto;margin-top:4px;object-fit:contain}@media (max-width:782px){.yume-partenaires__table{table-layout:auto}.yume-partenaires__table thead{display:none}.form-table .yume-partenaires__table tr,.form-table .yume-partenaires__table td,.form-table .yume-partenaires__table th{display:block;width:auto}}</style>';
 }
 
 /**

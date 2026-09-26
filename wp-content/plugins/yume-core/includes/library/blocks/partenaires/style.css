@@ -1,0 +1,183 @@
+/**
+ * yume/partenaires — section « Nos partenaires » : quatre cartes sobres (logo, nom, description),
+ * 2 × 2 sous 900 px, une colonne (logo à gauche) sous 560 px. Couleurs du thème (Nuit, Papier,
+ * Sépia) ; le logo repose sur un fond clair discret pour rester lisible, même sombre ou transparent.
+ */
+.yn-partenaires {
+	--yn-partenaire-fond-logo: #ece4ef;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	box-sizing: border-box;
+	min-width: 0;
+}
+
+html[data-yn-theme="papier"] .yn-partenaires {
+	--yn-partenaire-fond-logo: var(--wp--preset--color--bande);
+}
+
+html[data-yn-theme="sepia"] .yn-partenaires {
+	--yn-partenaire-fond-logo: var(--wp--preset--color--bande);
+}
+
+.yn-partenaires > * {
+	margin-block: 0;
+}
+
+.yn-partenaires .yn-partenaires__titre {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: var(--wp--preset--font-size--tres-grand);
+}
+
+.yn-partenaires .yn-partenaires__liste {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-partenaires .yn-partenaires__item {
+	display: flex;
+	min-width: 0;
+	margin: 0;
+}
+
+.yn-partenaires .yn-partenaire {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 12px;
+	box-sizing: border-box;
+	min-width: 0;
+	padding: 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--carte);
+	color: var(--wp--preset--color--texte);
+	text-decoration: none;
+	transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.yn-partenaires .yn-partenaire:hover {
+	border-color: var(--wp--preset--color--bordure);
+	transform: translateY(-1px);
+}
+
+.yn-partenaires .yn-partenaire:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-partenaires .yn-partenaire__logo {
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	height: 76px;
+	padding: 10px;
+	overflow: hidden;
+	border-radius: var(--yn-radius, 6px);
+	background: var(--yn-partenaire-fond-logo);
+}
+
+.yn-partenaires .yn-partenaire__image {
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: 100%;
+	object-fit: contain;
+}
+
+.yn-partenaires .yn-partenaire__monogramme {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+	font-family: var(--wp--preset--font-family--titres, inherit);
+	font-size: 17px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	line-height: 1;
+}
+
+html[data-yn-theme="nuit"] .yn-partenaires .yn-partenaire__logo--monogramme,
+html:not([data-yn-theme]) .yn-partenaires .yn-partenaire__logo--monogramme {
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-partenaires .yn-partenaire__texte {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.yn-partenaires .yn-partenaire__nom {
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.yn-partenaires .yn-partenaire:hover .yn-partenaire__nom {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.yn-partenaires .yn-partenaire__description {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 14px;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+	.yn-partenaires .yn-partenaires__liste {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 560px) {
+	.yn-partenaires .yn-partenaires__liste {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 12px;
+	}
+
+	.yn-partenaires .yn-partenaire {
+		flex-direction: row;
+		align-items: center;
+		gap: 14px;
+		padding: 12px;
+	}
+
+	.yn-partenaires .yn-partenaire__logo {
+		width: 96px;
+		height: 60px;
+		padding: 8px;
+	}
+
+	.yn-partenaires .yn-partenaire__monogramme {
+		width: 40px;
+		height: 40px;
+		font-size: 15px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yn-partenaires .yn-partenaire {
+		transition: none;
+	}
+
+	.yn-partenaires .yn-partenaire:hover {
+		transform: none;
+	}
+}

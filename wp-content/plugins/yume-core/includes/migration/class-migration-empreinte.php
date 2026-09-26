@@ -30,6 +30,7 @@ final class Migration_Empreinte {
 		'users_can_register',
 		'default_role',
 		'posts_per_page',
+		'comment_registration',
 	);
 
 	/** Types dont le nombre de contenus est contrôlé. */

@@ -5,7 +5,7 @@
 	"title": "Liens de compte",
 	"category": "yume",
 	"icon": "admin-network",
-	"description": "« Connexion » ou « Mon compte » (et « Espace équipe » pour l’équipe). À placer dans la navigation.",
+	"description": "« Connexion » ou « Mon compte » et « Se déconnecter » (et « Espace équipe » pour l’équipe). À placer dans la navigation.",
 	"keywords": [ "connexion", "compte", "navigation" ],
 	"textdomain": "yume-core",
 	"supports": {

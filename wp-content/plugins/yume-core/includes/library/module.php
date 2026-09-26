@@ -6,7 +6,8 @@
  * - bibliothèque : yume/library-grid (filtres GET type, statut, genre, tri) ;
  * - fiche d'une œuvre : yume/oeuvre-header, yume/oeuvre-infos, yume/tome-list ;
  * - page d'un tome : yume/tome-header, yume/tome-toc ;
- * - lecteur : yume/chapter-header, yume/chapter-nav.
+ * - lecteur : yume/chapter-header, yume/chapter-nav ;
+ * - accueil, section « Nos partenaires » : yume/partenaires (réglage « partenaires », voir partenaires.php).
  *
  * Données publiques de schema.org (JSON-LD) et balises rel=prev/next dans <head> : seo.php.
  * Ordre des résultats de la recherche (œuvres correspondantes d'abord) : recherche.php.
@@ -29,6 +30,7 @@ require_once __DIR__ . '/composants.php';
 require_once __DIR__ . '/rendus-accueil.php';
 require_once __DIR__ . '/rendus-fiches.php';
 require_once __DIR__ . '/rendus-lecture.php';
+require_once __DIR__ . '/partenaires.php';
 require_once __DIR__ . '/blocs.php';
 require_once __DIR__ . '/seo.php';
 require_once __DIR__ . '/recherche.php';

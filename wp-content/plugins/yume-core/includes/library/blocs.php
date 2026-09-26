@@ -29,6 +29,7 @@ function noms_blocs(): array {
 		'tome-toc',
 		'chapter-header',
 		'chapter-nav',
+		'partenaires',
 	);
 }
 

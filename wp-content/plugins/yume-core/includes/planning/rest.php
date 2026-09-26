@@ -4,6 +4,8 @@
  *
  * - GET   /planning                   public (champs publics seulement ; filtres type, etat, oeuvre…)
  * - PATCH /tomes/(?P<id>\d+)/planning yume_user_can_edit_planning
+ * - DELETE /tomes/(?P<id>\d+)/planning yume_maj_planning_tous + delete_post : retire un tome
+ *                                     du planning (corbeille ; brouillon sans chapitre publié)
  * - GET   /planning/journal           public, sans notes d'équipe (JSON, ou RSS avec format=rss)
  * - POST  /planning/tomes             yume_maj_planning_tous : ajoute un tome au planning (brouillon)
  *
@@ -173,27 +175,40 @@ function routes(): void {
 		REST_NS,
 		'/tomes/(?P<id>\d+)/planning',
 		array(
-			'methods'             => 'PATCH',
-			'callback'            => __NAMESPACE__ . '\\rest_maj_planning',
-			'permission_callback' => __NAMESPACE__ . '\\permission_maj',
-			'args'                => array(
-				'id'            => array(
-					'type'    => 'integer',
-					'minimum' => 1,
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => __NAMESPACE__ . '\\rest_retirer_tome',
+				'permission_callback' => __NAMESPACE__ . '\\permission_retrait',
+				'args'                => array(
+					'id' => array(
+						'type'    => 'integer',
+						'minimum' => 1,
+					),
 				),
-				'etape'         => array(
-					'type' => 'string',
-					'enum' => array_keys( yume_etapes() ),
+			),
+			array(
+				'methods'             => 'PATCH',
+				'callback'            => __NAMESPACE__ . '\\rest_maj_planning',
+				'permission_callback' => __NAMESPACE__ . '\\permission_maj',
+				'args'                => array(
+					'id'            => array(
+						'type'    => 'integer',
+						'minimum' => 1,
+					),
+					'etape'         => array(
+						'type' => 'string',
+						'enum' => array_keys( yume_etapes() ),
+					),
+					'avancement'    => schema_trio_entiers( __( 'Avancement de chaque étape (0 à 100 ; valeurs hors bornes ramenées).', 'yume-core' ) ),
+					'date_cible'    => array(
+						'description' => __( 'Date de sortie visée (AAAA-MM-JJ, vide pour retirer).', 'yume-core' ),
+						'type'        => 'string',
+					),
+					'bloque'        => array( 'type' => 'boolean' ),
+					'bloque_raison' => array( 'type' => 'string' ),
+					'responsables'  => schema_trio_entiers( __( 'Responsables (yume_maj_planning_tous).', 'yume-core' ) ),
+					'note_equipe'   => array( 'type' => 'string' ),
 				),
-				'avancement'    => schema_trio_entiers( __( 'Avancement de chaque étape (0 à 100 ; valeurs hors bornes ramenées).', 'yume-core' ) ),
-				'date_cible'    => array(
-					'description' => __( 'Date de sortie visée (AAAA-MM-JJ, vide pour retirer).', 'yume-core' ),
-					'type'        => 'string',
-				),
-				'bloque'        => array( 'type' => 'boolean' ),
-				'bloque_raison' => array( 'type' => 'string' ),
-				'responsables'  => schema_trio_entiers( __( 'Responsables (yume_maj_planning_tous).', 'yume-core' ) ),
-				'note_equipe'   => array( 'type' => 'string' ),
 			),
 		)
 	);
@@ -281,6 +296,45 @@ function rest_maj_planning( \WP_REST_Request $requete ) {
 			'message'     => message_mise_a_jour( $id, $resultat['changements'] ),
 			'changements' => array_keys( $resultat['changements'] ),
 			'tome'        => ligne_equipe( $id ),
+		)
+	);
+}
+
+/**
+ * Permission de DELETE /tomes/{id}/planning (le détail des droits est contrôlé par
+ * retirer_tome()).
+ *
+ * @return true|\WP_Error
+ */
+function permission_retrait() {
+	if ( ! is_user_logged_in() ) {
+		return new \WP_Error( 'rest_forbidden', __( 'Connectez-vous pour retirer un tome du planning.', 'yume-core' ), array( 'status' => 401 ) );
+	}
+	if ( ! current_user_can( 'yume_maj_planning_tous' ) ) {
+		return new \WP_Error( 'rest_forbidden', __( 'Seuls les éditeurs et les gérants peuvent retirer un tome du planning.', 'yume-core' ), array( 'status' => 403 ) );
+	}
+	return true;
+}
+
+/**
+ * DELETE /tomes/{id}/planning : retire un tome du planning (voir retirer_tome()).
+ *
+ * @param \WP_REST_Request $requete Requête.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function rest_retirer_tome( \WP_REST_Request $requete ) {
+	$id      = (int) $requete['id'];
+	$libelle = 'yume_tome' === get_post_type( $id ) ? cible_journal( $id ) : '';
+	$retrait = retirer_tome( $id, get_current_user_id() );
+	if ( is_wp_error( $retrait ) ) {
+		return $retrait;
+	}
+	return rest_ensure_response(
+		array(
+			'succes'  => true,
+			/* translators: %s : tome */
+			'message' => sprintf( __( '%s retiré du planning.', 'yume-core' ), $libelle ),
+			'tome_id' => $id,
 		)
 	);
 }

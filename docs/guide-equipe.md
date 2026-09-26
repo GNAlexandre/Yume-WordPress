@@ -26,7 +26,10 @@ voir tous les menus.
   son e-mail et son mot de passe. « Mot de passe oublié ? » envoie un lien de réinitialisation par
   e-mail.
 - Une fois connecté, le menu du compte affiche **Mon compte** et, pour les membres de l'équipe,
-  **Espace équipe** (page `/equipe/`).
+  **Espace équipe** (page `/equipe/`). **Se déconnecter** est à côté, dans le menu du site.
+- Traducteurs, relecteurs et graphistes travaillent uniquement dans l'espace équipe : s'ils ouvrent
+  l'administration WordPress (`/wp-admin/`), ils y sont renvoyés automatiquement (seule la page
+  **Profil** reste accessible).
 - Sécurité : un mot de passe propre à Yume (gestionnaire de mots de passe recommandé) ; activez la
   **validation en deux étapes** proposée par WordPress.com / Jetpack si vous publiez. Ne partagez
   jamais un compte : chaque action est enregistrée au nom de son auteur dans le journal.
@@ -41,7 +44,45 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
 - les liens **Publier un tome** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
-  **Membres et rôles** et **Réglages (rappels, Discord)**.
+  **Membres et rôles** et **Réglages (rappels, Discord)** ;
+- **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
+
+Sous chaque tâche (et chaque tome de *Tous les tomes*), des raccourcis mènent directement au bon
+écran : **Publier ce tome** (éditeurs : le formulaire de publication s'ouvre déjà rempli pour ce
+tome, inutile de ressaisir œuvre, nature et numéro), **Modifier dans l'administration**, **Voir la
+fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans le planning complet**.
+
+### Planning complet (`/equipe/?vue=planning`)
+
+L'entrée **Planning complet** du menu ouvre la gestion de **tout** le planning, sans passer par
+l'administration WordPress (le planning public reste accessible par le bouton **Voir le planning
+public**) :
+
+- **tous les tomes** : en préparation, programmés, en attente, publiés (même anciens) ;
+- **filtres** : œuvre, état (à l'heure, en retard, bloqué, publié), statut (brouillon, programmé,
+  publié…) et responsable ; **Afficher tout le planning** retire les filtres ;
+- chaque ligne se déplie : étape, avancement des trois étapes, responsables, date cible, blocage et
+  note, puis **Enregistrer**. Si l'enregistrement est refusé (par exemple « Terminez d'abord l'étape
+  Traduction (100 %) avant de passer à la Relecture »), le message s'affiche en rouge **dans la
+  ligne** ; seuls les gérants et l'administrateur peuvent forcer une étape (le journal note alors
+  « étape forcée ») ;
+- les mêmes raccourcis que ci-dessus, plus **Retirer du planning** (éditeurs, gérants) : pour un
+  tome ajouté par erreur, **brouillon sans chapitre publié** seulement. Il part à la corbeille (un
+  administrateur peut le récupérer). Un tome publié, programmé ou avec des chapitres en ligne ne
+  se retire pas ici : le message explique quoi faire dans l'administration.
+
+Traducteurs, relecteurs et graphistes y voient tout le planning, mais ne modifient que leurs propres
+étapes des tomes dont ils sont responsables.
+
+Depuis le planning public (`/planning/`), un membre connecté a un bouton **Modifier dans l'espace
+équipe** en haut de page et un lien du même nom sous chaque tome, qui ouvre directement sa ligne.
+
+### Journal (`/equipe/?vue=journal`)
+
+**Journal** (menu) ou **Tout le journal** (sous le journal du tableau de bord) affiche toutes les
+mises à jour, page par page, avec des filtres par œuvre et par tome ; cochez **Inclure les rappels
+automatiques** pour voir aussi les rappels et signalements. Cliquer sur le nom d'un tome filtre le
+journal sur ce tome.
 
 ## 4. Mettre à jour son planning
 
@@ -52,7 +93,9 @@ Dans **Mes tâches**, pour chaque tome :
 
 1. **Avancement** : faites glisser le curseur (0 à 100 %) de votre étape.
 2. **Étape** : *À faire → Traduction → Relecture → Édition → Publié*. Passez à l'étape suivante
-   quand la vôtre est terminée ; la personne suivante la voit alors dans ses tâches.
+   quand la vôtre est terminée ; la personne suivante la voit alors dans ses tâches. Le passage
+   n'est accepté que si les étapes précédentes sont à **100 %** (seuls les gérants et
+   l'administrateur peuvent le forcer). **Publié** est posé automatiquement à la sortie du tome.
 3. **Date cible** : la date de sortie visée (indicative ; la relecture décide).
 4. **Bloqué** : cochez-le et indiquez la raison (« relecteur manquant », « en attente des
    illustrations »…) quand le tome ne peut plus avancer.
@@ -60,8 +103,9 @@ Dans **Mes tâches**, pour chaque tome :
    affichée aux lecteurs.
 6. **Enregistrer**.
 
-Vous ne pouvez modifier que les tomes dont vous êtes responsable ; les éditeurs et gérants peuvent
-tous les modifier (et désigner les responsables).
+Vous ne pouvez modifier que les tomes dont vous êtes responsable, et seulement l'avancement de
+**votre** étape ; les éditeurs et gérants peuvent tous les modifier (et désigner les responsables).
+Un tome programmé s'affiche « Programmé le … » et n'est jamais en retard.
 
 États affichés sur le planning public :
 
@@ -114,8 +158,10 @@ signalés dans le rapport). Un EPUB est accepté en dépannage, mais le DOCX res
 
 ### 5.2 Remplir le formulaire
 
-1. **Œuvre** (liste), **Nature** (*Tome*, *Arc*, *Chapitre*, *EX / bonus*), **Numéro**, et un
-   **Titre** facultatif.
+1. **Œuvre** (liste), puis **Tome du planning** : choisissez le tome déjà prévu au planning (sa
+   nature, son numéro et son titre sont repris, sans créer de doublon) ou « — Nouveau tome — ».
+   Sinon, **Nature** (*Tome*, *Arc*, *Chapitre*, *EX / bonus*), **Numéro**, et un **Titre**
+   facultatif.
 2. **Liens PDF et EPUB** : collez les liens de téléchargement (ClicTune ou autre). **Les fichiers PDF
    et EPUB ne sont jamais envoyés sur le site** : ce ne sont que des liens.
 3. **Couverture** : glissez l'image (JPG, PNG ou WebP ; 1400 × 2000 px conseillé).
@@ -133,18 +179,24 @@ signalés dans le rapport). Un EPUB est accepté en dépannage, mais le DOCX res
 - **Programmer** : choisissez la date et l'heure de sortie ;
 - **Enregistrer en brouillon** : rien n'est visible des lecteurs, vous pourrez reprendre plus tard.
 
+Un tome **sans chapitre ni lien PDF / EPUB** n'est publié qu'après confirmation (« Publier quand
+même ce tome sans chapitre ni lien de téléchargement »).
+
 À la publication, le site :
 
 - crée le **tome** (couverture, liens PDF / EPUB, crédits) et ses **pages de lecture** (sommaire,
   navigation chapitre précédent / suivant) ;
 - rédige l'**article d'annonce** « Le tome N de … est disponible ! » (modifiable ensuite comme un
   article normal) ;
-- passe le planning du tome à **Publié, 100 %** ;
+- passe le planning du tome à **Publié, 100 %** (un arc publié chapitre par chapitre garde son étape
+  jusqu'à la sortie de son dernier chapitre) ;
 - prévient : message sur le salon Discord des sorties, e-mail aux lecteurs qui suivent l'œuvre,
   newsletter si elle est activée.
 
 Le DOCX n'est **pas conservé** sur le serveur : seuls les chapitres et les illustrations restent.
-La publication est réversible : dépublier un tome le retire du site.
+La publication est réversible : dépublier un tome le retire du site, remet son annonce en brouillon
+et ramène son planning à l'étape **Édition** ; le remettre en ligne rétablit « Publié » sans
+nouvelle annonce aux lecteurs.
 
 ## 6. Corriger un chapitre
 
@@ -166,8 +218,9 @@ Traducteurs, relecteurs et graphistes : signalez la correction à un éditeur (D
 
 ## 7. Modérer les commentaires
 
-Les lecteurs commentent sous chaque tome et chaque chapitre. Éditeurs Yume et Gérants modèrent dans
-**Commentaires** (administration) :
+Les lecteurs commentent sous chaque tome et chaque chapitre ; il faut **un compte** pour commenter
+(un visiteur voit « Connectez-vous ou créez un compte pour commenter »). Éditeurs Yume et Gérants
+modèrent dans **Commentaires** (administration) :
 
 - **Approuver** les commentaires en attente (selon les réglages de discussion, le premier
   commentaire d'un nouveau lecteur attend une validation) ;
@@ -181,19 +234,42 @@ Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approu
 
 - **Membres et rôles** (page `/equipe/membres/` de l'espace équipe) : la liste des membres et de
   leur rôle. Pour chacun : **Changer le rôle** (Traducteur, Relecteur, Graphiste, Éditeur Yume) ou
-  **Retirer de l'équipe** (le compte repasse Lecteur ; réattribuez d'abord ses tâches). **Ajouter un
+  **Retirer de l'équipe** (le compte repasse Lecteur ; réattribuez d'abord ses tâches). Un membre
+  encore responsable de tomes en cours est signalé sur sa ligne (nombre et liste des tomes) avec un
+  lien **Voir ses tomes dans le planning** (planning complet filtré sur lui) : le retrait ou le
+  changement de rôle reste possible, mais il ne le décharge pas de ces tomes. **Ajouter un
   membre** : la personne crée d'abord son compte de lecteur sur le site, puis vous saisissez son
   identifiant ou son e-mail et choisissez son rôle. Les comptes administrateurs et gérants, et le
   vôtre, ne sont modifiables que par un administrateur (*Comptes* dans l'administration, où vous
-  pouvez aussi créer un compte ou modifier un profil).
+  pouvez aussi créer un compte ou modifier un profil) ; l'administrateur a pour cela un lien
+  **Modifier dans l'administration** sur la ligne de ces comptes.
 - **Yume → Réglages** (administration) :
   - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),
     heure des rappels, jour du récapitulatif ;
   - *Annonces et notifications* : webhooks Discord (sorties, équipe), e-mails aux lecteurs, modèle
     du texte d'annonce ;
+  - *Partenaires* : la section « Nos partenaires » de l'accueil (voir ci-dessous) ;
   - *Mises à jour* : section réservée aux administrateurs (invisible pour les gérants).
+- Le lien **Contact** du menu ouvre le **Discord** de Yume (lien d'invitation réglé dans *Site et
+  réseaux*).
+- Si une page du site (planning, espace équipe, compte…) a été supprimée ou dépubliée, un avis
+  l'indique en haut de l'administration avec un bouton **Recréer les pages manquantes**.
 - Les tâches automatiques (rappels, e-mails) peuvent être contrôlées avec l'extension WP Crontrol.
+
+### Partenaires de l'accueil
+
+*Yume → Réglages → Partenaires* règle la section « Nos partenaires » de la page d'accueil :
+
+- **8 partenaires au plus**, affichés dans l'ordre du tableau ;
+- pour chacun : **nom**, **lien** (obligatoire, `https://…`), courte **description** et **logo** :
+  l'ID d'une image de la médiathèque ou l'adresse d'une image ; sans logo, les initiales du nom
+  sont affichées ;
+- vider le nom et le lien d'une ligne **supprime** ce partenaire ;
+- sur le site, chaque partenaire s'ouvre dans un **nouvel onglet**.
+
+Après la migration, les quatre partenaires de l'ancien site sont déjà en place et leurs logos sont
+retrouvés automatiquement dans la médiathèque.
 
 ## 9. Mises à jour du site
 
@@ -207,8 +283,10 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | --- | --- |
 | Je ne vois pas mon tome dans *Mes tâches* | Vous n'en êtes pas responsable : demandez à un éditeur ou un gérant de vous l'attribuer. |
 | Le planning dit « En retard » alors que j'avance | Aucune mise à jour depuis 14 jours : enregistrez votre avancement, même sans changer d'étape. |
-| Le tome publié n'apparaît pas | Il est en brouillon ou programmé : vérifiez la date dans *Yume → Tomes*. |
+| Le tome publié n'apparaît pas | Il est en brouillon ou programmé : vérifiez son statut dans *Planning complet* (filtre *Statut*) ou dans *Yume → Tomes*. |
+| J'ai ajouté un tome au planning par erreur | *Planning complet* → dépliez sa ligne → **Retirer du planning** (brouillon sans chapitre publié). |
 | Un lien PDF ou EPUB est mort | *Yume → Tomes → Modifier* le tome et remplacez le lien. |
 | Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. |
+| Un lecteur ne veut plus d'e-mails | Chaque e-mail d'alerte a un lien de désabonnement (une œuvre, les réponses aux commentaires ou tout) : il confirme sans se connecter. Il peut aussi tout régler dans *Mon compte*. |
 | Un lecteur ne reçoit pas les alertes | Il doit avoir l'œuvre en favori avec une alerte active (page *Mon compte*) ; les e-mails aux lecteurs doivent être activés dans *Yume → Réglages*. |
 | J'ai oublié mon mot de passe | Lien « Mot de passe oublié ? » sur la page de connexion. |
