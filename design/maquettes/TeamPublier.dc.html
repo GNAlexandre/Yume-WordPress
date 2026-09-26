@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — publier un tome</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}
+.muted{color:#b7a9cc}
+.side a{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-radius:4px;color:#ebe3f2;font-weight:500}
+.side a.on{background:#3a2a63;color:#fff8fb;border-left:3px solid #f3a6c8}
+select,input{background:#241740;border:1px solid #7f6aa8;border-radius:4px;color:#ebe3f2;height:40px;padding:0 12px;font-family:inherit;font-size:14px;width:100%;box-sizing:border-box}
+label{display:flex;flex-direction:column;gap:6px}
+.drop{border:2px dashed #7f6aa8;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;color:#ebe3f2}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1200px; box-sizing: border-box; display: flex; background: #1b1231">
+
+<aside class="side" style="width: 240px; background: #241740; border-right: 1px solid #4a3b6e; padding: 20px 12px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-sizing: border-box">
+  <a href="Main.dc.html" style="height: 48px; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px; margin-bottom: 12px"><span style="width: 24px; height: 24px; border-radius: 50%; background: #f3a6c8; display: inline-block"></span>Yume · Équipe</a>
+  <a href="TeamDashboard.dc.html">Tableau de bord</a>
+  <a href="TeamDashboard.dc.html">Mes tâches</a>
+  <a href="TeamPublier.dc.html" class="on">Publier un tome</a>
+  <a href="Planning.dc.html">Planning complet</a>
+  <a href="TeamDashboard.dc.html">Journal</a>
+  <a href="TeamDashboard.dc.html">Membres et rôles</a>
+  <a href="TeamDashboard.dc.html">Réglages (rappels, Discord)</a>
+</aside>
+
+<main style="flex-grow: 1; padding: 32px 40px; display: grid; grid-template-columns: 1fr 380px; gap: 28px; align-content: start">
+  <div style="grid-column: span 2; display: flex; justify-content: space-between; align-items: flex-end">
+    <div><span class="lbl">Publication · étape 1 sur 2</span><h1 style="font-size: 32px">Publier un tome ou un arc</h1><p class="muted" style="margin: 4px 0 0">Quelques champs, un dépôt de fichier : le tome, ses chapitres, l'annonce, le planning et les notifications sont créés pour vous.</p></div>
+    <span class="chip info">Brouillon enregistré automatiquement</span>
+  </div>
+
+  <form style="display: flex; flex-direction: column; gap: 20px">
+    <div class="card" style="padding: 24px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px">
+      <label style="grid-column: span 3"><span class="lbl">Œuvre</span><select id="oeuvre"><option>Grimgar of Fantasy and Ash (LN)</option><option>Secrets of the Silent Witch (WN)</option><option>Raven of the Inner Palace</option></select></label>
+      <label style="grid-column: span 1"><span class="lbl">Nature</span><select id="nature"><option>Tome</option><option>Arc</option><option>Chapitre</option><option>EX / bonus</option></select></label>
+      <label style="grid-column: span 1"><span class="lbl">Numéro</span><input id="num" type="number" value="10"></label>
+      <label style="grid-column: span 1"><span class="lbl">Sortie</span><input id="date" type="date" value="2026-09-27"></label>
+      <label style="grid-column: span 6"><span class="lbl">Titre (facultatif)</span><input id="titre" type="text" placeholder="Ex. : Un bon jour pour attendre un meilleur jour"></label>
+      <label style="grid-column: span 3"><span class="lbl">Lien ClicTune · PDF</span><input id="pdf" type="url" value="https://www.clictune.com/nwEd"></label>
+      <label style="grid-column: span 3"><span class="lbl">Lien ClicTune · EPUB</span><input id="epub" type="url" value="https://www.clictune.com/nwEh"></label>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 240px 1fr; gap: 16px">
+      <div class="drop" style="height: 300px; padding: 16px; box-sizing: border-box; background: #2d1f4f">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f3a6c8" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-5-5L5 21"></path></svg>
+        <b style="color: #fff8fb">Couverture</b><span class="muted" style="font-size: 13px">Glissez l'image ici<br>JPG / PNG / WebP · 1400 × 2000 px conseillé</span>
+        <label for="cover" class="btn" style="height: 36px">Choisir un fichier</label><input id="cover" type="file" style="position: absolute; width: 1px; height: 1px; opacity: 0">
+      </div>
+      <div class="drop" style="height: 300px; padding: 24px; box-sizing: border-box; border-color: #f3a6c8; background: #2d1f4f">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#f3a6c8" stroke-width="2"><path d="M12 3v12"></path><path d="m7 8 5-5 5 5"></path><path d="M5 21h14"></path></svg>
+        <b style="color: #fff8fb; font-size: 18px">Déposez le DOCX ou l'EPUB du tome</b>
+        <span class="muted" style="max-width: 460px">Le fichier est découpé en chapitres pour la lecture en ligne (titres, dialogues « — », pensées en italique et illustrations conservés). Le PDF, lui, n'est qu'un lien.</span>
+        <div class="card" style="margin-top: 8px; padding: 10px 14px; display: flex; gap: 12px; align-items: center; background: #241740; width: 460px; box-sizing: border-box">
+          <span class="chip ok">✓ DOCX</span><div style="flex-grow: 1; text-align: left; font-size: 13px"><b style="color: #fff8fb">JG__YumeGrimgar_of_Fantasy_and_Ash_T.10.docx</b><div class="muted">68,4 Mo · analysé : 19 chapitres + postface · 10 illustrations · 6 ornements EMF ignorés</div></div><a href="TeamPublier.dc.html" style="font-size: 13px">Retirer</a>
+        </div>
+        <label for="src" class="btn" style="height: 36px">ou choisir un fichier</label><input id="src" type="file" style="position: absolute; width: 1px; height: 1px; opacity: 0">
+      </div>
+    </div>
+
+    <div class="card" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px">
+      <span class="lbl">Chapitres détectés (aperçu)</span>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 16px; font-size: 14px">
+        <span><b style="color: #fff8fb">1</b> · La Crête Brumeuse <span class="muted">4 210 mots</span></span><span><b style="color: #fff8fb">2</b> · S'il Vous Plait <span class="muted">4 480</span></span><span><b style="color: #fff8fb">3</b> · Le Bain Interdit <span class="muted">1 690</span></span><span><b style="color: #fff8fb">4</b> · U Naa <span class="muted">4 300</span></span>
+        <span><b style="color: #fff8fb">5</b> · Des Difficultés Partout <span class="muted">1 950</span></span><span><b style="color: #fff8fb">6</b> · Qu'est-ce Que Vivre ? <span class="muted">3 540</span></span><span><b style="color: #fff8fb">7</b> · Le Projet Futur <span class="muted">2 600</span></span><span class="muted">… 12 autres · PostFace</span>
+      </div>
+      <div style="display: flex; gap: 10px"><a href="Lecteur.dc.html" class="btn">Prévisualiser le chapitre 1</a><span class="chip warn" style="align-self: center">▲ Chapitre 13 : titre « Chapitre 13 » précédé d'une espace — corrigé automatiquement</span></div>
+    </div>
+  </form>
+
+  <aside style="display: flex; flex-direction: column; gap: 16px">
+    <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px">
+      <span class="lbl">Ce qui sera créé</span>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">Tome 10</b> de Grimgar avec couverture, PDF et EPUB (ClicTune)</span></div>
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">20 pages de lecture</b> (19 chapitres + postface), navigation et sommaire</span></div>
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">Article d'annonce</b> « Tome 10 de Grimgar of Fantasy and Ash disponible ! » (modifiable)</span></div>
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">Planning</b> : Tome 10 → Publié, 100 %</span></div>
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">Notifications</b> : Discord (#sorties), e-mail à 128 lecteurs ayant l'œuvre en favori, newsletter</span></div>
+      </div>
+    </div>
+    <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px">
+      <span class="lbl">Crédits du tome</span>
+      <label><span class="muted" style="font-size: 12px">Traduction</span><input type="text" value="Calumi"></label>
+      <label><span class="muted" style="font-size: 12px">Relecture</span><input type="text" value="Angeloids"></label>
+      <label><span class="muted" style="font-size: 12px">Édition / couverture</span><input type="text" value="JojoGg"></label>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <button type="button" class="btn pri" style="height: 48px; font-size: 16px">Publier maintenant</button>
+      <div style="display: flex; gap: 10px"><button type="button" class="btn" style="flex-grow: 1">Programmer · dim. 27 sept. 13:00</button><button type="button" class="btn" style="flex-grow: 1">Enregistrer en brouillon</button></div>
+      <span class="muted" style="font-size: 12px">La publication est réversible : un tome dépublié disparaît du site et des notifications en attente.</span>
+    </div>
+  </aside>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

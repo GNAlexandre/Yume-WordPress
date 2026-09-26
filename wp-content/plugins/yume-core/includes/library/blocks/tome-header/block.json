@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/tome-header",
+	"title": "En-tête du tome",
+	"category": "yume",
+	"icon": "book",
+	"description": "Page d’un tome : couverture, crédits, équivalence, lecture, PDF et EPUB, galerie d’illustrations.",
+	"keywords": [
+		"tome",
+		"arc",
+		"illustrations"
+	],
+	"textdomain": "yume-core",
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}

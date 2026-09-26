@@ -1,0 +1,519 @@
+<?php
+/**
+ * API PHP publique du module core (§7 du contrat). Signatures figées : toute évolution
+ * passe d'abord par docs/06-contrat-technique.md.
+ *
+ * @package Yume\Core
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+use function Yume\Core\Core\defauts_reglages;
+use function Yume\Core\Core\ids_par_meta;
+use function Yume\Core\Core\numero_fr;
+use function Yume\Core\Core\numero_ou_null;
+use function Yume\Core\Core\san_url;
+use function Yume\Core\Core\statuts_demandes;
+use function Yume\Core\Core\termes_taxonomie;
+
+/**
+ * Lit un réglage Yume (option yume_reglages).
+ *
+ * Ordre de résolution : valeur enregistrée, sinon $default s'il est fourni, sinon la valeur
+ * par défaut du contrat (§6) ou d'un champ ajouté par yume_reglages_champs.
+ *
+ * @param string $key     Clé du réglage.
+ * @param mixed  $default Valeur de repli.
+ * @return mixed
+ */
+function yume_setting( string $key, $default = null ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound -- signature figée par le contrat (§7).
+	$reglages = get_option( 'yume_reglages', array() );
+	if ( is_array( $reglages ) && array_key_exists( $key, $reglages ) ) {
+		return $reglages[ $key ];
+	}
+	if ( null !== $default ) {
+		return $default;
+	}
+	$defauts = defauts_reglages();
+	return $defauts[ $key ] ?? null;
+}
+
+/**
+ * Tomes d'une œuvre, triés par numéro.
+ *
+ * @param int                 $oeuvre_id ID de l'œuvre.
+ * @param array<string,mixed> $args      status ('publish' par défaut | 'any' | liste), order ('ASC'|'DESC'
+ *                                       sur yume_numero ; les tomes sans numéro restent à la fin),
+ *                                       nature (slug ou liste de slugs de yume_natures_tome()).
+ * @return WP_Post[]
+ */
+function yume_get_tomes( int $oeuvre_id, array $args = array() ): array {
+	$args = wp_parse_args(
+		$args,
+		array(
+			'status' => 'publish',
+			'order'  => 'ASC',
+			'nature' => '',
+		)
+	);
+	if ( $oeuvre_id <= 0 ) {
+		return array();
+	}
+	$ids = ids_par_meta( 'yume_tome', 'yume_oeuvre_id', $oeuvre_id, statuts_demandes( $args['status'] ) );
+	if ( ! $ids ) {
+		return array();
+	}
+	_prime_post_caches( $ids, false, true );
+	$tomes   = array_values( array_filter( array_map( 'get_post', $ids ) ) );
+	$natures = array_filter( array_map( 'strval', (array) $args['nature'] ) );
+	if ( $natures ) {
+		$tomes = array_values(
+			array_filter(
+				$tomes,
+				static function ( WP_Post $tome ) use ( $natures ): bool {
+					return in_array( (string) get_post_meta( $tome->ID, 'yume_nature', true ), $natures, true );
+				}
+			)
+		);
+	}
+	$sens = 'DESC' === strtoupper( (string) $args['order'] ) ? -1 : 1;
+	usort(
+		$tomes,
+		static function ( WP_Post $a, WP_Post $b ) use ( $sens ): int {
+			$na = numero_ou_null( get_post_meta( $a->ID, 'yume_numero', true ) );
+			$nb = numero_ou_null( get_post_meta( $b->ID, 'yume_numero', true ) );
+			if ( $na !== $nb ) {
+				if ( null === $na ) {
+					return 1;
+				}
+				if ( null === $nb ) {
+					return -1;
+				}
+				return $sens * ( $na <=> $nb );
+			}
+			$cmp = ( $a->menu_order <=> $b->menu_order );
+			if ( 0 === $cmp ) {
+				$cmp = strcmp( (string) $a->post_date, (string) $b->post_date );
+			}
+			if ( 0 === $cmp ) {
+				$cmp = $a->ID <=> $b->ID;
+			}
+			return $sens * $cmp;
+		}
+	);
+	return $tomes;
+}
+
+/**
+ * Chapitres d'un tome, triés par menu_order puis par numéro (sans numéro en dernier).
+ *
+ * @param int                 $tome_id ID du tome.
+ * @param array<string,mixed> $args    status ('publish' par défaut | 'any' | liste).
+ * @return WP_Post[]
+ */
+function yume_get_chapitres( int $tome_id, array $args = array() ): array {
+	$args = wp_parse_args( $args, array( 'status' => 'publish' ) );
+	if ( $tome_id <= 0 ) {
+		return array();
+	}
+	$ids = ids_par_meta( 'yume_chapitre', 'yume_tome_id', $tome_id, statuts_demandes( $args['status'] ) );
+	if ( ! $ids ) {
+		return array();
+	}
+	_prime_post_caches( $ids, false, true );
+	$chapitres = array_values( array_filter( array_map( 'get_post', $ids ) ) );
+	usort(
+		$chapitres,
+		static function ( WP_Post $a, WP_Post $b ): int {
+			$cmp = ( $a->menu_order <=> $b->menu_order );
+			if ( 0 !== $cmp ) {
+				return $cmp;
+			}
+			$na = numero_ou_null( get_post_meta( $a->ID, 'yume_numero', true ) );
+			$nb = numero_ou_null( get_post_meta( $b->ID, 'yume_numero', true ) );
+			if ( $na !== $nb ) {
+				if ( null === $na ) {
+					return 1;
+				}
+				if ( null === $nb ) {
+					return -1;
+				}
+				return $na <=> $nb;
+			}
+			$cmp = strcmp( (string) $a->post_date, (string) $b->post_date );
+			return 0 !== $cmp ? $cmp : ( $a->ID <=> $b->ID );
+		}
+	);
+	return $chapitres;
+}
+
+/**
+ * Œuvre d'un contenu : l'œuvre elle-même, celle d'un tome ou d'un chapitre, ou la première
+ * œuvre liée d'un article (taxonomie yume_oeuvre_liee). 0 si aucune.
+ *
+ * @param int $post_id ID.
+ */
+function yume_get_oeuvre_id( int $post_id ): int {
+	$type = $post_id > 0 ? get_post_type( $post_id ) : false;
+	switch ( $type ) {
+		case 'yume_oeuvre':
+			return $post_id;
+		case 'yume_tome':
+			$id = (int) get_post_meta( $post_id, 'yume_oeuvre_id', true );
+			return 'yume_oeuvre' === get_post_type( $id ) ? $id : 0;
+		case 'yume_chapitre':
+			$id = (int) get_post_meta( $post_id, 'yume_oeuvre_id', true );
+			if ( ! $id ) {
+				$id = (int) get_post_meta( (int) get_post_meta( $post_id, 'yume_tome_id', true ), 'yume_oeuvre_id', true );
+			}
+			return 'yume_oeuvre' === get_post_type( $id ) ? $id : 0;
+		case 'post':
+			$termes = get_the_terms( $post_id, 'yume_oeuvre_liee' );
+			if ( is_array( $termes ) ) {
+				foreach ( $termes as $terme ) {
+					$id = (int) get_term_meta( $terme->term_id, 'yume_oeuvre_id', true );
+					if ( 'yume_oeuvre' === get_post_type( $id ) ) {
+						return $id;
+					}
+				}
+			}
+			return 0;
+	}
+	return 0;
+}
+
+/**
+ * Tome d'un chapitre (ou le tome lui-même si l'ID est celui d'un tome). 0 si aucun.
+ *
+ * @param int $chapitre_id ID du chapitre.
+ */
+function yume_get_tome_id( int $chapitre_id ): int {
+	$type = $chapitre_id > 0 ? get_post_type( $chapitre_id ) : false;
+	if ( 'yume_tome' === $type ) {
+		return $chapitre_id;
+	}
+	if ( 'yume_chapitre' !== $type ) {
+		return 0;
+	}
+	$id = (int) get_post_meta( $chapitre_id, 'yume_tome_id', true );
+	return 'yume_tome' === get_post_type( $id ) ? $id : 0;
+}
+
+/**
+ * Chapitre publié précédent ou suivant, en traversant les tomes publiés de l'œuvre
+ * (dernier chapitre du tome précédent, premier chapitre du tome suivant).
+ *
+ * @param int    $chapitre_id ID du chapitre courant (éventuellement non publié : aperçu).
+ * @param string $sens        'prev' ou 'next'.
+ */
+function yume_chapitre_voisin( int $chapitre_id, string $sens ): ?WP_Post {
+	$pas = 'prev' === $sens ? -1 : ( 'next' === $sens ? 1 : 0 );
+	if ( ! $pas || 'yume_chapitre' !== get_post_type( $chapitre_id ) ) {
+		return null;
+	}
+	$tome_id = yume_get_tome_id( $chapitre_id );
+	if ( ! $tome_id ) {
+		return null;
+	}
+
+	// Dans le tome : position du chapitre courant parmi tous les chapitres, puis premier publié.
+	$tous = yume_get_chapitres( $tome_id, array( 'status' => 'any' ) );
+	$ids  = array_map( 'intval', wp_list_pluck( $tous, 'ID' ) );
+	$pos  = array_search( $chapitre_id, $ids, true );
+	$nb   = count( $tous );
+	if ( false !== $pos ) {
+		for ( $i = $pos + $pas; $i >= 0 && $i < $nb; $i += $pas ) {
+			if ( 'publish' === $tous[ $i ]->post_status ) {
+				return $tous[ $i ];
+			}
+		}
+	}
+
+	// Tomes voisins publiés de l'œuvre.
+	$oeuvre_id = yume_get_oeuvre_id( $tome_id );
+	if ( ! $oeuvre_id ) {
+		return null;
+	}
+	$tomes = yume_get_tomes( $oeuvre_id, array( 'status' => 'any' ) );
+	$ids_t = array_map( 'intval', wp_list_pluck( $tomes, 'ID' ) );
+	$pos_t = array_search( $tome_id, $ids_t, true );
+	if ( false === $pos_t ) {
+		return null;
+	}
+	$nb_t = count( $tomes );
+	for ( $i = $pos_t + $pas; $i >= 0 && $i < $nb_t; $i += $pas ) {
+		if ( 'publish' !== $tomes[ $i ]->post_status ) {
+			continue;
+		}
+		$chapitres = yume_get_chapitres( (int) $tomes[ $i ]->ID );
+		if ( $chapitres ) {
+			return $pas > 0 ? $chapitres[0] : $chapitres[ count( $chapitres ) - 1 ];
+		}
+	}
+	return null;
+}
+
+/**
+ * Couverture d'un contenu : celle du tome (pour un chapitre, celle de son tome), sinon
+ * celle de l'œuvre, sinon 0.
+ *
+ * @param int $post_id ID.
+ */
+function yume_get_cover_id( int $post_id ): int {
+	$type = $post_id > 0 ? get_post_type( $post_id ) : false;
+	if ( ! $type ) {
+		return 0;
+	}
+	if ( 'yume_chapitre' === $type ) {
+		$tome_id = yume_get_tome_id( $post_id );
+		if ( $tome_id ) {
+			return yume_get_cover_id( $tome_id );
+		}
+		$oeuvre_id = yume_get_oeuvre_id( $post_id );
+		return $oeuvre_id ? (int) get_post_thumbnail_id( $oeuvre_id ) : 0;
+	}
+	$id = (int) get_post_thumbnail_id( $post_id );
+	if ( $id ) {
+		return $id;
+	}
+	if ( 'yume_tome' === $type ) {
+		$oeuvre_id = yume_get_oeuvre_id( $post_id );
+		return $oeuvre_id ? (int) get_post_thumbnail_id( $oeuvre_id ) : 0;
+	}
+	return 0;
+}
+
+/**
+ * Libellé d'un tome : « Tome 9 », « Arc 7 », « Tome EX 2 », « Bonus 1 »… ;
+ * forme courte : « T.9 », « A.7 », « EX.2 », « B.1 », « Ch.3 ».
+ *
+ * @param int  $tome_id ID du tome (ou d'un chapitre : son tome).
+ * @param bool $court   Forme courte.
+ */
+function yume_libelle_tome( int $tome_id, bool $court = false ): string {
+	$tome_id = yume_get_tome_id( $tome_id );
+	if ( ! $tome_id ) {
+		return '';
+	}
+	$nature = (string) get_post_meta( $tome_id, 'yume_nature', true );
+	$numero = numero_ou_null( get_post_meta( $tome_id, 'yume_numero', true ) );
+	$formes = array(
+		'tome'      => array( __( 'Tome', 'yume-core' ), __( 'T.', 'yume-core' ) ),
+		'arc'       => array( __( 'Arc', 'yume-core' ), __( 'A.', 'yume-core' ) ),
+		'ex'        => array( __( 'Tome EX', 'yume-core' ), __( 'EX.', 'yume-core' ) ),
+		'bonus'     => array( __( 'Bonus', 'yume-core' ), __( 'B.', 'yume-core' ) ),
+		'chapitres' => array( __( 'Chapitres', 'yume-core' ), __( 'Ch.', 'yume-core' ) ),
+	);
+	$forme  = $formes[ $nature ] ?? $formes['tome'];
+	if ( null === $numero ) {
+		$libelle = $court ? rtrim( $forme[1], '.' ) : $forme[0];
+	} else {
+		$libelle = $court ? $forme[1] . numero_fr( $numero ) : $forme[0] . ' ' . numero_fr( $numero );
+	}
+	/**
+	 * Filtre le libellé d'un tome.
+	 *
+	 * @param string $libelle Libellé.
+	 * @param int    $tome_id ID du tome.
+	 * @param bool   $court   Forme courte.
+	 */
+	return (string) apply_filters( 'yume_libelle_tome', $libelle, $tome_id, $court );
+}
+
+/**
+ * Libellé d'un chapitre : « Chapitre 3 », « Prologue », « Interlude 2 », « Postface »…
+ *
+ * @param int $chapitre_id ID du chapitre.
+ */
+function yume_libelle_chapitre( int $chapitre_id ): string {
+	if ( 'yume_chapitre' !== get_post_type( $chapitre_id ) ) {
+		return '';
+	}
+	$nature  = (string) get_post_meta( $chapitre_id, 'yume_nature', true );
+	$numero  = numero_ou_null( get_post_meta( $chapitre_id, 'yume_numero', true ) );
+	$natures = yume_natures_chapitre();
+	$nom     = $natures[ $nature ] ?? $natures['chapitre'];
+	if ( '' === $nature || 'chapitre' === $nature ) {
+		$libelle = null === $numero ? $nom : $nom . ' ' . numero_fr( $numero );
+	} elseif ( in_array( $nature, array( 'interlude', 'bonus' ), true ) && null !== $numero && $numero > 0 ) {
+		$libelle = $nom . ' ' . numero_fr( $numero );
+	} else {
+		$libelle = $nom;
+	}
+	/**
+	 * Filtre le libellé d'un chapitre.
+	 *
+	 * @param string $libelle     Libellé.
+	 * @param int    $chapitre_id ID du chapitre.
+	 */
+	return (string) apply_filters( 'yume_libelle_chapitre', $libelle, $chapitre_id );
+}
+
+/**
+ * Types d'œuvre (slug => libellé) : light-novel, web-novel, manga.
+ *
+ * @return array<string,string>
+ */
+function yume_types(): array {
+	return termes_taxonomie( 'yume_type' );
+}
+
+/**
+ * Statuts de traduction (slug => libellé) : en-cours, terminee, en-pause, licenciee, abandonnee.
+ *
+ * @return array<string,string>
+ */
+function yume_statuts(): array {
+	return termes_taxonomie( 'yume_statut' );
+}
+
+/**
+ * Natures de tome (slug => libellé).
+ *
+ * @return array<string,string>
+ */
+function yume_natures_tome(): array {
+	return array(
+		'tome'      => __( 'Tome', 'yume-core' ),
+		'arc'       => __( 'Arc', 'yume-core' ),
+		'ex'        => __( 'Tome EX', 'yume-core' ),
+		'bonus'     => __( 'Bonus', 'yume-core' ),
+		'chapitres' => __( 'Chapitres', 'yume-core' ),
+	);
+}
+
+/**
+ * Natures de chapitre (slug => libellé).
+ *
+ * @return array<string,string>
+ */
+function yume_natures_chapitre(): array {
+	return array(
+		'chapitre'      => __( 'Chapitre', 'yume-core' ),
+		'prologue'      => __( 'Prologue', 'yume-core' ),
+		'interlude'     => __( 'Interlude', 'yume-core' ),
+		'epilogue'      => __( 'Épilogue', 'yume-core' ),
+		'postface'      => __( 'Postface', 'yume-core' ),
+		'bonus'         => __( 'Bonus', 'yume-core' ),
+		'illustrations' => __( 'Illustrations', 'yume-core' ),
+	);
+}
+
+/**
+ * Étapes du planning (slug => libellé), dans l'ordre du flux de travail.
+ *
+ * @return array<string,string>
+ */
+function yume_etapes(): array {
+	return array(
+		'a_faire'    => __( 'À faire', 'yume-core' ),
+		'traduction' => __( 'Traduction', 'yume-core' ),
+		'relecture'  => __( 'Relecture', 'yume-core' ),
+		'edition'    => __( 'Édition', 'yume-core' ),
+		'publie'     => __( 'Publié', 'yume-core' ),
+	);
+}
+
+/**
+ * Jours de la semaine (slug => libellé), du lundi au dimanche.
+ *
+ * @return array<string,string>
+ */
+function yume_jours_semaine(): array {
+	return array(
+		'lundi'    => __( 'Lundi', 'yume-core' ),
+		'mardi'    => __( 'Mardi', 'yume-core' ),
+		'mercredi' => __( 'Mercredi', 'yume-core' ),
+		'jeudi'    => __( 'Jeudi', 'yume-core' ),
+		'vendredi' => __( 'Vendredi', 'yume-core' ),
+		'samedi'   => __( 'Samedi', 'yume-core' ),
+		'dimanche' => __( 'Dimanche', 'yume-core' ),
+	);
+}
+
+/**
+ * Liens externes de téléchargement d'un tome (pour un chapitre : ceux de son tome).
+ *
+ * @param int $tome_id ID du tome.
+ * @return array{pdf:string,epub:string}
+ */
+function yume_liens_telechargement( int $tome_id ): array {
+	$tome_id = yume_get_tome_id( $tome_id );
+	if ( ! $tome_id ) {
+		return array(
+			'pdf'  => '',
+			'epub' => '',
+		);
+	}
+	return array(
+		'pdf'  => san_url( get_post_meta( $tome_id, 'yume_lien_pdf', true ) ),
+		'epub' => san_url( get_post_meta( $tome_id, 'yume_lien_epub', true ) ),
+	);
+}
+
+/**
+ * L'utilisateur peut-il mettre à jour le planning de ce tome ?
+ * Vrai avec yume_maj_planning_tous, ou avec yume_maj_planning s'il est l'un des responsables.
+ *
+ * @param int $tome_id ID du tome.
+ * @param int $user_id Utilisateur (0 = utilisateur courant).
+ */
+function yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool {
+	$user_id = $user_id > 0 ? $user_id : get_current_user_id();
+	$peut    = false;
+	if ( $user_id > 0 && 'yume_tome' === get_post_type( $tome_id ) ) {
+		if ( user_can( $user_id, 'yume_maj_planning_tous' ) ) {
+			$peut = true;
+		} elseif ( user_can( $user_id, 'yume_maj_planning' ) ) {
+			$responsables = get_post_meta( $tome_id, 'yume_responsables', true );
+			$peut         = in_array( $user_id, array_map( 'intval', array_values( (array) $responsables ) ), true );
+		}
+	}
+	/**
+	 * Filtre le droit de mise à jour du planning d'un tome.
+	 *
+	 * @param bool $peut    Droit calculé.
+	 * @param int  $tome_id ID du tome.
+	 * @param int  $user_id ID de l'utilisateur.
+	 */
+	return (bool) apply_filters( 'yume_user_can_edit_planning', $peut, $tome_id, $user_id );
+}
+
+/**
+ * URL d'une page Yume ('bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte',
+ * 'connexion').
+ * Page enregistrée dans l'option yume_pages (clé => ID, créée par la migration), sinon
+ * repli sur home_url( '/<slug>/' ).
+ *
+ * @param string $cle Clé de page.
+ */
+function yume_url_page( string $cle ): string {
+	$slugs = array(
+		'bibliotheque' => 'bibliotheque',
+		'planning'     => 'planning',
+		'equipe'       => 'equipe',
+		'publier'      => 'equipe/publier',
+		'membres'      => 'equipe/membres',
+		'compte'       => 'compte',
+		'connexion'    => 'connexion',
+	);
+	$url   = '';
+	$pages = get_option( 'yume_pages', array() );
+	if ( is_array( $pages ) && ! empty( $pages[ $cle ] ) ) {
+		$page = get_post( (int) $pages[ $cle ] );
+		if ( $page && 'page' === $page->post_type && in_array( $page->post_status, array( 'publish', 'private' ), true ) ) {
+			$url = (string) get_permalink( $page );
+		}
+	}
+	if ( '' === $url ) {
+		$slug = $slugs[ $cle ] ?? sanitize_title( $cle );
+		$url  = home_url( '/' . $slug . '/' );
+	}
+	/**
+	 * Filtre l'URL d'une page Yume.
+	 *
+	 * @param string $url URL.
+	 * @param string $cle Clé de page.
+	 */
+	return (string) apply_filters( 'yume_url_page', $url, $cle );
+}

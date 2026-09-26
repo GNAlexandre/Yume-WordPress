@@ -1,0 +1,708 @@
+/**
+ * Bloc yume/publish-form — disposition (maquette TeamPublier).
+ * Couleurs : uniquement les variables du thème (contrat §15).
+ */
+
+.yn-publish {
+	color: var(--wp--preset--color--texte);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	line-height: 1.5;
+}
+
+.yn-publish :where(h2) {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	line-height: 1.1;
+}
+
+.yn-publish__cadre {
+	display: grid;
+	grid-template-columns: 240px minmax(0, 1fr);
+	gap: 28px;
+	align-items: start;
+}
+
+/* Navigation de l'espace équipe. */
+.yn-publish__nav {
+	position: sticky;
+	top: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	box-sizing: border-box;
+	padding: 20px 12px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-publish__menu {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-publish__menu li {
+	margin: 0;
+	padding: 0;
+}
+
+.yn-publish .yn-publish__nav a {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	box-sizing: border-box;
+	min-height: 40px;
+	padding: 0 14px;
+	border-left: 3px solid transparent;
+	border-radius: var(--yn-radius, 6px);
+	color: var(--wp--preset--color--texte);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.yn-publish .yn-publish__nav a:hover {
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-publish .yn-publish__nav a.is-actif {
+	border-left-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-publish__nav .yn-publish__marque {
+	min-height: 48px;
+	margin-bottom: 12px;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 18px;
+	font-weight: 800;
+}
+
+.yn-publish__pastille {
+	display: inline-block;
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: var(--wp--preset--color--accent);
+}
+
+.yn-publish__page {
+	min-width: 0;
+}
+
+/* En-tête. */
+.yn-publish__entete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px 16px;
+	margin-bottom: 28px;
+}
+
+.yn-publish__entete .yn-label {
+	display: block;
+}
+
+.yn-publish h2.yn-publish__titre {
+	margin: 4px 0 0;
+	font-size: 32px;
+	font-weight: 800;
+}
+
+.yn-publish p.yn-publish__intro {
+	margin: 4px 0 0;
+}
+
+/* Messages de retour. */
+.yn-publish__messages:not(:empty) {
+	margin-bottom: 20px;
+}
+
+.yn-publish__message {
+	padding: 14px 20px;
+	border-left-width: 4px;
+}
+
+.yn-publish__message p {
+	margin: 0;
+}
+
+.yn-publish__message p + p {
+	margin-top: 6px;
+}
+
+.yn-publish__message--succes {
+	border-left-color: var(--wp--preset--color--succes);
+}
+
+.yn-publish__message--erreur {
+	border-left-color: var(--wp--preset--color--erreur);
+}
+
+.yn-publish__message--erreur strong {
+	color: var(--wp--preset--color--erreur);
+}
+
+.yn-publish__liens {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 18px;
+}
+
+/* Formulaire : colonne principale + colonne latérale de 380 px. */
+.yn-publish__formulaire {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 380px;
+	gap: 28px;
+	align-items: start;
+	margin: 0;
+}
+
+.yn-publish__principal,
+.yn-publish__cote {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	min-width: 0;
+}
+
+.yn-publish__cote {
+	gap: 16px;
+}
+
+.yn-publish__champs {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 16px;
+	min-width: 0;
+	margin: 0;
+	padding: 24px;
+}
+
+.yn-publish__champ {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	margin: 0;
+}
+
+.yn-publish__champ--2 {
+	grid-column: span 2;
+}
+
+.yn-publish__champ--3 {
+	grid-column: span 3;
+}
+
+.yn-publish__champ--4 {
+	grid-column: span 4;
+}
+
+.yn-publish__champ--6 {
+	grid-column: 1 / -1;
+}
+
+.yn-publish__champ :where(input, select) {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 40px;
+}
+
+.yn-publish input[type="datetime-local"] {
+	box-sizing: border-box;
+	max-width: 100%;
+	min-height: 40px;
+	padding: 8px 10px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--bande);
+	color: var(--wp--preset--color--texte);
+	color-scheme: inherit;
+	font-family: inherit;
+	font-size: 15px;
+}
+
+.yn-publish__aide {
+	margin: -6px 0 0;
+	font-size: 13px;
+}
+
+.yn-publish__petit {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+/* Dépôts de fichiers. */
+.yn-publish__depots {
+	display: grid;
+	grid-template-columns: 240px minmax(0, 1fr);
+	gap: 16px;
+}
+
+.yn-publish__depot {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	box-sizing: border-box;
+	min-height: 300px;
+	padding: 16px;
+	border: 2px dashed var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--carte);
+	color: var(--wp--preset--color--texte);
+	text-align: center;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.yn-publish__depot--source {
+	padding: 24px;
+	border-color: var(--wp--preset--color--accent);
+}
+
+.yn-publish__depot.is-survol {
+	border-style: solid;
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-publish__icone {
+	flex-shrink: 0;
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-publish__depot-titre {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-publish__depot-titre--grand {
+	font-size: 18px;
+}
+
+.yn-publish__depot-aide {
+	font-size: 13px;
+}
+
+.yn-publish__depot-texte {
+	max-width: 460px;
+}
+
+.yn-publish__max {
+	font-size: 12px;
+}
+
+.yn-publish__nom {
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	font-size: 13px;
+}
+
+.yn-publish__nom:empty {
+	display: none;
+}
+
+.yn-publish__vignette {
+	width: 96px;
+}
+
+.yn-publish__vignette img {
+	display: block;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 2 / 3;
+	object-fit: cover;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius, 6px);
+}
+
+.yn-publish__depot--couverture:has(.yn-publish__vignette:not([hidden])) > .yn-publish__icone {
+	display: none;
+}
+
+/* Champ fichier visuellement masqué mais atteignable au clavier ; le focus se voit sur son bouton. */
+.yn-publish__fichier {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+	opacity: 0;
+}
+
+.yn-publish__fichier:focus-visible + label {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+/* Sans JavaScript (html.yn-js absent, contrat §14) : le champ fichier natif reste visible. */
+:root:not(.yn-js) .yn-publish .yn-publish__fichier {
+	position: static;
+	width: auto;
+	max-width: 100%;
+	height: auto;
+	margin: 4px 0 0;
+	overflow: visible;
+	clip: auto;
+	clip-path: none;
+	white-space: normal;
+	opacity: 1;
+	color: var(--wp--preset--color--texte);
+	font-size: 13px;
+}
+
+:root:not(.yn-js) .yn-publish .yn-publish__fichier + label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.yn-publish__fiche {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	box-sizing: border-box;
+	width: min(460px, 100%);
+	margin-top: 8px;
+	padding: 10px 14px;
+	background: var(--wp--preset--color--bande);
+	text-align: left;
+}
+
+.yn-publish__fiche[hidden] {
+	display: none;
+}
+
+.yn-publish__fiche-texte {
+	flex-grow: 1;
+	min-width: 0;
+	font-size: 13px;
+}
+
+.yn-publish__fiche-texte strong {
+	display: block;
+	overflow-wrap: anywhere;
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-publish__retirer {
+	padding: 4px;
+	border: 0;
+	background: none;
+	color: var(--wp--preset--color--accent);
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.yn-publish__retirer:hover {
+	text-decoration: underline;
+}
+
+.yn-publish__progression {
+	width: min(460px, 100%);
+}
+
+.yn-publish__progression[hidden] {
+	display: none;
+}
+
+/* Chapitres détectés. */
+.yn-publish__chapitres {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 20px 24px;
+}
+
+.yn-publish__liste {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px 16px;
+	font-size: 14px;
+}
+
+.yn-publish__liste strong {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-publish__vide {
+	grid-column: 1 / -1;
+}
+
+.yn-publish__avertissements {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-publish__avertissements[hidden] {
+	display: none;
+}
+
+.yn-publish__avertissements .yn-chip {
+	align-items: flex-start;
+	height: auto;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	white-space: normal;
+	text-align: left;
+}
+
+.yn-publish__avertissements .yn-publish__icone {
+	margin-top: 1px;
+	color: currentColor;
+}
+
+.yn-publish__apercu {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+}
+
+/* Colonne latérale. */
+.yn-publish__recap,
+.yn-publish__credits {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin: 0;
+	padding: 20px;
+}
+
+.yn-publish__credits {
+	gap: 10px;
+}
+
+.yn-publish__credits legend {
+	float: left;
+	width: 100%;
+	margin-bottom: 2px;
+	padding: 0;
+}
+
+.yn-publish__recap-liste {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	font-size: 14px;
+	list-style: none;
+}
+
+.yn-publish__recap-liste li {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+.yn-publish__recap-liste strong {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-publish__option {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 0;
+	font-size: 14px;
+}
+
+.yn-publish__option label {
+	font-weight: 600;
+}
+
+.yn-publish__actions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.yn-publish__publier {
+	min-height: 48px;
+	font-size: 16px;
+}
+
+.yn-publish__actions-ligne {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.yn-publish__actions-ligne > .yn-btn {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding-inline: 12px;
+	white-space: normal;
+	text-align: center;
+}
+
+.yn-publish__note {
+	font-size: 12px;
+}
+
+.yn-publish__resultat {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 16px 20px;
+	font-size: 14px;
+}
+
+.yn-publish__resultat[hidden] {
+	display: none;
+}
+
+.yn-publish__resultat ul {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding-left: 18px;
+}
+
+.yn-publish [aria-busy="true"] .yn-btn,
+.yn-publish .yn-btn[aria-busy="true"] {
+	cursor: progress;
+}
+
+.yn-publish__acces {
+	max-width: 640px;
+	padding: 24px;
+}
+
+.yn-publish .yn-publish__acces h2 {
+	margin: 0;
+	font-size: 24px;
+}
+
+.yn-publish .yn-publish__acces p {
+	margin: 12px 0 0;
+}
+
+/* Écrans moyens : colonne latérale sous le formulaire. */
+@media (max-width: 1279.98px) {
+	.yn-publish__formulaire {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-publish__cote {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: start;
+	}
+
+	.yn-publish__actions,
+	.yn-publish__resultat,
+	.yn-publish__option {
+		grid-column: 1 / -1;
+	}
+}
+
+/* Tablettes : navigation en bandeau horizontal. */
+@media (max-width: 959.98px) {
+	.yn-publish__cadre {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 20px;
+	}
+
+	.yn-publish__nav {
+		position: static;
+		flex-direction: row;
+		gap: 4px;
+		padding: 6px;
+		overflow-x: auto;
+	}
+
+	.yn-publish__menu {
+		flex-direction: row;
+		gap: 4px;
+	}
+
+	.yn-publish__menu li,
+	.yn-publish__nav a {
+		flex-shrink: 0;
+		min-height: 40px;
+		white-space: nowrap;
+	}
+
+	.yn-publish__nav .yn-publish__marque {
+		min-height: 40px;
+		margin: 0;
+		font-size: 16px;
+	}
+
+	.yn-publish__liste {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* Mobiles. */
+@media (max-width: 599.98px) {
+	.yn-publish__entete {
+		margin-bottom: 20px;
+	}
+
+	.yn-publish__titre {
+		font-size: 26px;
+	}
+
+	.yn-publish__champs {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14px;
+		padding: 16px;
+	}
+
+	.yn-publish__champ--2,
+	.yn-publish__champ--3,
+	.yn-publish__champ--4 {
+		grid-column: 1 / -1;
+	}
+
+	.yn-publish__depots,
+	.yn-publish__cote {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-publish__depot {
+		min-height: 200px;
+	}
+
+	.yn-publish__chapitres {
+		padding: 16px;
+	}
+
+	.yn-publish__liste {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-publish__actions-ligne {
+		flex-direction: column;
+	}
+}

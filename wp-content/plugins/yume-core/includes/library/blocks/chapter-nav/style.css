@@ -1,0 +1,67 @@
+/**
+ * yume/chapter-nav — navigation de fin de chapitre : précédent, sommaire, suivant.
+ */
+.yn-chapter-nav {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding-top: 24px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-chapter-nav > * {
+	margin: 0;
+}
+
+.yn-chapter-nav .yn-chapter-nav__lien {
+	min-width: 0;
+	max-width: 100%;
+}
+
+.yn-chapter-nav__texte {
+	display: block;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.yn-chapter-nav__precedent {
+	max-width: min(100%, 280px);
+}
+
+.yn-chapter-nav__suivant,
+.yn-chapter-nav__fin {
+	max-width: min(100%, 380px);
+}
+
+.yn-chapter-nav__vide {
+	flex: 0 0 1px;
+}
+
+.yn-chapter-nav__fin {
+	font-size: 14px;
+}
+
+@media (max-width: 599.98px) {
+	.yn-chapter-nav__suivant,
+	.yn-chapter-nav__fin {
+		order: -1;
+		flex: 1 1 100%;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.yn-chapter-nav__precedent,
+	.yn-chapter-nav__sommaire {
+		flex: 1 1 0;
+		justify-content: center;
+	}
+
+	.yn-chapter-nav__vide,
+	.yn-chapter-nav__complement {
+		display: none;
+	}
+}

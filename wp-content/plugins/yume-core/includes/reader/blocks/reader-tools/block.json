@@ -1,0 +1,20 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/reader-tools",
+	"title": "Barre de lecture",
+	"category": "yume",
+	"icon": "book-alt",
+	"description": "Barre collante du lecteur : progression, sommaire, marque-page, thème et panneau Paramètres (taille, interligne, opacité, police, largeur). À placer dans le modèle « Chapitre », sous l’en-tête de lecture.",
+	"keywords": [ "lecture", "chapitre", "réglages", "marque-page" ],
+	"textdomain": "yume-core",
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"html": false,
+		"multiple": false,
+		"reusable": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

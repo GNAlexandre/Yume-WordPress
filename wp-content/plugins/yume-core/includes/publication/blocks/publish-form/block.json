@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/publish-form",
+	"title": "Formulaire de publication",
+	"category": "yume",
+	"icon": "upload",
+	"description": "Espace équipe : publier un tome ou un arc à partir de son DOCX (ou EPUB), avec couverture, liens PDF/EPUB externes et crédits.",
+	"keywords": [ "publier", "docx", "epub", "tome", "équipe" ],
+	"textdomain": "yume-core",
+	"attributes": {},
+	"supports": {
+		"html": false,
+		"multiple": false,
+		"reusable": false,
+		"align": [ "wide", "full" ]
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

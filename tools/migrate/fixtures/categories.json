@@ -1,0 +1,29 @@
+[
+    {
+        "id": 3402,
+        "name": "Actualités",
+        "slug": "actualites",
+        "description": "",
+        "parent": 0,
+        "count": 63,
+        "link": "https://yumenovel.fr/category/actualites/"
+    },
+    {
+        "id": 6325,
+        "name": "Non classé",
+        "slug": "non-classe",
+        "description": "",
+        "parent": 0,
+        "count": 4,
+        "link": "https://yumenovel.fr/category/non-classe/"
+    },
+    {
+        "id": 775285387,
+        "name": "Yume News",
+        "slug": "yume-news",
+        "description": "",
+        "parent": 0,
+        "count": 119,
+        "link": "https://yumenovel.fr/category/yume-news/"
+    }
+]

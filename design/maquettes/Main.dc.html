@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Accueil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:6px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:700;font-size:14px;background:transparent;font-family:inherit;cursor:pointer}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:700;border:1px solid}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}
+.new{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.bar{height:6px;border-radius:3px;background:#241740;overflow:hidden}.bar i{display:block;height:100%;background:#f3a6c8}
+.cover{border-radius:10px;background:linear-gradient(160deg,#5b3a7a 0%,#2d1f4f 55%,#c2437e 140%);display:flex;align-items:flex-end;padding:12px;color:#fff8fb;font-family:"Outfit",sans-serif;font-weight:700;font-size:15px;line-height:1.15;border:1px solid #4a3b6e;box-sizing:border-box;position:relative;overflow:hidden}
+.cover .tag{position:absolute;top:10px;left:10px}
+.muted{color:#b7a9cc}
+nav a{color:#ebe3f2;font-weight:600;padding:8px 12px;border-radius:6px}
+.menu a{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;color:#ebe3f2;font-weight:600;border-radius:6px}
+.menu a:hover{background:#3a2a63;color:#fff8fb}
+.tile{display:flex;flex-direction:column;gap:8px;color:#ebe3f2}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1540px; box-sizing: border-box; display: flex; flex-direction: column; background: #1b1231; position: relative">
+
+<header style="background: #241740; border-bottom: 1px solid #4a3b6e; height: 68px; display: flex; align-items: center; gap: 24px; padding: 0 48px; flex-shrink: 0; position: relative; z-index: 2">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 21px"><img src="/_blob/69f343accdaab863090bf3c71b8882fd" alt="Yume Novel" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover">Yume Novel</a>
+  <nav style="display: flex; gap: 4px; font-size: 15px">
+    <a href="Main.dc.html" style="background: #3a2a63; color: #fff8fb">Bibliothèque ▾</a><a href="Planning.dc.html">Planning</a><a href="Main.dc.html">Actualités</a><a href="Main.dc.html">Yume Novel ▾</a><a href="Main.dc.html">Contact</a>
+  </nav>
+  <div style="margin-left: auto; display: flex; gap: 12px; align-items: center">
+    <label for="q" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; width: 220px; box-sizing: border-box; color: #b7a9cc">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input id="q" type="search" placeholder="Rechercher…" style="background: transparent; border: 0; color: #ebe3f2; outline: none; width: 100%; font-family: inherit; font-size: 14px">
+    </label>
+    <button type="button" aria-label="Thème clair ou sombre" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #7f6aa8; background: transparent; color: #ebe3f2; display: inline-flex; align-items: center; justify-content: center; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg></button>
+    <a href="Main.dc.html" class="btn sm" style="height: 36px; border-color: #f7c59f; color: #f7c59f">♥ Ko-fi</a>
+    <a href="Compte.dc.html" class="btn pri sm" style="height: 36px">Mon compte</a>
+  </div>
+</header>
+
+<div class="menu card" style="position: absolute; left: 196px; top: 64px; width: 560px; z-index: 3; padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; background: #241740">
+  <div style="grid-column: span 2; padding: 0 14px 6px" class="lbl">Bibliothèque</div>
+  <a href="Main.dc.html">Light novels <span class="muted" style="font-weight: 400">11</span></a>
+  <a href="Main.dc.html">Séries en cours <span class="muted" style="font-weight: 400">8</span></a>
+  <a href="Main.dc.html">Web novels <span class="muted" style="font-weight: 400">1</span></a>
+  <a href="Main.dc.html">Séries terminées <span class="muted" style="font-weight: 400">3</span></a>
+  <a href="Main.dc.html">Manga <span class="muted" style="font-weight: 400">2</span></a>
+  <a href="Main.dc.html">Licenciées / abandonnées <span class="muted" style="font-weight: 400">5</span></a>
+  <div style="grid-column: span 2; border-top: 1px solid #4a3b6e; margin-top: 6px; padding-top: 8px; display: flex; justify-content: space-between; align-items: center"><a href="Main.dc.html" style="color: #f3a6c8">Toutes les œuvres A → Z</a><a href="Lecteur.dc.html" style="color: #f3a6c8">Reprendre ma lecture</a></div>
+</div>
+
+<div style="position: relative; height: 240px; overflow: hidden; border-bottom: 1px solid #4a3b6e">
+  <img src="/_blob/6275cbd0dbb8ffe7d8ce2eae7e80e00d" alt="Bannière actuelle du site" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%">
+  <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(27,18,49,.15) 0%, rgba(27,18,49,.55) 100%)"></div>
+</div>
+
+<main style="padding: 36px 48px 0; display: flex; flex-direction: column; gap: 40px">
+
+  <section style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="font-size: 28px">Dernières sorties</h2><a href="Main.dc.html" style="font-size: 14px">Toutes les sorties →</a></div>
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px">
+      <a href="Oeuvre.dc.html" class="tile"><div class="cover" style="height: 300px"><span class="chip new tag">Nouveau</span>Grimgar of Fantasy and Ash · T.9</div><b style="color: #fff8fb">Grimgar</b><span class="muted" style="font-size: 13px">Tome 9 · 20 sept.</span><div style="display: flex; gap: 6px"><span class="btn pri sm">Lire</span><span class="btn sm">PDF</span><span class="btn sm">EPUB</span></div></a>
+      <a href="Oeuvre.dc.html" class="tile"><div class="cover" style="height: 300px"><span class="chip new tag">Nouveau</span>Secrets of the Silent Witch · Arc 7</div><b style="color: #fff8fb">Silent Witch (WN)</b><span class="muted" style="font-size: 13px">Arc 7 · ch. 8 · 23 sept.</span><div style="display: flex; gap: 6px"><span class="btn pri sm">Lire</span><span class="chip info">Arc en cours</span></div></a>
+      <a href="Oeuvre.dc.html" class="tile"><div class="cover" style="height: 300px">Raven of the Inner Palace · T.6</div><b style="color: #fff8fb">Raven of the Inner Palace</b><span class="muted" style="font-size: 13px">Tome 6 · 12 sept.</span><div style="display: flex; gap: 6px"><span class="btn pri sm">Lire</span><span class="btn sm">PDF</span><span class="btn sm">EPUB</span></div></a>
+      <a href="Oeuvre.dc.html" class="tile"><div class="cover" style="height: 300px">Grimgar of Fantasy and Ash · T.8</div><b style="color: #fff8fb">Grimgar</b><span class="muted" style="font-size: 13px">Tome 8 · 13 sept.</span><div style="display: flex; gap: 6px"><span class="btn pri sm">Lire</span><span class="btn sm">PDF</span><span class="btn sm">EPUB</span></div></a>
+      <a href="Oeuvre.dc.html" class="tile"><div class="cover" style="height: 300px">Miss Medic's Diary at War · T.1</div><b style="color: #fff8fb">Miss Medic's Diary at War</b><span class="muted" style="font-size: 13px">Tome 1 · 2 sept.</span><div style="display: flex; gap: 6px"><span class="btn pri sm">Lire</span><span class="btn sm">PDF</span><span class="btn sm">EPUB</span></div></a>
+      <a href="Oeuvre.dc.html" class="tile"><div class="cover" style="height: 300px">Grimgar of Fantasy and Ash · T.7</div><b style="color: #fff8fb">Grimgar</b><span class="muted" style="font-size: 13px">Tome 7 · 6 sept.</span><div style="display: flex; gap: 6px"><span class="btn pri sm">Lire</span><span class="btn sm">PDF</span><span class="btn sm">EPUB</span></div></a>
+    </div>
+  </section>
+
+  <section style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px">
+    <div class="card" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="font-size: 20px">Prochaines sorties</h2><a href="Planning.dc.html" style="font-size: 13px">Planning complet →</a></div>
+      <div style="display: grid; grid-template-columns: 110px 1fr auto; gap: 8px 14px; align-items: center; font-size: 14px">
+        <span class="lbl">sam. 26 sept.</span><span><b style="color: #fff8fb">Silent Witch</b> · Arc 7, chapitre 9</span><span class="chip warn">▲ relecture</span>
+        <span class="lbl">dim. 27 sept.</span><span><b style="color: #fff8fb">Grimgar</b> · Tome 10</span><span class="chip ok">● 62 %</span>
+        <span class="lbl">octobre</span><span><b style="color: #fff8fb">Raven of the Inner Palace</b> · Tome 7</span><span class="chip ok">● 48 %</span>
+      </div>
+    </div>
+    <div class="card" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="font-size: 20px">Actualités</h2><a href="Main.dc.html" style="font-size: 13px">Toutes →</a></div>
+      <div style="display: grid; grid-template-columns: 110px 1fr; gap: 8px 14px; font-size: 14px">
+        <span class="lbl">23 sept.</span><a href="Main.dc.html" style="color: #ebe3f2">Chapitre 8 de l'Arc 7 de Silent Witch disponible</a>
+        <span class="lbl">20 sept.</span><a href="Main.dc.html" style="color: #ebe3f2">Tome 9 de Grimgar of Fantasy and Ash disponible</a>
+        <span class="lbl">14 juin</span><a href="Main.dc.html" style="color: #ebe3f2">Lancement du Projet Découverte, première édition</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="padding: 18px 24px; display: flex; align-items: center; gap: 24px; background: linear-gradient(90deg, #2d1f4f, #3a2a63)">
+    <div style="flex-grow: 1"><span class="lbl">Reprendre la lecture</span><div style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px; color: #fff8fb">Grimgar · Tome 7 · chapitre 3 · 41 %</div></div>
+    <a href="Lecteur.dc.html" class="btn pri">Continuer</a>
+    <a href="Main.dc.html" class="btn">Rejoindre le Discord</a>
+  </section>
+</main>
+
+<footer style="margin-top: auto; background: #241740; border-top: 1px solid #4a3b6e; padding: 24px 48px; display: flex; justify-content: space-between; align-items: center; color: #b7a9cc; font-size: 13px">
+  <span>Yume Novel © 2026 · Fan-traductions à but non lucratif · Partenaires : MassNovel · Novel Index · Novel de l'Aube · J-Garden</span>
+  <span style="display: flex; gap: 16px"><a href="Main.dc.html">Discord</a><a href="Main.dc.html">X / Twitter</a><a href="Main.dc.html">Ko-fi</a><a href="Main.dc.html">FAQ</a><a href="Main.dc.html">Mentions légales</a></span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1540}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

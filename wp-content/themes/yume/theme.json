@@ -1,0 +1,815 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"settings": {
+		"appearanceTools": true,
+		"useRootPaddingAwareAlignments": true,
+		"border": {
+			"color": true,
+			"radius": true,
+			"style": true,
+			"width": true
+		},
+		"color": {
+			"custom": true,
+			"customGradient": true,
+			"defaultDuotone": false,
+			"defaultGradients": false,
+			"defaultPalette": false,
+			"duotone": [],
+			"link": true,
+			"palette": [
+				{
+					"slug": "fond",
+					"color": "#1b1231",
+					"name": "Fond"
+				},
+				{
+					"slug": "bande",
+					"color": "#241740",
+					"name": "Bande (en-tête, pied)"
+				},
+				{
+					"slug": "carte",
+					"color": "#2d1f4f",
+					"name": "Carte"
+				},
+				{
+					"slug": "filet",
+					"color": "#4a3b6e",
+					"name": "Filet"
+				},
+				{
+					"slug": "bordure",
+					"color": "#7f6aa8",
+					"name": "Bordure de contrôle"
+				},
+				{
+					"slug": "texte-fort",
+					"color": "#fff8fb",
+					"name": "Texte fort"
+				},
+				{
+					"slug": "texte",
+					"color": "#ebe3f2",
+					"name": "Texte"
+				},
+				{
+					"slug": "texte-faible",
+					"color": "#b7a9cc",
+					"name": "Texte faible"
+				},
+				{
+					"slug": "accent",
+					"color": "#f3a6c8",
+					"name": "Accent sakura"
+				},
+				{
+					"slug": "accent-texte",
+					"color": "#2a1240",
+					"name": "Texte sur accent"
+				},
+				{
+					"slug": "accent-2",
+					"color": "#f7c59f",
+					"name": "Accent pêche"
+				},
+				{
+					"slug": "selection",
+					"color": "#3a2a63",
+					"name": "Sélection"
+				},
+				{
+					"slug": "succes",
+					"color": "#8fd6a3",
+					"name": "Succès"
+				},
+				{
+					"slug": "avertissement",
+					"color": "#f4c069",
+					"name": "Avertissement"
+				},
+				{
+					"slug": "erreur",
+					"color": "#ff8f7e",
+					"name": "Erreur"
+				}
+			],
+			"gradients": [
+				{
+					"slug": "couverture",
+					"gradient": "linear-gradient(160deg, #5b3a7a 0%, #2d1f4f 55%, #c2437e 140%)",
+					"name": "Couverture de substitution"
+				},
+				{
+					"slug": "bandeau",
+					"gradient": "linear-gradient(90deg, var(--wp--preset--color--carte) 0%, var(--wp--preset--color--selection) 100%)",
+					"name": "Bandeau"
+				},
+				{
+					"slug": "entete",
+					"gradient": "linear-gradient(180deg, var(--wp--preset--color--bande) 0%, var(--wp--preset--color--fond) 100%)",
+					"name": "En-tête de page"
+				}
+			]
+		},
+		"layout": {
+			"contentSize": "760px",
+			"wideSize": "1344px"
+		},
+		"shadow": {
+			"defaultPresets": false
+		},
+		"spacing": {
+			"blockGap": true,
+			"margin": true,
+			"padding": true,
+			"units": [
+				"px",
+				"em",
+				"rem",
+				"%",
+				"vh",
+				"vw",
+				"ch"
+			],
+			"defaultSpacingSizes": false,
+			"spacingSizes": [
+				{
+					"slug": "10",
+					"size": "4px",
+					"name": "4 px"
+				},
+				{
+					"slug": "20",
+					"size": "8px",
+					"name": "8 px"
+				},
+				{
+					"slug": "30",
+					"size": "12px",
+					"name": "12 px"
+				},
+				{
+					"slug": "40",
+					"size": "16px",
+					"name": "16 px"
+				},
+				{
+					"slug": "50",
+					"size": "24px",
+					"name": "24 px"
+				},
+				{
+					"slug": "60",
+					"size": "32px",
+					"name": "32 px"
+				}
+			]
+		},
+		"typography": {
+			"defaultFontSizes": false,
+			"dropCap": false,
+			"fluid": false,
+			"fontStyle": true,
+			"fontWeight": true,
+			"letterSpacing": true,
+			"lineHeight": true,
+			"textDecoration": true,
+			"textTransform": true,
+			"writingMode": false,
+			"fontFamilies": [
+				{
+					"slug": "titres",
+					"name": "Titres (Outfit)",
+					"fontFamily": "Outfit, \"Segoe UI\", system-ui, sans-serif",
+					"fontFace": [
+						{
+							"fontFamily": "Outfit",
+							"fontStyle": "normal",
+							"fontWeight": "600",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/outfit/outfit-latin-600-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Outfit",
+							"fontStyle": "normal",
+							"fontWeight": "600",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/outfit/outfit-latin-ext-600-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "Outfit",
+							"fontStyle": "normal",
+							"fontWeight": "700",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/outfit/outfit-latin-700-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Outfit",
+							"fontStyle": "normal",
+							"fontWeight": "700",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/outfit/outfit-latin-ext-700-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "Outfit",
+							"fontStyle": "normal",
+							"fontWeight": "800",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/outfit/outfit-latin-800-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Outfit",
+							"fontStyle": "normal",
+							"fontWeight": "800",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/outfit/outfit-latin-ext-800-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						}
+					]
+				},
+				{
+					"slug": "corps",
+					"name": "Corps (Nunito Sans)",
+					"fontFamily": "\"Nunito Sans\", \"Segoe UI\", system-ui, sans-serif",
+					"fontFace": [
+						{
+							"fontFamily": "Nunito Sans",
+							"fontStyle": "normal",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/nunito-sans/nunito-sans-latin-400-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Nunito Sans",
+							"fontStyle": "normal",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/nunito-sans/nunito-sans-latin-ext-400-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "Nunito Sans",
+							"fontStyle": "italic",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/nunito-sans/nunito-sans-latin-400-italic.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Nunito Sans",
+							"fontStyle": "italic",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/nunito-sans/nunito-sans-latin-ext-400-italic.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "Nunito Sans",
+							"fontStyle": "normal",
+							"fontWeight": "600",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/nunito-sans/nunito-sans-latin-600-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Nunito Sans",
+							"fontStyle": "normal",
+							"fontWeight": "600",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/nunito-sans/nunito-sans-latin-ext-600-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "Nunito Sans",
+							"fontStyle": "normal",
+							"fontWeight": "700",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/nunito-sans/nunito-sans-latin-700-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Nunito Sans",
+							"fontStyle": "normal",
+							"fontWeight": "700",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/nunito-sans/nunito-sans-latin-ext-700-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						}
+					]
+				},
+				{
+					"slug": "mono",
+					"name": "Étiquettes (IBM Plex Mono)",
+					"fontFamily": "\"IBM Plex Mono\", ui-monospace, \"SFMono-Regular\", Menlo, Consolas, monospace",
+					"fontFace": [
+						{
+							"fontFamily": "IBM Plex Mono",
+							"fontStyle": "normal",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/ibm-plex-mono/ibm-plex-mono-latin-400-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "IBM Plex Mono",
+							"fontStyle": "normal",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/ibm-plex-mono/ibm-plex-mono-latin-ext-400-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "IBM Plex Mono",
+							"fontStyle": "normal",
+							"fontWeight": "500",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/ibm-plex-mono/ibm-plex-mono-latin-500-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "IBM Plex Mono",
+							"fontStyle": "normal",
+							"fontWeight": "500",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/ibm-plex-mono/ibm-plex-mono-latin-ext-500-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						}
+					]
+				},
+				{
+					"slug": "lecture",
+					"name": "Lecture (Literata)",
+					"fontFamily": "Literata, Georgia, \"Times New Roman\", serif",
+					"fontFace": [
+						{
+							"fontFamily": "Literata",
+							"fontStyle": "normal",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/literata/literata-latin-400-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Literata",
+							"fontStyle": "normal",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/literata/literata-latin-ext-400-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "Literata",
+							"fontStyle": "italic",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/literata/literata-latin-400-italic.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Literata",
+							"fontStyle": "italic",
+							"fontWeight": "400",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/literata/literata-latin-ext-400-italic.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "Literata",
+							"fontStyle": "normal",
+							"fontWeight": "700",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/literata/literata-latin-700-normal.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Literata",
+							"fontStyle": "normal",
+							"fontWeight": "700",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/literata/literata-latin-ext-700-normal.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						},
+						{
+							"fontFamily": "Literata",
+							"fontStyle": "italic",
+							"fontWeight": "700",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/literata/literata-latin-700-italic.woff2"
+							],
+							"unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+						},
+						{
+							"fontFamily": "Literata",
+							"fontStyle": "italic",
+							"fontWeight": "700",
+							"fontDisplay": "swap",
+							"src": [
+								"file:./assets/fonts/literata/literata-latin-ext-700-italic.woff2"
+							],
+							"unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+						}
+					]
+				}
+			],
+			"fontSizes": [
+				{
+					"slug": "tres-petit",
+					"size": "12px",
+					"name": "Très petit"
+				},
+				{
+					"slug": "petit",
+					"size": "13px",
+					"name": "Petit"
+				},
+				{
+					"slug": "normal",
+					"size": "15px",
+					"name": "Normal"
+				},
+				{
+					"slug": "moyen",
+					"size": "18px",
+					"name": "Moyen"
+				},
+				{
+					"slug": "grand",
+					"size": "20px",
+					"name": "Grand"
+				},
+				{
+					"slug": "tres-grand",
+					"size": "clamp(22px, 1.1rem + 1vw, 28px)",
+					"name": "Très grand"
+				},
+				{
+					"slug": "immense",
+					"size": "clamp(30px, 1.4rem + 2vw, 42px)",
+					"name": "Immense"
+				}
+			]
+		}
+	},
+	"styles": {
+		"color": {
+			"background": "var(--wp--preset--color--fond)",
+			"text": "var(--wp--preset--color--texte)"
+		},
+		"spacing": {
+			"blockGap": "var(--wp--preset--spacing--50)",
+			"padding": {
+				"top": "0px",
+				"right": "clamp(16px, 3.4vw, 48px)",
+				"bottom": "0px",
+				"left": "clamp(16px, 3.4vw, 48px)"
+			}
+		},
+		"typography": {
+			"fontFamily": "var(--wp--preset--font-family--corps)",
+			"fontSize": "var(--wp--preset--font-size--normal)",
+			"fontWeight": "400",
+			"lineHeight": "1.5"
+		},
+		"elements": {
+			"link": {
+				"color": {
+					"text": "var(--wp--preset--color--accent)"
+				},
+				"typography": {
+					"textDecoration": "none"
+				},
+				":hover": {
+					"typography": {
+						"textDecoration": "underline"
+					}
+				},
+				":focus": {
+					"typography": {
+						"textDecoration": "underline"
+					}
+				}
+			},
+			"heading": {
+				"color": {
+					"text": "var(--wp--preset--color--texte-fort)"
+				},
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--titres)",
+					"fontWeight": "700",
+					"lineHeight": "1.15",
+					"letterSpacing": "-0.005em"
+				}
+			},
+			"h1": {
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--immense)",
+					"fontWeight": "800",
+					"lineHeight": "1.08"
+				}
+			},
+			"h2": {
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--tres-grand)"
+				}
+			},
+			"h3": {
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--grand)"
+				}
+			},
+			"h4": {
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--moyen)"
+				}
+			},
+			"h5": {
+				"typography": {
+					"fontSize": "16px"
+				}
+			},
+			"h6": {
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--normal)"
+				}
+			},
+			"button": {
+				"border": {
+					"color": "var(--wp--preset--color--accent)",
+					"radius": "6px",
+					"style": "solid",
+					"width": "1px"
+				},
+				"color": {
+					"background": "var(--wp--preset--color--accent)",
+					"text": "var(--wp--preset--color--accent-texte)"
+				},
+				"spacing": {
+					"padding": {
+						"top": "9px",
+						"right": "16px",
+						"bottom": "9px",
+						"left": "16px"
+					}
+				},
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--corps)",
+					"fontSize": "14px",
+					"fontWeight": "700",
+					"lineHeight": "1.4",
+					"textDecoration": "none"
+				}
+			},
+			"caption": {
+				"color": {
+					"text": "var(--wp--preset--color--texte-faible)"
+				},
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--petit)"
+				}
+			},
+			"cite": {
+				"color": {
+					"text": "var(--wp--preset--color--texte-faible)"
+				},
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--petit)",
+					"fontStyle": "normal"
+				}
+			}
+		},
+		"blocks": {
+			"core/site-title": {
+				"color": {
+					"text": "var(--wp--preset--color--texte-fort)"
+				},
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--titres)",
+					"fontSize": "21px",
+					"fontWeight": "800",
+					"lineHeight": "1.1"
+				},
+				"elements": {
+					"link": {
+						"color": {
+							"text": "var(--wp--preset--color--texte-fort)"
+						},
+						":hover": {
+							"typography": {
+								"textDecoration": "none"
+							}
+						}
+					}
+				}
+			},
+			"core/navigation": {
+				"typography": {
+					"fontSize": "15px",
+					"fontWeight": "600"
+				}
+			},
+			"core/post-title": {
+				"elements": {
+					"link": {
+						"color": {
+							"text": "var(--wp--preset--color--texte-fort)"
+						}
+					}
+				}
+			},
+			"core/post-date": {
+				"color": {
+					"text": "var(--wp--preset--color--texte-faible)"
+				},
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--petit)"
+				}
+			},
+			"core/post-author-name": {
+				"color": {
+					"text": "var(--wp--preset--color--texte-faible)"
+				},
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--petit)"
+				}
+			},
+			"core/post-terms": {
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--petit)"
+				}
+			},
+			"core/post-excerpt": {
+				"color": {
+					"text": "var(--wp--preset--color--texte)"
+				}
+			},
+			"core/separator": {
+				"border": {
+					"color": "var(--wp--preset--color--filet)"
+				},
+				"color": {
+					"text": "var(--wp--preset--color--filet)"
+				}
+			},
+			"core/quote": {
+				"border": {
+					"left": {
+						"color": "var(--wp--preset--color--accent)",
+						"style": "solid",
+						"width": "3px"
+					}
+				},
+				"spacing": {
+					"padding": {
+						"left": "var(--wp--preset--spacing--50)"
+					}
+				},
+				"typography": {
+					"fontStyle": "italic"
+				}
+			},
+			"core/pullquote": {
+				"border": {
+					"top": {
+						"color": "var(--wp--preset--color--filet)",
+						"style": "solid",
+						"width": "1px"
+					},
+					"bottom": {
+						"color": "var(--wp--preset--color--filet)",
+						"style": "solid",
+						"width": "1px"
+					}
+				},
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--titres)",
+					"fontSize": "var(--wp--preset--font-size--grand)"
+				}
+			},
+			"core/code": {
+				"color": {
+					"background": "var(--wp--preset--color--bande)",
+					"text": "var(--wp--preset--color--texte)"
+				},
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--mono)",
+					"fontSize": "var(--wp--preset--font-size--petit)"
+				}
+			},
+			"core/image": {
+				"border": {
+					"radius": "8px"
+				}
+			},
+			"core/comment-author-name": {
+				"typography": {
+					"fontWeight": "700"
+				},
+				"elements": {
+					"link": {
+						"color": {
+							"text": "var(--wp--preset--color--texte-fort)"
+						}
+					}
+				}
+			},
+			"core/comment-date": {
+				"color": {
+					"text": "var(--wp--preset--color--texte-faible)"
+				},
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--tres-petit)"
+				},
+				"elements": {
+					"link": {
+						"color": {
+							"text": "var(--wp--preset--color--texte-faible)"
+						}
+					}
+				}
+			},
+			"core/query-pagination": {
+				"typography": {
+					"fontWeight": "700"
+				}
+			}
+		}
+	},
+	"templateParts": [
+		{
+			"name": "header",
+			"title": "En-tête",
+			"area": "header"
+		},
+		{
+			"name": "footer",
+			"title": "Pied de page",
+			"area": "footer"
+		}
+	],
+	"customTemplates": [
+		{
+			"name": "page-large",
+			"title": "Page large (équipe, compte, planning)",
+			"postTypes": [
+				"page"
+			]
+		}
+	]
+}

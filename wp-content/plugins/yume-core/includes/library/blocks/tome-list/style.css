@@ -1,0 +1,215 @@
+/**
+ * yume/tome-list — liste des tomes de la fiche (maquette Oeuvre) : onglet « Tomes (N) »,
+ * carte en lignes (couverture, tome, date, actions), tomes anciens repliés dans un <details>.
+ */
+.yn-tome-list {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
+
+.yn-tome-list > * {
+	margin: 0;
+}
+
+.yn-tome-list__onglets {
+	display: flex;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-tome-list .yn-tome-list__titre {
+	margin: 0 0 -1px;
+	padding: 10px 4px;
+	border-bottom: 2px solid var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.5;
+	letter-spacing: 0;
+}
+
+.yn-tome-list__nombre {
+	font-weight: 600;
+}
+
+.yn-tome-list__carte {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.yn-tome-list .yn-tome-list__liste {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-tome-list .yn-tome-list__entete,
+.yn-tome-list .yn-tome-list__ligne {
+	display: grid;
+	grid-template-columns: 72px minmax(0, 1fr) 160px 300px;
+	gap: 20px;
+	align-items: center;
+	margin: 0;
+	padding: 14px 20px;
+}
+
+.yn-tome-list .yn-tome-list__entete {
+	padding-block: 12px;
+}
+
+.yn-tome-list__ligne {
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+/* Progression du lecteur connecté (filtre yume_bibliotheque_ligne_tome, module lecteurs) :
+   tome en cours mis en avant, comme la maquette Oeuvre. */
+.yn-tome-list .yn-tome-list__ligne--lecture {
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-tome-list__progression {
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.yn-tome-list__couverture {
+	display: block;
+	width: 72px;
+	line-height: 0;
+	text-decoration: none;
+}
+
+.yn-tome-list__couverture .yn-cover {
+	padding: 6px;
+	font-size: 11px;
+	line-height: 1.15;
+}
+
+.yn-tome-list__infos {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.yn-tome-list__infos > * {
+	margin: 0;
+}
+
+.yn-tome-list .yn-tome-list__nom {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.35;
+	letter-spacing: 0;
+}
+
+.yn-tome-list .yn-tome-list__nom a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.yn-tome-list .yn-tome-list__nom a:hover,
+.yn-tome-list .yn-tome-list__nom a:focus-visible {
+	text-decoration: underline;
+}
+
+.yn-tome-list__sous-titre {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 14px;
+	font-weight: 400;
+}
+
+.yn-tome-list__details,
+.yn-tome-list__equivalence {
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.yn-tome-list__date {
+	margin: 0;
+	font-size: 14px;
+}
+
+.yn-tome-list__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* Tomes anciens repliés. */
+.yn-tome-list__anciens > summary {
+	cursor: pointer;
+	list-style: none;
+	transition: background-color 0.15s ease;
+}
+
+.yn-tome-list__anciens > summary::-webkit-details-marker {
+	display: none;
+}
+
+.yn-tome-list__anciens > summary:hover {
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-tome-list__anciens > summary:focus-visible {
+	outline-offset: -2px;
+}
+
+.yn-tome-list__anciens:not([open]) .yn-tome-list__masquer,
+.yn-tome-list__anciens[open] .yn-tome-list__afficher {
+	display: none;
+}
+
+@media (max-width: 1099.98px) {
+	.yn-tome-list .yn-tome-list__entete,
+	.yn-tome-list .yn-tome-list__ligne {
+		grid-template-columns: 72px minmax(0, 1fr) 120px;
+	}
+
+	.yn-tome-list__entete > :last-child {
+		display: none;
+	}
+
+	.yn-tome-list__actions {
+		grid-column: 2 / -1;
+	}
+}
+
+@media (max-width: 699.98px) {
+	.yn-tome-list .yn-tome-list__entete {
+		display: none;
+	}
+
+	.yn-tome-list .yn-tome-list__ligne {
+		grid-template-columns: 56px minmax(0, 1fr);
+		gap: 6px 14px;
+		align-items: start;
+		padding: 14px 16px;
+	}
+
+	.yn-tome-list__couverture {
+		grid-row: span 3;
+		width: 56px;
+	}
+
+	.yn-tome-list__date,
+	.yn-tome-list__actions {
+		grid-column: 2;
+	}
+
+	.yn-tome-list__date {
+		font-size: 13px;
+	}
+
+	.yn-tome-list__date:empty {
+		display: none;
+	}
+}

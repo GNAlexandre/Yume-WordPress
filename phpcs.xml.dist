@@ -1,0 +1,177 @@
+<?xml version="1.0"?>
+<!--
+	Normes de code PHP de Yume Novel (PHP_CodeSniffer 3 + WordPress Coding Standards 3).
+
+	Installation (une fois, hors du dépôt) :
+		composer global config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+		composer global require wp-coding-standards/wpcs:"^3.1" phpcompatibility/phpcompatibility-wp:"^2.1"
+
+	Utilisation, depuis la racine du dépôt :
+		phpcs                                   tout le code (plugin, thème, outils)
+		phpcs wp-content/plugins/yume-core      un dossier
+		phpcbf wp-content/themes/yume           corrections automatiques (espaces, alignements…)
+
+	Voir docs/guide-developpeur.md, section « Conventions ».
+-->
+<ruleset name="Yume Novel" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/PHPCSStandards/PHP_CodeSniffer/master/phpcs.xsd">
+	<description>Yume Novel : WordPress-Extra et WordPress-Docs, préfixes yume/Yume, domaines yume-core et yume, PHP 8.1 et plus.</description>
+
+	<!-- Ce qui est analysé. -->
+	<file>wp-content/plugins/yume-core</file>
+	<file>wp-content/themes/yume</file>
+	<file>tools</file>
+
+	<!-- Code tiers vendorisé, dépendances et fichiers générés : jamais analysés. -->
+	<exclude-pattern>*/lib/*</exclude-pattern>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/dist/*</exclude-pattern>
+	<exclude-pattern>*/build/*</exclude-pattern>
+	<exclude-pattern>tools/fixtures/*</exclude-pattern>
+	<!-- Fichier de traduction au format de WordPress (nom et tableau imposés). -->
+	<exclude-pattern>tools/preprod/langues/*</exclude-pattern>
+	<exclude-pattern>*.asset.php</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="basepath" value="."/>
+	<arg name="parallel" value="8"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+
+	<!-- Versions minimales (contrat §0). -->
+	<config name="testVersion" value="8.1-"/>
+	<config name="minimum_wp_version" value="6.6"/>
+
+	<!-- Règles de base. -->
+	<rule ref="WordPress-Extra">
+		<!-- Les fichiers de module s'appellent module.php, api.php… (contrat §0), pas class-*.php. -->
+		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+	</rule>
+	<rule ref="WordPress-Docs"/>
+	<rule ref="PHPCompatibilityWP"/>
+
+	<!-- Tout ce qui est global est préfixé (fonctions yume_*, constantes YUME_*, espace de noms Yume\…). -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="yume"/>
+				<element value="Yume"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Domaines de traduction : yume-core (plugin) et yume (thème). -->
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="yume-core"/>
+				<element value="yume"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Capacités propres à Yume (contrat §5) et capacités des trois types de contenu. -->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="yume_maj_planning"/>
+				<element value="yume_maj_planning_tous"/>
+				<element value="yume_publier"/>
+				<element value="yume_gerer_equipe"/>
+				<element value="yume_reglages"/>
+				<element value="yume_voir_equipe"/>
+				<element value="edit_yume_oeuvre"/>
+				<element value="read_yume_oeuvre"/>
+				<element value="delete_yume_oeuvre"/>
+				<element value="edit_yume_oeuvres"/>
+				<element value="edit_others_yume_oeuvres"/>
+				<element value="edit_private_yume_oeuvres"/>
+				<element value="edit_published_yume_oeuvres"/>
+				<element value="publish_yume_oeuvres"/>
+				<element value="read_private_yume_oeuvres"/>
+				<element value="delete_yume_oeuvres"/>
+				<element value="delete_private_yume_oeuvres"/>
+				<element value="delete_published_yume_oeuvres"/>
+				<element value="delete_others_yume_oeuvres"/>
+				<element value="create_yume_oeuvres"/>
+				<element value="edit_yume_tome"/>
+				<element value="read_yume_tome"/>
+				<element value="delete_yume_tome"/>
+				<element value="edit_yume_tomes"/>
+				<element value="edit_others_yume_tomes"/>
+				<element value="edit_private_yume_tomes"/>
+				<element value="edit_published_yume_tomes"/>
+				<element value="publish_yume_tomes"/>
+				<element value="read_private_yume_tomes"/>
+				<element value="delete_yume_tomes"/>
+				<element value="delete_private_yume_tomes"/>
+				<element value="delete_published_yume_tomes"/>
+				<element value="delete_others_yume_tomes"/>
+				<element value="create_yume_tomes"/>
+				<element value="edit_yume_chapitre"/>
+				<element value="read_yume_chapitre"/>
+				<element value="delete_yume_chapitre"/>
+				<element value="edit_yume_chapitres"/>
+				<element value="edit_others_yume_chapitres"/>
+				<element value="edit_private_yume_chapitres"/>
+				<element value="edit_published_yume_chapitres"/>
+				<element value="publish_yume_chapitres"/>
+				<element value="read_private_yume_chapitres"/>
+				<element value="delete_yume_chapitres"/>
+				<element value="delete_private_yume_chapitres"/>
+				<element value="delete_published_yume_chapitres"/>
+				<element value="delete_others_yume_chapitres"/>
+				<element value="create_yume_chapitres"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		Tests (tests/*.php) : mini-framework maison exécuté par WP-CLI. Sortie console, requêtes
+		directes (transactions), gestionnaires d'erreurs et fonctions d'aide sans bloc de doc complet.
+	-->
+	<rule ref="WordPress.Security.EscapeOutput">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+		<exclude-pattern>tools/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.DB.DirectDatabaseQuery">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.PHP.DevelopmentFunctions">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+		<exclude-pattern>tools/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<!-- Les tests déclenchent les hooks de WordPress (auto_update_plugin, upgrader_pre_install…). -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.MissingParamComment">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.Missing">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment.MissingShort">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+
+	<!--
+		Outils en ligne de commande (tools/) : PHP sans WordPress (convertisseur DOCX, scripts de
+		migration). Lecture de fichiers, sortie standard et arguments CLI sont normaux.
+	-->
+	<rule ref="WordPress.WP.AlternativeFunctions">
+		<exclude-pattern>tools/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.Security.NonceVerification">
+		<exclude-pattern>tools/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.Security.ValidatedSanitizedInput">
+		<exclude-pattern>tools/*</exclude-pattern>
+	</rule>
+</ruleset>

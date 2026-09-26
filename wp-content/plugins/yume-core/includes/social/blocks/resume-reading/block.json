@@ -1,0 +1,25 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/resume-reading",
+	"title": "Reprendre la lecture",
+	"category": "yume",
+	"icon": "controls-play",
+	"description": "Dernière lecture en cours (membre : compte ; visiteur : cet appareil). En « bandeau », seulement le contenu : le thème fournit le bandeau. Rien à reprendre : rien d’affiché.",
+	"keywords": [ "reprendre", "lecture", "marque-page" ],
+	"textdomain": "yume-core",
+	"attributes": {
+		"layout": {
+			"type": "string",
+			"enum": [ "bandeau", "carte" ],
+			"default": "carte",
+			"label": "Disposition"
+		}
+	},
+	"supports": {
+		"html": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

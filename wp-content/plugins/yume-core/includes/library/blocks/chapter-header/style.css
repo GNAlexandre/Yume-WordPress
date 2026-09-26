@@ -1,0 +1,44 @@
+/**
+ * yume/chapter-header — en-tête du chapitre dans .yn-reader : fil d'Ariane centré, titre et
+ * sous-titre (typographie du lecteur, thème), crédits et temps de lecture en surtitre.
+ */
+.yn-chapter-header > * {
+	margin: 0;
+}
+
+.yn-chapter-header__ariane {
+	margin-bottom: 1.4em !important;
+	text-align: center;
+}
+
+.yn-chapter-header__ariane .yn-ariane__liste {
+	justify-content: center;
+}
+
+.yn-chapter-header .yn-ariane a {
+	text-decoration: none;
+}
+
+.yn-chapter-header .yn-ariane a:hover,
+.yn-chapter-header .yn-ariane a:focus-visible {
+	text-decoration: underline;
+}
+
+.yn-chapter-header__titres {
+	margin: 0;
+}
+
+/* Sélecteur renforcé : le lecteur du thème remet text-align à « initial » sur .yn-label. */
+.yn-chapter-header .yn-chapter-header__meta {
+	margin: -0.9em 0 0 !important;
+	text-align: center;
+	text-wrap: balance;
+}
+
+.yn-chapter-header .yn-credits__item {
+	white-space: nowrap;
+}
+
+.yn-chapter-header__sep {
+	margin-inline: 2px;
+}

@@ -1,0 +1,23 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/upcoming",
+	"title": "Prochaines sorties",
+	"category": "yume",
+	"icon": "calendar",
+	"description": "Prochaines sorties compactes (date, œuvre, tome, état). Sans carte propre : à placer dans une carte du thème.",
+	"keywords": [ "planning", "sorties", "calendrier" ],
+	"textdomain": "yume-core",
+	"attributes": {
+		"count": {
+			"type": "number",
+			"default": 3,
+			"label": "Nombre de sorties"
+		}
+	},
+	"supports": {
+		"html": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

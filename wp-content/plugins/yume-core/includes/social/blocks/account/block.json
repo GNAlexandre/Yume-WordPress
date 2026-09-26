@@ -1,0 +1,19 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/account",
+	"title": "Compte lecteur",
+	"category": "yume",
+	"icon": "admin-users",
+	"description": "Page compte : lecture en cours, favoris et alertes, notes et commentaires, réglages de lecture, alertes, profil et sécurité, données et suppression. Déconnecté : connexion, inscription et mot de passe oublié.",
+	"keywords": [ "compte", "connexion", "inscription", "favoris" ],
+	"textdomain": "yume-core",
+	"supports": {
+		"html": false,
+		"multiple": false,
+		"align": [ "wide", "full" ]
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

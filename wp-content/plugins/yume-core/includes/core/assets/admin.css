@@ -1,0 +1,223 @@
+/*
+ * Administration Yume (module core) : méta-boîtes, réglages et tableau de bord.
+ * Styles volontairement sobres, alignés sur l'administration WordPress.
+ */
+
+.yume-boite .yume-champ {
+	margin: 0 0 12px;
+}
+
+.yume-boite .yume-champ > label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.yume-boite .yume-champ--case > label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 24px;
+}
+
+.yume-boite .description {
+	display: block;
+	margin-top: 4px;
+}
+
+.yume-colonnes {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 0 16px;
+}
+
+.yume-groupe {
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	margin: 0 0 16px;
+	padding: 8px 12px 4px;
+}
+
+.yume-groupe > legend {
+	font-weight: 600;
+	padding: 0 4px;
+}
+
+.yume-case,
+.yume-reglages__case {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin: 0 16px 8px 0;
+}
+
+.yume-liens__table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.yume-liens__table th {
+	text-align: left;
+	font-weight: 600;
+	padding: 0 4px 4px 0;
+}
+
+.yume-liens__table td {
+	padding: 0 8px 8px 0;
+	vertical-align: top;
+}
+
+.yume-liens__table td:first-child {
+	width: 35%;
+}
+
+.yume-planning {
+	border-collapse: collapse;
+	margin: 0 0 16px;
+	width: 100%;
+	max-width: 640px;
+}
+
+.yume-planning th,
+.yume-planning td {
+	text-align: left;
+	padding: 4px 12px 4px 0;
+}
+
+.yume-planning select {
+	min-width: 180px;
+}
+
+.yume-infos {
+	color: #50575e;
+	margin: 12px 0 0;
+}
+
+.yume-alerte {
+	border-left: 4px solid #d63638;
+	background: #fcf0f1;
+	padding: 8px 12px;
+}
+
+.yume-etat {
+	color: #50575e;
+	font-size: 12px;
+}
+
+.yume-liste {
+	margin: 0 0 12px 1.4em;
+}
+
+.yume-liste li {
+	margin-bottom: 4px;
+}
+
+.yume-media {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.yume-media__apercu {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	width: 100%;
+}
+
+.yume-media__apercu:empty {
+	display: none;
+}
+
+.yume-media__vignette {
+	width: 80px;
+	height: 80px;
+	object-fit: cover;
+	border-radius: 4px;
+	border: 1px solid #dcdcde;
+}
+
+.yume-media__saisie {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* Avec JavaScript, la saisie d'ID laisse la place aux boutons de la médiathèque. */
+.yume-media.is-enhanced .yume-media__saisie {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.yume-admin__raccourcis .button {
+	margin: 0 6px 6px 0;
+}
+
+.yume-admin__chiffres {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 12px;
+	margin: 16px 0 24px;
+	padding: 0;
+	list-style: none;
+}
+
+.yume-admin__chiffre {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin: 0;
+}
+
+.yume-admin__valeur {
+	display: block;
+	font-size: 28px;
+	font-weight: 600;
+	line-height: 1.2;
+}
+
+.yume-admin__libelle {
+	display: block;
+	font-weight: 600;
+}
+
+.yume-admin__detail {
+	display: block;
+	color: #50575e;
+	margin-top: 2px;
+}
+
+.yume-admin__bloque {
+	display: inline-block;
+	background: #fcf0f1;
+	color: #8a2424;
+	border: 1px solid #d63638;
+	border-radius: 10px;
+	font-size: 11px;
+	line-height: 1.6;
+	padding: 0 6px;
+}
+
+.yume-admin__table {
+	max-width: 960px;
+}
+
+.column-yume_numero,
+.column-yume_nb_chapitres,
+.column-yume_lecture,
+.column-yume_tomes {
+	width: 7em;
+}
+
+.column-yume_etape,
+.column-yume_date_cible,
+.column-yume_derniere_sortie {
+	width: 10em;
+}

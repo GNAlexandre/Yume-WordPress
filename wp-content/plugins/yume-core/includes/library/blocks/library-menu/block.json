@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/library-menu",
+	"title": "Menu Bibliothèque",
+	"category": "yume",
+	"icon": "book",
+	"description": "Menu déroulant « Bibliothèque » de l’en-tête : types et statuts avec le nombre d’œuvres, toutes les œuvres de A à Z, reprise de la lecture. À placer dans le bloc Navigation.",
+	"keywords": [
+		"bibliothèque",
+		"menu",
+		"navigation"
+	],
+	"textdomain": "yume-core",
+	"supports": {
+		"html": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

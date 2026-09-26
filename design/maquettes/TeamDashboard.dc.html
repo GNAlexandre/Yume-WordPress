@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — tableau de bord</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.err{color:#ff8f7e;border-color:#ff8f7e}.info{color:#b7a9cc;border-color:#7f6aa8}
+.slider{position:relative;height:4px;border-radius:2px;background:#4a3b6e}
+.slider i{position:absolute;left:0;top:0;height:100%;background:#f3a6c8;border-radius:2px}
+.slider b{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:#fff8fb;border:2px solid #f3a6c8;transform:translate(-50%,-50%);box-sizing:border-box}
+.muted{color:#b7a9cc}
+.side a{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-radius:4px;color:#ebe3f2;font-weight:500}
+.side a.on{background:#3a2a63;color:#fff8fb;border-left:3px solid #f3a6c8}
+select,input{background:#241740;border:1px solid #7f6aa8;border-radius:4px;color:#ebe3f2;height:36px;padding:0 10px;font-family:inherit;font-size:14px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1040px; box-sizing: border-box; display: flex; background: #1b1231">
+
+<aside class="side" style="width: 240px; background: #241740; border-right: 1px solid #4a3b6e; padding: 20px 12px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-sizing: border-box">
+  <a href="Main.dc.html" style="height: 48px; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px; margin-bottom: 12px"><span style="width: 24px; height: 24px; border-radius: 50%; background: #f3a6c8; display: inline-block"></span>Yume · Équipe</a>
+  <a href="TeamDashboard.dc.html" class="on">Tableau de bord</a>
+  <a href="TeamDashboard.dc.html">Mes tâches <span class="chip warn" style="margin-left: auto; height: 20px">1</span></a>
+  <a href="TeamPublier.dc.html">Publier un tome</a>
+  <a href="Planning.dc.html">Planning complet</a>
+  <a href="TeamDashboard.dc.html">Journal</a>
+  <a href="TeamDashboard.dc.html">Membres et rôles</a>
+  <a href="TeamDashboard.dc.html">Réglages (rappels, Discord)</a>
+  <div style="margin-top: auto; padding: 12px 14px; border-top: 1px solid #4a3b6e; display: flex; gap: 10px; align-items: center"><span style="width: 32px; height: 32px; border-radius: 50%; background: #3a2a63"></span><div style="line-height: 1.2"><div style="color: #fff8fb; font-weight: 600">Angeloids</div><span class="lbl">Gérant</span></div></div>
+</aside>
+
+<main style="flex-grow: 1; padding: 32px 40px; display: flex; flex-direction: column; gap: 24px; overflow: hidden">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end">
+    <div><span class="lbl">Jeudi 24 septembre 2026</span><h1 style="font-size: 32px">Bonjour Angeloids</h1></div>
+    <div style="display: flex; gap: 10px"><a href="Planning.dc.html" class="btn">Voir le planning public</a><a href="TeamPublier.dc.html" class="btn pri">+ Publier un tome</a></div>
+  </div>
+
+  <section style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+    <div class="card" style="padding: 16px 20px"><span class="lbl">Mes tâches en cours</span><div style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 28px; color: #fff8fb">3</div><span class="muted">2 relectures · 1 édition</span></div>
+    <div class="card" style="padding: 16px 20px; border-color: #f4c069"><span class="lbl" style="color: #f4c069">Mes retards</span><div style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 28px; color: #f4c069">1</div><span class="muted">SukaMoka T.2 · cible dépassée de 3 j</span></div>
+    <div class="card" style="padding: 16px 20px"><span class="lbl">Prochaine sortie équipe</span><div style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 28px; color: #fff8fb">sam. 26</div><span class="muted">Silent Witch Arc 7 ch. 9</span></div>
+    <div class="card" style="padding: 16px 20px"><span class="lbl">Rappels ce mois</span><div style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 28px; color: #fff8fb">4</div><span class="muted">e-mail + Discord · digest lundi 9 h</span></div>
+  </section>
+
+  <section style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 24px">
+    <div style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="font-size: 20px">Mes tâches</h2>
+
+      <div class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; justify-content: space-between; align-items: center"><div><div style="font-weight: 600; color: #fff8fb; font-size: 16px">Grimgar of Fantasy and Ash · Tome 10</div><span class="muted" style="font-size: 13px">Relecture · cible dim. 27 sept. · traduction terminée par Calumi</span></div><span class="chip ok">● À l'heure</span></div>
+        <div style="display: grid; grid-template-columns: 1fr 180px 140px auto; gap: 16px; align-items: center">
+          <div style="display: flex; flex-direction: column; gap: 8px"><div style="display: flex; justify-content: space-between; font-size: 13px"><span>Avancement</span><b style="color: #fff8fb">62 %</b></div><div class="slider"><i style="width: 62%"></i><b style="left: 62%"></b></div></div>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px"><span class="lbl">Étape</span><select><option>Relecture</option><option>Édition</option><option>Publié</option></select></label>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px"><span class="lbl">Date cible</span><input type="date" value="2026-09-27"></label>
+          <button type="button" class="btn pri" style="align-self: flex-end">Enregistrer</button>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px"><span class="lbl">Note pour l'équipe (facultatif)</span><input type="text" placeholder="Ex. : chapitres 1 à 12 relus, reste la postface"></label>
+      </div>
+
+      <div class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; border-color: #f4c069">
+        <div style="display: flex; justify-content: space-between; align-items: center"><div><div style="font-weight: 600; color: #fff8fb; font-size: 16px">SukaMoka · Tome 2</div><span class="muted" style="font-size: 13px">Relecture · cible 21 sept. dépassée · rappel envoyé hier</span></div><span class="chip warn">▲ En retard de 3 j</span></div>
+        <div style="display: grid; grid-template-columns: 1fr 180px 140px auto; gap: 16px; align-items: center">
+          <div style="display: flex; flex-direction: column; gap: 8px"><div style="display: flex; justify-content: space-between; font-size: 13px"><span>Avancement</span><b style="color: #fff8fb">80 %</b></div><div class="slider"><i style="width: 80%; background: #f4c069"></i><b style="left: 80%; border-color: #f4c069"></b></div></div>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px"><span class="lbl">Étape</span><select><option>Relecture</option></select></label>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px"><span class="lbl">Nouvelle date</span><input type="date" value="2026-10-03"></label>
+          <button type="button" class="btn pri" style="align-self: flex-end">Enregistrer</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 18px 20px; display: flex; justify-content: space-between; align-items: center">
+        <div><div style="font-weight: 600; color: #fff8fb; font-size: 16px">Raven of the Inner Palace · Tome 7</div><span class="muted" style="font-size: 13px">Édition · en attente de la relecture (Cerale, 48 %)</span></div><span class="chip info">En attente</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="font-size: 20px">Rappels et journal</h2>
+      <div class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+        <span class="lbl">Rappels automatiques</span>
+        <div style="display: flex; gap: 10px"><span class="chip warn">▲</span><div style="font-size: 14px"><b style="color: #fff8fb">Mael7523m</b> · Silent Witch Arc 7 ch. 9 · aucune mise à jour depuis 9 j<div class="muted" style="font-size: 12px">envoyé le 23 sept. 09:00 · e-mail + Discord</div></div></div>
+        <div style="display: flex; gap: 10px"><span class="chip warn">▲</span><div style="font-size: 14px"><b style="color: #fff8fb">Angeloids</b> · SukaMoka T.2 · date cible dépassée<div class="muted" style="font-size: 12px">envoyé le 22 sept. 09:00 · e-mail</div></div></div>
+        <div style="display: flex; gap: 10px"><span class="chip err">■</span><div style="font-size: 14px"><b style="color: #fff8fb">Gérants</b> · Witches Can't Be Collared T.2 · aucun relecteur assigné<div class="muted" style="font-size: 12px">digest du lundi 21 sept.</div></div></div>
+        <a href="TeamDashboard.dc.html" style="font-size: 13px">Régler les délais et canaux →</a>
+      </div>
+      <div class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+        <span class="lbl">Journal de l'équipe</span>
+        <div><span class="muted">14:12</span> · Angeloids · Grimgar T.10 relecture 62 %</div>
+        <div><span class="muted">hier</span> · Mael7523m · Silent Witch Arc 7 ch. 8 <span class="chip ok">Publié</span></div>
+        <div><span class="muted">hier</span> · Cerale · Raven T.7 traduction 48 %</div>
+        <div><span class="muted">20 sept.</span> · Calumi · Grimgar T.9 <span class="chip ok">Publié</span> · 19 chapitres importés</div>
+        <div><span class="muted">19 sept.</span> · JojoGg · couverture Grimgar T.10 déposée</div>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

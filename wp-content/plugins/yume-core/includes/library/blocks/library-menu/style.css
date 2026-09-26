@@ -1,0 +1,162 @@
+/**
+ * yume/library-menu — structure du menu « Bibliothèque ».
+ * Bureau (≥ 1360 px) : panneau déroulant sous le bouton ; menu mobile (fenêtre de navigation
+ * du thème) et sans JavaScript : panneau en ligne. Couleurs : variables du thème (§15).
+ */
+.yn-library-menu {
+	position: relative;
+}
+
+.yn-library-menu > summary {
+	cursor: pointer;
+	list-style: none;
+}
+
+.yn-library-menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.yn-library-menu .yn-icone--chevron {
+	transition: transform 0.15s ease;
+}
+
+.yn-library-menu[open] > summary .yn-icone--chevron {
+	transform: rotate(180deg);
+}
+
+.yn-library-menu__panneau {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 14px;
+	color: var(--wp--preset--color--texte);
+	font-size: 15px;
+	line-height: 1.4;
+	white-space: normal;
+}
+
+.yn-library-menu__panneau > * {
+	margin: 0;
+}
+
+.yn-library-menu__titre {
+	padding: 0 14px 6px;
+}
+
+.yn-library-menu__vide {
+	padding: 4px 14px;
+}
+
+.yn-library-menu__colonnes {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px 18px;
+}
+
+.yn-library-menu .yn-library-menu__liste {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-library-menu .yn-library-menu__item {
+	margin: 0;
+}
+
+.yn-library-menu .yn-library-menu__lien {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	border-radius: var(--yn-radius);
+	color: var(--wp--preset--color--texte);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.yn-library-menu .yn-library-menu__lien:hover,
+.yn-library-menu .yn-library-menu__lien:focus-visible {
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+	text-decoration: none;
+}
+
+.yn-library-menu__nombre {
+	color: var(--wp--preset--color--texte-faible);
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+}
+
+.yn-library-menu__pied {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px 16px;
+	margin-top: 6px !important;
+	padding: 8px 14px 0;
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-library-menu .yn-library-menu__pied a {
+	padding: 6px 0;
+	color: var(--wp--preset--color--accent);
+	font-weight: 600;
+}
+
+/* Bureau : panneau déroulant, comme les sous-menus du thème. */
+@media (min-width: 1360px) {
+	.yn-library-menu__panneau {
+		position: absolute;
+		top: calc(100% + 8px);
+		left: 0;
+		z-index: 60;
+		width: 560px;
+		max-width: calc(100vw - 32px);
+		border: 1px solid var(--wp--preset--color--filet);
+		border-radius: var(--yn-radius-card);
+		background: var(--wp--preset--color--bande);
+		box-shadow: 0 12px 32px rgba(10, 4, 24, 0.35);
+	}
+}
+
+/* Menu mobile (fenêtre de navigation) et navigation sans JavaScript : panneau en ligne. */
+@media (max-width: 1359.98px) {
+	.yn-library-menu {
+		width: 100%;
+	}
+
+	.yn-library-menu > summary {
+		justify-content: space-between;
+	}
+
+	.yn-library-menu__panneau {
+		margin: 4px 0 8px;
+		padding: 4px 0 4px 16px;
+		border-left: 1px solid var(--wp--preset--color--filet);
+	}
+
+	.yn-library-menu__titre {
+		display: none;
+	}
+
+	.yn-library-menu .yn-library-menu__lien {
+		padding: 10px 14px;
+	}
+}
+
+@media (max-width: 599.98px) {
+	.yn-library-menu__colonnes {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-library-menu__liste + .yn-library-menu__liste {
+		padding-top: 6px;
+		border-top: 1px solid var(--wp--preset--color--filet);
+	}
+}

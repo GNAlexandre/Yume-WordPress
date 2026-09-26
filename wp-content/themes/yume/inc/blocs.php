@@ -1,0 +1,317 @@
+<?php
+/**
+ * Blocs : bloc « Bascule de thème » du thème, intégration des blocs de l'extension
+ * dans la navigation, rendus de repli et petites retouches de rendu des blocs natifs.
+ *
+ * @package Yume
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Enregistre le bloc yume/theme-toggle (bouton Nuit ↔ Papier de l'en-tête).
+ */
+function yume_theme_enregistrer_blocs(): void {
+	if ( WP_Block_Type_Registry::get_instance()->is_registered( 'yume/theme-toggle' ) ) {
+		return;
+	}
+	register_block_type( YUME_THEME_DIR . '/blocks/theme-toggle' );
+}
+add_action( 'init', 'yume_theme_enregistrer_blocs' );
+
+/**
+ * Blocs qui, placés dans un bloc Navigation, doivent être enveloppés dans un <li>
+ * comme un lien de menu.
+ *
+ * @param string[] $blocs Noms des blocs concernés.
+ * @return string[]
+ */
+function yume_theme_blocs_de_navigation( $blocs ) {
+	$blocs = is_array( $blocs ) ? $blocs : array();
+	return array_values( array_unique( array_merge( $blocs, array( 'yume/library-menu', 'yume/auth-links', 'yume/theme-toggle' ) ) ) );
+}
+add_filter( 'block_core_navigation_listable_blocks', 'yume_theme_blocs_de_navigation' );
+
+/**
+ * Rendus de repli des blocs d'en-tête de l'extension quand celle-ci est désactivée :
+ * l'en-tête garde un lien vers la bibliothèque et un accès à la connexion.
+ *
+ * @param string $contenu Rendu du bloc (vide pour un bloc non enregistré).
+ * @param array  $bloc    Bloc analysé.
+ * @return string
+ */
+function yume_theme_repli_blocs_extension( $contenu, $bloc ) {
+	$nom = is_array( $bloc ) ? (string) ( $bloc['blockName'] ?? '' ) : '';
+	if ( ! in_array( $nom, array( 'yume/library-menu', 'yume/auth-links' ), true ) ) {
+		return $contenu;
+	}
+	if ( '' !== trim( (string) $contenu ) || WP_Block_Type_Registry::get_instance()->is_registered( $nom ) ) {
+		return $contenu;
+	}
+
+	if ( 'yume/library-menu' === $nom ) {
+		return sprintf(
+			'<a class="yn-library-menu yn-library-menu--repli wp-block-navigation-item__content" href="%1$s"><span class="wp-block-navigation-item__label">%2$s</span></a>',
+			esc_url( yume_theme_lien( 'bibliotheque' ) ),
+			esc_html__( 'Bibliothèque', 'yume' )
+		);
+	}
+
+	if ( is_user_logged_in() ) {
+		return sprintf(
+			'<div class="yn-auth yn-auth--repli"><a class="yn-btn yn-btn--primary yn-btn--sm" href="%1$s">%2$s</a></div>',
+			esc_url( get_edit_profile_url() ),
+			esc_html__( 'Mon compte', 'yume' )
+		);
+	}
+
+	$liens = sprintf(
+		'<a class="yn-btn yn-btn--primary yn-btn--sm" href="%1$s">%2$s</a>',
+		esc_url( wp_login_url( yume_theme_url_courante() ) ),
+		esc_html__( 'Connexion', 'yume' )
+	);
+	if ( get_option( 'users_can_register' ) ) {
+		$liens .= sprintf(
+			'<a class="yn-btn yn-btn--sm" href="%1$s">%2$s</a>',
+			esc_url( wp_registration_url() ),
+			esc_html__( 'Inscription', 'yume' )
+		);
+	}
+	return '<div class="yn-auth yn-auth--repli">' . $liens . '</div>';
+}
+add_filter( 'render_block', 'yume_theme_repli_blocs_extension', 9, 2 );
+
+/**
+ * Adresse de la page courante (pour revenir après la connexion).
+ *
+ * @return string
+ */
+function yume_theme_url_courante(): string {
+	global $wp;
+	$requete = ( $wp instanceof WP && is_string( $wp->request ) ) ? trim( $wp->request, '/' ) : '';
+	return '' === $requete ? home_url( '/' ) : home_url( user_trailingslashit( $requete ) );
+}
+
+/**
+ * Image mise en avant absente : les blocs « Image mise en avant » portant la classe
+ * yn-cover (couverture 2:3) ou yn-vignette (actualité 16:9) affichent un dégradé de
+ * substitution plutôt que de disparaître, pour garder une grille régulière.
+ *
+ * @param string   $contenu  Rendu du bloc.
+ * @param array    $bloc     Bloc analysé.
+ * @param WP_Block $instance Instance du bloc (contexte postId).
+ * @return string
+ */
+function yume_theme_image_de_substitution( $contenu, $bloc, $instance = null ) {
+	if ( '' !== trim( (string) $contenu ) ) {
+		return $contenu;
+	}
+	$classes = (string) ( $bloc['attrs']['className'] ?? '' );
+	$cover   = str_contains( $classes, 'yn-cover' );
+	$vignet  = str_contains( $classes, 'yn-vignette' );
+	if ( ! $cover && ! $vignet ) {
+		return $contenu;
+	}
+	$post_id = ( $instance instanceof WP_Block && isset( $instance->context['postId'] ) ) ? (int) $instance->context['postId'] : (int) get_the_ID();
+	if ( $post_id <= 0 ) {
+		return $contenu;
+	}
+	$texte = $cover ? get_the_title( $post_id ) : get_bloginfo( 'name' );
+	return sprintf(
+		'<figure class="wp-block-post-featured-image %1$s yn-substitution" aria-hidden="true"><span class="yn-substitution__texte">%2$s</span></figure>',
+		esc_attr( trim( $classes ) ),
+		esc_html( wp_strip_all_tags( (string) $texte ) )
+	);
+}
+add_filter( 'render_block_core/post-featured-image', 'yume_theme_image_de_substitution', 10, 3 );
+
+/**
+ * Image en tête d'article ou de page (classe yn-article__image) au format portrait, le plus
+ * souvent la couverture d'un tome : classe yn-article__image--portrait, pour l'afficher entière
+ * (centrée, hauteur limitée) au lieu d'en garder une bande recadrée en largeur.
+ *
+ * @param string   $contenu  Rendu du bloc.
+ * @param array    $bloc     Bloc analysé.
+ * @param WP_Block $instance Instance du bloc (contexte postId).
+ * @return string
+ */
+function yume_theme_image_portrait( $contenu, $bloc, $instance = null ) {
+	if ( '' === trim( (string) $contenu ) || ! str_contains( (string) ( $bloc['attrs']['className'] ?? '' ), 'yn-article__image' ) ) {
+		return $contenu;
+	}
+	$post_id  = ( $instance instanceof WP_Block && isset( $instance->context['postId'] ) ) ? (int) $instance->context['postId'] : (int) get_the_ID();
+	$image_id = $post_id > 0 ? (int) get_post_thumbnail_id( $post_id ) : 0;
+	$meta     = $image_id ? wp_get_attachment_metadata( $image_id ) : false;
+	if ( ! is_array( $meta ) || empty( $meta['width'] ) || empty( $meta['height'] ) || (int) $meta['height'] <= (int) $meta['width'] ) {
+		return $contenu;
+	}
+	$processeur = new WP_HTML_Tag_Processor( (string) $contenu );
+	if ( $processeur->next_tag( 'figure' ) ) {
+		$processeur->add_class( 'yn-article__image--portrait' );
+	}
+	return $processeur->get_updated_html();
+}
+add_filter( 'render_block_core/post-featured-image', 'yume_theme_image_portrait', 10, 3 );
+
+/**
+ * Titre des résultats de recherche en français, quelle que soit la langue installée :
+ * « Résultats pour « terme » ».
+ *
+ * @param string $contenu Rendu du bloc Titre de requête.
+ * @param array  $bloc    Bloc analysé.
+ * @return string
+ */
+function yume_theme_titre_recherche( $contenu, $bloc ) {
+	if ( 'search' !== ( $bloc['attrs']['type'] ?? '' ) || ! is_search() ) {
+		return $contenu;
+	}
+	$niveau = (int) ( $bloc['attrs']['level'] ?? 1 );
+	$niveau = ( $niveau >= 1 && $niveau <= 6 ) ? $niveau : 1;
+	$terme  = get_search_query( false );
+	$titre  = '' === $terme
+		? esc_html__( 'Recherche', 'yume' )
+		/* translators: %s : termes recherchés. */
+		: sprintf( esc_html__( 'Résultats pour « %s »', 'yume' ), esc_html( $terme ) );
+
+	$balises = new WP_HTML_Tag_Processor( (string) $contenu );
+	$classes = 'wp-block-query-title';
+	if ( $balises->next_tag() ) {
+		$classes = (string) $balises->get_attribute( 'class' );
+	}
+	return sprintf( '<h%1$d class="%2$s">%3$s</h%1$d>', $niveau, esc_attr( $classes ), $titre );
+}
+add_filter( 'render_block_core/query-title', 'yume_theme_titre_recherche', 10, 2 );
+
+/**
+ * Le conteneur du lecteur (groupe .yn-reader) est déclaré en français : la césure
+ * automatique (hyphens: auto) et la justification suivent alors les règles du français,
+ * même si la langue de l'interface WordPress est différente.
+ *
+ * @param string $contenu Rendu du groupe.
+ * @param array  $bloc    Bloc analysé.
+ * @return string
+ */
+function yume_theme_langue_lecteur( $contenu, $bloc ) {
+	$classes = (string) ( $bloc['attrs']['className'] ?? '' );
+	if ( ! is_string( $contenu ) || '' === $contenu || ! preg_match( '/(?:^|\s)yn-reader(?:\s|$)/', $classes ) ) {
+		return $contenu;
+	}
+	$balises = new WP_HTML_Tag_Processor( $contenu );
+	if ( $balises->next_tag() && null === $balises->get_attribute( 'lang' ) ) {
+		$balises->set_attribute( 'lang', 'fr' );
+		return $balises->get_updated_html();
+	}
+	return $contenu;
+}
+add_filter( 'render_block_core/group', 'yume_theme_langue_lecteur', 10, 2 );
+
+/**
+ * Libellé du type de contenu d'un résultat de recherche (paragraphe portant la classe
+ * yn-type-contenu dans une boucle de requête) : « Actualité », « Œuvre », « Tome »…
+ *
+ * @param string $contenu Rendu du paragraphe.
+ * @param array  $bloc    Bloc analysé.
+ * @return string
+ */
+function yume_theme_type_de_contenu( $contenu, $bloc ) {
+	$classes = (string) ( $bloc['attrs']['className'] ?? '' );
+	if ( ! is_string( $contenu ) || ! str_contains( $classes, 'yn-type-contenu' ) ) {
+		return $contenu;
+	}
+	$type = get_post_type();
+	if ( ! $type ) {
+		return '';
+	}
+	$libelles = array(
+		'post'          => __( 'Actualité', 'yume' ),
+		'page'          => __( 'Page', 'yume' ),
+		'yume_oeuvre'   => __( 'Œuvre', 'yume' ),
+		'yume_tome'     => __( 'Tome', 'yume' ),
+		'yume_chapitre' => __( 'Chapitre', 'yume' ),
+	);
+	$objet    = get_post_type_object( $type );
+	$libelle  = $libelles[ $type ] ?? ( $objet ? $objet->labels->singular_name : '' );
+	if ( '' === $libelle ) {
+		return '';
+	}
+	$balises = new WP_HTML_Tag_Processor( $contenu );
+	$classe  = 'yn-label yn-type-contenu';
+	if ( $balises->next_tag( 'p' ) ) {
+		$classe = (string) $balises->get_attribute( 'class' );
+	}
+	return sprintf( '<p class="%1$s">%2$s</p>', esc_attr( $classe ), esc_html( $libelle ) );
+}
+add_filter( 'render_block_core/paragraph', 'yume_theme_type_de_contenu', 10, 2 );
+
+/**
+ * Luminance relative (WCAG 2.x) d'une couleur CSS écrite en #rgb, #rrggbb (#rrggbbaa) ou
+ * rgb()/rgba() ; null pour toute autre écriture (variable, dégradé, nom de couleur…).
+ *
+ * @param string $couleur Couleur.
+ * @return float|null
+ */
+function yume_theme_luminance( $couleur ) {
+	$couleur = strtolower( trim( (string) $couleur ) );
+	$rvb     = null;
+	if ( preg_match( '/^#([0-9a-f]{3,4})$/', $couleur, $m ) ) {
+		$rvb = array_map( static fn( $c ) => hexdec( $c . $c ), str_split( substr( $m[1], 0, 3 ) ) );
+	} elseif ( preg_match( '/^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/', $couleur, $m ) ) {
+		$rvb = array_map( 'hexdec', str_split( $m[1], 2 ) );
+	} elseif ( preg_match( '/^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/', $couleur, $m ) ) {
+		$rvb = array( (int) $m[1], (int) $m[2], (int) $m[3] );
+	}
+	if ( null === $rvb ) {
+		return null;
+	}
+	$lineaire = array_map(
+		static function ( $c ) {
+			$c = min( 255, max( 0, (int) $c ) ) / 255;
+			return $c <= 0.04045 ? $c / 12.92 : ( ( $c + 0.055 ) / 1.055 ) ** 2.4;
+		},
+		$rvb
+	);
+	return 0.2126 * $lineaire[0] + 0.7152 * $lineaire[1] + 0.0722 * $lineaire[2];
+}
+
+/**
+ * Blocs à fond personnalisé sans couleur de texte (contenus migrés de l'ancien site, clair :
+ * groupes « style="background-color:#efe7fb" ») : ils héritaient de l'encre du thème actif,
+ * claire en Nuit (texte invisible sur fond clair). Le bloc reçoit yn-fond-clair ou
+ * yn-fond-sombre selon l'encre la plus lisible sur son fond ; yume.css y applique la palette
+ * Papier (fond clair sous le thème Nuit) ou Nuit (fond sombre sous Papier et Sépia).
+ *
+ * @param string $contenu Rendu du bloc.
+ * @param array  $bloc    Bloc analysé.
+ * @return string
+ */
+function yume_theme_encre_fond_personnalise( $contenu, $bloc ) {
+	if ( ! is_string( $contenu ) || '' === $contenu || ! is_array( $bloc ) ) {
+		return $contenu;
+	}
+	$nom = (string) ( $bloc['blockName'] ?? '' );
+	// Couverture (voile et texte clair propres) et boutons (couleurs d'élément du thème) exclus.
+	if ( '' === $nom || in_array( $nom, array( 'core/cover', 'core/button', 'core/buttons' ), true ) ) {
+		return $contenu;
+	}
+	$attrs = is_array( $bloc['attrs'] ?? null ) ? $bloc['attrs'] : array();
+	$fond  = $attrs['style']['color']['background'] ?? '';
+	if ( ! is_string( $fond ) || '' === $fond || ! empty( $attrs['textColor'] ) || ! empty( $attrs['style']['color']['text'] ) ) {
+		return $contenu;
+	}
+	$luminance = yume_theme_luminance( $fond );
+	if ( null === $luminance ) {
+		return $contenu;
+	}
+	// Encre la plus contrastée : sombre (#2a1240, Papier) ou claire (#fff8fb, Nuit).
+	$sombre = yume_theme_luminance( '#2a1240' );
+	$claire = yume_theme_luminance( '#fff8fb' );
+	$classe = ( $luminance + 0.05 ) / ( $sombre + 0.05 ) >= ( $claire + 0.05 ) / ( $luminance + 0.05 ) ? 'yn-fond-clair' : 'yn-fond-sombre';
+
+	$balises = new WP_HTML_Tag_Processor( $contenu );
+	if ( ! $balises->next_tag() ) {
+		return $contenu;
+	}
+	$balises->add_class( $classe );
+	return $balises->get_updated_html();
+}
+add_filter( 'render_block', 'yume_theme_encre_fond_personnalise', 10, 2 );

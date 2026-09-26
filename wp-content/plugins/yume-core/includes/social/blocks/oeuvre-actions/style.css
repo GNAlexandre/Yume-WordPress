@@ -1,0 +1,281 @@
+/**
+ * Bloc yume/oeuvre-actions — structure (couleurs : variables du thème, contrat §15).
+ */
+
+.yn-oeuvre-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-block: 6px 0;
+	font-family: var(--wp--preset--font-family--corps);
+	scroll-margin-top: 24px;
+}
+
+.yn-oeuvre-actions__ligne {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+/* Les quatre actions tiennent sur une ligne à côté de la carte planning (maquette Oeuvre). */
+.yn-oeuvre-actions__ligne .yn-btn {
+	padding-inline: 14px;
+}
+
+.yn-oeuvre-actions__ligne > * {
+	margin: 0;
+}
+
+/* Posé dans un contenu de page, les liens-boutons ne sont pas soulignés. */
+.yn-oeuvre-actions a.yn-btn {
+	text-decoration: none;
+}
+
+.yn-oeuvre-actions__ligne [hidden] {
+	display: none !important;
+}
+
+.yn-oeuvre-actions__form {
+	display: inline-flex;
+	margin: 0;
+}
+
+.yn-oeuvre-actions .yn-icone {
+	display: block;
+	flex-shrink: 0;
+}
+
+.yn-oeuvre-actions .yn-btn[aria-busy="true"] {
+	opacity: 0.7;
+	cursor: progress;
+}
+
+/* Favori : cœur plein et bord accentué quand l'œuvre est suivie. */
+.yn-oeuvre-actions__favori[aria-pressed="true"] {
+	border-color: var(--wp--preset--color--accent);
+}
+
+.yn-oeuvre-actions__favori[aria-pressed="true"] .yn-oeuvre-actions__coeur {
+	color: var(--wp--preset--color--accent);
+	fill: currentColor;
+}
+
+.yn-oeuvre-actions__etoile {
+	color: var(--wp--preset--color--accent-2);
+}
+
+.yn-oeuvre-actions .yn-oeuvre-actions__moyenne {
+	cursor: default;
+}
+
+.yn-oeuvre-actions .yn-oeuvre-actions__moyenne:hover {
+	background: transparent;
+}
+
+/* Menus déroulants (note, alerte) : <details> natif, utilisable sans JavaScript. */
+.yn-oeuvre-actions__menu {
+	position: relative;
+}
+
+.yn-oeuvre-actions__menu > summary {
+	list-style: none;
+}
+
+.yn-oeuvre-actions__menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.yn-oeuvre-actions__menu > summary::after {
+	content: "";
+	width: 0;
+	height: 0;
+	margin-inline-start: 2px;
+	border-top: 5px solid currentColor;
+	border-right: 4px solid transparent;
+	border-left: 4px solid transparent;
+}
+
+.yn-oeuvre-actions__menu[open] > summary {
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-oeuvre-actions__panneau {
+	position: absolute;
+	top: calc(100% + 8px);
+	left: 0;
+	z-index: 30;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	box-sizing: border-box;
+	width: max-content;
+	min-width: 260px;
+	max-width: min(360px, calc(100vw - 32px));
+	padding: 16px;
+	font-size: 14px;
+}
+
+.yn-oeuvre-actions__panneau form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin: 0;
+}
+
+.yn-oeuvre-actions__panneau [hidden] {
+	display: none !important;
+}
+
+.yn-oeuvre-actions__aide {
+	margin: 0;
+}
+
+.yn-oeuvre-actions__boutons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* Étoiles : groupe de boutons radio. */
+.yn-etoiles {
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yn-etoiles legend,
+.yn-oeuvre-actions__frequences legend {
+	margin: 0 0 8px;
+	padding: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.yn-etoiles__choix {
+	display: flex;
+	gap: 2px;
+}
+
+.yn-etoiles .yn-etoiles__etoile {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--yn-radius, 6px);
+	color: var(--wp--preset--color--bordure);
+	font-size: 28px;
+	font-weight: 400;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.yn-etoiles__etoile > input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.yn-etoiles .yn-etoiles__etoile.est-pleine {
+	color: var(--wp--preset--color--accent-2);
+}
+
+.yn-etoiles__choix:hover .yn-etoiles__etoile {
+	color: var(--wp--preset--color--bordure);
+}
+
+.yn-etoiles__choix .yn-etoiles__etoile:hover,
+.yn-etoiles__choix .yn-etoiles__etoile:has(~ .yn-etoiles__etoile:hover) {
+	color: var(--wp--preset--color--accent-2);
+}
+
+.yn-etoiles__etoile:focus-within {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 1px;
+}
+
+/* Fréquences d'alerte. */
+.yn-oeuvre-actions__frequences {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yn-oeuvre-actions .yn-oeuvre-actions__frequence {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	color: var(--wp--preset--color--texte);
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+.yn-oeuvre-actions__frequence input {
+	flex-shrink: 0;
+	margin: 1px 0 0;
+}
+
+.yn-oeuvre-actions__frequence strong {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-oeuvre-actions__invitation {
+	margin: 0;
+	font-size: 14px;
+}
+
+.yn-oeuvre-actions.est-dynamique .yn-sans-js {
+	display: none !important;
+}
+
+/* Messages après un formulaire (sans JavaScript). */
+.yn-oeuvre-actions .yn-avis {
+	margin: 0;
+	padding: 10px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-inline-start: 3px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--carte);
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 14px;
+}
+
+.yn-oeuvre-actions .yn-avis--succes {
+	border-inline-start-color: var(--wp--preset--color--succes);
+}
+
+.yn-oeuvre-actions .yn-avis--erreur {
+	border-inline-start-color: var(--wp--preset--color--erreur);
+}
+
+@media (max-width: 599.98px) {
+	.yn-oeuvre-actions__lire {
+		flex: 1 1 100%;
+	}
+
+	.yn-oeuvre-actions__panneau {
+		position: static;
+		width: auto;
+		min-width: 0;
+		max-width: none;
+		margin-top: 8px;
+	}
+
+	.yn-oeuvre-actions__menu[open] {
+		flex: 1 1 100%;
+	}
+}

@@ -1,0 +1,24 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/planning",
+	"title": "Planning des traductions",
+	"category": "yume",
+	"icon": "calendar-alt",
+	"description": "Planning public : chiffres clés, filtres, avancement de chaque tome, légende et journal récent des mises à jour.",
+	"keywords": [ "planning", "avancement", "traduction" ],
+	"textdomain": "yume-core",
+	"attributes": {
+		"showFilters": {
+			"type": "boolean",
+			"default": true,
+			"label": "Afficher les filtres"
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

@@ -1,0 +1,9 @@
+{
+	"name": "yume-ci-rendu",
+	"private": true,
+	"description": "Contrôle de rendu de la CI (tools/ci/rendu.js) : Playwright seulement.",
+	"license": "GPL-2.0-or-later",
+	"devDependencies": {
+		"playwright": "1.56.1"
+	}
+}

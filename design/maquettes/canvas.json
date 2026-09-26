@@ -1,0 +1,137 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1540,
+      "title": "Accueil"
+    },
+    "Oeuvre.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1760,
+      "title": "Fiche œuvre"
+    },
+    "Lecteur.dc.html": {
+      "x": 0,
+      "y": 2320,
+      "w": 1440,
+      "h": 1040,
+      "title": "Lecteur + paramètres"
+    },
+    "LecteurMobile.dc.html": {
+      "x": 1520,
+      "y": 2320,
+      "w": 390,
+      "h": 844,
+      "title": "Lecteur mobile"
+    },
+    "Planning.dc.html": {
+      "x": 0,
+      "y": 3480,
+      "w": 1440,
+      "h": 1180,
+      "title": "Planning public"
+    },
+    "Compte.dc.html": {
+      "x": 1520,
+      "y": 3480,
+      "w": 1440,
+      "h": 980,
+      "title": "Compte lecteur"
+    },
+    "TeamDashboard.dc.html": {
+      "x": 0,
+      "y": 4780,
+      "w": 1440,
+      "h": 1040,
+      "title": "Équipe · tableau de bord"
+    },
+    "TeamPublier.dc.html": {
+      "x": 1520,
+      "y": 4780,
+      "w": 1440,
+      "h": 1200,
+      "title": "Équipe · publier un tome"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-09-24T19:05:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "r1": {
+      "x": 0,
+      "y": -260,
+      "text": "Visiteurs — accueil et fiche œuvre",
+      "kind": "title1",
+      "maxW": 2960,
+      "w": 240
+    },
+    "r2": {
+      "x": 0,
+      "y": 2060,
+      "text": "Lecture en ligne — lecteur bureau et mobile (paramètres)",
+      "kind": "title1",
+      "maxW": 2960,
+      "w": 240
+    },
+    "r3": {
+      "x": 0,
+      "y": 3220,
+      "text": "Planning public et compte lecteur",
+      "kind": "title1",
+      "maxW": 2960,
+      "w": 240
+    },
+    "r4": {
+      "x": 0,
+      "y": 4520,
+      "text": "Espace équipe — tableau de bord et publication en un formulaire",
+      "kind": "title1",
+      "maxW": 2960,
+      "w": 240
+    },
+    "s1": {
+      "x": 3040,
+      "y": 0,
+      "w": 360,
+      "text": "Direction « Crépuscule sakura » reprise du logo et de la bannière Yume : nuit violette #1b1231, cartes #2d1f4f, accent rose sakura #f3a6c8, touche pêche #f7c59f ; titres Outfit (proche des sommaires des tomes), corps Nunito Sans, lecture Literata. Couvertures : aplats de substitution, remplacés par les vraies couvertures.",
+      "fill": "pink"
+    },
+    "s2": {
+      "x": 1990,
+      "y": 2200,
+      "w": 360,
+      "text": "Le panneau mobile reprend la capture fournie (Taille, Interligne, Opacité du fond, Police, Valider, Réinitialiser) aux couleurs Yume : sélection rose sakura sur texte nuit au lieu du bleu vif.",
+      "fill": "pink"
+    },
+    "s3": {
+      "x": 3040,
+      "y": 560,
+      "w": 360,
+      "text": "Accueil allégé (retours Mael7523m) : bibliothèque en menu déroulant (montré ouvert), bandeau = bannière actuelle du site (ici l'image « Un nouvel élan » en attendant), dernières sorties en couvertures, prochaines sorties + actualités en deux cartes compactes, reprise de lecture. Plus de grille de toutes les œuvres sur l'accueil.",
+      "fill": "pink"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Oeuvre.dc.html",
+    "Lecteur.dc.html",
+    "LecteurMobile.dc.html",
+    "Planning.dc.html",
+    "Compte.dc.html",
+    "TeamDashboard.dc.html",
+    "TeamPublier.dc.html"
+  ],
+  "pages": [],
+  "title": "Yume Novel v2"
+}

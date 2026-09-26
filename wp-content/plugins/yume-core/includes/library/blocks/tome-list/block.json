@@ -1,0 +1,30 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/tome-list",
+	"title": "Tomes de l’œuvre",
+	"category": "yume",
+	"icon": "list-view",
+	"description": "Tomes publiés d’une œuvre, du plus récent au plus ancien : couverture, chapitres, mots, temps de lecture, date, Lire en ligne, PDF et EPUB.",
+	"keywords": [
+		"tomes",
+		"arcs",
+		"téléchargement"
+	],
+	"textdomain": "yume-core",
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false,
+		"align": [
+			"wide"
+		]
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}
