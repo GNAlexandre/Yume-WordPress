@@ -48,6 +48,10 @@ Bon à savoir :
 - l'administration de WordPress peut rester en partie en anglais si la traduction n'a pas pu
   être téléchargée ; le site public est en français ;
 - aucun e-mail ne part et aucun webhook Discord n'est configuré.
+- les pages institutionnelles (L'équipe, FAQ, Contact…) sont de courtes pages de démonstration ; sur
+  le vrai site, ce sont les pages existantes, conservées par la migration ;
+- une adresse qui n'existe pas affiche l'accueil dans Playground au lieu de la page 404 : c'est
+  propre à Playground (l'option 2 et le vrai site renvoient bien une 404).
 
 ## Option 2 : environnement de développement (PHP)
 

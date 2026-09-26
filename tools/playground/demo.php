@@ -327,6 +327,32 @@ foreach ( $yume_demo_modele as $yume_demo_cle => $yume_demo_page ) {
 }
 update_option( 'yume_pages', $yume_demo_pages );
 
+// Pages institutionnelles du menu « Yume Novel » et « Contact » (parts/header.html). Sur le vrai
+// site, elles existent déjà et sont conservées par la migration ; la démo en crée des versions courtes.
+$yume_demo_institution = array(
+	'lequipe'        => array( 'L’équipe', 'Les traducteurs, relecteurs et graphistes de Yume Novel. Sur le site réel, cette page reprend celle de l’ancien site.' ),
+	'la-yume-novel'  => array( 'La Yume Novel', 'Qui sommes-nous ? Une équipe de fans qui traduit des light novels en français, à but non lucratif.' ),
+	'yume-faq'       => array( 'FAQ', 'Questions fréquentes : rythme de sortie, téléchargement des PDF et EPUB, lecture en ligne, comptes lecteurs.' ),
+	'a-propos'       => array( 'Nos réseaux', 'Retrouvez Yume Novel sur Discord, X / Twitter et Ko-fi.' ),
+	'contactez-nous' => array( 'Contact', 'Pour nous écrire : rejoignez le Discord de Yume Novel ou utilisez le formulaire de contact du site réel.' ),
+);
+foreach ( $yume_demo_institution as $yume_demo_slug => $yume_demo_page ) {
+	if ( get_page_by_path( $yume_demo_slug ) ) {
+		continue;
+	}
+	wp_insert_post(
+		wp_slash(
+			array(
+				'post_type'    => 'page',
+				'post_name'    => $yume_demo_slug,
+				'post_title'   => $yume_demo_page[0],
+				'post_content' => yume_demo_paragraphe( $yume_demo_page[1] ) . yume_demo_paragraphe( 'Page de démonstration.', 'yn-center' ),
+				'post_status'  => 'publish',
+			)
+		)
+	);
+}
+
 flush_rewrite_rules( false );
 
 printf(
