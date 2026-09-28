@@ -53,19 +53,20 @@ anglicismes:
 
 | Champ | Valeurs | Public ? | Rôle sur le site |
 | --- | --- | --- | --- |
-| `termes_source` | liste de chaînes (VO) | oui | affichés sous le nom (`lang="ja"` s'ils sont en japonais) ; le premier sert de nom s'il n'y a pas de traduction |
+| `termes_source` | liste de chaînes (VO), liste vide permise | oui | affichés sous le nom (`lang="ja"` en japonais, sinon langue des `graphies_refusees` ou `lang="en"`), sauf un terme identique au nom à la casse près (« SABER » / « Saber ») ; le premier sert de nom s'il n'y a pas de traduction |
 | `role` | texte | oui | ligne en gras sous le nom |
 | `description` | texte (plusieurs lignes permises) | oui | description de l'entrée |
 | `traduire` | `null`, `true`, `false` | oui (indirectement) | `false` : nom gardé tel quel → pastille « Nom conservé » |
 | `cibles.fr.nom` | texte | oui | nom affiché (titre de la carte) |
 | `cibles.fr.pluriel` | texte | oui | « pluriel : … », discret |
-| `cibles.fr.genre` | `masculin`, `féminin`, `m`, `f`, `''` | oui | « masculin » / « féminin », discret |
+| `cibles.fr.genre` | `masculin`, `féminin`, `m`, `f`, `'?'`, `''` | oui | « masculin » / « féminin », discret ; `'?'` ou vide : rien |
 | `cibles.fr.variantes` | liste | **non** (équipe) | notes de traduction |
 | `cibles.fr.interdits` | liste | **non** (équipe) | notes de traduction (barrés) |
 | `cibles.fr.force` | booléen | **non** (équipe) | « imposé » |
 | `provenance` | `humain`, `terminologue`, `glossariste`, `import`, `inconnue` | **non** (équipe) | notes de traduction (autre valeur → `inconnue`) |
 | `preuve` | texte | **non** (équipe) | notes de traduction |
 | `confiance` | `sure`, `probable`, `hypothese` | **non** (équipe) | notes de traduction |
+| `graphies_refusees` | mapping langue → liste (`en: [NUMBER 48]`) | **non** (équipe) | « Graphies refusées (EN) » dans les notes ; la langue sert aussi d'attribut `lang` des termes source |
 | `spoiler` | booléen (facultatif) | oui | rôle et description dans un bloc « Révéler (spoiler, tome N) » |
 | `tome` | entier (facultatif) | oui | premier tome où l'entrée apparaît (« dès le tome N », ou dans le libellé du spoiler) |
 

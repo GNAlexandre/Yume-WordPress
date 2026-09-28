@@ -279,6 +279,20 @@ function normaliser_entree( $brut ) {
 	$confiance  = strtolower( remove_accents( texte( $brut['confiance'] ?? '', 40 ) ) );
 	$tome       = $brut['tome'] ?? 0;
 	$tome       = is_numeric( $tome ) ? max( 0, min( 999, (int) $tome ) ) : 0;
+	// Graphies refusées par Yume-Trad, par langue source (« en: [NUMBER 48] ») : notes internes.
+	$refusees = array();
+	if ( is_array( $brut['graphies_refusees'] ?? null ) ) {
+		foreach ( $brut['graphies_refusees'] as $langue => $graphies ) {
+			$langue = strtolower( (string) $langue );
+			$liste  = liste_textes( $graphies, 200, 30 );
+			if ( preg_match( '/^[a-z]{2,3}$/', $langue ) && $liste ) {
+				$refusees[ $langue ] = $liste;
+			}
+			if ( count( $refusees ) >= 5 ) {
+				break;
+			}
+		}
+	}
 	return array(
 		'nom'           => $nom,
 		'nom_fr'        => $nom_fr,
@@ -296,6 +310,9 @@ function normaliser_entree( $brut ) {
 		'confiance'     => in_array( $confiance, confiances(), true ) ? $confiance : '',
 		'spoiler'       => booleen( $brut['spoiler'] ?? false ),
 		'tome'          => $tome,
+		'refusees'      => $refusees,
+		// Langue des termes source non japonais : celle des graphies refusées, sinon l'anglais.
+		'langue_source' => $refusees ? (string) array_key_first( $refusees ) : '',
 		// Public : traduction française connue, ou nom volontairement gardé tel quel.
 		'public'        => '' !== $nom_fr || false === $traduire,
 	);

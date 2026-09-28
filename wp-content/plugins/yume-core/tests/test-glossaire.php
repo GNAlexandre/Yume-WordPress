@@ -958,3 +958,80 @@ yume_test(
 		yume_assert_same( 3, yume_tg_compter( $oeuvre )['entrees'], 'annulé : anciennes entrées intactes' );
 	}
 );
+
+yume_test(
+	'Structure Yume-Trad récente : graphies_refusees (équipe seulement), genre « ? », termes_source vide, termes anglais en lang="en", terme VO identique au nom masqué',
+	function () {
+		$yaml    = <<<'YAML'
+personnages:
+- termes_source:
+  - PROFESSEUR ESSAI
+  - PROFESSEUR ESSAI NOM
+  role: ''
+  description: Professeur fictif de la fixture.
+  provenance: terminologue
+  preuve: 'graphie refusée : « ESSAI FLALROS »'
+  confiance: hypothese
+  graphies_refusees:
+    en:
+    - ESSAI FLALROS
+  cibles:
+    fr:
+      nom: Essai Nom
+      pluriel: ''
+      genre: '?'
+      variantes:
+      - Professeur Essai
+      interdits: []
+      force: false
+organisations:
+- termes_source: []
+  description: Organisation sans terme source.
+  cibles:
+    fr:
+      nom: Organisation d'essai
+creatures:
+- termes_source:
+  - SABREUR
+  traduire: null
+  cibles:
+    fr:
+      nom: Sabreur
+YAML;
+		$analyse = \Yume\Core\Glossaire\analyser_glossaire( $yaml );
+		yume_assert_false( is_wp_error( $analyse ), is_wp_error( $analyse ) ? $analyse->get_error_message() : '' );
+		yume_assert_same( 3, $analyse['entrees'] );
+
+		$prof = \Yume\Core\Glossaire\normaliser_entree( \Yume\Core\Glossaire\Lecteur_Yaml::analyser( $yaml )['personnages'][0] );
+		yume_assert_same( array( 'en' => array( 'ESSAI FLALROS' ) ), $prof['refusees'] );
+		yume_assert_same( 'en', $prof['langue_source'] );
+		yume_assert_same( '', $prof['genre'], 'genre « ? » = inconnu' );
+
+		$entree   = array(
+			'nom'     => $prof['nom'],
+			'donnees' => $prof,
+		);
+		$visiteur = \Yume\Core\Glossaire\carte_entree( $entree, false, false );
+		yume_assert_contains( '<span lang="en">PROFESSEUR ESSAI</span>', $visiteur );
+		yume_assert_contains( 'hidden', $visiteur, 'notes masquées au chargement' );
+		$equipe = \Yume\Core\Glossaire\carte_entree( $entree, true, true );
+		yume_assert_contains( 'Graphies refusées (EN)', $equipe );
+		yume_assert_contains( '<span lang="en">ESSAI FLALROS</span>', $equipe );
+		yume_assert_not_contains( '?', wp_strip_all_tags( preg_replace( '/<dl.*<\/dl>/s', '', $visiteur ) ), 'aucun « ? » affiché comme genre' );
+
+		$org = \Yume\Core\Glossaire\normaliser_entree( \Yume\Core\Glossaire\Lecteur_Yaml::analyser( $yaml )['organisations'][0] );
+		yume_assert_same( 'Organisation d\'essai', $org['nom'] );
+		yume_assert_same( array(), $org['termes_source'] );
+
+		$sabreur = \Yume\Core\Glossaire\normaliser_entree( \Yume\Core\Glossaire\Lecteur_Yaml::analyser( $yaml )['creatures'][0] );
+		$carte   = \Yume\Core\Glossaire\carte_entree(
+			array(
+				'nom'     => $sabreur['nom'],
+				'donnees' => $sabreur,
+			),
+			false,
+			false
+		);
+		yume_assert_not_contains( 'SABREUR', $carte, 'terme VO identique au nom (casse près) non répété' );
+	}
+);

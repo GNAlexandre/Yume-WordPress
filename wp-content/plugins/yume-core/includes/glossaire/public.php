@@ -250,12 +250,20 @@ function par_categorie( array $entrees ): array {
 }
 
 /**
- * Attribut lang d'un terme original (« ja » si japonais).
+ * Attribut lang d'un terme original : « ja » s'il contient du japonais, sinon la langue source
+ * de l'entrée (graphies refusées) ou l'anglais pour un terme en alphabet latin.
  *
- * @param string $texte Terme.
+ * @param string $texte  Terme.
+ * @param string $langue Langue source déclarée ('' : inconnue).
  */
-function attribut_lang( string $texte ): string {
-	return est_japonais( $texte ) ? ' lang="ja"' : '';
+function attribut_lang( string $texte, string $langue = '' ): string {
+	if ( est_japonais( $texte ) ) {
+		return ' lang="ja"';
+	}
+	if ( preg_match( '/[A-Za-z]/', $texte ) ) {
+		return ' lang="' . esc_attr( '' !== $langue ? $langue : 'en' ) . '"';
+	}
+	return '';
 }
 
 /**
@@ -302,6 +310,10 @@ function notes_entree( array $d, bool $visible ): string {
 		);
 		$lignes[ __( 'Confiance', 'yume-core' ) ] = esc_html( $libelles[ $d['confiance'] ] ?? (string) $d['confiance'] );
 	}
+	foreach ( (array) ( $d['refusees'] ?? array() ) as $langue => $graphies ) {
+		/* translators: %s : code de langue (en, ja…) */
+		$lignes[ sprintf( __( 'Graphies refusées (%s)', 'yume-core' ), strtoupper( (string) $langue ) ) ] = implode( ', ', array_map( static fn( $t ): string => '<span' . attribut_lang( (string) $t, (string) $langue ) . '>' . esc_html( (string) $t ) . '</span>', (array) $graphies ) );
+	}
 	if ( ! empty( $d['preuve'] ) ) {
 		$lignes[ __( 'Preuve', 'yume-core' ) ] = nl2br( esc_html( (string) $d['preuve'] ), false );
 	}
@@ -337,8 +349,9 @@ function carte_entree( array $e, bool $equipe, bool $notes ): string {
 		// Entrée sans traduction : visible seulement avec les notes de traduction.
 		$attrs .= ' data-yn-glossaire-note' . ( $notes ? '' : ' hidden' );
 	}
-	$html  = '<li' . $attrs . '><div class="yn-glossaire__entete">';
-	$html .= '<h3 class="yn-glossaire__nom"' . ( '' === (string) ( $d['nom_fr'] ?? '' ) ? attribut_lang( $nom ) : '' ) . '>' . esc_html( $nom ) . '</h3>';
+	$html   = '<li' . $attrs . '><div class="yn-glossaire__entete">';
+	$langue = (string) ( $d['langue_source'] ?? '' );
+	$html  .= '<h3 class="yn-glossaire__nom"' . ( '' === (string) ( $d['nom_fr'] ?? '' ) ? attribut_lang( $nom, $langue ) : '' ) . '>' . esc_html( $nom ) . '</h3>';
 	if ( $conserve ) {
 		$html .= '<span class="yn-chip yn-chip--info" title="' . esc_attr__( 'Nom gardé tel quel dans la traduction', 'yume-core' ) . '">' . esc_html__( 'Nom conservé', 'yume-core' ) . '</span>';
 	}
@@ -347,11 +360,18 @@ function carte_entree( array $e, bool $equipe, bool $notes ): string {
 	}
 	$html .= '</div>';
 
-	// Terme original (sauf s'il est déjà le nom affiché).
-	$vo = array_values( array_diff( $source, array( $nom ) ) );
+	// Terme original, sauf s'il ne diffère du nom affiché que par la casse ou les accents
+	// (« SABER » pour « Saber »).
+	$cle_nom = normaliser_recherche( $nom );
+	$vo      = array_values(
+		array_filter(
+			$source,
+			static fn( string $t ): bool => normaliser_recherche( $t ) !== $cle_nom
+		)
+	);
 	if ( $vo ) {
 		$html .= '<p class="yn-glossaire__vo"><span class="yn-visually-hidden">' . esc_html( _n( 'Terme original :', 'Termes originaux :', count( $vo ), 'yume-core' ) ) . ' </span>';
-		$html .= implode( '<span aria-hidden="true"> · </span>', array_map( static fn( string $t ): string => '<span' . attribut_lang( $t ) . '>' . esc_html( $t ) . '</span>', $vo ) ) . '</p>';
+		$html .= implode( '<span aria-hidden="true"> · </span>', array_map( static fn( string $t ): string => '<span' . attribut_lang( $t, $langue ) . '>' . esc_html( $t ) . '</span>', $vo ) ) . '</p>';
 	}
 
 	$gram = array();

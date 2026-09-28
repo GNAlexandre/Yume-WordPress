@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.9 — 2026-09-28
+
+- Glossaire : nouvelle structure Yume-Trad (graphies_refusees en notes d'équipe, genre « ? », termes_source vide, termes anglais en lang="en", terme VO identique au nom non répété).
+
 ## 2.0.0-dev.8 — 2026-09-28
 
 - Phase 3 nouvelles pages : glossaire par œuvre (format YAML de Yume-Trad, envoi ponctuel authentifié, téléversement et historique dans l'espace équipe, notes de traduction réservées à l'équipe) ; onglets de la fiche d'œuvre et actualités par œuvre ; page « Rejoindre l'équipe » et profils publics de contributeurs sur consentement ; listes de lecture, centre de notifications et notifications navigateur ; recherche avancée insensible aux accents avec suggestions (chapitres désactivés par défaut).
