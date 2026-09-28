@@ -3,7 +3,8 @@
  * Tests des listes de lecture (PAGE-07, lot P3-D) : listes système et personnelles, routes
  * REST /moi/listes (CRUD, limites, droits), exclusivité des listes système, remplissage
  * automatique par la progression, fiche d'œuvre (menu et formulaire sans JavaScript), page
- * compte, page publique /listes/{id}-{slug}/ (visibilité, noindex, nom affiché), RGPD.
+ * compte, page publique /listes/{jeton}-{slug}/ (jeton non énumérable, visibilité, noindex, nom
+ * affiché, purge Batcache), RGPD.
  *
  * Lancement : tools/localenv/test.sh listes
  *
@@ -19,17 +20,39 @@ use function Yume\Core\Social\donnees_personnelles;
 use function Yume\Core\Social\effacer_donnees;
 use function Yume\Core\Social\exporter_donnees;
 use function Yume\Core\Social\liste;
+use function Yume\Core\Social\abonnements_push;
+use function Yume\Core\Social\jeton_liste_valide;
 use function Yume\Core\Social\liste_affichee;
+use function Yume\Core\Social\liste_par_jeton;
 use function Yume\Core\Social\liste_systeme;
 use function Yume\Core\Social\liste_template_redirect;
 use function Yume\Core\Social\listes_contenant;
 use function Yume\Core\Social\listes_utilisateur;
+use function Yume\Core\Social\modifier_liste;
+use function Yume\Core\Social\regles_listes;
 use function Yume\Core\Social\oeuvres_liste;
 use function Yume\Core\Social\rendu_liste_publique;
 use function Yume\Core\Social\robots_liste;
 use function Yume\Core\Social\section_listes;
+use function Yume\Core\Social\supprimer_liste;
+use function Yume\Core\Social\table_listes;
 use function Yume\Core\Social\table_listes_oeuvres;
+use function Yume\Core\Social\table_push;
+use function Yume\Core\Social\tables_lecteur_pretes;
 use function Yume\Core\Social\url_liste;
+use function Yume\Core\Social\verifier_schema;
+
+if ( ! function_exists( 'batcache_clear_url' ) ) {
+	/**
+	 * Batcache simulé (WordPress.com) : note les adresses purgées.
+	 *
+	 * @param string $url Adresse.
+	 */
+	function batcache_clear_url( $url ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- fonction de WordPress.com simulée.
+		$GLOBALS['yume_tests_batcache'][] = (string) $url;
+		return true;
+	}
+}
 
 /*
  * -----------------------------------------------------------------------------
@@ -133,17 +156,18 @@ function yume_tlis_post( array $donnees, callable $rappel ) {
 /**
  * Place la requête principale sur la page d'une liste le temps de $rappel.
  *
- * @param int      $liste_id Liste.
- * @param callable $rappel   Fonction.
+ * @param string|int $jeton  Valeur de la variable yume_liste (jeton public, ou ancien
+ *                           identifiant numérique).
+ * @param callable   $rappel Fonction.
  * @return mixed
  */
-function yume_tlis_sur_liste( int $liste_id, callable $rappel ) {
+function yume_tlis_sur_liste( $jeton, callable $rappel ) {
 	global $wp_query, $wp_the_query;
 	$avant_q   = $wp_query;
 	$avant_the = $wp_the_query;
 	// phpcs:disable WordPress.WP.GlobalVariablesOverride -- contexte simulé puis restauré.
 	$wp_query = new WP_Query();
-	$wp_query->set( 'yume_liste', $liste_id );
+	$wp_query->set( 'yume_liste', (string) $jeton );
 	$wp_the_query = $wp_query;
 	try {
 		return $rappel();
@@ -214,7 +238,8 @@ yume_test(
 		yume_assert_same( 'mes-isekai-preferes', $liste['slug'] );
 		yume_assert_true( $liste['publique'] );
 		yume_assert_same( null, $liste['systeme'] );
-		yume_assert_contains( '/listes/' . $liste['id'] . '-mes-isekai-preferes', $liste['url'] );
+		yume_assert_contains( '/listes/' . liste( $liste['id'] )['jeton'] . '-mes-isekai-preferes', $liste['url'] );
+		yume_assert_not_contains( '/listes/' . $liste['id'] . '-', $liste['url'], 'jamais l’identifiant séquentiel' );
 
 		$r = yume_rest( 'PUT', '/yume/v1/moi/listes/' . $liste['id'] . '/oeuvres/' . $s['oeuvre'], array(), $u );
 		yume_assert_same( 201, $r->get_status() );
@@ -520,12 +545,13 @@ yume_test(
 		);
 		$liste = creer_liste( $u, 'Mes pépites', 'À lire absolument.', true );
 		ajouter_a_liste( $liste, $s['oeuvre'] );
-		yume_assert_contains( '/listes/' . $liste['id'] . '-mes-pepites/', url_liste( $liste ) );
+		yume_assert_true( (bool) preg_match( '/^[a-z][a-z0-9]{15}$/', $liste['jeton'] ), $liste['jeton'] );
+		yume_assert_contains( '/listes/' . $liste['jeton'] . '-mes-pepites/', url_liste( $liste ) );
 		$regles = (array) get_option( 'rewrite_rules' );
-		yume_assert_true( isset( $regles['^listes/([0-9]+)(?:-([^/]*))?/?$'] ), 'règle de réécriture enregistrée' );
+		yume_assert_true( isset( $regles['^listes/([a-z][a-z0-9]{11,15})(?:-([^/]*))?/?$'] ), 'règle de réécriture enregistrée' );
 
 		$html = yume_tlis_sur_liste(
-			$liste['id'],
+			$liste['jeton'],
 			static function () {
 				liste_template_redirect();
 				yume_assert_false( is_404() );
@@ -553,7 +579,7 @@ yume_test(
 		foreach ( array( 0, $autre ) as $qui ) {
 			wp_set_current_user( $qui );
 			yume_tlis_sur_liste(
-				$liste['id'],
+				$liste['jeton'],
 				static function () {
 					yume_assert_same( null, liste_affichee() );
 					liste_template_redirect();
@@ -564,7 +590,7 @@ yume_test(
 		}
 		wp_set_current_user( $u );
 		$html = yume_tlis_sur_liste(
-			$liste['id'],
+			$liste['jeton'],
 			static function () {
 				return rendu_liste_publique();
 			}
@@ -573,12 +599,104 @@ yume_test(
 		yume_assert_contains( 'Privée : vous seul voyez cette page', $html );
 		// Liste inconnue : 404.
 		yume_tlis_sur_liste(
-			999999,
+			'zzzzzzzzzzzzzzzz',
 			static function () {
 				liste_template_redirect();
 				yume_assert_true( is_404() );
 			}
 		);
+	}
+);
+
+yume_test(
+	'Sécurité : listes publiques non énumérables — jeton aléatoire, ancienne adresse numérique → 404, jeton régénéré en repassant publique',
+	function () {
+		$u     = yume_factory_user();
+		$liste = creer_liste( $u, 'Partagée', '', true );
+		$autre = creer_liste( $u, 'Autre', '', true );
+		yume_assert_true( $liste['jeton'] !== $autre['jeton'], 'jetons distincts' );
+		foreach ( listes_utilisateur( $u ) as $l ) {
+			yume_assert_true( jeton_liste_valide( $l['jeton'] ), 'jeton aussi pour ' . $l['nom'] );
+		}
+		// Ancienne forme numérique (visiteur, puis propriétaire) : 404.
+		foreach ( array( 0, $u ) as $qui ) {
+			wp_set_current_user( $qui );
+			yume_tlis_sur_liste(
+				$liste['id'],
+				static function () {
+					yume_assert_same( null, liste_affichee() );
+					liste_template_redirect();
+					yume_assert_true( is_404() );
+				}
+			);
+		}
+		wp_set_current_user( 0 );
+		yume_assert_false( jeton_liste_valide( (string) $liste['id'] ) );
+		yume_assert_same( null, liste_par_jeton( strtoupper( $liste['jeton'] ) ), 'casse exacte' );
+		$regles = regles_listes();
+		yume_assert_same( 1, preg_match( '#' . array_keys( $regles )[1] . '#', 'listes/' . $liste['id'] . '-partagee/' ), 'ancienne forme reconnue pour répondre 404' );
+		yume_assert_same( 0, preg_match( '#' . array_keys( $regles )[0] . '#', 'listes/' . $liste['id'] . '-partagee/' ) );
+
+		// Privée puis publique : nouveau jeton, l'ancien lien ne fonctionne plus.
+		$ancien = $liste['jeton'];
+		$privee = modifier_liste( $liste, array( 'publique' => false ) );
+		yume_assert_same( $ancien, $privee['jeton'], 'jeton inchangé en passant privée' );
+		$publique = modifier_liste( $privee, array( 'publique' => true ) );
+		yume_assert_true( $ancien !== $publique['jeton'], 'jeton régénéré' );
+		yume_assert_same( null, liste_par_jeton( $ancien ) );
+		yume_assert_same( $publique['id'], liste_par_jeton( $publique['jeton'] )['id'] );
+		// Simple modification d'une liste publique : jeton conservé.
+		yume_assert_same( $publique['jeton'], modifier_liste( $publique, array( 'description' => 'Autre' ) )['jeton'] );
+	}
+);
+
+yume_test(
+	'Sécurité : montée de schéma — jeton attribué aux listes existantes, abonnements push sans session supprimés',
+	function () {
+		global $wpdb;
+		$u     = yume_factory_user();
+		$liste = creer_liste( $u, 'Ancienne', '', true );
+		$wpdb->update( table_listes(), array( 'jeton' => '' ), array( 'id' => $liste['id'] ) ); // phpcs:ignore WordPress.DB
+		$wpdb->insert( // phpcs:ignore WordPress.DB
+			table_push(),
+			array(
+				'user_id'   => $u,
+				'endpoint'  => 'https://fcm.googleapis.com/fcm/send/ancien',
+				'empreinte' => hash( 'sha256', 'https://fcm.googleapis.com/fcm/send/ancien' ),
+				'session'   => '',
+				'p256dh'    => 'x',
+				'auth'      => 'y',
+				'cree_le'   => gmdate( 'Y-m-d H:i:s' ),
+			)
+		);
+		update_option( 'yume_social_schema_lecteur', '1' );
+		yume_assert_false( tables_lecteur_pretes() );
+		verifier_schema();
+		yume_assert_true( tables_lecteur_pretes() );
+		yume_assert_true( jeton_liste_valide( liste( $liste['id'] )['jeton'] ) );
+		yume_assert_same( array(), abonnements_push( $u ) );
+	}
+);
+
+yume_test(
+	'Sécurité : Batcache — adresse d’une liste purgée au passage en privé et à la suppression',
+	function () {
+		$GLOBALS['yume_tests_batcache'] = array();
+		$u                              = yume_factory_user();
+		$liste                          = creer_liste( $u, 'Cache', '', true );
+		$adresse                        = url_liste( $liste );
+		modifier_liste( $liste, array( 'description' => 'Rien' ) );
+		yume_assert_same( array(), $GLOBALS['yume_tests_batcache'], 'rien à purger' );
+		$privee = modifier_liste( $liste, array( 'publique' => false ) );
+		yume_assert_same( array( $adresse ), $GLOBALS['yume_tests_batcache'] );
+		$publique                       = modifier_liste( $privee, array( 'publique' => true ) );
+		$GLOBALS['yume_tests_batcache'] = array();
+		supprimer_liste( $publique );
+		yume_assert_same( array( url_liste( $publique ) ), $GLOBALS['yume_tests_batcache'] );
+		// Liste privée supprimée : jamais servie publiquement, rien à purger.
+		$GLOBALS['yume_tests_batcache'] = array();
+		supprimer_liste( creer_liste( $u, 'Secrète' ) );
+		yume_assert_same( array(), $GLOBALS['yume_tests_batcache'] );
 	}
 );
 

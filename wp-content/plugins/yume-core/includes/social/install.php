@@ -50,8 +50,11 @@ PRIMARY KEY  (user_id,oeuvre_id)
 /** Option : version du schéma des tables listes, notifications du lecteur et Web Push. */
 const OPTION_SCHEMA_LECTEUR = 'yume_social_schema_lecteur';
 
-/** Version du schéma des tables listes, listes_oeuvres, notifications_lecteur et push. */
-const VERSION_SCHEMA_LECTEUR = '1';
+/**
+ * Version du schéma des tables listes, listes_oeuvres, notifications_lecteur et push.
+ * 2 : jeton public des listes (adresse /listes/{jeton}-{slug}/), session des abonnements push.
+ */
+const VERSION_SCHEMA_LECTEUR = '2';
 
 /**
  * Crée ou met à jour les tables des listes de lecture (PAGE-07), du centre de notifications
@@ -72,13 +75,15 @@ id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 user_id bigint(20) unsigned NOT NULL,
 nom varchar(80) NOT NULL DEFAULT '',
 slug varchar(100) NOT NULL DEFAULT '',
+jeton varchar(16) NOT NULL DEFAULT '',
 description varchar(300) NOT NULL DEFAULT '',
 publique tinyint(1) unsigned NOT NULL DEFAULT 0,
 systeme varchar(20) NOT NULL DEFAULT '',
 cree_le datetime NOT NULL,
 maj_le datetime NOT NULL,
 PRIMARY KEY  (id),
-KEY user_id (user_id)
+KEY user_id (user_id),
+KEY jeton (jeton)
 ) {$charset};"
 	);
 
@@ -115,6 +120,7 @@ id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 user_id bigint(20) unsigned NOT NULL,
 endpoint varchar(1000) NOT NULL DEFAULT '',
 empreinte char(64) NOT NULL DEFAULT '',
+session char(64) NOT NULL DEFAULT '',
 p256dh varchar(200) NOT NULL DEFAULT '',
 auth varchar(100) NOT NULL DEFAULT '',
 cree_le datetime NOT NULL,
@@ -126,7 +132,26 @@ KEY user_id (user_id)
 ) {$charset};"
 	);
 
+	migrer_schema_lecteur();
 	update_option( OPTION_SCHEMA_LECTEUR, VERSION_SCHEMA_LECTEUR, true );
+}
+
+/**
+ * Montée de schéma des tables du lecteur (idempotente) : abonnements push sans session
+ * (antérieurs à la version 2, impossibles à rattacher à une session) supprimés ; jeton public
+ * attribué aux listes qui n'en ont pas.
+ */
+function migrer_schema_lecteur(): void {
+	global $wpdb;
+	$push   = table_push();
+	$listes = table_listes();
+	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+	$wpdb->query( "DELETE FROM {$push} WHERE session = ''" );
+	$sans = array_map( 'intval', (array) $wpdb->get_col( "SELECT id FROM {$listes} WHERE jeton = ''" ) );
+	foreach ( $sans as $id ) {
+		$wpdb->update( $listes, array( 'jeton' => nouveau_jeton_liste() ), array( 'id' => $id ), array( '%s' ), array( '%d' ) );
+	}
+	// phpcs:enable
 }
 
 /**

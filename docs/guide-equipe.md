@@ -127,7 +127,10 @@ travail, à l'adresse `/contributeurs/{votre-pseudo}/`. Elle est **désactivée 
   adresse e-mail ni les tomes en préparation. Votre profil apparaît aussi dans la liste
   `/contributeurs/` et sous la page « L'équipe ».
 - **Retirer** : décochez la case et enregistrez : la page disparaît **immédiatement** (son adresse
-  ne mène plus nulle part). Quitter l'équipe la retire aussi.
+  ne mène plus nulle part). Quitter l'équipe la retire aussi. Sur WordPress.com, l'ancienne page est
+  aussitôt retirée du cache des pages quand l'hébergeur le permet (Batcache) ; sinon, un visiteur
+  anonyme peut encore la voir **quelques minutes** (le temps que la copie en cache expire, 5 minutes
+  en général).
 - Si votre pseudo est identique à votre identifiant de connexion, le profil ne peut pas être activé
   (pour ne pas rendre cet identifiant public) : changez d'abord de pseudo dans **Profil et sécurité**.
   Changer de pseudo change aussi l'adresse du profil.
@@ -486,9 +489,13 @@ Ce que les lecteurs connectés trouvent sur le site (utile pour leur répondre s
   chapitre publié ; il peut couper ce classement automatique dans *Mon compte → Mes listes*, où il
   renomme, décrit, rend publique ou supprime ses listes.
 - **Liste publique** : une liste rendue publique a une adresse à partager
-  (`/listes/12-mes-pepites/`) qui montre son nom, le pseudo de son auteur (jamais son identifiant de
-  connexion) et les couvertures des œuvres. Elle n'est pas proposée aux moteurs de recherche. Une
-  liste privée n'est visible que de son auteur.
+  (`/listes/k3v9q2m7x1c8b4n6-mes-pepites/`) qui montre son nom, le pseudo de son auteur (jamais son
+  identifiant de connexion) et les couvertures des œuvres. Le code de l'adresse est tiré au hasard :
+  on ne peut pas deviner les listes des autres en changeant un numéro. Elle n'est pas proposée aux
+  moteurs de recherche. Une liste privée n'est visible que de son auteur ; si elle redevient
+  publique, elle reçoit une **nouvelle adresse** (l'ancien lien partagé ne fonctionne plus). Une liste
+  passée en privé ou supprimée quitte le cache des pages de WordPress.com quand l'hébergeur le permet ;
+  sinon, un visiteur anonyme peut encore la voir quelques minutes.
 - **Cloche** : à côté de *Mon compte*, une cloche affiche le nombre de notifications non lues : sortie
   d'un tome ou d'un chapitre d'une œuvre en favori (sauf alerte « Jamais ») et réponse à l'un de ses
   commentaires. Un clic ouvre la liste, avec **Tout marquer comme lu** ; tout l'historique (90 jours)

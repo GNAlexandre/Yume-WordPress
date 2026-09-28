@@ -29,7 +29,20 @@ use function Yume\Core\Social\section_profil_public;
 use function Yume\Core\Social\statut_contributeurs;
 use function Yume\Core\Social\url_profil_public;
 use function Yume\Core\Social\url_x_valide;
+use function Yume\Core\Social\url_contributeurs;
 use function Yume\Core\Social\urls_plan_contributeurs;
+
+if ( ! function_exists( 'batcache_clear_url' ) ) {
+	/**
+	 * Batcache simulé (WordPress.com) : note les adresses purgées.
+	 *
+	 * @param string $url Adresse.
+	 */
+	function batcache_clear_url( $url ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- fonction de WordPress.com simulée.
+		$GLOBALS['yume_tests_batcache'][] = (string) $url;
+		return true;
+	}
+}
 
 /*
  * -----------------------------------------------------------------------------
@@ -334,6 +347,33 @@ yume_tct_test(
 		yume_assert_same( '', (string) get_user_meta( $id, 'yume_profil_slug', true ) );
 		yume_assert_true( yume_tct_aller( '/contributeurs/plume-rose/' )->is_404(), 'retiré : 404' );
 		yume_assert_true( yume_tct_aller( '/contributeurs/inconnu/' )->is_404(), 'inconnu : 404' );
+	}
+);
+
+yume_tct_test(
+	'Sécurité : Batcache — retrait du consentement et changement de pseudo purgent les anciennes adresses',
+	static function () {
+		$id = yume_tct_membre( 'Plume Cache' );
+		enregistrer_profil_public( $id, array( 'public' => true ) );
+		$url                            = url_profil_public( $id );
+		$GLOBALS['yume_tests_batcache'] = array();
+		enregistrer_profil_public( $id, array( 'public' => true ) );
+		yume_assert_same( array(), $GLOBALS['yume_tests_batcache'], 'toujours public : rien à purger' );
+		enregistrer_profil_public( $id, array( 'public' => false ) );
+		yume_assert_same( array( $url, url_contributeurs() ), $GLOBALS['yume_tests_batcache'] );
+		// Déjà retiré : plus rien à purger.
+		$GLOBALS['yume_tests_batcache'] = array();
+		enregistrer_profil_public( $id, array( 'public' => false ) );
+		yume_assert_same( array(), $GLOBALS['yume_tests_batcache'] );
+		// Pseudo changé : l'ancienne adresse est purgée.
+		enregistrer_profil_public( $id, array( 'public' => true ) );
+		wp_update_user(
+			array(
+				'ID'           => $id,
+				'display_name' => 'Plume Neuve',
+			)
+		);
+		yume_assert_same( array( $url ), $GLOBALS['yume_tests_batcache'] );
 	}
 );
 

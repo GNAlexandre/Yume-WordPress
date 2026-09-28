@@ -6,6 +6,10 @@
  *   POST /yume/v1/commentaires/{id}/signalement, voir rest.php) : un signalement par compte et
  *   par commentaire, motif court facultatif, limite de débit ; au-delà du seuil
  *   (yume_signalements_seuil, 3 par défaut), le commentaire repasse en attente de modération.
+ *   Seuls comptent pour ce seuil les comptes inscrits depuis au moins 7 jours
+ *   (yume_signalement_anciennete) : des comptes créés à la chaîne ne suffisent pas à masquer
+ *   un commentaire. Un commentaire d'un membre de l'équipe (yume_voir_equipe) ne passe jamais
+ *   automatiquement en attente : il reste publié et signalé dans la vue de modération.
  *   Les signalements sont gardés en méta de commentaire (_yume_signalements : ID du compte =>
  *   motif, date, ignoré) ;
  * - vue « Commentaires » de l'espace équipe (?vue=commentaires, capacité moderate_comments,
@@ -55,6 +59,38 @@ function seuil_signalements(): int {
 	 * @param int $seuil Défaut 3.
 	 */
 	return max( 1, (int) apply_filters( 'yume_signalements_seuil', 3 ) );
+}
+
+/**
+ * Ancienneté minimale (en jours) d'un compte pour que son signalement compte dans le seuil de
+ * mise en attente automatique.
+ */
+function anciennete_signalement(): int {
+	/**
+	 * Ancienneté minimale, en jours, d'un compte dont le signalement compte pour la mise en
+	 * attente automatique (les autres signalements restent visibles dans la vue de modération).
+	 *
+	 * @param int $jours Défaut 7.
+	 */
+	return max( 0, (int) apply_filters( 'yume_signalement_anciennete', 7 ) );
+}
+
+/**
+ * Le signalement de ce compte compte-t-il pour le seuil (compte assez ancien) ?
+ *
+ * @param int $user_id Compte.
+ */
+function signalement_comptant( int $user_id ): bool {
+	$user = get_userdata( $user_id );
+	if ( ! $user instanceof \WP_User ) {
+		return false;
+	}
+	$jours = anciennete_signalement();
+	if ( 0 === $jours ) {
+		return true;
+	}
+	$inscrit = strtotime( (string) $user->user_registered . ' UTC' );
+	return false !== $inscrit && $inscrit > 0 && $inscrit <= time() - $jours * DAY_IN_SECONDS;
 }
 
 /**
@@ -145,8 +181,11 @@ function signaler_commentaire( int $comment_id, int $user_id, string $motif = ''
 		'ignore' => false,
 	);
 	update_comment_meta( $comment_id, META_SIGNALEMENTS, $tous );
-	$actifs  = count( signalements_actifs( $comment_id ) );
-	$attente = $actifs >= seuil_signalements();
+	$actifs    = count( signalements_actifs( $comment_id ) );
+	$comptants = count( array_filter( array_keys( signalements_actifs( $comment_id ) ), __NAMESPACE__ . '\\signalement_comptant' ) );
+	// Commentaire d'un membre de l'équipe : jamais masqué automatiquement (reste signalé).
+	$equipe  = (int) $commentaire->user_id > 0 && user_can( (int) $commentaire->user_id, 'yume_voir_equipe' );
+	$attente = ! $equipe && $comptants >= seuil_signalements();
 	if ( $attente ) {
 		wp_set_comment_status( $comment_id, 'hold' );
 	}

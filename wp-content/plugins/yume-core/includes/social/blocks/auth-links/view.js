@@ -11,6 +11,9 @@
  *   et clic sur une notification non lue : POST /moi/notifications/lues.
  * - Notifications navigateur : permission, service worker du site (/?yume_sw=1), abonnement
  *   PushManager (clé VAPID publique), puis POST /moi/push ; désactivation : DELETE /moi/push.
+ * - « Se déconnecter » (tout lien action=logout) : l'abonnement push du navigateur est aussi
+ *   résilié (getSubscription() puis unsubscribe()), sans bloquer la déconnexion (au plus
+ *   800 ms d'attente) ; le serveur supprime de toute façon les abonnements de la session.
  *
  * JavaScript sans étape de build (ES2019), sans dépendance.
  */
@@ -367,6 +370,48 @@
 			afficher( false );
 		} );
 	}
+
+	/* ------------------------------------------------------------------ */
+	/* Déconnexion : résiliation de l'abonnement push du navigateur        */
+	/* ------------------------------------------------------------------ */
+
+	function resilierPush() {
+		if ( ! ( 'serviceWorker' in navigator ) || ! navigator.serviceWorker.getRegistrations ) {
+			return Promise.resolve();
+		}
+		return navigator.serviceWorker.getRegistrations().then( function ( enregistrements ) {
+			return Promise.all( enregistrements.map( function ( reg ) {
+				if ( ! reg.pushManager ) {
+					return null;
+				}
+				return reg.pushManager.getSubscription().then( function ( abonnement ) {
+					return abonnement ? abonnement.unsubscribe() : null;
+				} );
+			} ) );
+		} ).catch( function () {} );
+	}
+
+	document.addEventListener( 'click', function ( e ) {
+		const lien = e.target && e.target.closest ? e.target.closest( 'a[href*="action=logout"]' ) : null;
+		// Clic « ouvrir dans un nouvel onglet » ou déjà traité : navigation normale.
+		if ( ! lien || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ) {
+			return;
+		}
+		if ( ! ( 'serviceWorker' in navigator ) || ! ( 'PushManager' in window ) ) {
+			return;
+		}
+		e.preventDefault();
+		let parti = false;
+		function partir() {
+			if ( ! parti ) {
+				parti = true;
+				window.location.href = lien.href;
+			}
+		}
+		// La déconnexion n'attend jamais plus de 800 ms.
+		setTimeout( partir, 800 );
+		resilierPush().then( partir, partir );
+	} );
 
 	document.querySelectorAll( '[data-yn-cloche]' ).forEach( initialiserCloche );
 	document.querySelectorAll( '[data-yn-push]' ).forEach( initialiserPush );

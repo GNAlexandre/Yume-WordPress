@@ -669,12 +669,15 @@ function calendrier_ics( int $oeuvre_id = 0 ): string {
 }
 
 /**
- * Vide le cache du calendrier ICS (mise à jour du planning, sortie, tome ou œuvre modifiés).
+ * Vide le cache du calendrier ICS (mise à jour du planning, pause ou reprise d'un tome,
+ * sortie, tome ou œuvre modifiés).
  */
 function invalider_ics(): void {
 	delete_transient( TRANSIENT_ICS );
 }
 add_action( 'yume_planning_mis_a_jour', __NAMESPACE__ . '\\invalider_ics' );
+// Pause et reprise d'un tome : action distincte (sans « changements » de champs), même effet.
+add_action( 'yume_planning_pause', __NAMESPACE__ . '\\invalider_ics' );
 add_action( 'yume_tome_publie', __NAMESPACE__ . '\\invalider_ics' );
 
 /**

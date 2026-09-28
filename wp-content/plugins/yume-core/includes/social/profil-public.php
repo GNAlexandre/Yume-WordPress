@@ -13,8 +13,10 @@
  * user_login (sanitize_title), il est donc aussi exclu. Le slug public vient du pseudo
  * (display_name) ; un pseudo identique à l'identifiant de connexion empêche d'activer le profil.
  *
- * Le profil répond 404 dès que le consentement est retiré, que le compte quitte l'équipe
- * (capacité yume_voir_equipe) ou que son pseudo redevient son identifiant. Les responsables du
+ * Le profil répond 404 (sans cache) dès que le consentement est retiré, que le compte quitte
+ * l'équipe (capacité yume_voir_equipe) ou que son pseudo redevient son identifiant ; au retrait
+ * du consentement (et au changement d'adresse), l'ancienne adresse et la liste /contributeurs/
+ * sont purgées de Batcache si batcache_clear_url() existe (purger_cache_url(), listes.php). Les responsables du
  * planning (méta privée yume_responsables) ne sont lus que pour un compte consentant et seulement
  * pour les tomes publiés d'œuvres publiées.
  *
@@ -273,6 +275,7 @@ function enregistrer_profil_public( int $user_id, array $donnees ): array {
 	update_user_meta( $user_id, META_PROFIL_LIENS, $liens );
 
 	$avant   = (bool) get_user_meta( $user_id, META_PROFIL_PUBLIC, true );
+	$adresse = url_profil_public( $user_id );
 	$demande = ! empty( $donnees['public'] );
 	if ( $demande ) {
 		$slug = generer_slug_profil( $user );
@@ -290,6 +293,11 @@ function enregistrer_profil_public( int $user_id, array $donnees ): array {
 		// Retrait immédiat : le profil répond 404 dès maintenant, l'ancienne adresse est oubliée.
 		update_user_meta( $user_id, META_PROFIL_PUBLIC, false );
 		delete_user_meta( $user_id, META_PROFIL_SLUG );
+		// Cache de pages (Batcache sur WordPress.com) : le profil et la liste qui le montrait.
+		if ( '' !== $adresse ) {
+			purger_cache_url( $adresse );
+			purger_cache_url( url_contributeurs() );
+		}
 		if ( $avant ) {
 			$codes[] = 'profil-public-retire';
 		} elseif ( ! in_array( 'profil-public-pseudo', $codes, true ) ) {
@@ -312,9 +320,14 @@ function suivre_pseudo_profil( $user_id ): void {
 	if ( ! $user instanceof \WP_User || ! get_user_meta( $user_id, META_PROFIL_PUBLIC, true ) ) {
 		return;
 	}
-	$slug = generer_slug_profil( $user );
+	$ancienne = url_profil_public( $user_id );
+	$slug     = generer_slug_profil( $user );
 	if ( '' !== $slug ) {
 		update_user_meta( $user_id, META_PROFIL_SLUG, $slug );
+	}
+	// L'ancienne adresse (pseudo changé ou masqué) ne doit plus être servie depuis le cache.
+	if ( '' !== $ancienne && url_profil_public( $user_id ) !== $ancienne ) {
+		purger_cache_url( $ancienne );
 	}
 }
 add_action( 'profile_update', __NAMESPACE__ . '\\suivre_pseudo_profil' );

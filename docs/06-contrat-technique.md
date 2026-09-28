@@ -128,7 +128,12 @@ jamais public). Méta privée de l'œuvre `_yume_glossaire` (état ci-dessus, ca
 `yume_glossaire_envois_par_heure` (20), `yume_glossaire_fichier_local` (tests). Vue d'équipe
 `?vue=glossaire` (`yume_vues_equipe`, capacité `yume_glossaire`) ; admin-post `yume_glossaire`
 (nonce `yume_glossaire` : `verifier`, `publier`, `publier_brouillon`, `annuler`, `restaurer` ;
-brouillon vérifié : transient `yume_glossaire_brouillon_{user}`, 30 min) et `yume_glossaire_yaml`
+brouillon vérifié : ligne de `glossaire_versions` de source `brouillon` (YAML jusqu'à 4 Mo, trop gros
+pour un transient sous Memcached), le transient `yume_glossaire_brouillon_{user}` (30 min) ne gardant
+que `{id, sha256, oeuvre, fichier, bilan}` ; un brouillon par compte, supprimé à la publication, à
+l'annulation, à la vérification suivante ou après 30 min (`purger_brouillons()`), jamais compté dans
+l'historique ni dans les 5 versions gardées, jamais servi par `version()`, `versions()`, le
+téléchargement ou `GET /oeuvres/{o}/glossaire`) et `yume_glossaire_yaml`
 (téléchargement, nonce `yume_glossaire_yaml_{version}`).
 
 **Contributeurs** (`includes/social/profil-public.php`, PAGE-04) : `/contributeurs/` (liste des profils
@@ -472,7 +477,7 @@ et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces 
 | `yume_chapitre_publie` | `int $chapitre_id` | core (`transition_post_status` d'un chapitre publié isolément, hors publication de tome) | social (abonnés), planning (Discord) |
 | `yume_planning_mis_a_jour` | `int $tome_id, array $changements, int $user_id` | planning | planning (vide le cache du calendrier ICS, transient `yume_planning_ics`) |
 | `yume_publication_preparee` | `int $tome_id, array $rapport` | publication | — |
-| `yume_planning_pause` | `int $tome_id, bool $pause, int $user_id` | planning (`basculer_pause()`) | — |
+| `yume_planning_pause` | `int $tome_id, bool $pause, int $user_id` | planning (`basculer_pause()`) | planning (vide le cache ICS `yume_planning_ics` et les indicateurs `yume_kpi_*`, comme `yume_planning_mis_a_jour`, qui n'est pas émise : ses écouteurs attendent des changements de champs, la pause n'en est pas un) |
 | `yume_commentaire_signale` | `int $comment_id, int $user_id, int $actifs, bool $attente` | social (`signaler_commentaire()`) | — |
 
 Filtres du lot planning/modération : `yume_rappels_plafond` (int, semaines de retard au-delà
@@ -480,7 +485,10 @@ desquelles un tome ne reçoit plus de rappel, défaut 8, 0 = sans plafond : il r
 récapitulatif, avec la mention « Plus de rappel automatique ») ; `yume_planning_delai_rappel`
 (jours, défaut 3 : délai de la relance ; ensuite au plus un rappel par semaine, compté depuis la
 dernière mise à jour du tome) ; `yume_signalements_seuil` (int, défaut 3 : comptes différents qui
-renvoient un commentaire publié en attente de modération) ; `yume_signalements_debit` (int, défaut
+renvoient un commentaire publié en attente de modération ; seuls comptent les comptes inscrits depuis
+au moins `yume_signalement_anciennete` jours (int, défaut 7, 0 = tous), et un commentaire d'un membre
+de l'équipe (`yume_voir_equipe`) ne passe jamais automatiquement en attente : il reste publié et
+signalé dans la vue de modération) ; `yume_signalements_debit` (int, défaut
 10 signalements par compte et par heure, `limite_atteinte( 'signalement', … )`).
 
 Émission : core note la transition sur `transition_post_status` mais émet sur `wp_after_insert_post`
@@ -696,11 +704,11 @@ accepte `reinitialiser` ; `GET /moi/progression?oeuvre=` renvoie `url`, `url_rep
 | `planning_journal` | `id` BIGINT AI, `tome_id`, `user_id`, `champ` VARCHAR(40), `ancien` TEXT, `nouveau` TEXT, `public` TINYINT, `created_at` ; KEY tome_id, KEY created_at | planning |
 | `notifications` | `id` AI, `destinataire` VARCHAR(190), `user_id`, `sujet` VARCHAR(255), `html` LONGTEXT, `contexte` VARCHAR(60), `statut` VARCHAR(10) DEFAULT 'attente', `tentatives` TINYINT, `created_at`, `envoye_le` ; KEY statut | planning |
 | `glossaire` | `id` AI, `oeuvre_id`, `categorie` VARCHAR(40), `ordre` INT, `nom` VARCHAR(255) (nom français, sinon premier terme source ; anglicismes : `fr`), `termes_source` TEXT (un par ligne), `recherche` TEXT (nom, variantes, termes source, description : minuscules sans accents), `donnees` LONGTEXT (JSON de l'entrée normalisée, `public` compris) ; KEY (oeuvre_id, categorie) | glossaire |
-| `listes` | `id` AI, `user_id`, `nom` VARCHAR(80), `slug` VARCHAR(100), `description` VARCHAR(300), `publique` TINYINT, `systeme` VARCHAR(20) (`a_lire`, `en_cours`, `termine` ou ''), `cree_le`, `maj_le` ; KEY user_id | social (listes de lecture, PAGE-07) |
+| `listes` | `id` AI, `user_id`, `nom` VARCHAR(80), `slug` VARCHAR(100), `jeton` VARCHAR(16) (jeton public aléatoire : une lettre puis 15 caractères [a-z0-9]), `description` VARCHAR(300), `publique` TINYINT, `systeme` VARCHAR(20) (`a_lire`, `en_cours`, `termine` ou ''), `cree_le`, `maj_le` ; KEY user_id, KEY jeton | social (listes de lecture, PAGE-07) |
 | `listes_oeuvres` | `liste_id`, `oeuvre_id`, `ajoute_le`, `ordre` INT ; PK (liste_id, oeuvre_id), KEY oeuvre_id | social |
 | `notifications_lecteur` | `id` AI, `user_id`, `type` VARCHAR(20) (`sortie`, `reponse`), `objet_id` (tome, chapitre ou commentaire), `titre` VARCHAR(255) (texte brut), `url` VARCHAR(500), `cree_le`, `lu_le` (NULL = non lue) ; KEY (user_id, lu_le), KEY cree_le | social (centre de notifications, AMEL-11) |
-| `push` | `id` AI, `user_id`, `endpoint` VARCHAR(1000), `empreinte` CHAR(64) (SHA-256 de l'endpoint, UNIQUE), `p256dh` VARCHAR(200), `auth` VARCHAR(100), `cree_le`, `dernier_envoi` (NULL possible), `echecs` SMALLINT ; KEY user_id | social (Web Push, AMEL-06) |
-| `glossaire_versions` | `id` AI, `oeuvre_id`, `user_id`, `source` VARCHAR(20) (`api`, `televersement`, `restauration`), `cree_le` DATETIME (GMT), `sha256` CHAR(64), `nb_entrees` INT (hors anglicismes), `yaml` LONGTEXT, `note` VARCHAR(255) ; KEY oeuvre_id ; 5 dernières par œuvre | glossaire |
+| `push` | `id` AI, `user_id`, `endpoint` VARCHAR(1000), `empreinte` CHAR(64) (SHA-256 de l'endpoint, UNIQUE), `session` CHAR(64) (SHA-256 du jeton de la session WordPress qui a créé l'abonnement), `p256dh` VARCHAR(200), `auth` VARCHAR(100), `cree_le`, `dernier_envoi` (NULL possible), `echecs` SMALLINT ; KEY user_id | social (Web Push, AMEL-06) |
+| `glossaire_versions` | `id` AI, `oeuvre_id`, `user_id`, `source` VARCHAR(20) (`api`, `televersement`, `restauration` ; `brouillon` : glossaire vérifié non publié, hors historique et rétention), `cree_le` DATETIME (GMT), `sha256` CHAR(64), `nb_entrees` INT (hors anglicismes), `yaml` LONGTEXT, `note` VARCHAR(255) ; KEY oeuvre_id ; 5 dernières par œuvre | glossaire |
 
 `planning_journal.champ` contient aussi des événements (`creation`, `publie`, `depublie`,
 `chapitre_publie`, `retire`, `etape_forcee`, `rappel`, `signalement`, `digest` ; `tome_id` 0 pour le
@@ -741,17 +749,25 @@ sinon `yume_nb_mots` / 230 ; « À jour » = tous les chapitres publiés lus. De
 
 Listes, notifications et Web Push (lot P3-D, `includes/social/listes.php`, `notifications-lecteur.php`,
 `push.php`) : schéma distinct (option `yume_social_schema_lecteur` = `VERSION_SCHEMA_LECTEUR`, créé par
-`installer_tables_lecteur()` depuis `installer_tables()` et `verifier_schema()`).
+`installer_tables_lecteur()` depuis `installer_tables()` et `verifier_schema()`). Version 2 : colonnes
+`listes.jeton` et `push.session` ; `migrer_schema_lecteur()` attribue un jeton aux listes existantes et
+supprime les abonnements push sans session (le navigateur se réabonne depuis le compte).
 
 - **Listes (PAGE-07)** : 20 listes personnelles et 500 œuvres par liste au plus ; les listes système
   s'excluent. Remplissage automatique (méta utilisateur `yume_listes_auto` = `'0'` pour le couper,
   filtre `yume_listes_auto( bool, $user_id, $oeuvre_id )`) sur `yume_progression_enregistree` : « En
   cours » dès la première position, « Terminé » quand le dernier chapitre publié est lu à 90 % ; une
   œuvre « Terminé » n'en sort que pour un chapitre publié après son classement. Action
-  `yume_liste_oeuvre_ajoutee( int $oeuvre_id, array $liste )`. Page publique `/listes/{id}-{slug}/`
-  (variable de requête `yume_liste`, règle vidée une fois par `verifier_regles_listes()` avec l'option
-  `yume_listes_regles`, adresse non canonique → 301) : liste privée, inconnue ou d'un compte supprimé →
-  404 (sauf pour son propriétaire) ; gabarit : modèle de thème `yume-liste` s'il existe, sinon en-tête +
+  `yume_liste_oeuvre_ajoutee( int $oeuvre_id, array $liste )`. Page publique `/listes/{jeton}-{slug}/`
+  (jeton aléatoire de la colonne `jeton`, créé avec la liste et régénéré quand elle repasse de privée à
+  publique : les listes ne sont pas énumérables ; variable de requête `yume_liste` = jeton, ou
+  `?yume_liste={jeton}` sans permaliens ; règle vidée une fois par `verifier_regles_listes()` avec
+  l'option `yume_listes_regles`, adresse non canonique → 301 ; l'ancienne forme numérique
+  `/listes/{id}-{slug}/` est reconnue pour répondre 404) : liste privée, inconnue ou d'un compte
+  supprimé → 404 avec `nocache_headers()` (sauf pour son propriétaire) ; passage en privé ou
+  suppression d'une liste publique → `batcache_clear_url()` de son adresse si la fonction existe
+  (`purger_cache_url()`, aussi utilisée au retrait du consentement d'un profil public et au changement
+  de pseudo : profil et `/contributeurs/`) ; gabarit : modèle de thème `yume-liste` s'il existe, sinon en-tête +
   `yume/liste-publique` + pied (filtre `yume_liste_gabarit`) ; `noindex, follow` par défaut (filtre
   `yume_listes_indexables`). Rubrique « Mes listes » `#yn-listes` du compte (formulaires `admin-post`
   `yume_liste_creer|modifier|supprimer|retirer`, `yume_listes_auto`, nonce `yume_listes`).
@@ -775,6 +791,19 @@ Listes, notifications et Web Push (lot P3-D, `includes/social/listes.php`, `noti
   acceptés (https, port 443) : `fcm.googleapis.com`, `updates.push.services.mozilla.com`,
   `*.notify.windows.com`, `web.push.apple.com`. 10 appareils par membre au plus. Désactivation :
   réglage `notifications_navigateur` ou filtre `yume_push_actif`.
+  **Révocation** : chaque abonnement porte l'empreinte (`hash( 'sha256', wp_get_session_token() )`,
+  colonne `session`) de la session qui l'a créé ; sans session WordPress (mot de passe d'application),
+  `POST /moi/push` répond 403 `yume_push_session`. `authentifier_push()` et l'envoi exigent que cette
+  session soit encore active (`session_push_valide()` : clé présente et non expirée dans la méta
+  `session_tokens` du stockage par défaut `WP_User_Meta_Session_Tokens` ; autre stockage via
+  `session_token_manager` : filtre `yume_push_session_valide( ?bool $valide, string $session, int
+  $user_id )`, sans réponse la session est tenue pour invalide) ; sinon l'abonnement est supprimé.
+  Suppression : `wp_logout` (abonnements de la session qui se déconnecte), `updated_user_meta` /
+  `deleted_user_meta` de `session_tokens` (session détruite ; toutes les sessions détruites → tous les
+  abonnements du membre, ou de tous les membres pour `destroy_all_for_all_users()`),
+  `after_password_reset`, `wp_set_password`, `profile_update` avec changement de mot de passe.
+  Côté navigateur, un clic sur un lien de déconnexion (`action=logout`) résilie aussi l'abonnement
+  (`pushManager.getSubscription()` puis `unsubscribe()`, 800 ms d'attente au plus).
 
 Listes, notifications et abonnements sont dans l'export RGPD (`/moi/export` : clés `listes`,
 `notifications`, `notifications_push` sans le secret `auth` ; exporteur WordPress, groupe `yume-listes`)

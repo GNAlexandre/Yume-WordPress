@@ -13,10 +13,15 @@
  *   (render.php du bloc), cases pour chaque liste et création rapide ; sans JavaScript, un
  *   formulaire admin-post (yume_listes_oeuvre).
  * - Page compte : rubrique « Mes listes » (section_listes(), formulaires admin-post).
- * - Liste publique partageable : /listes/{id}-{slug}/ (règle de réécriture propre, vidée par
- *   verifier_regles_listes() avec l'option yume_listes_regles), rendue dans le thème par le
- *   bloc yume/liste-publique, noindex par défaut (filtre yume_listes_indexables). Une liste
- *   privée, ou d'un compte disparu, répond 404 à tout autre que son propriétaire.
+ * - Liste publique partageable : /listes/{jeton}-{slug}/ (jeton public aléatoire de 16
+ *   caractères [a-z0-9], jamais l'identifiant séquentiel : les listes ne sont pas
+ *   énumérables ; régénéré quand la liste repasse de privée à publique, l'ancien lien cesse
+ *   alors de fonctionner). Règle de réécriture propre, vidée par verifier_regles_listes() avec
+ *   l'option yume_listes_regles ; page rendue dans le thème par le bloc yume/liste-publique,
+ *   noindex par défaut (filtre yume_listes_indexables). Une liste privée, ou d'un compte
+ *   disparu, répond 404 (sans cache) à tout autre que son propriétaire ; l'ancienne forme
+ *   numérique /listes/{id}-{slug}/ répond 404. Passage en privé ou suppression : l'adresse est
+ *   purgée de Batcache (batcache_clear_url(), si disponible).
  * - RGPD : donnees_listes() (export) et effacer_listes() (effacement, suppression du compte).
  *
  * Routes REST : rest.php (GET/POST /moi/listes, PATCH/DELETE /moi/listes/{id},
@@ -49,6 +54,9 @@ const QV_LISTE = 'yume_liste';
 
 /** Option : signature de la règle de réécriture /listes/ déjà enregistrée. */
 const OPTION_REGLES_LISTES = 'yume_listes_regles';
+
+/** Longueur du jeton public d'une liste. */
+const LISTE_JETON_LONGUEUR = 16;
 
 /** Paramètre d'URL des messages après un formulaire de listes (sans JavaScript). */
 const PARAM_MESSAGE_LISTES = 'yn-lmsg';
@@ -95,7 +103,7 @@ function listes_systeme(): array {
  * Ligne de liste normalisée.
  *
  * @param array $ligne Ligne brute.
- * @return array{id:int,user_id:int,nom:string,slug:string,description:string,publique:bool,systeme:string,cree_le:string,maj_le:string}
+ * @return array{id:int,user_id:int,nom:string,slug:string,jeton:string,description:string,publique:bool,systeme:string,cree_le:string,maj_le:string}
  */
 function normaliser_liste( array $ligne ): array {
 	$systeme = (string) ( $ligne['systeme'] ?? '' );
@@ -106,6 +114,7 @@ function normaliser_liste( array $ligne ): array {
 		// Nom des listes système : toujours le libellé traduit courant.
 		'nom'         => isset( $connues[ $systeme ] ) ? $connues[ $systeme ]['nom'] : (string) ( $ligne['nom'] ?? '' ),
 		'slug'        => (string) ( $ligne['slug'] ?? '' ),
+		'jeton'       => (string) ( $ligne['jeton'] ?? '' ),
 		'description' => (string) ( $ligne['description'] ?? '' ),
 		'publique'    => (bool) (int) ( $ligne['publique'] ?? 0 ),
 		'systeme'     => isset( $connues[ $systeme ] ) ? $systeme : '',
@@ -130,6 +139,38 @@ function slug_liste( string $nom ): string {
 	$slug = sanitize_title( $nom );
 	$slug = '' !== $slug ? substr( $slug, 0, 100 ) : 'liste';
 	return trim( $slug, '-' ) !== '' ? trim( $slug, '-' ) : 'liste';
+}
+
+/**
+ * Le texte a-t-il la forme d'un jeton public de liste (une lettre puis 11 à 15 caractères
+ * [a-z0-9]) ? Un identifiant numérique n'en a jamais la forme.
+ *
+ * @param string $jeton Texte.
+ */
+function jeton_liste_valide( string $jeton ): bool {
+	return (bool) preg_match( '/^[a-z][a-z0-9]{11,15}$/', $jeton );
+}
+
+/**
+ * Nouveau jeton public de liste, aléatoire (random_int), unique dans la table.
+ */
+function nouveau_jeton_liste(): string {
+	global $wpdb;
+	$alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+	$table    = table_listes();
+	$jeton    = '';
+	for ( $essai = 0; $essai < 5; $essai++ ) {
+		// Première lettre : jamais confondu avec un identifiant numérique.
+		$jeton = $alphabet[ random_int( 0, 25 ) ];
+		for ( $i = 1; $i < LISTE_JETON_LONGUEUR; $i++ ) {
+			$jeton .= $alphabet[ random_int( 0, 35 ) ];
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE jeton = %s", $jeton ) ) ) {
+			break;
+		}
+	}
+	return $jeton;
 }
 
 /**
@@ -184,6 +225,22 @@ function liste( int $liste_id ): ?array {
 }
 
 /**
+ * Une liste par son jeton public, ou null.
+ *
+ * @param string $jeton Jeton public.
+ */
+function liste_par_jeton( string $jeton ): ?array {
+	global $wpdb;
+	if ( ! jeton_liste_valide( $jeton ) || ! tables_lecteur_pretes() ) {
+		return null;
+	}
+	$table = table_listes();
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+	$ligne = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE jeton = %s", $jeton ), ARRAY_A );
+	return is_array( $ligne ) && hash_equals( (string) $ligne['jeton'], $jeton ) ? normaliser_liste( $ligne ) : null;
+}
+
+/**
  * Une liste du membre, ou null (liste inconnue ou d'un autre membre).
  *
  * @param int $liste_id Liste.
@@ -219,13 +276,14 @@ function assurer_listes_systeme( int $user_id ): void {
 				'user_id'     => $user_id,
 				'nom'         => $systeme['nom'],
 				'slug'        => $systeme['slug'],
+				'jeton'       => nouveau_jeton_liste(),
 				'description' => '',
 				'publique'    => 0,
 				'systeme'     => $cle,
 				'cree_le'     => $maintenant,
 				'maj_le'      => $maintenant,
 			),
-			array( '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+			array( '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
 		);
 	}
 }
@@ -373,16 +431,30 @@ function listes_contenant( int $user_id, int $oeuvre_id ): array {
 }
 
 /**
- * Adresse publique d'une liste : /listes/{id}-{slug}/ (ou ?yume_liste={id} sans permaliens).
+ * Adresse publique d'une liste : /listes/{jeton}-{slug}/ (ou ?yume_liste={jeton} sans
+ * permaliens).
  *
  * @param array $liste Liste.
  */
 function url_liste( array $liste ): string {
 	global $wp_rewrite;
+	$jeton = (string) ( $liste['jeton'] ?? '' );
 	if ( $wp_rewrite instanceof \WP_Rewrite && $wp_rewrite->using_permalinks() ) {
-		return home_url( user_trailingslashit( 'listes/' . (int) $liste['id'] . '-' . ( '' !== $liste['slug'] ? $liste['slug'] : 'liste' ) ) );
+		return home_url( user_trailingslashit( 'listes/' . $jeton . '-' . ( '' !== $liste['slug'] ? $liste['slug'] : 'liste' ) ) );
 	}
-	return add_query_arg( QV_LISTE, (int) $liste['id'], home_url( '/' ) );
+	return add_query_arg( QV_LISTE, $jeton, home_url( '/' ) );
+}
+
+/**
+ * Purge une adresse publique du cache de pages Batcache (WordPress.com), si
+ * batcache_clear_url() existe ; sinon rien (la page en cache expire d'elle-même).
+ *
+ * @param string $url Adresse.
+ */
+function purger_cache_url( string $url ): void {
+	if ( '' !== $url && function_exists( 'batcache_clear_url' ) ) {
+		batcache_clear_url( $url );
+	}
 }
 
 /**
@@ -457,13 +529,14 @@ function creer_liste( int $user_id, string $nom, string $description = '', bool 
 			'user_id'     => $user_id,
 			'nom'         => $nom,
 			'slug'        => slug_liste( $nom ),
+			'jeton'       => nouveau_jeton_liste(),
 			'description' => nettoyer_description_liste( $description ),
 			'publique'    => $publique ? 1 : 0,
 			'systeme'     => '',
 			'cree_le'     => $maintenant,
 			'maj_le'      => $maintenant,
 		),
-		array( '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+		array( '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
 	);
 	if ( ! $ok ) {
 		return new \WP_Error( 'yume_liste_echec', __( 'La liste n’a pas pu être créée.', 'yume-core' ), array( 'status' => 500 ) );
@@ -499,11 +572,19 @@ function modifier_liste( array $liste, array $champs ) {
 	}
 	if ( array_key_exists( 'publique', $champs ) && null !== $champs['publique'] ) {
 		$maj['publique'] = rest_sanitize_boolean( $champs['publique'] ) ? 1 : 0;
+		// Privée → publique : nouveau jeton, l'ancien lien partagé ne revient pas à la vie.
+		if ( $maj['publique'] && ! $liste['publique'] ) {
+			$maj['jeton'] = nouveau_jeton_liste();
+		}
 	}
 	if ( $maj ) {
 		$maj['maj_le'] = maintenant_gmt();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->update( table_listes(), $maj, array( 'id' => $liste['id'] ) );
+		// Publique → privée : l'adresse ne doit plus être servie depuis le cache de pages.
+		if ( $liste['publique'] && isset( $maj['publique'] ) && ! $maj['publique'] ) {
+			purger_cache_url( url_liste( $liste ) );
+		}
 	}
 	return liste( $liste['id'] );
 }
@@ -523,6 +604,9 @@ function supprimer_liste( array $liste ) {
 	$wpdb->delete( table_listes_oeuvres(), array( 'liste_id' => $liste['id'] ), array( '%d' ) );
 	$wpdb->delete( table_listes(), array( 'id' => $liste['id'] ), array( '%d' ) );
 	// phpcs:enable
+	if ( $liste['publique'] ) {
+		purger_cache_url( url_liste( $liste ) );
+	}
 	return true;
 }
 
@@ -1229,7 +1313,7 @@ add_action( 'admin_post_yume_listes_auto', __NAMESPACE__ . '\\action_listes_auto
 
 /*
  * -----------------------------------------------------------------------------
- * Page publique d'une liste : /listes/{id}-{slug}/
+ * Page publique d'une liste : /listes/{jeton}-{slug}/
  * -----------------------------------------------------------------------------
  */
 
@@ -1239,7 +1323,11 @@ add_action( 'admin_post_yume_listes_auto', __NAMESPACE__ . '\\action_listes_auto
  * @return array<string,string>
  */
 function regles_listes(): array {
-	return array( '^listes/([0-9]+)(?:-([^/]*))?/?$' => 'index.php?' . QV_LISTE . '=$matches[1]' );
+	return array(
+		'^listes/([a-z][a-z0-9]{11,15})(?:-([^/]*))?/?$' => 'index.php?' . QV_LISTE . '=$matches[1]',
+		// Ancienne forme /listes/{id}-{slug}/ : reconnue pour répondre 404 (sans cache).
+		'^listes/([0-9]+)(?:-([^/]*))?/?$'               => 'index.php?' . QV_LISTE . '=$matches[1]',
+	);
 }
 
 /**
@@ -1284,11 +1372,26 @@ function verifier_regles_listes(): void {
 add_action( 'init', __NAMESPACE__ . '\\verifier_regles_listes', 101 );
 
 /**
- * Identifiant de liste demandé par la requête principale (0 sinon).
+ * Valeur de la variable yume_liste d'une requête ('' si absente).
+ *
+ * @param \WP_Query|null $requete Requête (défaut : principale).
  */
-function liste_demandee_id(): int {
+function valeur_liste_requete( $requete = null ): string {
 	global $wp_query;
-	return $wp_query instanceof \WP_Query ? absint( $wp_query->get( QV_LISTE ) ) : 0;
+	$requete = $requete ?? $wp_query;
+	if ( ! $requete instanceof \WP_Query ) {
+		return '';
+	}
+	$valeur = $requete->get( QV_LISTE );
+	return is_scalar( $valeur ) ? (string) $valeur : '';
+}
+
+/**
+ * Jeton de liste demandé par la requête principale ('' sinon). Toute valeur présente, même
+ * invalide (ancien identifiant numérique), signale une page de liste : elle répondra 404.
+ */
+function liste_demandee(): string {
+	return valeur_liste_requete();
 }
 
 /**
@@ -1296,11 +1399,11 @@ function liste_demandee_id(): int {
  * (publique, ou la sienne), sinon null.
  */
 function liste_affichee(): ?array {
-	$id = liste_demandee_id();
-	if ( ! $id ) {
+	$jeton = liste_demandee();
+	if ( '' === $jeton ) {
 		return null;
 	}
-	$liste = liste( $id );
+	$liste = liste_par_jeton( $jeton );
 	if ( ! $liste || ! get_userdata( $liste['user_id'] ) ) {
 		return null;
 	}
@@ -1316,7 +1419,7 @@ function liste_affichee(): ?array {
  * @param \WP_Query $requete Requête.
  */
 function requete_liste( $requete ): void {
-	if ( $requete instanceof \WP_Query && $requete->is_main_query() && absint( $requete->get( QV_LISTE ) ) ) {
+	if ( $requete instanceof \WP_Query && $requete->is_main_query() && '' !== valeur_liste_requete( $requete ) ) {
 		$requete->is_home = false;
 	}
 }
@@ -1330,7 +1433,7 @@ add_action( 'parse_query', __NAMESPACE__ . '\\requete_liste' );
  * @return array|null
  */
 function articles_liste( $posts, $requete ) {
-	if ( $requete instanceof \WP_Query && $requete->is_main_query() && absint( $requete->get( QV_LISTE ) ) ) {
+	if ( $requete instanceof \WP_Query && $requete->is_main_query() && '' !== valeur_liste_requete( $requete ) ) {
 		$requete->found_posts = 0;
 		return array();
 	}
@@ -1344,7 +1447,7 @@ add_filter( 'posts_pre_query', __NAMESPACE__ . '\\articles_liste', 10, 2 );
  * @param bool $court Court-circuit.
  */
 function liste_sans_404_auto( $court ) {
-	return liste_demandee_id() ? true : $court;
+	return '' !== liste_demandee() ? true : $court;
 }
 add_filter( 'pre_handle_404', __NAMESPACE__ . '\\liste_sans_404_auto' );
 
@@ -1355,7 +1458,7 @@ add_filter( 'pre_handle_404', __NAMESPACE__ . '\\liste_sans_404_auto' );
  * @return string|false
  */
 function liste_sans_canonique( $url ) {
-	return liste_demandee_id() ? false : $url;
+	return '' !== liste_demandee() ? false : $url;
 }
 add_filter( 'redirect_canonical', __NAMESPACE__ . '\\liste_sans_canonique' );
 
@@ -1364,7 +1467,7 @@ add_filter( 'redirect_canonical', __NAMESPACE__ . '\\liste_sans_canonique' );
  */
 function liste_template_redirect(): void {
 	global $wp_query;
-	if ( ! liste_demandee_id() ) {
+	if ( '' === liste_demandee() ) {
 		return;
 	}
 	$liste = liste_affichee();
@@ -1423,7 +1526,7 @@ function gabarit_liste(): string {
  * @param string $template Gabarit choisi.
  */
 function liste_template_include( $template ) {
-	if ( ! liste_demandee_id() || is_404() || ! liste_affichee() || ! function_exists( 'wp_is_block_theme' ) || ! wp_is_block_theme() ) {
+	if ( '' === liste_demandee() || is_404() || ! liste_affichee() || ! function_exists( 'wp_is_block_theme' ) || ! wp_is_block_theme() ) {
 		return $template;
 	}
 	global $_wp_current_template_content, $_wp_current_template_id;
@@ -1443,7 +1546,7 @@ add_filter( 'template_include', __NAMESPACE__ . '\\liste_template_include', 50 )
  */
 function titre_document_liste( $parties ): array {
 	$parties = (array) $parties;
-	$liste   = liste_demandee_id() && ! is_404() ? liste_affichee() : null;
+	$liste   = '' !== liste_demandee() && ! is_404() ? liste_affichee() : null;
 	if ( $liste ) {
 		$auteur = get_userdata( $liste['user_id'] );
 		/* translators: 1 : nom de la liste, 2 : nom affiché du membre. */
@@ -1462,7 +1565,7 @@ add_filter( 'document_title_parts', __NAMESPACE__ . '\\titre_document_liste' );
  */
 function robots_liste( $robots ): array {
 	$robots = (array) $robots;
-	if ( liste_demandee_id() ) {
+	if ( '' !== liste_demandee() ) {
 		/**
 		 * Les pages publiques des listes de lecture peuvent-elles être indexées ?
 		 *

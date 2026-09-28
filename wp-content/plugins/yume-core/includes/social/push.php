@@ -13,7 +13,7 @@
  *   GET /yume/v1/moi/notifications?non_lues=1&limite=1 (cookies inclus, en-têtes
  *   X-Yume-Push-Endpoint et X-Yume-Push-Auth qui l'authentifient sans nonce ; rien n'est mis
  *   en cache) et affiche la notification ; un clic ouvre son adresse.
- * - Table {prefix}yume_push (id, user_id, endpoint, empreinte, p256dh, auth, cree_le,
+ * - Table {prefix}yume_push (id, user_id, endpoint, empreinte, session, p256dh, auth, cree_le,
  *   dernier_envoi, echecs). Envoi en tâche cron par lots (yume_push_envoyer), jamais pendant la
  *   requête qui publie : chaque abonnement dont le membre a une notification non lue plus
  *   récente que le dernier envoi reçoit un push (TTL 24 h, Urgency normal). Abonnements 404/410
@@ -21,6 +21,12 @@
  * - Seuls les points d'accès https des services push connus sont acceptés (anti-SSRF) :
  *   fcm.googleapis.com, updates.push.services.mozilla.com, *.notify.windows.com,
  *   web.push.apple.com.
+ * - Chaque abonnement est lié à la session WordPress qui l'a créé (colonne session :
+ *   sha256 du jeton de session, la clé sous laquelle WordPress range la session dans la méta
+ *   session_tokens). L'authentification du service worker et l'envoi exigent que cette
+ *   session soit toujours active (session_push_valide(), filtre yume_push_session_valide) ;
+ *   déconnexion → abonnements de la session supprimés ; changement ou réinitialisation du mot
+ *   de passe, destruction de toutes les sessions → tous les abonnements du membre supprimés.
  * - Désactivable : réglage « Notifications navigateur » (notifications_navigateur) et filtre
  *   yume_push_actif.
  *
@@ -348,15 +354,60 @@ function empreinte_push( string $endpoint ): string {
 }
 
 /**
- * Enregistre (ou rattache au membre) l'abonnement push d'un appareil.
+ * Empreinte (sha256) du jeton de la session WordPress courante, '' sans session (connexion
+ * par mot de passe d'application, par exemple). C'est la clé de la session dans la méta
+ * session_tokens.
+ */
+function empreinte_session_courante(): string {
+	$jeton = (string) wp_get_session_token();
+	return '' !== $jeton ? hash( 'sha256', $jeton ) : '';
+}
+
+/**
+ * La session (empreinte sha256 de son jeton) est-elle toujours active pour ce membre ?
  *
- * @param int    $user_id  Membre.
- * @param string $endpoint Point d'accès du service push.
- * @param string $p256dh   Clé publique du navigateur (base64url, 65 octets).
- * @param string $auth     Secret d'authentification (base64url, 16 octets).
+ * Stockage par défaut de WordPress (WP_User_Meta_Session_Tokens) : la session doit figurer
+ * dans la méta session_tokens, indexée par cette empreinte, et ne pas être expirée. Autre
+ * stockage (filtre session_token_manager) : le filtre yume_push_session_valide doit répondre,
+ * faute de quoi la session est tenue pour invalide (aucun push, aucune authentification).
+ *
+ * @param int    $user_id Membre.
+ * @param string $session Empreinte sha256 du jeton de session.
+ */
+function session_push_valide( int $user_id, string $session ): bool {
+	if ( $user_id <= 0 || ! preg_match( '/^[a-f0-9]{64}$/', $session ) ) {
+		return false;
+	}
+	$valide = null;
+	// Même filtre que WP_Session_Tokens::get_instance() : quel stockage des sessions ?
+	$classe = apply_filters( 'session_token_manager', 'WP_User_Meta_Session_Tokens' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtre de WordPress.
+	if ( 'WP_User_Meta_Session_Tokens' === $classe ) {
+		$sessions = get_user_meta( $user_id, 'session_tokens', true );
+		$valide   = is_array( $sessions ) && isset( $sessions[ $session ]['expiration'] ) && (int) $sessions[ $session ]['expiration'] >= time();
+	}
+	/**
+	 * La session qui a créé un abonnement push est-elle toujours active ? Pour les hébergeurs
+	 * qui stockent les sessions ailleurs que dans la méta session_tokens.
+	 *
+	 * @param bool|null $valide  Réponse du stockage par défaut (null : stockage inconnu).
+	 * @param string    $session Empreinte sha256 du jeton de session.
+	 * @param int       $user_id Membre.
+	 */
+	return true === apply_filters( 'yume_push_session_valide', $valide, $session, $user_id );
+}
+
+/**
+ * Enregistre (ou rattache au membre) l'abonnement push d'un appareil, lié à la session qui
+ * le crée.
+ *
+ * @param int         $user_id  Membre.
+ * @param string      $endpoint Point d'accès du service push.
+ * @param string      $p256dh   Clé publique du navigateur (base64url, 65 octets).
+ * @param string      $auth     Secret d'authentification (base64url, 16 octets).
+ * @param string|null $session  Empreinte sha256 du jeton de session (null : session courante).
  * @return int|\WP_Error Identifiant de l'abonnement.
  */
-function enregistrer_abonnement( int $user_id, string $endpoint, string $p256dh, string $auth ) {
+function enregistrer_abonnement( int $user_id, string $endpoint, string $p256dh, string $auth, ?string $session = null ) {
 	global $wpdb;
 	if ( ! push_actif() ) {
 		return new \WP_Error( 'yume_push_inactif', __( 'Les notifications navigateur sont désactivées sur ce site.', 'yume-core' ), array( 'status' => 403 ) );
@@ -366,6 +417,10 @@ function enregistrer_abonnement( int $user_id, string $endpoint, string $p256dh,
 	}
 	if ( 65 !== strlen( base64url_decoder( $p256dh ) ) || 16 !== strlen( base64url_decoder( $auth ) ) ) {
 		return new \WP_Error( 'yume_push_cles', __( 'Clés d’abonnement invalides.', 'yume-core' ), array( 'status' => 400 ) );
+	}
+	$session = $session ?? empreinte_session_courante();
+	if ( ! session_push_valide( $user_id, $session ) ) {
+		return new \WP_Error( 'yume_push_session', __( 'Reconnectez-vous depuis ce navigateur pour activer les notifications.', 'yume-core' ), array( 'status' => 403 ) );
 	}
 	if ( $user_id <= 0 || ! preparer_tables_lecteur() ) {
 		return new \WP_Error( 'yume_push_echec', __( 'L’abonnement n’a pas pu être enregistré.', 'yume-core' ), array( 'status' => 500 ) );
@@ -382,6 +437,7 @@ function enregistrer_abonnement( int $user_id, string $endpoint, string $p256dh,
 			array(
 				'user_id'       => $user_id,
 				'endpoint'      => $endpoint,
+				'session'       => $session,
 				'p256dh'        => $p256dh,
 				'auth'          => $auth,
 				'cree_le'       => $maintenant,
@@ -403,6 +459,7 @@ function enregistrer_abonnement( int $user_id, string $endpoint, string $p256dh,
 			'user_id'       => $user_id,
 			'endpoint'      => $endpoint,
 			'empreinte'     => $empreinte,
+			'session'       => $session,
 			'p256dh'        => $p256dh,
 			'auth'          => $auth,
 			'cree_le'       => $maintenant,
@@ -410,7 +467,7 @@ function enregistrer_abonnement( int $user_id, string $endpoint, string $p256dh,
 			'dernier_envoi' => $maintenant,
 			'echecs'        => 0,
 		),
-		array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d' )
+		array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d' )
 	);
 	// phpcs:enable
 	if ( ! $ok ) {
@@ -500,6 +557,131 @@ function push_utilisateur_supprime( $user_id ): void {
 	effacer_push( (int) $user_id );
 }
 add_action( 'deleted_user', __NAMESPACE__ . '\\push_utilisateur_supprime' );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Révocation : abonnements liés aux sessions
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Supprime les abonnements du membre dont la session n'est plus active.
+ *
+ * @param int $user_id Membre.
+ * @return int Nombre d'abonnements supprimés.
+ */
+function purger_push_sessions( int $user_id ): int {
+	global $wpdb;
+	$n = 0;
+	foreach ( abonnements_push( $user_id ) as $abo ) {
+		if ( ! session_push_valide( $user_id, (string) $abo['session'] ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$n += (int) $wpdb->delete( table_push(), array( 'id' => (int) $abo['id'] ), array( '%d' ) );
+		}
+	}
+	return $n;
+}
+
+/**
+ * Déconnexion (wp_logout, qui reçoit l'identifiant) : les abonnements créés par cette session
+ * sont supprimés, ainsi que ceux des sessions qui ne sont plus actives.
+ *
+ * @param int $user_id Membre qui se déconnecte.
+ */
+function push_deconnexion( $user_id = 0 ): void {
+	global $wpdb;
+	$user_id = (int) $user_id;
+	if ( $user_id <= 0 || ! tables_lecteur_pretes() ) {
+		return;
+	}
+	// Le cookie de la requête porte encore le jeton de la session qui vient d'être détruite.
+	$session = empreinte_session_courante();
+	if ( '' !== $session ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->delete(
+			table_push(),
+			array(
+				'user_id' => $user_id,
+				'session' => $session,
+			),
+			array( '%d', '%s' )
+		);
+	}
+	purger_push_sessions( $user_id );
+}
+add_action( 'wp_logout', __NAMESPACE__ . '\\push_deconnexion' );
+
+/**
+ * Mot de passe réinitialisé (« Mot de passe oublié ») : tous les abonnements du membre.
+ *
+ * @param \WP_User $user Membre.
+ */
+function push_mot_de_passe_reinitialise( $user ): void {
+	if ( $user instanceof \WP_User ) {
+		effacer_push( (int) $user->ID );
+	}
+}
+add_action( 'after_password_reset', __NAMESPACE__ . '\\push_mot_de_passe_reinitialise' );
+
+/**
+ * Mot de passe défini directement (wp_set_password() : WP-CLI, extensions) : tous les
+ * abonnements du membre.
+ *
+ * @param string $password Nouveau mot de passe (inutilisé).
+ * @param int    $user_id  Membre.
+ */
+function push_mot_de_passe_defini( $password, $user_id = 0 ): void {
+	unset( $password );
+	effacer_push( (int) $user_id );
+}
+add_action( 'wp_set_password', __NAMESPACE__ . '\\push_mot_de_passe_defini', 10, 2 );
+
+/**
+ * Profil mis à jour avec un nouveau mot de passe : tous les abonnements du membre.
+ *
+ * @param int           $user_id Membre.
+ * @param \WP_User|null $ancien  Données avant la mise à jour.
+ */
+function push_profil_modifie( $user_id, $ancien = null ): void {
+	$user_id = (int) $user_id;
+	$nouveau = get_userdata( $user_id );
+	if ( $ancien instanceof \WP_User && $nouveau && ! hash_equals( (string) $ancien->user_pass, (string) $nouveau->user_pass ) ) {
+		effacer_push( $user_id );
+	}
+}
+add_action( 'profile_update', __NAMESPACE__ . '\\push_profil_modifie', 10, 2 );
+
+/**
+ * Sessions du membre modifiées (méta session_tokens) : une session détruite emporte ses
+ * abonnements ; toutes les sessions détruites (méta supprimée : « Se déconnecter partout »,
+ * WP_Session_Tokens::destroy_all()) emportent tous les abonnements du membre, ou de tous les
+ * membres (WP_Session_Tokens::destroy_all_for_all_users()).
+ *
+ * @param int|int[] $meta_ids  Méta(s).
+ * @param int       $user_id   Membre (0 : tous, suppression globale).
+ * @param string    $meta_key  Clé.
+ */
+function push_sessions_modifiees( $meta_ids, $user_id, $meta_key ): void {
+	global $wpdb;
+	unset( $meta_ids );
+	if ( 'session_tokens' !== $meta_key || ! tables_lecteur_pretes() ) {
+		return;
+	}
+	$user_id = (int) $user_id;
+	if ( 'deleted_user_meta' === current_action() ) {
+		if ( $user_id > 0 ) {
+			effacer_push( $user_id );
+		} else {
+			$table = table_push();
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			$wpdb->query( "DELETE FROM {$table}" );
+		}
+		return;
+	}
+	purger_push_sessions( $user_id );
+}
+add_action( 'updated_user_meta', __NAMESPACE__ . '\\push_sessions_modifiees', 10, 3 );
+add_action( 'deleted_user_meta', __NAMESPACE__ . '\\push_sessions_modifiees', 10, 3 );
 
 /*
  * -----------------------------------------------------------------------------
@@ -630,12 +812,19 @@ function envoyer_push( array $abo ): int {
  * @return int Nombre de push acceptés par les services (2xx).
  */
 function envoyer_lot_push(): int {
+	global $wpdb;
 	if ( ! push_actif() ) {
 		return 0;
 	}
 	$acceptes = 0;
 	$lot      = abonnements_a_prevenir( LOT_PUSH );
 	foreach ( $lot as $abo ) {
+		// Session close entre-temps (hébergeur sans les actions de méta, expiration) : révoqué.
+		if ( ! session_push_valide( (int) $abo['user_id'], (string) $abo['session'] ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->delete( table_push(), array( 'id' => (int) $abo['id'] ), array( '%d' ) );
+			continue;
+		}
 		$code = envoyer_push( $abo );
 		if ( $code >= 200 && $code < 300 ) {
 			++$acceptes;
@@ -685,12 +874,19 @@ function authentifier_push( $resultat ) {
 	}
 	$table = table_push();
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-	$abo = $wpdb->get_row( $wpdb->prepare( "SELECT user_id, auth FROM {$table} WHERE empreinte = %s", empreinte_push( $endpoint ) ), ARRAY_A );
-	if ( is_array( $abo ) && hash_equals( (string) $abo['auth'], $auth ) && get_userdata( (int) $abo['user_id'] ) ) {
-		wp_set_current_user( (int) $abo['user_id'] );
-		return true;
+	$abo = $wpdb->get_row( $wpdb->prepare( "SELECT id, user_id, session, auth FROM {$table} WHERE empreinte = %s", empreinte_push( $endpoint ) ), ARRAY_A );
+	if ( ! is_array( $abo ) || ! hash_equals( (string) $abo['auth'], $auth ) || ! get_userdata( (int) $abo['user_id'] ) ) {
+		return $resultat;
 	}
-	return $resultat;
+	// La session qui a créé l'abonnement doit être toujours active (déconnexion, changement
+	// de mot de passe, sessions détruites : l'appareil n'est plus authentifié).
+	if ( ! session_push_valide( (int) $abo['user_id'], (string) $abo['session'] ) ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->delete( $table, array( 'id' => (int) $abo['id'] ), array( '%d' ) );
+		return $resultat;
+	}
+	wp_set_current_user( (int) $abo['user_id'] );
+	return true;
 }
 add_filter( 'rest_authentication_errors', __NAMESPACE__ . '\\authentifier_push', 150 );
 

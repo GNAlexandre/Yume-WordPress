@@ -20,8 +20,18 @@ defined( 'ABSPATH' ) || exit;
 /** Capacité : importer, restaurer et télécharger les glossaires (éditeur, gérant, administrateur). */
 const CAPACITE = 'yume_glossaire';
 
-/** Versions conservées par œuvre. */
+/** Durée de conservation d'un glossaire vérifié en attente de publication (brouillon). */
+const DUREE_BROUILLON = 30 * MINUTE_IN_SECONDS;
+
+/** Versions conservées par œuvre (brouillons non compris). */
 const VERSIONS_CONSERVEES = 5;
+
+/**
+ * Source des lignes « brouillon » de la table des versions : glossaire vérifié dans l'espace
+ * équipe, pas encore publié (equipe.php). Jamais comptées dans l'historique ni dans la
+ * rétention, jamais servies (version(), versions(), REST, téléchargement).
+ */
+const SOURCE_BROUILLON = 'brouillon';
 
 /** Nombre maximal d'entrées (anglicismes compris) d'un glossaire. */
 const ENTREES_MAX = 5000;
@@ -485,6 +495,37 @@ function est_sqlite(): bool {
 }
 
 /**
+ * La connexion est-elle déjà dans une transaction ? MariaDB : variable @@in_transaction (propre
+ * à MariaDB). MySQL 8, qui ne la connaît pas (et dont information_schema.innodb_trx exige le
+ * privilège PROCESS, rarement accordé chez un hébergeur) : sonde par point de sauvegarde —
+ * hors transaction (autocommit), « SAVEPOINT » est validé aussitôt et « RELEASE SAVEPOINT »
+ * échoue ; dans une transaction, il réussit. Requêtes sans message d'erreur ; null si rien ne
+ * permet de le savoir.
+ *
+ * @param string|null $serveur Version du serveur (défaut : $wpdb->db_server_info()).
+ */
+function transaction_en_cours( ?string $serveur = null ): ?bool {
+	global $wpdb;
+	$serveur  = strtolower( $serveur ?? ( method_exists( $wpdb, 'db_server_info' ) ? (string) $wpdb->db_server_info() : '' ) );
+	$masquer  = $wpdb->suppress_errors( true );
+	$en_cours = null;
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery
+	if ( str_contains( $serveur, 'mariadb' ) ) {
+		$valeur = $wpdb->get_var( 'SELECT @@in_transaction' );
+		if ( '' === $wpdb->last_error && null !== $valeur ) {
+			$en_cours = '1' === (string) $valeur;
+		}
+	}
+	if ( null === $en_cours && false !== $wpdb->query( 'SAVEPOINT yume_sonde' ) ) {
+		$en_cours = false !== $wpdb->query( 'RELEASE SAVEPOINT yume_sonde' );
+	}
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery
+	$wpdb->last_error = '';
+	$wpdb->suppress_errors( $masquer );
+	return $en_cours;
+}
+
+/**
  * Ouvre une transaction (MySQL/MariaDB). Déjà dans une transaction (tests, autre module) : point
  * de sauvegarde, pour ne pas valider implicitement la transaction englobante. SQLite : rien.
  *
@@ -495,9 +536,7 @@ function ouvrir_transaction(): string {
 	if ( est_sqlite() ) {
 		return 'aucun';
 	}
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-	$en_cours = $wpdb->get_var( 'SELECT @@in_transaction' );
-	if ( '1' === (string) $en_cours ) {
+	if ( true === transaction_en_cours() ) {
 		$wpdb->query( 'SAVEPOINT yume_glossaire' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		return 'savepoint';
 	}
@@ -557,21 +596,115 @@ function remplacer_entrees( int $oeuvre_id, array $lignes ): bool {
 }
 
 /**
- * Ne garde que les VERSIONS_CONSERVEES dernières versions d'une œuvre.
+ * Ne garde que les VERSIONS_CONSERVEES dernières versions d'une œuvre (les brouillons ne
+ * comptent pas ; ceux qui ont expiré sont supprimés).
  *
  * @param int $oeuvre_id Œuvre.
  */
 function purger_versions( int $oeuvre_id ): void {
 	global $wpdb;
 	$table = table_versions();
+	purger_brouillons();
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-	$ids   = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE oeuvre_id = %d ORDER BY id DESC", $oeuvre_id ) ) );
+	$ids   = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE oeuvre_id = %d AND source <> %s ORDER BY id DESC", $oeuvre_id, SOURCE_BROUILLON ) ) );
 	$vieux = array_slice( $ids, VERSIONS_CONSERVEES );
 	if ( $vieux ) {
 		$marques = implode( ', ', array_fill( 0, count( $vieux ), '%d' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders, WordPress.DB.DirectDatabaseQuery
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE id IN ($marques)", $vieux ) );
 	}
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * Brouillons (glossaire vérifié, pas encore publié)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Enregistre un brouillon dans la table des versions (source SOURCE_BROUILLON) : le YAML
+ * (jusqu'à 4 Mo) n'a pas sa place dans un transient (limite de 1 Mo de Memcached).
+ *
+ * @param int    $oeuvre_id Œuvre.
+ * @param int    $user_id   Compte.
+ * @param string $yaml      Document YAML vérifié.
+ * @param string $sha256    Empreinte (analyser_glossaire()).
+ * @param int    $entrees   Nombre d'entrées.
+ * @param string $note      Note saisie.
+ * @return int Identifiant du brouillon (0 : échec).
+ */
+function enregistrer_brouillon( int $oeuvre_id, int $user_id, string $yaml, string $sha256, int $entrees, string $note ): int {
+	global $wpdb;
+	purger_brouillons();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$ok = $wpdb->insert(
+		table_versions(),
+		array(
+			'oeuvre_id'  => $oeuvre_id,
+			'user_id'    => max( 0, $user_id ),
+			'source'     => SOURCE_BROUILLON,
+			'cree_le'    => gmdate( 'Y-m-d H:i:s' ),
+			'sha256'     => $sha256,
+			'nb_entrees' => max( 0, $entrees ),
+			'yaml'       => $yaml,
+			'note'       => texte( $note, 255 ),
+		),
+		array( '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%s' )
+	);
+	return $ok ? (int) $wpdb->insert_id : 0;
+}
+
+/**
+ * Brouillon d'un compte (ligne complète, YAML compris), s'il existe encore, appartient à ce
+ * compte, porte cette empreinte et n'a pas expiré ; sinon null.
+ *
+ * @param int    $brouillon_id Brouillon.
+ * @param int    $user_id      Compte.
+ * @param string $sha256       Empreinte attendue.
+ */
+function ligne_brouillon( int $brouillon_id, int $user_id, string $sha256 ): ?array {
+	global $wpdb;
+	if ( $brouillon_id <= 0 || $user_id <= 0 || '' === $sha256 ) {
+		return null;
+	}
+	$table = table_versions();
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+	$ligne = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d AND source = %s AND user_id = %d", $brouillon_id, SOURCE_BROUILLON, $user_id ), ARRAY_A );
+	if ( ! is_array( $ligne ) || ! hash_equals( (string) $ligne['sha256'], $sha256 ) ) {
+		return null;
+	}
+	$cree = strtotime( (string) $ligne['cree_le'] . ' UTC' );
+	return $cree && $cree > time() - DUREE_BROUILLON ? $ligne : null;
+}
+
+/**
+ * Supprime un brouillon (publication, annulation, nouvelle vérification).
+ *
+ * @param int $brouillon_id Brouillon.
+ */
+function supprimer_brouillon( int $brouillon_id ): void {
+	global $wpdb;
+	if ( $brouillon_id > 0 ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->delete(
+			table_versions(),
+			array(
+				'id'     => $brouillon_id,
+				'source' => SOURCE_BROUILLON,
+			),
+			array( '%d', '%s' )
+		);
+	}
+}
+
+/**
+ * Supprime les brouillons expirés (plus de DUREE_BROUILLON), de toutes les œuvres.
+ */
+function purger_brouillons(): void {
+	global $wpdb;
+	$table = table_versions();
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE source = %s AND cree_le < %s", SOURCE_BROUILLON, gmdate( 'Y-m-d H:i:s', time() - DUREE_BROUILLON ) ) );
 }
 
 /**
@@ -844,7 +977,7 @@ function lire_entrees( int $oeuvre_id ): array {
 }
 
 /**
- * Une version (YAML compris), ou null.
+ * Une version (YAML compris), ou null. Un brouillon n'est jamais une version.
  *
  * @param int $version_id Version.
  */
@@ -852,12 +985,13 @@ function version( int $version_id ): ?array {
 	global $wpdb;
 	$table = table_versions();
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-	$ligne = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $version_id ), ARRAY_A );
+	$ligne = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d AND source <> %s", $version_id, SOURCE_BROUILLON ), ARRAY_A );
 	return is_array( $ligne ) ? $ligne : null;
 }
 
 /**
- * Versions conservées d'une œuvre, de la plus récente à la plus ancienne (sans le YAML).
+ * Versions conservées d'une œuvre, de la plus récente à la plus ancienne (sans le YAML ni les
+ * brouillons).
  *
  * @param int $oeuvre_id Œuvre.
  * @return array<int,array<string,mixed>>
@@ -866,7 +1000,7 @@ function versions( int $oeuvre_id ): array {
 	global $wpdb;
 	$table = table_versions();
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-	$lignes = $wpdb->get_results( $wpdb->prepare( "SELECT id, oeuvre_id, user_id, source, cree_le, sha256, nb_entrees, note FROM {$table} WHERE oeuvre_id = %d ORDER BY id DESC", $oeuvre_id ), ARRAY_A );
+	$lignes = $wpdb->get_results( $wpdb->prepare( "SELECT id, oeuvre_id, user_id, source, cree_le, sha256, nb_entrees, note FROM {$table} WHERE oeuvre_id = %d AND source <> %s ORDER BY id DESC", $oeuvre_id, SOURCE_BROUILLON ), ARRAY_A );
 	return is_array( $lignes ) ? $lignes : array();
 }
 

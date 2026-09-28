@@ -81,9 +81,19 @@ function yume_tg_compter( int $oeuvre_id ): array {
 	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
 	return array(
 		'entrees'  => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . table_entrees() . ' WHERE oeuvre_id = %d', $oeuvre_id ) ),
-		'versions' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . table_versions() . ' WHERE oeuvre_id = %d', $oeuvre_id ) ),
+		'versions' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . table_versions() . " WHERE oeuvre_id = %d AND source <> 'brouillon'", $oeuvre_id ) ),
 	);
 	// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+}
+
+/**
+ * Nombre de brouillons (glossaires vérifiés non publiés) d'une œuvre.
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function yume_tg_brouillons( int $oeuvre_id ): int {
+	global $wpdb;
+	return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . table_versions() . " WHERE oeuvre_id = %d AND source = 'brouillon'", $oeuvre_id ) ); // phpcs:ignore WordPress.DB
 }
 
 /**
@@ -654,6 +664,28 @@ yume_test(
 		yume_assert_same( 0, yume_tg_compter( $oeuvre )['versions'] );
 		$brouillon = \Yume\Core\Glossaire\brouillon( $editeur );
 		yume_assert_same( $oeuvre, $brouillon['oeuvre'] );
+		// Brouillon en table (source « brouillon »), transient léger : jamais le YAML.
+		yume_assert_same( 1, yume_tg_brouillons( $oeuvre ) );
+		$transient = get_transient( 'yume_glossaire_brouillon_' . $editeur );
+		yume_assert_false( isset( $transient['yaml'] ), 'pas de YAML dans le transient' );
+		yume_assert_true( strlen( serialize( $transient ) ) < 20000, 'transient léger' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize
+		yume_assert_true( $brouillon['id'] > 0 && 64 === strlen( $brouillon['sha256'] ) );
+		// Jamais servi : ni version, ni historique, ni téléchargement, ni REST.
+		yume_assert_same( null, \Yume\Core\Glossaire\version( (int) $brouillon['id'] ) );
+		yume_assert_same( array(), versions( $oeuvre ) );
+		wp_set_current_user( $editeur );
+		$telechargement = \Yume\Core\Glossaire\fichier_version(
+			array(
+				'version'  => (string) $brouillon['id'],
+				'_wpnonce' => wp_create_nonce( 'yume_glossaire_yaml_' . $brouillon['id'] ),
+			),
+			$editeur
+		);
+		wp_set_current_user( 0 );
+		yume_assert_true( is_wp_error( $telechargement ) );
+		yume_assert_same( 404, $telechargement->get_error_data()['status'] );
+		$get = yume_rest( 'GET', '/yume/v1/oeuvres/' . $oeuvre . '/glossaire', array(), $editeur );
+		yume_assert_same( null, $get->get_data()['version'] );
 		wp_set_current_user( $editeur );
 		$html = \Yume\Core\Glossaire\rendu_vue_glossaire();
 		wp_set_current_user( 0 );
@@ -674,6 +706,8 @@ yume_test(
 		yume_assert_contains( 'publié', $r['message'] );
 		yume_assert_same( 16, yume_tg_compter( $oeuvre )['entrees'] );
 		yume_assert_same( null, \Yume\Core\Glossaire\brouillon( $editeur ) );
+		yume_assert_same( 0, yume_tg_brouillons( $oeuvre ), 'brouillon supprimé à la publication' );
+		yume_assert_same( 1, yume_tg_compter( $oeuvre )['versions'] );
 		$v = versions( $oeuvre );
 		yume_assert_same( 'televersement', $v[0]['source'] );
 		yume_assert_same( 'Essai', $v[0]['note'] );
@@ -941,6 +975,75 @@ yume_test(
 );
 
 yume_test(
+	'Sécurité : brouillon du glossaire en table (hors historique et rétention), annulé, remplacé, expiré après 30 min',
+	function () {
+		\Yume\Core\Core\installer_roles();
+		global $wpdb;
+		$oeuvre   = yume_tg_oeuvre();
+		$editeur  = yume_factory_user( 'yume_editeur' );
+		$envoi    = static function ( array $post, array $files ) use ( $editeur ): array {
+			wp_set_current_user( $editeur );
+			$post['_yume_nonce'] = wp_create_nonce( 'yume_glossaire' );
+			try {
+				return yume_tg_fichiers_locaux( static fn() => \Yume\Core\Glossaire\traiter_formulaire_glossaire( $post, $files, $editeur ) );
+			} finally {
+				wp_set_current_user( 0 );
+			}
+		};
+		$verifier = static function ( int $n ) use ( $envoi, $oeuvre ): array {
+			return $envoi(
+				array(
+					'op'     => 'verifier',
+					'oeuvre' => $oeuvre,
+				),
+				array( 'glossaire' => yume_tg_fichier( yume_tg_yaml( $n ) ) )
+			);
+		};
+		// Six versions publiées + un brouillon : 5 versions gardées, brouillon intact.
+		for ( $i = 1; $i <= 6; $i++ ) {
+			importer( $oeuvre, yume_tg_yaml( $i ), array( 'user_id' => $editeur ) );
+			if ( 5 === $i ) {
+				yume_assert_same( 'ok', $verifier( 2 )['type'] );
+			}
+		}
+		yume_assert_same( 5, yume_tg_compter( $oeuvre )['versions'] );
+		yume_assert_same( 1, yume_tg_brouillons( $oeuvre ), 'non compté dans la rétention' );
+		yume_assert_same( 5, count( versions( $oeuvre ) ), 'non compté dans l’historique' );
+
+		// Nouvelle vérification : le brouillon précédent est remplacé ; annulation : supprimé.
+		$premier = \Yume\Core\Glossaire\brouillon( $editeur )['id'];
+		yume_assert_same( 'ok', $verifier( 3 )['type'] );
+		yume_assert_true( \Yume\Core\Glossaire\brouillon( $editeur )['id'] !== $premier );
+		yume_assert_same( 1, yume_tg_brouillons( $oeuvre ) );
+		yume_assert_same( 'ok', $envoi( array( 'op' => 'annuler' ), array() )['type'] );
+		yume_assert_same( 0, yume_tg_brouillons( $oeuvre ), 'annulé' );
+		yume_assert_same( null, \Yume\Core\Glossaire\brouillon( $editeur ) );
+
+		// Expiré (plus de 30 minutes) : plus publiable, purgé à la vérification suivante.
+		yume_assert_same( 'ok', $verifier( 4 )['type'] );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . table_versions() . " SET cree_le = %s WHERE source = 'brouillon'", gmdate( 'Y-m-d H:i:s', time() - 31 * MINUTE_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB
+		yume_assert_same( null, \Yume\Core\Glossaire\brouillon( $editeur ) );
+		yume_assert_same(
+			'erreur',
+			$envoi(
+				array(
+					'op'     => 'publier_brouillon',
+					'oeuvre' => $oeuvre,
+				),
+				array()
+			)['type']
+		);
+		\Yume\Core\Glossaire\purger_brouillons();
+		yume_assert_same( 0, yume_tg_brouillons( $oeuvre ), 'expiré : purgé' );
+		// Un brouillon ne se publie que par son auteur (empreinte et compte vérifiés).
+		$id = \Yume\Core\Glossaire\enregistrer_brouillon( $oeuvre, $editeur, yume_tg_yaml( 7 ), str_repeat( 'a', 64 ), 7, '' );
+		yume_assert_true( null !== \Yume\Core\Glossaire\ligne_brouillon( $id, $editeur, str_repeat( 'a', 64 ) ) );
+		yume_assert_same( null, \Yume\Core\Glossaire\ligne_brouillon( $id, $editeur + 1, str_repeat( 'a', 64 ) ) );
+		yume_assert_same( null, \Yume\Core\Glossaire\ligne_brouillon( $id, $editeur, str_repeat( 'b', 64 ) ) );
+	}
+);
+
+yume_test(
 	'Glossaire : remplacement atomique (MariaDB : point de sauvegarde dans une transaction, annulation complète)',
 	function () {
 		$oeuvre = yume_tg_oeuvre();
@@ -956,6 +1059,38 @@ yume_test(
 		yume_assert_same( 8, yume_tg_compter( $oeuvre )['entrees'] );
 		\Yume\Core\Glossaire\fermer_transaction( $mode, false );
 		yume_assert_same( 3, yume_tg_compter( $oeuvre )['entrees'], 'annulé : anciennes entrées intactes' );
+	}
+);
+
+yume_test(
+	'Sécurité : détection de la transaction en cours sans @@in_transaction (MySQL 8), sans erreur SQL',
+	function () {
+		global $wpdb;
+		if ( \Yume\Core\Glossaire\est_sqlite() ) {
+			yume_assert_same( 'aucun', \Yume\Core\Glossaire\ouvrir_transaction() );
+			return;
+		}
+		$wpdb->query( "UPDATE {$wpdb->options} SET option_value = option_value WHERE option_name = 'siteurl'" ); // phpcs:ignore WordPress.DB
+		// MariaDB (@@in_transaction) comme MySQL 8 (sonde par point de sauvegarde) : la
+		// transaction du test est vue ; aucune erreur ne reste affichée ni enregistrée.
+		foreach ( array( null, '8.0.36' ) as $serveur ) {
+			yume_assert_true( \Yume\Core\Glossaire\transaction_en_cours( $serveur ), (string) $serveur );
+			yume_assert_same( '', $wpdb->last_error );
+		}
+		// Hors transaction (connexion distincte, autocommit) : la sonde répond « non ».
+		$autre = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
+		$avant = $wpdb;
+		$wpdb  = $autre; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- connexion hors transaction, rétablie aussitôt.
+		try {
+			yume_assert_false( \Yume\Core\Glossaire\transaction_en_cours( '8.0.36' ), 'MySQL 8, hors transaction' );
+			yume_assert_false( \Yume\Core\Glossaire\transaction_en_cours(), 'MariaDB, hors transaction' );
+			yume_assert_same( 'transaction', \Yume\Core\Glossaire\ouvrir_transaction() );
+			\Yume\Core\Glossaire\fermer_transaction( 'transaction', false );
+		} finally {
+			$wpdb = $avant; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			$autre->close();
+		}
+		yume_assert_false( $wpdb->suppress_errors, 'affichage des erreurs rétabli' );
 	}
 );
 

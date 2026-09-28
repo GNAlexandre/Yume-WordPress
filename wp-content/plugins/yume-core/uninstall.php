@@ -9,9 +9,15 @@
  *   define( 'YUME_UNINSTALL_PURGE', true );
  *
  * La purge supprime alors les contenus Yume (œuvres, tomes, chapitres, avec leurs
- * métadonnées et commentaires), les termes des taxonomies Yume, les tables yume_*, les
- * rôles Yume et les capacités yume_*, les options, transients et métadonnées utilisateur
- * yume_*. Les fichiers de la médiathèque (couvertures, illustrations) sont conservés.
+ * métadonnées et commentaires), les termes des taxonomies Yume, les tables yume_* (favoris,
+ * notes, progression, journal du planning, file d'e-mails, glossaires et leurs versions,
+ * listes de lecture, notifications du lecteur, abonnements Web Push), les rôles Yume et les
+ * capacités yume_*, les options yume_* (réglages, schémas des modules, clés VAPID yume_vapid,
+ * règles de réécriture mémorisées yume_listes_regles et yume_regles_contributeurs, dernières
+ * exécutions yume_cron_derniers…), les transients yume_* et les métadonnées yume_* et _yume_*
+ * des utilisateurs (profil public yume_profil_*, yume_listes_auto…), contenus (_yume_glossaire…),
+ * commentaires et termes ; les règles de réécriture sont recalculées. Les fichiers de la
+ * médiathèque (couvertures, illustrations) sont conservés.
  *
  * @package Yume\Core
  */
@@ -81,7 +87,20 @@ function yume_uninstall_purger(): void {
 	}
 
 	// Tables des modules (§13 du contrat).
-	foreach ( array( 'favoris', 'notes', 'progression', 'planning_journal', 'notifications' ) as $table ) {
+	$tables = array(
+		'favoris',
+		'notes',
+		'progression',
+		'planning_journal',
+		'notifications',
+		'glossaire',
+		'glossaire_versions',
+		'listes',
+		'listes_oeuvres',
+		'notifications_lecteur',
+		'push',
+	);
+	foreach ( $tables as $table ) {
 		$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $wpdb->prefix . 'yume_' . $table ) . '`' ); // phpcs:ignore WordPress.DB
 	}
 
@@ -127,13 +146,20 @@ function yume_uninstall_purger(): void {
 	$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s OR meta_key LIKE %s", $wpdb->esc_like( 'yume_' ) . '%', $wpdb->esc_like( '_yume_' ) . '%' )
 	);
+	// Méta des contenus restants (articles, pages, médias) : internes (_yume_*) et publiques (yume_*).
 	$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_yume_' ) . '%' )
+		$wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s OR meta_key LIKE %s", $wpdb->esc_like( 'yume_' ) . '%', $wpdb->esc_like( '_yume_' ) . '%' )
+	);
+	// Méta des termes (yume_oeuvre_id des termes liés aux œuvres).
+	$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->prepare( "DELETE FROM {$wpdb->termmeta} WHERE meta_key LIKE %s OR meta_key LIKE %s", $wpdb->esc_like( 'yume_' ) . '%', $wpdb->esc_like( '_yume_' ) . '%' )
 	);
 	// Méta internes des commentaires (_yume_reponse_notifiee).
 	$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$wpdb->prepare( "DELETE FROM {$wpdb->commentmeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_yume_' ) . '%' )
+		$wpdb->prepare( "DELETE FROM {$wpdb->commentmeta} WHERE meta_key LIKE %s OR meta_key LIKE %s", $wpdb->esc_like( 'yume_' ) . '%', $wpdb->esc_like( '_yume_' ) . '%' )
 	);
+	// Règles /listes/, /contributeurs/… : recalculées sans l'extension à la prochaine requête.
+	delete_option( 'rewrite_rules' );
 	wp_cache_flush();
 }
 

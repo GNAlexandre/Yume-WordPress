@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.13 — 2026-09-28
+
+- Revue de sécurité : abonnements Web Push liés à la session (révoqués à la déconnexion et au changement de mot de passe), purge des nouvelles tables à la désinstallation, brouillon de glossaire en base (plus en cache objet), détection de transaction compatible MySQL 8, pause d'un tome invalidant ICS et indicateurs, listes publiques à jeton aléatoire, purge Batcache, signalements pondérés par l'ancienneté et jamais de masquage automatique pour l'équipe.
+
 ## 2.0.0-dev.12 — 2026-09-28
 
 - Corrections du parcours final : liens des commentaires soulignés, Échap des suggestions sans fermer le menu mobile, tableau du tableau de bord défilant à 390 px, « des »/« du » dans les titres d'annonce, messages de publication exacts sans DOCX.

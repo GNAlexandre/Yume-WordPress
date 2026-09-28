@@ -29,6 +29,7 @@ use function Yume\Core\Social\nb_non_lues;
 use function Yume\Core\Social\notifications_utilisateur;
 use function Yume\Core\Social\purger_notifications;
 use function Yume\Core\Social\section_notifications;
+use function Yume\Core\Social\session_push_valide;
 use function Yume\Core\Social\signature_brut_vers_der;
 use function Yume\Core\Social\table_notifications_lecteur;
 use function Yume\Core\Social\table_push;
@@ -91,18 +92,30 @@ function yume_tnot_oeuvre( int $nb = 2 ): array {
 }
 
 /**
- * Abonnement push valide (clés factices de la bonne longueur).
+ * Ouvre une session WordPress (méta session_tokens) pour le membre.
  *
- * @param int    $user_id Membre.
- * @param string $hote    Hôte du service push.
- * @return array{endpoint:string,p256dh:string,auth:string,id:int}
+ * @param int $user_id Membre.
+ * @return string Jeton de session (en clair).
+ */
+function yume_tnot_session( int $user_id ): string {
+	return WP_Session_Tokens::get_instance( $user_id )->create( time() + HOUR_IN_SECONDS );
+}
+
+/**
+ * Abonnement push valide (clés factices de la bonne longueur), lié à une session.
+ *
+ * @param int         $user_id Membre.
+ * @param string      $hote    Hôte du service push.
+ * @param string|null $jeton   Jeton de session (null : nouvelle session).
+ * @return array{endpoint:string,p256dh:string,auth:string,id:int,jeton:string}
  * @throws Yume_Test_Failure Abonnement refusé.
  */
-function yume_tnot_abonnement( int $user_id, string $hote = 'fcm.googleapis.com' ): array {
+function yume_tnot_abonnement( int $user_id, string $hote = 'fcm.googleapis.com', ?string $jeton = null ): array {
+	$jeton    = $jeton ?? yume_tnot_session( $user_id );
 	$endpoint = 'https://' . $hote . '/fcm/send/' . wp_generate_password( 24, false );
 	$p256dh   = rtrim( strtr( base64_encode( "\x04" . random_bytes( 64 ) ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 	$auth     = rtrim( strtr( base64_encode( random_bytes( 16 ) ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
-	$id       = enregistrer_abonnement( $user_id, $endpoint, $p256dh, $auth );
+	$id       = enregistrer_abonnement( $user_id, $endpoint, $p256dh, $auth, hash( 'sha256', $jeton ) );
 	if ( is_wp_error( $id ) ) {
 		throw new Yume_Test_Failure( 'abonnement : ' . $id->get_error_message() );
 	}
@@ -111,7 +124,53 @@ function yume_tnot_abonnement( int $user_id, string $hote = 'fcm.googleapis.com'
 		'p256dh'   => $p256dh,
 		'auth'     => $auth,
 		'id'       => (int) $id,
+		'jeton'    => $jeton,
 	);
+}
+
+/**
+ * Le service worker de l'abonnement s'authentifie-t-il (GET /moi/notifications) ?
+ *
+ * @param array $abo Abonnement (yume_tnot_abonnement()).
+ * @return int Membre authentifié (0 : refusé).
+ */
+function yume_tnot_authentifie( array $abo ): int {
+	$avant_route = $GLOBALS['wp']->query_vars['rest_route'] ?? null;
+	$sauve       = $_SERVER;
+	try {
+		$_SERVER['REQUEST_METHOD']               = 'GET';
+		$_SERVER['HTTP_X_YUME_PUSH_ENDPOINT']    = $abo['endpoint'];
+		$_SERVER['HTTP_X_YUME_PUSH_AUTH']        = $abo['auth'];
+		$GLOBALS['wp']->query_vars['rest_route'] = '/yume/v1/moi/notifications';
+		wp_set_current_user( 0 );
+		return true === authentifier_push( null ) ? get_current_user_id() : 0;
+	} finally {
+		$_SERVER                                 = $sauve; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$GLOBALS['wp']->query_vars['rest_route'] = $avant_route;
+		wp_set_current_user( 0 );
+	}
+}
+
+/**
+ * Exécute $rappel avec le cookie de connexion d'une session (wp_get_session_token()).
+ *
+ * @param int      $user_id Membre.
+ * @param string   $jeton   Jeton de session.
+ * @param callable $rappel  Fonction.
+ * @return mixed
+ */
+function yume_tnot_avec_cookie( int $user_id, string $jeton, callable $rappel ) {
+	$avant                       = $_COOKIE[ LOGGED_IN_COOKIE ] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sauvegardé puis restauré tel quel.
+	$_COOKIE[ LOGGED_IN_COOKIE ] = wp_generate_auth_cookie( $user_id, time() + HOUR_IN_SECONDS, 'logged_in', $jeton );
+	try {
+		return $rappel();
+	} finally {
+		if ( null === $avant ) {
+			unset( $_COOKIE[ LOGGED_IN_COOKIE ] );
+		} else {
+			$_COOKIE[ LOGGED_IN_COOKIE ] = $avant;
+		}
+	}
 }
 
 /**
@@ -493,19 +552,27 @@ yume_test(
 		);
 		yume_assert_same( 400, $r->get_status() );
 		// Valide (format PushSubscription.toJSON()), puis désabonnement.
-		$r = yume_rest(
-			'POST',
-			'/yume/v1/moi/push',
-			array(
-				'endpoint' => 'https://fcm.googleapis.com/fcm/send/valide',
-				'keys'     => array(
-					'p256dh' => rtrim( strtr( base64_encode( "\x04" . str_repeat( 'k', 64 ) ), '+/', '-_' ), '=' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
-					'auth'   => rtrim( strtr( base64_encode( str_repeat( 'a', 16 ) ), '+/', '-_' ), '=' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
-				),
+		$valide = array(
+			'endpoint' => 'https://fcm.googleapis.com/fcm/send/valide',
+			'keys'     => array(
+				'p256dh' => rtrim( strtr( base64_encode( "\x04" . str_repeat( 'k', 64 ) ), '+/', '-_' ), '=' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+				'auth'   => rtrim( strtr( base64_encode( str_repeat( 'a', 16 ) ), '+/', '-_' ), '=' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
 			),
-			$u
+		);
+		// Sans session WordPress (mot de passe d'application…) : refusé.
+		$r = yume_rest( 'POST', '/yume/v1/moi/push', $valide, $u );
+		yume_assert_same( 403, $r->get_status() );
+		yume_assert_same( 'yume_push_session', $r->get_data()['code'] );
+		$jeton = yume_tnot_session( $u );
+		$r     = yume_tnot_avec_cookie(
+			$u,
+			$jeton,
+			static function () use ( $valide, $u ) {
+				return yume_rest( 'POST', '/yume/v1/moi/push', $valide, $u );
+			}
 		);
 		yume_assert_same( 201, $r->get_status() );
+		yume_assert_same( hash( 'sha256', $jeton ), abonnements_push( $u )[0]['session'], 'abonnement lié à la session' );
 		yume_assert_same( 1, count( abonnements_push( $u ) ) );
 		yume_assert_same( 200, yume_rest( 'DELETE', '/yume/v1/moi/push', array( 'endpoint' => 'https://fcm.googleapis.com/fcm/send/valide' ), yume_factory_user() )->get_status() );
 		yume_assert_same( 1, count( abonnements_push( $u ) ), 'un autre membre ne supprime rien' );
@@ -624,6 +691,121 @@ yume_test(
 			$GLOBALS['wp']->query_vars['rest_route'] = $avant_route;
 			wp_set_current_user( 0 );
 		}
+	}
+);
+
+yume_test(
+	'Sécurité : abonnement push révoqué avec sa session (destruction, déconnexion, session invalide à l’envoi)',
+	function () {
+		$u = yume_factory_user();
+		$a = yume_tnot_abonnement( $u );
+		$b = yume_tnot_abonnement( $u, 'updates.push.services.mozilla.com' );
+		yume_assert_same( $u, yume_tnot_authentifie( $a ) );
+		yume_assert_same( $u, yume_tnot_authentifie( $b ) );
+
+		// Session A détruite (« Se déconnecter » ailleurs, expiration) : seul A disparaît.
+		WP_Session_Tokens::get_instance( $u )->destroy( $a['jeton'] );
+		yume_assert_same( array( $b['id'] ), array_map( 'intval', wp_list_pluck( abonnements_push( $u ), 'id' ) ) );
+		yume_assert_same( 0, yume_tnot_authentifie( $a ) );
+		yume_assert_same( $u, yume_tnot_authentifie( $b ) );
+
+		// Déconnexion (wp_logout reçoit l'identifiant ; le cookie porte encore le jeton).
+		$c = yume_tnot_abonnement( $u );
+		yume_tnot_avec_cookie(
+			$u,
+			$c['jeton'],
+			static function () use ( $u ) {
+				do_action( 'wp_logout', $u );
+			}
+		);
+		yume_assert_same( array( $b['id'] ), array_map( 'intval', wp_list_pluck( abonnements_push( $u ), 'id' ) ) );
+
+		// Stockage des sessions sans action de méta (filtre de l'hébergeur) : session invalide →
+		// ni authentification, ni envoi ; l'abonnement est supprimé.
+		$refus = static function () {
+			return false;
+		};
+		add_filter( 'yume_push_session_valide', $refus );
+		try {
+			creer_notifications( array( $u ), 'sortie', 1, 'Sortie', home_url( '/' ) );
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . table_push() . ' SET dernier_envoi = %s', gmdate( 'Y-m-d H:i:s', time() - 60 ) ) ); // phpcs:ignore WordPress.DB
+			yume_assert_same( array(), yume_tnot_http( 'Yume\Core\Social\envoyer_lot_push' ), 'aucun envoi' );
+			yume_assert_same( array(), abonnements_push( $u ) );
+		} finally {
+			remove_filter( 'yume_push_session_valide', $refus );
+		}
+		// Le filtre peut aussi valider une session inconnue du stockage par défaut.
+		$accepte = static function ( $valide, $session ) {
+			return str_repeat( 'a', 64 ) === $session ? true : $valide;
+		};
+		add_filter( 'yume_push_session_valide', $accepte, 10, 2 );
+		yume_assert_true( session_push_valide( $u, str_repeat( 'a', 64 ) ) );
+		remove_filter( 'yume_push_session_valide', $accepte, 10 );
+		yume_assert_false( session_push_valide( $u, str_repeat( 'a', 64 ) ) );
+		yume_assert_false( session_push_valide( $u, '' ) );
+		// Session expirée : invalide.
+		$jeton    = yume_tnot_session( $u );
+		$sessions = get_user_meta( $u, 'session_tokens', true );
+		$sessions[ hash( 'sha256', $jeton ) ]['expiration'] = time() - 10;
+		update_user_meta( $u, 'session_tokens', $sessions );
+		yume_assert_false( session_push_valide( $u, hash( 'sha256', $jeton ) ) );
+	}
+);
+
+yume_test(
+	'Sécurité : mot de passe changé ou réinitialisé, toutes les sessions détruites → tous les abonnements push supprimés',
+	function () {
+		$u = yume_factory_user();
+		yume_tnot_abonnement( $u );
+		yume_tnot_abonnement( $u );
+		$autre = yume_factory_user();
+		yume_tnot_abonnement( $autre );
+		yume_assert_same( 2, count( abonnements_push( $u ) ) );
+		// Profil modifié sans changer le mot de passe : rien.
+		wp_update_user(
+			array(
+				'ID'           => $u,
+				'display_name' => 'Nouveau pseudo',
+			)
+		);
+		yume_assert_same( 2, count( abonnements_push( $u ) ) );
+		// Changement de mot de passe (page profil, wp_update_user).
+		add_filter( 'send_password_change_email', '__return_false' );
+		wp_update_user(
+			array(
+				'ID'        => $u,
+				'user_pass' => 'Nouveau-mot-de-passe-42',
+			)
+		);
+		remove_filter( 'send_password_change_email', '__return_false' );
+		yume_assert_same( array(), abonnements_push( $u ) );
+		yume_assert_same( 1, count( abonnements_push( $autre ) ), 'les autres membres ne sont pas touchés' );
+		// Réinitialisation (« Mot de passe oublié »).
+		yume_tnot_abonnement( $u );
+		do_action( 'after_password_reset', get_userdata( $u ), 'x' );
+		yume_assert_same( array(), abonnements_push( $u ) );
+		// wp_set_password() (WP-CLI, extensions).
+		yume_tnot_abonnement( $u );
+		wp_set_password( 'Encore-un-autre-7', $u );
+		yume_assert_same( array(), abonnements_push( $u ) );
+		// « Se déconnecter partout » : toutes les sessions détruites.
+		$garde = yume_tnot_session( $u );
+		yume_tnot_abonnement( $u, 'fcm.googleapis.com', $garde );
+		yume_tnot_abonnement( $u );
+		WP_Session_Tokens::get_instance( $u )->destroy_all();
+		yume_assert_same( array(), abonnements_push( $u ) );
+		yume_assert_same( 1, count( abonnements_push( $autre ) ) );
+	}
+);
+
+yume_test(
+	'Sécurité : « Se déconnecter » désabonne aussi le navigateur (script de la cloche)',
+	function () {
+		$js = (string) file_get_contents( YUME_CORE_DIR . 'includes/social/blocks/auth-links/view.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		yume_assert_contains( 'action=logout', $js );
+		yume_assert_contains( 'getSubscription()', $js );
+		yume_assert_contains( '.unsubscribe()', $js );
 	}
 );
 

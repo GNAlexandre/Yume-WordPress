@@ -3,6 +3,9 @@
  * Espace équipe, vue « Glossaires » (?vue=glossaire, filtre yume_vues_equipe, capacité
  * yume_glossaire) : téléversement d'un fichier .yaml pour une œuvre, « Vérifier » (simulation :
  * bilan et avertissements, brouillon gardé 30 minutes) puis « Publier le glossaire » ;
+ * le YAML vérifié est gardé dans la table des versions (source « brouillon », jamais servi ni
+ * compté dans l'historique) et le transient du compte ne garde que l'identifiant, l'empreinte
+ * et le bilan (quelques Ko : compatible avec la limite de 1 Mo de Memcached) ;
  * historique des versions (date, auteur, source, entrées) avec « Télécharger ce YAML » et
  * « Restaurer cette version » ; lien vers la page publique.
  *
@@ -27,9 +30,6 @@ defined( 'ABSPATH' ) || exit;
 
 /** Identifiant de la zone de retour de la vue. */
 const RETOUR = 'yn-glossaire-retour';
-
-/** Durée de conservation d'un glossaire vérifié en attente de publication. */
-const DUREE_BROUILLON = 30 * MINUTE_IN_SECONDS;
 
 /**
  * Déclare la vue ?vue=glossaire.
@@ -66,13 +66,30 @@ function cle_brouillon( int $user_id ): string {
 }
 
 /**
- * Brouillon d'un compte : array{oeuvre:int, yaml:string, fichier:string, note:string, bilan:array}, ou null.
+ * Brouillon d'un compte : array{id:int, sha256:string, oeuvre:int, fichier:string, bilan:array}
+ * (transient), ou null s'il a expiré ou si sa ligne a disparu.
  *
  * @param int $user_id Compte.
  */
 function brouillon( int $user_id ): ?array {
 	$b = get_transient( cle_brouillon( $user_id ) );
-	return is_array( $b ) && isset( $b['oeuvre'], $b['yaml'] ) ? $b : null;
+	if ( ! is_array( $b ) || empty( $b['id'] ) || empty( $b['sha256'] ) || ! isset( $b['oeuvre'] ) ) {
+		return null;
+	}
+	return null !== ligne_brouillon( (int) $b['id'], $user_id, (string) $b['sha256'] ) ? $b : null;
+}
+
+/**
+ * Oublie le brouillon d'un compte (ligne et transient).
+ *
+ * @param int $user_id Compte.
+ */
+function oublier_brouillon( int $user_id ): void {
+	$b = get_transient( cle_brouillon( $user_id ) );
+	if ( is_array( $b ) && ! empty( $b['id'] ) ) {
+		supprimer_brouillon( (int) $b['id'] );
+	}
+	delete_transient( cle_brouillon( $user_id ) );
 }
 
 /**
@@ -398,7 +415,7 @@ function traiter_formulaire_glossaire( array $post, array $files, int $user_id )
 
 	switch ( $op ) {
 		case 'annuler':
-			delete_transient( cle_brouillon( $user_id ) );
+			oublier_brouillon( $user_id );
 			return $retour( 'ok', __( 'Vérification abandonnée : rien n’a été publié.', 'yume-core' ) );
 
 		case 'restaurer':
@@ -413,20 +430,23 @@ function traiter_formulaire_glossaire( array $post, array $files, int $user_id )
 
 		case 'publier_brouillon':
 			$brouillon = brouillon( $user_id );
-			if ( ! $brouillon || ( $oeuvre_id && (int) $brouillon['oeuvre'] !== $oeuvre_id ) ) {
+			$ligne     = $brouillon ? ligne_brouillon( (int) $brouillon['id'], $user_id, (string) $brouillon['sha256'] ) : null;
+			if ( ! $ligne || ( $oeuvre_id && (int) $ligne['oeuvre_id'] !== $oeuvre_id ) ) {
 				return $retour( 'erreur', __( 'La vérification a expiré : téléversez de nouveau le fichier.', 'yume-core' ) );
 			}
-			$oeuvre_id = (int) $brouillon['oeuvre'];
+			$oeuvre_id = (int) $ligne['oeuvre_id'];
 			$bilan     = importer(
 				$oeuvre_id,
-				(string) $brouillon['yaml'],
+				(string) $ligne['yaml'],
 				array(
 					'user_id' => $user_id,
 					'source'  => 'televersement',
-					'note'    => (string) ( $brouillon['note'] ?? '' ),
+					'note'    => (string) $ligne['note'],
 				)
 			);
-			delete_transient( cle_brouillon( $user_id ) );
+			if ( ! is_wp_error( $bilan ) ) {
+				oublier_brouillon( $user_id );
+			}
 			break;
 
 		case 'verifier':
@@ -450,13 +470,20 @@ function traiter_formulaire_glossaire( array $post, array $files, int $user_id )
 				)
 			);
 			if ( ! is_wp_error( $bilan ) && 'verifier' === $op ) {
+				// Un seul brouillon par compte : le précédent est remplacé.
+				oublier_brouillon( $user_id );
+				$id = enregistrer_brouillon( $oeuvre_id, $user_id, $yaml, (string) $bilan['sha256'], (int) $bilan['total'], $note );
+				if ( ! $id ) {
+					return $retour( 'erreur', __( 'La vérification n’a pas pu être enregistrée : réessayez.', 'yume-core' ) );
+				}
+				// Transient : identifiant et empreinte (plus le bilan affiché), jamais le YAML.
 				set_transient(
 					cle_brouillon( $user_id ),
 					array(
+						'id'      => $id,
+						'sha256'  => (string) $bilan['sha256'],
 						'oeuvre'  => $oeuvre_id,
-						'yaml'    => $yaml,
-						'fichier' => sanitize_file_name( (string) ( $fichier['name'] ?? 'glossaire.yaml' ) ),
-						'note'    => $note,
+						'fichier' => mb_substr( sanitize_file_name( (string) ( $fichier['name'] ?? 'glossaire.yaml' ) ), 0, 120 ),
 						'bilan'   => $bilan,
 					),
 					DUREE_BROUILLON
@@ -471,7 +498,7 @@ function traiter_formulaire_glossaire( array $post, array $files, int $user_id )
 				);
 			}
 			if ( ! is_wp_error( $bilan ) ) {
-				delete_transient( cle_brouillon( $user_id ) );
+				oublier_brouillon( $user_id );
 			}
 			break;
 

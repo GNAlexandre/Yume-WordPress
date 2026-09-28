@@ -367,7 +367,7 @@ function donnees_kpi( int $jours, bool $forcer = false ): array {
 }
 
 /**
- * Efface le cache des indicateurs (planning mis à jour).
+ * Efface le cache des indicateurs (planning mis à jour, tome mis en pause ou repris).
  */
 function oublier_kpi(): void {
 	foreach ( array_keys( periodes_kpi() ) as $jours ) {
@@ -375,6 +375,8 @@ function oublier_kpi(): void {
 	}
 }
 add_action( 'yume_planning_mis_a_jour', __NAMESPACE__ . '\\oublier_kpi' );
+// Pause et reprise d'un tome : les retards en cours changent.
+add_action( 'yume_planning_pause', __NAMESPACE__ . '\\oublier_kpi' );
 
 /*
  * -----------------------------------------------------------------------------

@@ -106,8 +106,10 @@ function yume_tm_membre( string $role, string $nom ): int {
 	$id = yume_factory_user( $role );
 	wp_update_user(
 		array(
-			'ID'           => $id,
-			'display_name' => $nom,
+			'ID'              => $id,
+			'display_name'    => $nom,
+			// Compte inscrit depuis un mois : ses signalements comptent pour le seuil.
+			'user_registered' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ),
 		)
 	);
 	return $id;
@@ -349,6 +351,28 @@ yume_tm_test(
 				// Un tome publié ne se met pas en pause.
 				update_post_meta( $d['g3'], 'yume_etape', 'publie' );
 				yume_assert_same( 409, basculer_pause( $d['g3'], true, $d['editeur'] )->get_error_data()['status'] );
+			}
+		);
+	}
+);
+
+yume_tm_test(
+	'pause : caches du calendrier ICS et des indicateurs vidés à la pause et à la reprise',
+	function () {
+		yume_tm_a(
+			function () {
+				$d = yume_tm_jeu();
+				foreach ( array( true, false ) as $pause ) {
+					set_transient( 'yume_planning_ics', array( 0 => 'ancien' ), HOUR_IN_SECONDS );
+					set_transient( 'yume_kpi_30', array( 'ancien' ), HOUR_IN_SECONDS );
+					basculer_pause( $d['g1'], $pause, $d['editeur'] );
+					yume_assert_false( get_transient( 'yume_planning_ics' ), 'ICS vidé' );
+					yume_assert_false( get_transient( 'yume_kpi_30' ), 'indicateurs vidés' );
+				}
+				// Sans changement (déjà repris) : rien n'est émis, le cache reste.
+				set_transient( 'yume_kpi_30', array( 'ancien' ), HOUR_IN_SECONDS );
+				basculer_pause( $d['g1'], false, $d['editeur'] );
+				yume_assert_same( array( 'ancien' ), get_transient( 'yume_kpi_30' ) );
 			}
 		);
 	}
@@ -600,6 +624,54 @@ yume_tm_test(
 		} finally {
 			remove_filter( 'yume_signalements_seuil', '__return_true' );
 		}
+	}
+);
+
+yume_tm_test(
+	'Sécurité : signalements multi-comptes — comptes de moins de 7 jours hors seuil, commentaire de l’équipe jamais masqué',
+	function () {
+		$auteur  = yume_tm_membre( 'subscriber', 'Auteur' );
+		$c       = yume_tm_commentaire( $auteur )['commentaire'];
+		$recents = array();
+		for ( $i = 0; $i < 4; $i++ ) {
+			$recents[] = yume_factory_user();
+		}
+		foreach ( $recents as $recent ) {
+			$r = yume_tm_signaler( $c, $recent );
+			yume_assert_same( 200, $r->get_status() );
+			yume_assert_same( false, $r->get_data()['attente'] );
+		}
+		yume_assert_same( 'approved', wp_get_comment_status( $c ), 'comptes récents : toujours publié' );
+		yume_assert_same( 4, count( signalements_actifs( $c ) ), 'signalements gardés pour la modération' );
+		// Il faut 3 comptes anciens (seuil par défaut) pour la mise en attente.
+		yume_tm_signaler( $c, yume_tm_membre( 'subscriber', 'Ancien 1' ) );
+		yume_tm_signaler( $c, yume_tm_membre( 'subscriber', 'Ancien 2' ) );
+		yume_assert_same( 'approved', wp_get_comment_status( $c ) );
+		yume_assert_same( true, yume_tm_signaler( $c, yume_tm_membre( 'subscriber', 'Ancien 3' ) )->get_data()['attente'] );
+		yume_assert_same( 'unapproved', wp_get_comment_status( $c ) );
+
+		// Ancienneté filtrable (0 : tous les comptes comptent).
+		$c2 = yume_tm_commentaire( $auteur )['commentaire'];
+		add_filter( 'yume_signalement_anciennete', '__return_zero' );
+		try {
+			yume_tm_signaler( $c2, $recents[0] );
+			yume_tm_signaler( $c2, $recents[1] );
+			yume_assert_same( true, yume_tm_signaler( $c2, $recents[2] )->get_data()['attente'] );
+		} finally {
+			remove_filter( 'yume_signalement_anciennete', '__return_zero' );
+		}
+
+		// Commentaire d'un membre de l'équipe : jamais en attente automatiquement, reste signalé.
+		$membre = yume_tm_membre( 'yume_traducteur', 'Traductrice' );
+		yume_assert_true( user_can( $membre, 'yume_voir_equipe' ) );
+		$e = yume_tm_commentaire( $membre )['commentaire'];
+		foreach ( array( 'A1', 'A2', 'A3', 'A4' ) as $nom ) {
+			yume_assert_same( false, yume_tm_signaler( $e, yume_tm_membre( 'subscriber', $nom ) )->get_data()['attente'] );
+		}
+		yume_assert_same( 'approved', wp_get_comment_status( $e ) );
+		yume_assert_same( 4, count( signalements_actifs( $e ) ) );
+		$html = yume_tm_rendu( yume_tm_membre( 'yume_editeur', 'Éditrice' ), array( 'vue' => 'commentaires' ) );
+		yume_assert_contains( 'id="yn-com-' . $e . '"', $html, 'visible dans la vue de modération' );
 	}
 );
 
