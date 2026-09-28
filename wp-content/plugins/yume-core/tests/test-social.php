@@ -1977,3 +1977,18 @@ yume_test(
 		update_option( 'users_can_register', $ouvert );
 	}
 );
+
+yume_test(
+	'Page compte : les formulaires ne répètent pas id="_yn_nonce" (identifiants uniques)',
+	function () {
+		$avant = get_current_user_id();
+		wp_set_current_user( yume_factory_user( 'subscriber' ) );
+		try {
+			$html = yume_render_block( 'yume/account' );
+			yume_assert_true( substr_count( $html, 'name="_yn_nonce"' ) > 1, 'plusieurs formulaires rendus' );
+			yume_assert_not_contains( 'id="_yn_nonce"', $html );
+		} finally {
+			wp_set_current_user( $avant );
+		}
+	}
+);

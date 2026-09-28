@@ -578,7 +578,7 @@ function section_notifications( int $user_id ): string {
 		$html .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 			. '<input type="hidden" name="action" value="yume_notifications_lues">'
 			. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-			. wp_nonce_field( 'yume_notifications_lues', '_yn_nonce', false, false )
+			. champ_nonce( 'yume_notifications_lues' )
 			. '<button type="submit" class="yn-btn yn-btn--sm">' . esc_html__( 'Tout marquer comme lu', 'yume-core' ) . '</button></form>';
 	}
 	$html .= '</div>';

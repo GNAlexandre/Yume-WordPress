@@ -1247,7 +1247,7 @@ function section_profil_public( \WP_User $user ): string {
 	$html .= '<form class="yn-card yn-account__bloc yn-account__formulaire yn-profil-public" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 		. '<input type="hidden" name="action" value="' . esc_attr( ACTION_PROFIL_PUBLIC ) . '">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-		. wp_nonce_field( ACTION_PROFIL_PUBLIC, '_yn_nonce', false, false )
+		. champ_nonce( ACTION_PROFIL_PUBLIC )
 		. '<ul class="yn-account__interrupteurs"><li class="yn-account__interrupteur"><label for="yn-profil-public-case"><span class="yn-account__interrupteur-texte">' . esc_html__( 'Afficher mon profil public', 'yume-core' )
 		. '<span class="yn-muted" id="yn-profil-public-case-aide">' . esc_html__( 'Page /contributeurs/ à votre pseudo, listée sur la page « L’équipe ».', 'yume-core' ) . '</span></span>'
 		. '<input type="checkbox" role="switch" class="yn-interrupteur" id="yn-profil-public-case" name="yn_public" value="1" aria-describedby="yn-profil-public-case-aide"' . checked( $actif, true, false ) . ( $revele && ! $actif ? ' disabled' : '' ) . '></label></li></ul>'

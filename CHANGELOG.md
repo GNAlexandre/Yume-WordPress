@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.14 — 2026-09-28
+
+- Dernières corrections : vue Glossaires (liens soulignés, plus de débordement à 390 px, titres alignés sur les autres vues, repère nommé), identifiants _yn_nonce uniques dans les formulaires du compte.
+
 ## 2.0.0-dev.13 — 2026-09-28
 
 - Revue de sécurité : abonnements Web Push liés à la session (révoqués à la déconnexion et au changement de mot de passe), purge des nouvelles tables à la désinstallation, brouillon de glossaire en base (plus en cache objet), détection de transaction compatible MySQL 8, pause d'un tome invalidant ICS et indicateurs, listes publiques à jeton aléatoire, purge Batcache, signalements pondérés par l'ancienneté et jamais de masquage automatique pour l'équipe.

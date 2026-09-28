@@ -211,7 +211,7 @@ function section_historique( int $oeuvre_id ): string {
 	$courante = etat_glossaire( $oeuvre_id )['version'];
 	$titre    = titre_oeuvre( $oeuvre_id );
 	$html     = '<section class="yn-card yn-team__carte yn-glossaire-eq__historique" id="yn-glossaire-historique" aria-labelledby="yn-glossaire-historique-titre">';
-	$html    .= '<div class="yn-team__section-tete"><h2 id="yn-glossaire-historique-titre" class="yn-label">' . esc_html(
+	$html    .= '<div class="yn-team__section-tete"><h2 id="yn-glossaire-historique-titre">' . esc_html(
 		/* translators: %s : titre de l'œuvre */
 		sprintf( __( 'Historique · %s', 'yume-core' ), $titre )
 	) . '</h2>';
@@ -225,7 +225,7 @@ function section_historique( int $oeuvre_id ): string {
 	}
 	/* translators: %d : nombre de versions conservées */
 	$html .= '<p class="yn-muted">' . esc_html( sprintf( __( 'Les %d dernières versions sont conservées.', 'yume-core' ), VERSIONS_CONSERVEES ) ) . '</p>';
-	$html .= '<div class="yn-glossaire-eq__table" tabindex="0" role="region" aria-labelledby="yn-glossaire-historique-titre"><table><thead><tr>';
+	$html .= '<div class="yn-glossaire-eq__table" tabindex="0" role="region" aria-label="' . esc_attr__( 'Tableau des versions (défilement horizontal)', 'yume-core' ) . '"><table><thead><tr>';
 	foreach ( array( __( 'Date', 'yume-core' ), __( 'Auteur', 'yume-core' ), __( 'Source', 'yume-core' ), __( 'Entrées', 'yume-core' ), __( 'Actions', 'yume-core' ) ) as $col ) {
 		$html .= '<th scope="col">' . esc_html( $col ) . '</th>';
 	}
@@ -319,7 +319,7 @@ function rendu_vue_glossaire(): string {
 	if ( $brouillon ) {
 		$b     = (array) $brouillon['bilan'];
 		$html .= '<section class="yn-card yn-team__carte yn-glossaire-eq__bilan" id="yn-glossaire-bilan" aria-labelledby="yn-glossaire-bilan-titre">';
-		$html .= '<h2 id="yn-glossaire-bilan-titre" class="yn-label">' . esc_html(
+		$html .= '<h2 id="yn-glossaire-bilan-titre">' . esc_html(
 			sprintf(
 				/* translators: 1: nom du fichier, 2: titre de l'œuvre */
 				__( 'Vérification : %1$s pour %2$s', 'yume-core' ),
@@ -337,7 +337,7 @@ function rendu_vue_glossaire(): string {
 	// Téléversement.
 	$choix = choix_oeuvres( __( 'Choisir une œuvre', 'yume-core' ) );
 	$html .= '<section class="yn-card yn-team__carte yn-glossaire-eq__envoi" aria-labelledby="yn-glossaire-envoi-titre">';
-	$html .= '<h2 id="yn-glossaire-envoi-titre" class="yn-label">' . esc_html__( 'Téléverser un glossaire', 'yume-core' ) . '</h2>';
+	$html .= '<h2 id="yn-glossaire-envoi-titre">' . esc_html__( 'Téléverser un glossaire', 'yume-core' ) . '</h2>';
 	$html .= '<form method="post" enctype="multipart/form-data" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">' . champs_formulaire( 'verifier' );
 	$html .= '<div class="yn-glossaire-eq__champs">';
 	$html .= champ_select( 'yn-glossaire-oeuvre', 'oeuvre', __( 'Œuvre', 'yume-core' ), $choix, $oeuvre_id ? (string) $oeuvre_id : '', array( 'required' => true ) );
@@ -356,7 +356,7 @@ function rendu_vue_glossaire(): string {
 		$html .= '<p><a href="' . esc_url( url_vue_equipe( 'glossaire' ) ) . '">' . esc_html__( 'Toutes les œuvres', 'yume-core' ) . '</a></p>';
 	} else {
 		$oeuvres = oeuvres_avec_glossaire();
-		$html   .= '<section class="yn-card yn-team__carte" aria-labelledby="yn-glossaire-oeuvres-titre"><h2 id="yn-glossaire-oeuvres-titre" class="yn-label">' . esc_html__( 'Œuvres avec un glossaire', 'yume-core' ) . '</h2>';
+		$html   .= '<section class="yn-card yn-team__carte" aria-labelledby="yn-glossaire-oeuvres-titre"><h2 id="yn-glossaire-oeuvres-titre">' . esc_html__( 'Œuvres avec un glossaire', 'yume-core' ) . '</h2>';
 		if ( ! $oeuvres ) {
 			$html .= '<p class="yn-muted">' . esc_html__( 'Aucune œuvre n’a encore de glossaire.', 'yume-core' ) . '</p>';
 		} else {
@@ -378,7 +378,7 @@ function rendu_vue_glossaire(): string {
 
 	// Connecteur Yume-Trad.
 	$route = rest_url( 'yume/v1/oeuvres/' . ( $oeuvre_id ? (string) get_post_field( 'post_name', $oeuvre_id ) : '{oeuvre}' ) . '/glossaire' );
-	$html .= '<section class="yn-card yn-team__carte yn-glossaire-eq__api" aria-labelledby="yn-glossaire-api-titre"><h2 id="yn-glossaire-api-titre" class="yn-label">' . esc_html__( 'Envoi direct depuis Yume-Trad', 'yume-core' ) . '</h2>';
+	$html .= '<section class="yn-card yn-team__carte yn-glossaire-eq__api" aria-labelledby="yn-glossaire-api-titre"><h2 id="yn-glossaire-api-titre">' . esc_html__( 'Envoi direct depuis Yume-Trad', 'yume-core' ) . '</h2>';
 	$html .= '<p>' . esc_html__( 'Créez un mot de passe d’application (Profil → Mots de passe d’application), puis donnez à Yume-Trad votre identifiant, ce mot de passe et l’adresse ci-dessous. L’application envoie le glossaire quand vous le décidez ; il n’y a aucune liaison permanente.', 'yume-core' ) . '</p>';
 	$html .= '<p><code class="yn-glossaire-eq__route">POST ' . esc_html( $route ) . '</code></p>';
 	$html .= '<p class="yn-muted">' . esc_html__( 'Mode d’emploi et exemples : docs/glossaire.md.', 'yume-core' ) . '</p></section>';

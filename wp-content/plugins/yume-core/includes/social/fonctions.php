@@ -862,3 +862,14 @@ function rediriger( string $url, $codes = array(), string $ancre = '' ): void {
 	wp_safe_redirect( $url );
 	exit;
 }
+
+/**
+ * Champ caché _yn_nonce d'un formulaire du module, sans attribut id : plusieurs formulaires
+ * cohabitent sur la même page (compte, connexion) et wp_nonce_field() y répéterait
+ * id="_yn_nonce".
+ *
+ * @param string $action Action du nonce.
+ */
+function champ_nonce( string $action ): string {
+	return '<input type="hidden" name="_yn_nonce" value="' . esc_attr( wp_create_nonce( $action ) ) . '" />';
+}

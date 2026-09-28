@@ -511,7 +511,7 @@ function section_reglages( int $user_id ): string {
 	$html .= '<form class="yn-card yn-account__bloc yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 		. '<input type="hidden" name="action" value="yume_compte_reglages">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-		. wp_nonce_field( 'yume_compte_reglages', '_yn_nonce', false, false )
+		. champ_nonce( 'yume_compte_reglages' )
 		. '<p class="yn-label">' . esc_html__( 'Modifier ici', 'yume-core' ) . '</p>'
 		. '<div class="yn-account__champs">';
 	$html .= '<p class="yn-account__champ"><label for="yn-r-font">' . esc_html__( 'Police', 'yume-core' ) . '</label><select id="yn-r-font" name="yn_font">';
@@ -560,7 +560,7 @@ function section_alertes( int $user_id ): string {
 	$html   .= '<form class="yn-card yn-account__bloc yn-account__alertes" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 		. '<input type="hidden" name="action" value="yume_compte_alertes">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-		. wp_nonce_field( 'yume_compte_alertes', '_yn_nonce', false, false )
+		. champ_nonce( 'yume_compte_alertes' )
 		. '<p class="yn-label">' . esc_html__( 'Alertes', 'yume-core' ) . '</p><ul class="yn-account__interrupteurs">';
 	foreach ( $options as $cle => $option ) {
 		$id    = 'yn-pref-' . $cle;
@@ -588,7 +588,7 @@ function section_profil( \WP_User $user ): string {
 	$html   .= '<form class="yn-card yn-account__bloc yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 		. '<input type="hidden" name="action" value="yume_compte_profil">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-		. wp_nonce_field( 'yume_compte_profil', '_yn_nonce', false, false )
+		. champ_nonce( 'yume_compte_profil' )
 		. '<div class="yn-account__champs">'
 		. '<p class="yn-account__champ"><label for="yn-pseudo">' . esc_html__( 'Pseudo', 'yume-core' ) . '</label>'
 		. '<input type="text" id="yn-pseudo" name="yn_pseudo" value="' . esc_attr( $user->display_name ) . '" minlength="2" maxlength="40" autocomplete="nickname" aria-describedby="yn-pseudo-aide">'
@@ -637,7 +637,7 @@ function section_donnees( \WP_User $user ): string {
 			. '<form class="yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 			. '<input type="hidden" name="action" value="yume_compte_supprimer">'
 			. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-			. wp_nonce_field( 'yume_compte_supprimer', '_yn_nonce', false, false )
+			. champ_nonce( 'yume_compte_supprimer' )
 			. '<p class="yn-account__champ"><label for="yn-suppression-confirmation">' . esc_html__( 'Saisissez SUPPRIMER pour confirmer', 'yume-core' ) . '</label>'
 			. '<input type="text" id="yn-suppression-confirmation" name="yn_confirmation" required autocomplete="off" spellcheck="false" pattern="[Ss][Uu][Pp][Pp][Rr][Ii][Mm][Ee][Rr]"></p>'
 			. '<p class="yn-account__champ"><label for="yn-suppression-mdp">' . esc_html__( 'Mot de passe actuel', 'yume-core' ) . '</label>'
@@ -702,7 +702,7 @@ function compte_visiteur(): string {
 		. '<form class="yn-account__formulaire" method="post" action="' . $action . '">'
 		. '<input type="hidden" name="action" value="yume_oubli">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( $ici ) . '">'
-		. wp_nonce_field( 'yume_oubli', '_yn_nonce', false, false )
+		. champ_nonce( 'yume_oubli' )
 		. '<p class="yn-account__champ"><label for="yn-oubli-identifiant">' . esc_html__( 'Pseudo ou adresse e-mail', 'yume-core' ) . '</label>'
 		. '<input type="text" id="yn-oubli-identifiant" name="yn_identifiant" required autocomplete="username"></p>'
 		. '<div class="yn-account__boutons"><button type="submit" class="yn-btn">' . esc_html__( 'Recevoir un lien de réinitialisation', 'yume-core' ) . '</button></div>'
@@ -718,7 +718,7 @@ function compte_visiteur(): string {
 			. '<input type="hidden" name="action" value="yume_inscription">'
 			. '<input type="hidden" name="yn_retour" value="' . esc_url( $ici ) . '">'
 			. '<input type="hidden" name="yn_jeton" value="' . esc_attr( jeton_formulaire() ) . '">'
-			. wp_nonce_field( 'yume_inscription', '_yn_nonce', false, false )
+			. champ_nonce( 'yume_inscription' )
 			. '<p class="yn-account__champ"><label for="yn-inscription-pseudo">' . esc_html__( 'Pseudo', 'yume-core' ) . '</label>'
 			. '<input type="text" id="yn-inscription-pseudo" name="yn_pseudo" required minlength="3" maxlength="40" autocomplete="username" aria-describedby="yn-inscription-pseudo-aide">'
 			. '<span class="yn-muted yn-account__note" id="yn-inscription-pseudo-aide">' . esc_html__( '3 à 40 caractères : lettres, chiffres, espaces, points, tirets et tirets bas.', 'yume-core' ) . '</span></p>'

@@ -177,7 +177,7 @@ function champs_action( string $action, int $oeuvre_id, string $ancre = 'yn-oeuv
 		. '<input type="hidden" name="yn_oeuvre" value="' . esc_attr( (string) $oeuvre_id ) . '">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
 		. '<input type="hidden" name="yn_ancre" value="' . esc_attr( $ancre ) . '">'
-		. wp_nonce_field( 'yume_social_' . $oeuvre_id, '_yn_nonce', false, false );
+		. champ_nonce( 'yume_social_' . $oeuvre_id );
 }
 
 /*

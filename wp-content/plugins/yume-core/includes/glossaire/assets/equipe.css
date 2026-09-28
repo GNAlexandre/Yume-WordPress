@@ -81,8 +81,21 @@
 }
 
 .yn-glossaire-eq__table {
+	position: relative; /* ancre les textes masqués des boutons : pas de débordement à 390 px */
 	max-width: 100%;
 	overflow-x: auto;
+}
+
+/* Titres des cartes : même style que les vues Santé, Indicateurs et Réglages. */
+.yn-team--glossaire .yn-team__carte h2,
+.yn-team--glossaire .yn-team__carte .yn-team__section-tete > h2 {
+	font-size: 20px;
+}
+
+/* Liens dans le texte : soulignés (WCAG 1.4.1). */
+.yn-glossaire-eq__oeuvres a {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
 }
 
 .yn-glossaire-eq__table table {

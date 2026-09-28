@@ -1107,7 +1107,7 @@ function champs_listes( string $action, int $liste = 0 ): string {
 	return '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">'
 		. ( $liste > 0 ? '<input type="hidden" name="yn_liste" value="' . esc_attr( (string) $liste ) . '">' : '' )
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-		. wp_nonce_field( 'yume_listes', '_yn_nonce', false, false );
+		. champ_nonce( 'yume_listes' );
 }
 
 /**
