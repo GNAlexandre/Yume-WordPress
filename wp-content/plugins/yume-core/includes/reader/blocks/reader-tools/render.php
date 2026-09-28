@@ -2,7 +2,9 @@
 /**
  * Rendu du bloc yume/reader-tools : barre collante du lecteur (contexte, sommaire, marque-page,
  * thème, paramètres), barre de progression, bandeau de reprise et panneau Paramètres
- * (<dialog> modal : panneau latéral sur bureau, feuille en bas sur mobile).
+ * (<dialog> modal : panneau latéral sur bureau, feuille en bas sur mobile), avec les options
+ * d'accessibilité (police dyslexie, contraste renforcé, animations réduites) et la liste des
+ * raccourcis clavier.
  *
  * Sans JavaScript, seuls le contexte et le lien Sommaire s'affichent : le chapitre reste
  * entièrement lisible. Les couleurs viennent du thème (§15).
@@ -249,6 +251,40 @@ $yume_attributs = get_block_wrapper_attributes(
 				<p class="yn-reader-panel__bornes yn-label" id="yn-reglage-width-bornes"><span><?php esc_html_e( 'Étroite', 'yume-core' ); ?></span><span><?php esc_html_e( 'Large', 'yume-core' ); ?></span></p>
 			</div>
 
+			<fieldset class="yn-reader-panel__groupe yn-reader-panel__accessibilite">
+				<legend><?php esc_html_e( 'Accessibilité', 'yume-core' ); ?></legend>
+				<div class="yn-reader-panel__cases">
+					<label class="yn-reader-panel__case" for="yn-a11y-dyslexie">
+						<input type="checkbox" id="yn-a11y-dyslexie" data-yn-a11y="dyslexie" <?php checked( 'opendyslexic', $yume_reglages['font'] ); ?>>
+						<span><?php esc_html_e( 'Police adaptée à la dyslexie', 'yume-core' ); ?> <span class="yn-muted">(OpenDyslexic)</span></span>
+					</label>
+					<label class="yn-reader-panel__case" for="yn-a11y-contraste">
+						<input type="checkbox" id="yn-a11y-contraste" data-yn-a11y="contraste">
+						<span><?php esc_html_e( 'Contraste renforcé', 'yume-core' ); ?></span>
+					</label>
+					<label class="yn-reader-panel__case" for="yn-a11y-animations">
+						<input type="checkbox" id="yn-a11y-animations" data-yn-a11y="animations" aria-describedby="yn-a11y-animations-aide">
+						<span><?php esc_html_e( 'Réduire les animations', 'yume-core' ); ?></span>
+					</label>
+					<p class="yn-reader-panel__aide yn-muted" id="yn-a11y-animations-aide" data-yn-a11y-systeme hidden><?php esc_html_e( 'Déjà réduites par votre système (préférence « réduire les animations »).', 'yume-core' ); ?></p>
+				</div>
+			</fieldset>
+
+			<div class="yn-reader-panel__groupe yn-reader-panel__raccourcis" role="group" aria-labelledby="yn-raccourcis-titre">
+				<p class="yn-reader-panel__sous-titre" id="yn-raccourcis-titre"><?php esc_html_e( 'Raccourcis clavier', 'yume-core' ); ?></p>
+				<dl class="yn-reader-panel__touches">
+					<dt><kbd>←</kbd></dt>
+					<dd><?php esc_html_e( 'Chapitre précédent', 'yume-core' ); ?></dd>
+					<dt><kbd>→</kbd></dt>
+					<dd><?php esc_html_e( 'Chapitre suivant', 'yume-core' ); ?></dd>
+					<dt><kbd>S</kbd></dt>
+					<dd><?php esc_html_e( 'Ouvrir ces paramètres', 'yume-core' ); ?></dd>
+					<dt><kbd><?php esc_html_e( 'Échap', 'yume-core' ); ?></kbd></dt>
+					<dd><?php esc_html_e( 'Fermer sans enregistrer', 'yume-core' ); ?></dd>
+				</dl>
+				<p class="yn-reader-panel__aide yn-muted"><?php esc_html_e( 'Inactifs pendant la saisie dans un champ (recherche, commentaire) et tant que ce panneau est ouvert.', 'yume-core' ); ?></p>
+			</div>
+
 			<div class="yn-reader-panel__pied">
 				<button type="submit" class="yn-btn yn-btn--primary" value="valider" data-yn-action="valider"><?php esc_html_e( 'Valider', 'yume-core' ); ?></button>
 				<button type="button" class="yn-reader-panel__reinitialiser" data-yn-action="reinitialiser">
@@ -263,16 +299,6 @@ $yume_attributs = get_block_wrapper_attributes(
 					esc_html_e( 'Aperçu en direct. « Valider » enregistre sur cet appareil (connectez-vous pour les retrouver partout), Échap annule.', 'yume-core' );
 				}
 				?>
-				<span class="yn-reader-panel__raccourcis">
-					<?php
-					printf(
-						/* translators: 1 : touches flèches, 2 : touche S. */
-						esc_html__( 'Raccourcis : %1$s chapitres · %2$s paramètres.', 'yume-core' ),
-						'<kbd>←</kbd> <kbd>→</kbd>',
-						'<kbd>S</kbd>'
-					);
-					?>
-				</span>
 			</p>
 		</form>
 	</dialog>

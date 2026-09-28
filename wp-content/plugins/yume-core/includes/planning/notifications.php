@@ -250,6 +250,32 @@ function discord_en_lignes( string $canal, string $titre, array $lignes ): bool 
 	return $ok;
 }
 
+/**
+ * Message de test sur un webhook Discord (bouton « Envoyer un test » de Yume → Santé) : passe
+ * par envoyer_discord(), donc par le filtre yume_planning_discord et le journal des échecs.
+ * La vérification des droits et du nonce revient à l'appelant.
+ *
+ * @param string $canal   'sorties' ou 'equipe'.
+ * @param int    $user_id Auteur du test (nommé dans le message).
+ * @return bool Vrai si Discord a accepté le message.
+ */
+function envoyer_test_discord( string $canal, int $user_id ): bool {
+	if ( '' === webhook( $canal ) ) {
+		return false;
+	}
+	$site = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+	return envoyer_discord(
+		$canal,
+		sprintf(
+			/* translators: 1: nom du site, 2: pseudo, 3: date et heure */
+			__( 'Message de test de %1$s, envoyé par %2$s le %3$s depuis Yume → Santé : ce webhook fonctionne.', 'yume-core' ),
+			echapper_discord( '' !== $site ? $site : 'Yume Novel' ),
+			echapper_discord( nom_utilisateur( $user_id ) ),
+			format_fr( maintenant(), 'j F Y à H\hi' )
+		)
+	);
+}
+
 /*
  * -----------------------------------------------------------------------------
  * File d'e-mails

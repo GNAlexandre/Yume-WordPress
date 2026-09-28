@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.6 — 2026-09-28
+
+- Phase 2 améliorations : flux ICS du planning, calendrier mensuel et RSS par œuvre ; vue Indicateurs et page Santé (crons, e-mails, test Discord) ; pause d'un tome, tri « en retard d'abord », export CSV, rappels plafonnés ; signalement et modération des commentaires, badge Équipe ; lecture hors ligne, police OpenDyslexic, contraste renforcé, statistiques de lecture ; matrice de sécurité REST, DOCX et EPUB piégés, axe-core en CI ; lecteur YAML pour le glossaire.
+
 ## 2.0.0-dev.5 — 2026-09-28
 
 - Phase 1 corrections : accessibilité (liens du journal soulignés, repère de la barre de lecture, recherches nommées, titres de Nos réseaux), accueil avec h1, partenaires du pied de page suivant le réglage, lien Contactez-nous, libellés français quelle que soit la langue, liens d'auteur sans 404, Open Graph et Twitter Cards, requêtes N+1 supprimées, vues de l'espace équipe extensibles (yume_vues_equipe).

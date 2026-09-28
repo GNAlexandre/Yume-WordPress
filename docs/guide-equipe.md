@@ -61,6 +61,11 @@ public**) :
 - **tous les tomes** : en préparation, programmés, en attente, publiés (même anciens) ;
 - **filtres** : œuvre, état (à l'heure, en retard, bloqué, publié), statut (brouillon, programmé,
   publié…) et responsable ; **Afficher tout le planning** retire les filtres ;
+- **tri** : *En retard d'abord* met en tête les tomes en retard (le plus ancien retard d'abord),
+  puis les tomes bloqués ;
+- **Exporter en CSV** télécharge le planning affiché (avec vos filtres et votre tri, toutes les
+  pages) : un fichier qui s'ouvre dans Excel ou LibreOffice (colonnes œuvre, tome, étape, statut,
+  responsables, date cible, date programmée, dernière mise à jour, retard) ;
 - chaque ligne se déplie : étape, avancement des trois étapes, responsables, date cible, blocage et
   note, puis **Enregistrer**. Si l'enregistrement est refusé (par exemple « Terminez d'abord l'étape
   Traduction (100 %) avant de passer à la Relecture »), le message s'affiche en rouge **dans la
@@ -69,7 +74,13 @@ public**) :
 - les mêmes raccourcis que ci-dessus, plus **Retirer du planning** (éditeurs, gérants) : pour un
   tome ajouté par erreur, **brouillon sans chapitre publié** seulement. Il part à la corbeille (un
   administrateur peut le récupérer). Un tome publié, programmé ou avec des chapitres en ligne ne
-  se retire pas ici : le message explique quoi faire dans l'administration.
+  se retire pas ici : le message explique quoi faire dans l'administration ;
+- **Mettre en pause** (éditeurs, gérants) : pour un tome volontairement arrêté (attente de la
+  VO, équipe indisponible, tome migré jamais repris). Tant qu'il est en pause, il n'est **jamais
+  en retard**, ne reçoit **aucun rappel** et sort des retards du récapitulatif ; un badge **En
+  pause** le signale dans l'espace équipe (le public ne voit rien). **Reprendre** le remet dans les
+  retards et les rappels (la reprise compte comme une mise à jour). Les deux actions sont notées au
+  journal de l'équipe (« a mis en pause », « a repris »).
 
 Traducteurs, relecteurs et graphistes y voient tout le planning, mais ne modifient que leurs propres
 étapes des tomes dont ils sont responsables.
@@ -136,6 +147,13 @@ Un tome programmé s'affiche « Programmé le … » et n'est jamais en retard.
 Ce qui est public : l'étape, les pourcentages, le pseudo des responsables, la date cible, l'état et
 l'historique des changements. Ce qui ne l'est pas : la note pour l'équipe.
 
+Le planning public a aussi un onglet **Calendrier** (vue par mois des sorties prévues, programmées
+et parues) et un bouton **S'abonner au calendrier (ICS)** : les lecteurs (et vous) peuvent ajouter
+les dates de sortie à Google Agenda, Apple Calendrier ou Outlook, qui se mettent à jour seuls. Une
+date cible y apparaît comme « (prévision) » : seule une sortie programmée y est confirmée. Chaque
+œuvre a enfin son flux RSS (`/oeuvres/{œuvre}/feed/`) avec ses nouveaux tomes, chapitres et
+actualités.
+
 ### Rappels automatiques
 
 Chaque jour vers **9 h (heure de Paris)**, le site vérifie le planning :
@@ -143,6 +161,11 @@ Chaque jour vers **9 h (heure de Paris)**, le site vérifie le planning :
 - date cible dépassée → e-mail au responsable + message sur le Discord de l'équipe ;
 - aucune mise à jour depuis **14 jours** → rappel « mets ton planning à jour » ;
 - chaque **lundi** → récapitulatif aux gérants (état global, retards, sorties de la semaine).
+
+Les rappels d'un même tome s'espacent : un premier rappel, une relance trois jours plus tard, puis
+**au plus un par semaine**. Au-delà de **8 semaines de retard**, plus aucun rappel : le tome reste
+seulement dans le récapitulatif des gérants (« Plus de rappel automatique ») ; mettez-le à jour,
+en pause ou retirez-le du planning. Un tome **en pause** ne reçoit jamais de rappel.
 
 Pour ne plus recevoir de rappel : mettez le tome à jour (même un petit pourcentage compte). Les
 délais, l'heure et le jour du récapitulatif sont réglés par les gérants.
@@ -283,6 +306,23 @@ modèrent dans **Commentaires** (administration) :
 
 Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approuvez-le ou supprimez-le.
 
+**Sans passer par l'administration** : dans l'espace équipe, l'entrée **Commentaires (N)** du menu
+(`/equipe/?vue=commentaires`, éditeurs, gérants et administrateurs) apparaît dès qu'il y a quelque
+chose à modérer. Elle liste :
+
+- les commentaires **signalés** par les lecteurs (les plus signalés d'abord, avec le pseudo et le
+  motif de chaque signalement) ;
+- les commentaires **en attente** de modération.
+
+Pour chacun : **Approuver** (le publie et classe ses signalements), **Ignorer les signalements**
+(le commentaire reste en ligne), **Indésirable** ou **Corbeille**. Les boutons n'apparaissent que si
+votre compte peut modifier le contenu commenté (un éditeur modère les commentaires des tomes et
+chapitres ; ceux d'un article d'un autre compte passent par un gérant).
+
+Les lecteurs connectés ont un lien **Signaler** sous chaque commentaire (motif facultatif, un
+signalement par compte). Au **3ᵉ signalement**, le commentaire est masqué et repasse en attente
+jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté de votre pseudo.
+
 ## 8. Pour les gérants
 
 - **Membres et rôles** (page `/equipe/membres/` de l'espace équipe) : la liste des membres et de
@@ -312,7 +352,21 @@ Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approu
   réseaux*).
 - Si une page du site (planning, espace équipe, compte…) a été supprimée ou dépubliée, un avis
   l'indique en haut de l'administration avec un bouton **Recréer les pages manquantes**.
-- Les tâches automatiques (rappels, e-mails) peuvent être contrôlées avec l'extension WP Crontrol.
+- Les tâches automatiques (rappels, e-mails) se contrôlent dans *Yume → Santé* (voir ci-dessous).
+
+### Indicateurs et santé du site
+
+- **Indicateurs** (menu de l'espace équipe, `/equipe/?vue=kpi`, gérants et administrateurs) : tomes
+  sortis par mois sur un an (graphique et tableau), temps moyen passé dans chaque étape, tâches
+  ouvertes et en retard de chaque membre, retards en cours, lecteurs actifs, favoris et lecteurs par
+  œuvre, e-mails envoyés. Choisissez la période (30 jours, 90 jours ou 12 mois) puis **Afficher**.
+  Les chiffres sont recalculés toutes les 5 minutes ; aucun lecteur n'y est nommé.
+- **Santé** (*Yume → Santé* dans l'administration) : dernière et prochaine exécution des tâches
+  automatiques (rappels, récapitulatifs, envoi des e-mails), e-mails en attente ou abandonnés,
+  webhooks Discord avec un bouton **Envoyer un test** (un message de test doit arriver sur le
+  canal), version installée du site et dernière version connue. Les mêmes contrôles apparaissent
+  dans *Outils → Santé du site*. Une tâche « en retard » signifie en général que le site a eu peu
+  de visites : le cron de WordPress ne tourne qu'au passage des visiteurs.
 
 ### Partenaires de l'accueil
 
@@ -341,9 +395,13 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | Je ne vois pas mon tome dans *Mes tâches* | Vous n'en êtes pas responsable : demandez à un éditeur ou un gérant de vous l'attribuer. |
 | Le planning dit « En retard » alors que j'avance | Aucune mise à jour depuis 14 jours : enregistrez votre avancement, même sans changer d'étape. |
 | Le tome publié n'apparaît pas | Il est en brouillon ou programmé : vérifiez son statut dans *Planning complet* (filtre *Statut*) ou dans *Yume → Tomes*. |
+| Un tome est arrêté mais reste « en retard » et déclenche des rappels | *Planning complet* → dépliez sa ligne → **Mettre en pause** ; **Reprendre** le jour où il repart. |
 | J'ai ajouté un tome au planning par erreur | *Planning complet* → dépliez sa ligne → **Retirer du planning** (brouillon sans chapitre publié). |
 | Un lien PDF ou EPUB est mort | *Yume → Tomes → Modifier* le tome et remplacez le lien. |
 | Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. |
 | Un lecteur ne veut plus d'e-mails | Chaque e-mail d'alerte a un lien de désabonnement (une œuvre, les réponses aux commentaires ou tout) : il confirme sans se connecter. Il peut aussi tout régler dans *Mon compte*. |
 | Un lecteur ne reçoit pas les alertes | Il doit avoir l'œuvre en favori avec une alerte active (page *Mon compte*) ; les e-mails aux lecteurs doivent être activés dans *Yume → Réglages*. |
 | J'ai oublié mon mot de passe | Lien « Mot de passe oublié ? » sur la page de connexion. |
+| Un lecteur veut lire sans connexion (train, avion) | Qu'il ouvre les chapitres voulus une fois en ligne (le chapitre suivant est gardé aussi) : ils restent lisibles hors ligne sur cet appareil, 30 au plus. Il peut aussi installer le site comme une application (« Installer » / « Ajouter à l'écran d'accueil » du navigateur). Hors ligne, les autres pages affichent « Vous êtes hors ligne » avec la liste des chapitres disponibles. Désactivable : *Yume → Réglages* → **Lecture hors ligne**. |
+| Un lecteur a du mal à lire (dyslexie, vue basse, animations gênantes) | Dans un chapitre, bouton ⚙ **Paramètres** → **Accessibilité** : police adaptée à la dyslexie (OpenDyslexic), contraste renforcé, réduction des animations. Les raccourcis clavier (← → pour changer de chapitre) y sont listés. |
+| Un lecteur demande combien il a lu | *Mon compte* → **Mes statistiques** : tomes terminés, chapitres lus, temps de lecture estimé, séries en cours et badge « À jour » par série (d'après sa position de lecture, en étant connecté). |

@@ -94,8 +94,9 @@ function bornes_reglages(): array {
 }
 
 /**
- * Polices proposées dans le panneau (ordre de la capture du client), avec des piles de repli
- * système. Literata (défaut) et Nunito Sans (repli d'Avenir) sont auto-hébergées par le thème.
+ * Polices proposées dans le panneau (ordre de la capture du client, puis OpenDyslexic), avec des
+ * piles de repli système. Literata (défaut) et Nunito Sans (repli d'Avenir) sont auto-hébergées
+ * par le thème, OpenDyslexic par le module (@font-face du bloc yume/reader-tools).
  * Les piles ne contiennent jamais de saisie : elles servent telles quelles de valeur à --yn-font.
  *
  * @return array<string,array{label:string,pile:string}>
@@ -149,6 +150,12 @@ function polices(): array {
 		'literata'     => array(
 			'label' => 'Literata',
 			'pile'  => 'Literata, Georgia, "Times New Roman", serif',
+		),
+		// Police adaptée à la dyslexie (AMEL-08), auto-hébergée par le module (licence OFL,
+		// assets/polices/opendyslexic), chargée seulement si elle est choisie.
+		'opendyslexic' => array(
+			'label' => 'OpenDyslexic',
+			'pile'  => 'OpenDyslexic, "Atkinson Hyperlegible", Verdana, "DejaVu Sans", sans-serif',
 		),
 	);
 	/**

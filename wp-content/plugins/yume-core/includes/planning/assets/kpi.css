@@ -1,0 +1,209 @@
+/**
+ * Espace équipe, vue « Indicateurs » (?vue=kpi) — structure seulement (couleurs : variables du
+ * thème). Chargée par includes/planning/kpi.php quand la vue est rendue.
+ */
+.yn-team--kpi .yn-team__principal {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	min-width: 0;
+}
+
+.yn-kpi__carte {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+	padding: 20px 24px;
+}
+
+.yn-kpi__carte > h2 {
+	font-size: 20px;
+}
+
+.yn-kpi__grille {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 24px;
+	align-items: start;
+}
+
+/* Graphique en barres (une série : couleur d'accent, valeurs écrites au-dessus). */
+.yn-kpi__graphique {
+	padding-top: 4px;
+}
+
+.yn-team .yn-kpi__barres {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: 6px;
+	align-items: end;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-kpi__barre {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+
+.yn-kpi__valeur {
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 13px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.yn-kpi__piste {
+	position: relative;
+	display: block;
+	width: 100%;
+	max-width: 36px;
+	height: 160px;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-kpi__remplie {
+	position: absolute;
+	inset: auto 0 0;
+	display: block;
+	height: var(--h, 0%);
+	min-height: 2px;
+	border-radius: 4px 4px 0 0;
+	background: var(--wp--preset--color--accent);
+}
+
+.yn-kpi__remplie--vide {
+	min-height: 0;
+}
+
+.yn-kpi__mois {
+	overflow: hidden;
+	max-width: 100%;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	line-height: 1.2;
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Tableaux. */
+.yn-kpi__defile {
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+.yn-kpi__defile:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-kpi__table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 15px;
+}
+
+.yn-kpi__table caption {
+	margin-bottom: 8px;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 14px;
+	text-align: left;
+}
+
+.yn-kpi__table th,
+.yn-kpi__table td {
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	text-align: left;
+	vertical-align: middle;
+}
+
+.yn-kpi__table thead th {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.yn-kpi__table tbody th {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+}
+
+.yn-kpi__table .yn-kpi__nombre {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.yn-kpi__jauge {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.yn-kpi__jauge .yn-bar {
+	width: 72px;
+}
+
+.yn-kpi__details summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.yn-kpi__details[open] summary {
+	margin-bottom: 8px;
+}
+
+.yn-team .yn-kpi__retards,
+.yn-team .yn-kpi__liste {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding-left: 20px;
+}
+
+@media (max-width: 999.98px) {
+	.yn-kpi__grille {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 699.98px) {
+	.yn-kpi__carte {
+		padding: 16px;
+	}
+
+	.yn-team .yn-kpi__barres {
+		gap: 3px;
+	}
+
+	.yn-kpi__piste {
+		height: 120px;
+	}
+
+	.yn-kpi__valeur {
+		font-size: 12px;
+	}
+
+	/* Mois seuls (« sept. ») : l'année reste dans le tableau et le résumé du graphique. */
+	.yn-kpi__mois {
+		font-size: 10px;
+	}
+
+	.yn-kpi__annee {
+		display: none;
+	}
+}
+
+@media (forced-colors: active) {
+	.yn-kpi__remplie {
+		background: CanvasText;
+	}
+}

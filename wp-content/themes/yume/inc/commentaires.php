@@ -214,3 +214,80 @@ function yume_theme_lien_annuler_reponse( $lien ) {
 	return (string) preg_replace( '#(<a\b[^>]*>).*?(</a>)#s', '$1' . esc_html__( 'Annuler la réponse', 'yume' ) . '$2', (string) $lien, 1 );
 }
 add_filter( 'cancel_comment_reply_link', 'yume_theme_lien_annuler_reponse' );
+
+/**
+ * Commentaire courant d'un bloc du modèle de commentaires (contexte commentId).
+ *
+ * @param mixed $bloc Instance du bloc (WP_Block).
+ * @return WP_Comment|null
+ */
+function yume_theme_commentaire_du_bloc( $bloc ) {
+	$id = $bloc instanceof WP_Block && isset( $bloc->context['commentId'] ) ? (int) $bloc->context['commentId'] : 0;
+	$c  = $id ? get_comment( $id ) : null;
+	return $c instanceof WP_Comment ? $c : null;
+}
+
+/**
+ * Feuille de style du signalement et du badge « Équipe », chargée seulement quand un
+ * commentaire en a besoin (imprimée en pied de page, les blocs étant déjà rendus).
+ */
+function yume_theme_style_commentaires(): void {
+	wp_enqueue_style( 'yume-commentaires', get_theme_file_uri( 'assets/css/commentaires.css' ), array( 'yume' ), yume_theme_version_fichier( 'assets/css/commentaires.css' ) );
+}
+
+/**
+ * Bouton « Signaler » après le lien « Répondre » (AMEL-10) : lecteurs connectés, commentaire
+ * publié d'un autre compte, extension Yume active (route REST du signalement). Le bouton reste
+ * masqué sans JavaScript ; le script n'est chargé que sur les pages qui l'affichent.
+ *
+ * @param string $contenu HTML du bloc.
+ * @param array  $brut    Bloc analysé.
+ * @param mixed  $bloc    Instance du bloc.
+ * @return string
+ */
+function yume_theme_bouton_signaler( $contenu, $brut = array(), $bloc = null ) {
+	$c = yume_theme_commentaire_du_bloc( $bloc );
+	if ( ! $c || ! is_user_logged_in() || ! function_exists( '\Yume\Core\Social\signaler_commentaire' ) ) {
+		return $contenu;
+	}
+	if ( '1' !== (string) $c->comment_approved || get_current_user_id() === (int) $c->user_id ) {
+		return $contenu;
+	}
+	$id  = (int) $c->comment_ID;
+	$cle = 'yn-signaler-' . $id;
+	wp_enqueue_script( 'yume-commentaires', get_theme_file_uri( 'assets/js/commentaires.js' ), array(), yume_theme_version_fichier( 'assets/js/commentaires.js' ), array( 'in_footer' => true ) );
+	yume_theme_style_commentaires();
+
+	$html  = '<div class="yn-signaler" hidden data-yn-signaler="' . esc_url( rest_url( 'yume/v1/commentaires/' . $id . '/signalement' ) ) . '" data-yn-nonce="' . esc_attr( wp_create_nonce( 'wp_rest' ) ) . '"';
+	$html .= ' data-yn-msg-erreur="' . esc_attr__( 'Le signalement n’a pas pu être envoyé. Réessayez.', 'yume' ) . '">';
+	$html .= '<button type="button" class="yn-signaler__bouton" aria-expanded="false" aria-controls="' . esc_attr( $cle ) . '">' . esc_html__( 'Signaler', 'yume' ) . '<span class="yn-visually-hidden"> ' . esc_html( sprintf( /* translators: %s : auteur du commentaire. */ __( 'le commentaire de %s', 'yume' ), $c->comment_author ) ) . '</span></button>';
+	$html .= '<form class="yn-signaler__form" id="' . esc_attr( $cle ) . '" hidden>';
+	$html .= '<label for="' . esc_attr( $cle ) . '-motif">' . esc_html__( 'Motif (facultatif)', 'yume' ) . '</label>';
+	$html .= '<input type="text" id="' . esc_attr( $cle ) . '-motif" name="motif" maxlength="200" placeholder="' . esc_attr__( 'Ex. : divulgâcheur, insulte, spam', 'yume' ) . '">';
+	$html .= '<span class="yn-signaler__boutons"><button type="submit" class="wp-element-button">' . esc_html__( 'Envoyer le signalement', 'yume' ) . '</button>';
+	$html .= '<button type="button" class="yn-signaler__annuler" data-yn-annuler>' . esc_html__( 'Annuler', 'yume' ) . '</button></span></form>';
+	$html .= '<p class="yn-signaler__retour" role="status" aria-live="polite"></p></div>';
+	return $contenu . $html;
+}
+add_filter( 'render_block_core/comment-reply-link', 'yume_theme_bouton_signaler', 10, 3 );
+
+/**
+ * Badge « Équipe » après le nom de l'auteur d'un commentaire écrit par un compte de l'équipe
+ * (capacité yume_voir_equipe de l'extension).
+ *
+ * @param string $contenu HTML du bloc.
+ * @param array  $brut    Bloc analysé.
+ * @param mixed  $bloc    Instance du bloc.
+ * @return string
+ */
+function yume_theme_badge_equipe( $contenu, $brut = array(), $bloc = null ) {
+	$c = yume_theme_commentaire_du_bloc( $bloc );
+	if ( ! $c || (int) $c->user_id <= 0 || ! user_can( (int) $c->user_id, 'yume_voir_equipe' ) ) {
+		return $contenu;
+	}
+	yume_theme_style_commentaires();
+	$badge = '<span class="yn-commentaire__equipe">' . esc_html__( 'Équipe', 'yume' ) . '</span>';
+	$fin   = strrpos( (string) $contenu, '</div>' );
+	return false === $fin ? $contenu . $badge : substr_replace( (string) $contenu, $badge . '</div>', $fin, 6 );
+}
+add_filter( 'render_block_core/comment-author-name', 'yume_theme_badge_equipe', 10, 3 );

@@ -7,7 +7,7 @@
 #
 # Prérequis : . <dossier>/env.sh (YUME_WP_PATH, WP_CLI), YUME_ENV choisi, démo installée
 # (tools/localenv/wp.sh eval-file tools/playground/demo.php), Node 18+ et Playwright :
-#   npm install --prefix tools/ci && (cd tools/ci && npx playwright install chromium)
+#   npm ci --prefix tools/ci && (cd tools/ci && npx playwright install chromium)
 # Met à jour home et siteurl de la base courante sur l'adresse servie (comme serve.sh).
 set -eu
 RACINE=$(cd "$(dirname "$0")/../.." && pwd)

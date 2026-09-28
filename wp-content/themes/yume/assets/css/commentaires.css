@@ -1,0 +1,81 @@
+/*
+ * Commentaires : bouton « Signaler » (lecteurs connectés) et badge « Équipe » des réponses de
+ * l'équipe. Chargée seulement sur les pages qui en ont besoin (inc/commentaires.php).
+ */
+
+.yn-commentaire__equipe {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 1px 8px;
+	border: 1px solid var(--wp--preset--color--accent);
+	border-radius: 999px;
+	color: var(--wp--preset--color--accent);
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.5;
+	vertical-align: middle;
+}
+
+.yn-signaler {
+	margin-top: 4px;
+	font-size: 13px;
+}
+
+.yn-signaler__bouton,
+.yn-signaler__annuler {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--wp--preset--color--texte-faible, currentColor);
+	font: inherit;
+	font-weight: 600;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.yn-signaler__bouton:hover,
+.yn-signaler__bouton:focus-visible,
+.yn-signaler__annuler:hover,
+.yn-signaler__annuler:focus-visible {
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-signaler__form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+	margin-top: 8px;
+}
+
+.yn-signaler__form[hidden],
+.yn-signaler[hidden],
+.yn-signaler__bouton[hidden] {
+	display: none;
+}
+
+.yn-signaler__form label {
+	flex-basis: 100%;
+	font-weight: 600;
+}
+
+.yn-signaler__form input {
+	flex: 1 1 220px;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.yn-signaler__boutons {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 12px;
+}
+
+.yn-signaler__retour {
+	margin: 4px 0 0;
+}
+
+.yn-signaler__retour:empty {
+	display: none;
+}

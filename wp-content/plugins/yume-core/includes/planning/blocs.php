@@ -1,7 +1,8 @@
 <?php
 /**
  * Blocs du planning (§10) : enregistrement, composants partagés (pastilles d'état, barres,
- * journal) et rendu des blocs publics yume/upcoming, yume/planning et yume/oeuvre-planning.
+ * journal) et rendu des blocs publics yume/upcoming, yume/planning (onglets Tableau et
+ * Calendrier : ?vue=calendrier), yume/calendrier et yume/oeuvre-planning.
  * Le bloc yume/team-dashboard est rendu par equipe.php, yume/team-members par membres.php.
  *
  * Couleurs : uniquement les variables et classes du thème (§15).
@@ -20,7 +21,7 @@ function enregistrer_blocs(): void {
 	if ( ! function_exists( 'yume_register_dynamic_block' ) ) {
 		return;
 	}
-	foreach ( array( 'upcoming', 'planning', 'oeuvre-planning', 'team-dashboard', 'team-members' ) as $bloc ) {
+	foreach ( array( 'upcoming', 'planning', 'calendrier', 'oeuvre-planning', 'team-dashboard', 'team-members' ) as $bloc ) {
 		yume_register_dynamic_block( __DIR__ . '/blocks/' . $bloc );
 	}
 }
@@ -396,8 +397,16 @@ function url_base_planning(): string {
  * @param array $changer Filtres à changer (valeur vide : retirer).
  */
 function url_filtre( array $filtres, array $changer ): string {
-	$args = array_filter( array_merge( $filtres, $changer ) );
+	$args = array_filter( array_merge( $filtres, array( 'vue' => vue_planning() ), $changer ) );
 	return add_query_arg( $args, url_base_planning() ) . '#yn-planning';
+}
+
+/**
+ * Vue du planning public : 'calendrier' (?vue=calendrier) ou '' (tableau).
+ */
+function vue_planning(): string {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- affichage en lecture seule.
+	return isset( $_GET['vue'] ) && 'calendrier' === $_GET['vue'] ? 'calendrier' : '';
 }
 
 /**
@@ -541,7 +550,8 @@ function rendu_planning( array $attributs ): string {
 		}
 		$html .= '</ul>';
 		$html .= '<p class="yn-planning__flux"><a class="yn-btn yn-btn--sm" href="' . esc_url( rest_url( REST_NS . '/planning/journal?format=rss' ) ) . '">' . esc_html__( 'Flux RSS', 'yume-core' ) . '</a>';
-		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( rest_url( REST_NS . '/planning' ) ) . '">' . esc_html__( 'JSON', 'yume-core' ) . '</a></p>';
+		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( rest_url( REST_NS . '/planning' ) ) . '">' . esc_html__( 'JSON', 'yume-core' ) . '</a>';
+		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( url_ics( $filtres['oeuvre'], true ) ) . '">' . esc_html__( 'S’abonner au calendrier (ICS)', 'yume-core' ) . '</a></p>';
 		$html .= '</nav>';
 	}
 	$html .= '</div>';
@@ -590,8 +600,64 @@ function rendu_planning( array $attributs ): string {
 	$html .= chiffre( __( 'Retards', 'yume-core' ), (string) $stats['retards'], $detail, $stats['retards'] ? 'warn' : '' );
 	$html .= '</section>';
 
-	// Tableau.
-	$html .= '<section class="yn-card yn-planning__tableau" aria-labelledby="yn-planning-tableau">';
+	// Onglets : tableau ou calendrier mensuel (liens simples, sans JavaScript).
+	$calendrier = 'calendrier' === vue_planning();
+	$html      .= '<nav class="yn-planning__vues" aria-label="' . esc_attr__( 'Affichage du planning', 'yume-core' ) . '"><ul class="yn-planning__groupe">';
+	$html      .= lien_filtre( esc_html__( 'Tableau', 'yume-core' ), url_filtre( $filtres, array( 'vue' => '' ) ), ! $calendrier );
+	$html      .= lien_filtre( esc_html__( 'Calendrier', 'yume-core' ), url_filtre( $filtres, array( 'vue' => 'calendrier' ) ), $calendrier );
+	$html      .= '</ul></nav>';
+
+	if ( $calendrier ) {
+		// Rendu par le bloc : sa feuille de style est ainsi chargée.
+		$html .= render_block(
+			array(
+				'blockName'    => 'yume/calendrier',
+				'attrs'        => array(),
+				'innerBlocks'  => array(),
+				'innerHTML'    => '',
+				'innerContent' => array(),
+			)
+		);
+	} else {
+		$html .= tableau_planning( $lignes, $filtres, $equipe );
+	}
+
+	// Journal et légende.
+	$html .= '<div class="yn-planning__bas">';
+	$html .= '<section class="yn-card yn-planning__journal" id="yn-planning-journal" aria-labelledby="yn-planning-journal-titre">';
+	$html .= '<h2 id="yn-planning-journal-titre" class="yn-label">' . esc_html__( 'Journal des mises à jour', 'yume-core' ) . '</h2>';
+	$html .= $journal ? liste_journal( $journal, 'yn-planning__entrees yn-journal' ) : '<p class="yn-muted">' . esc_html__( 'Aucune mise à jour pour le moment.', 'yume-core' ) . '</p>';
+	$html .= '</section>';
+	$html .= '<section class="yn-card yn-planning__legende" aria-labelledby="yn-planning-legende">';
+	$html .= '<h2 id="yn-planning-legende" class="yn-label">' . esc_html__( 'Comment lire ce planning', 'yume-core' ) . '</h2><ul>';
+	$html .= '<li>' . pastille( 'a_lheure' ) . ' ' . esc_html__( 'la date cible tient.', 'yume-core' ) . '</li>';
+	$html .= '<li>' . pastille( 'en_retard' ) . ' ' . esc_html(
+		sprintf(
+			/* translators: %d : jours */
+			_n( 'date dépassée ou aucune nouvelle depuis %d jour.', 'date dépassée ou aucune nouvelle depuis %d jours.', seuil_inactivite(), 'yume-core' ),
+			seuil_inactivite()
+		)
+	) . '</li>';
+	$invitation = function_exists( 'yume_setting' ) ? (string) yume_setting( 'discord_invite', '' ) : '';
+	$html      .= '<li>' . pastille( 'bloque' ) . ' ' . esc_html__( 'il manque quelqu’un :', 'yume-core' ) . ' ';
+	$html      .= '' !== $invitation ? '<a href="' . esc_url( $invitation ) . '">' . esc_html__( 'rejoindre l’équipe', 'yume-core' ) . '</a>.' : esc_html__( 'rejoignez l’équipe !', 'yume-core' );
+	$html      .= '</li>';
+	$html      .= '<li><span class="yn-chip yn-chip--new yn-chip--programme"><span aria-hidden="true">◷</span> ' . esc_html__( 'Programmé', 'yume-core' ) . '</span> ' . esc_html__( 'la sortie est programmée : le tome paraîtra tout seul à cette date.', 'yume-core' ) . '</li>';
+	$html      .= '<li>' . pastille( 'publie' ) . ' ' . esc_html__( 'le tome est sorti : bonne lecture !', 'yume-core' ) . '</li>';
+	$html      .= '</ul></section></div>';
+
+	return $html . '</div>';
+}
+
+/**
+ * Tableau d'avancement du planning public (vue par défaut).
+ *
+ * @param array $lignes  Lignes filtrées.
+ * @param array $filtres Filtres courants.
+ * @param bool  $equipe  Membre de l'équipe connecté (liens « Modifier »).
+ */
+function tableau_planning( array $lignes, array $filtres, bool $equipe ): string {
+	$html  = '<section class="yn-card yn-planning__tableau" aria-labelledby="yn-planning-tableau">';
 	$html .= '<h2 id="yn-planning-tableau" class="yn-visually-hidden">' . esc_html__( 'Avancement des tomes', 'yume-core' ) . '</h2>';
 	if ( ! $lignes ) {
 		$html .= '<p class="yn-muted yn-planning__vide">' . esc_html__( 'Aucun tome ne correspond à ces filtres.', 'yume-core' );
@@ -642,33 +708,283 @@ function rendu_planning( array $attributs ): string {
 		}
 		$html .= '</tbody></table>';
 	}
-	$html .= '</section>';
+	return $html . '</section>';
+}
 
-	// Journal et légende.
-	$html .= '<div class="yn-planning__bas">';
-	$html .= '<section class="yn-card yn-planning__journal" id="yn-planning-journal" aria-labelledby="yn-planning-journal-titre">';
-	$html .= '<h2 id="yn-planning-journal-titre" class="yn-label">' . esc_html__( 'Journal des mises à jour', 'yume-core' ) . '</h2>';
-	$html .= $journal ? liste_journal( $journal, 'yn-planning__entrees yn-journal' ) : '<p class="yn-muted">' . esc_html__( 'Aucune mise à jour pour le moment.', 'yume-core' ) . '</p>';
-	$html .= '</section>';
-	$html .= '<section class="yn-card yn-planning__legende" aria-labelledby="yn-planning-legende">';
-	$html .= '<h2 id="yn-planning-legende" class="yn-label">' . esc_html__( 'Comment lire ce planning', 'yume-core' ) . '</h2><ul>';
-	$html .= '<li>' . pastille( 'a_lheure' ) . ' ' . esc_html__( 'la date cible tient.', 'yume-core' ) . '</li>';
-	$html .= '<li>' . pastille( 'en_retard' ) . ' ' . esc_html(
-		sprintf(
-			/* translators: %d : jours */
-			_n( 'date dépassée ou aucune nouvelle depuis %d jour.', 'date dépassée ou aucune nouvelle depuis %d jours.', seuil_inactivite(), 'yume-core' ),
-			seuil_inactivite()
+/*
+ * -----------------------------------------------------------------------------
+ * Événements datés (calendrier mensuel et flux ICS)
+ * -----------------------------------------------------------------------------
+ */
+
+/** Tomes publiés repris dans le calendrier et le flux ICS : ceux des 365 derniers jours. */
+const JOURS_SORTIES_CALENDRIER = 365;
+
+/**
+ * Sorties datées du planning public, une par tome : lignes de yume_get_planning() (public)
+ * ayant une date, tomes parus depuis un an compris.
+ *
+ * Chaque événement : 'tome_id', 'oeuvre_id', 'titre' (« Œuvre T.2 »), 'nature' ('prevu' :
+ * date cible indicative ; 'programme' : sortie programmée ; 'sorti' : tome paru), 'jour'
+ * (Y-m-d, heure de Paris), 'ts' (horodatage UTC ; 0 pour une prévision), 'etat' (texte),
+ * 'url' (tome paru, sinon œuvre, sinon page du planning), 'maj' (dernière mise à jour).
+ *
+ * @param int    $oeuvre_id Œuvre (0 : toutes).
+ * @param string $type      Type d'œuvre (slug yume_type, vide : tous).
+ * @param string $etat      État (vide : tous).
+ * @return array<int,array<string,mixed>> Triés par date.
+ */
+function evenements_calendrier( int $oeuvre_id = 0, string $type = '', string $etat = '' ): array {
+	$lignes     = yume_get_planning(
+		array(
+			'oeuvre_id'              => $oeuvre_id,
+			'type'                   => $type,
+			'etat'                   => $etat,
+			'public'                 => true,
+			'inclure_publies_depuis' => JOURS_SORTIES_CALENDRIER,
 		)
-	) . '</li>';
-	$invitation = function_exists( 'yume_setting' ) ? (string) yume_setting( 'discord_invite', '' ) : '';
-	$html      .= '<li>' . pastille( 'bloque' ) . ' ' . esc_html__( 'il manque quelqu’un :', 'yume-core' ) . ' ';
-	$html      .= '' !== $invitation ? '<a href="' . esc_url( $invitation ) . '">' . esc_html__( 'rejoindre l’équipe', 'yume-core' ) . '</a>.' : esc_html__( 'rejoignez l’équipe !', 'yume-core' );
-	$html      .= '</li>';
-	$html      .= '<li><span class="yn-chip yn-chip--new yn-chip--programme"><span aria-hidden="true">◷</span> ' . esc_html__( 'Programmé', 'yume-core' ) . '</span> ' . esc_html__( 'la sortie est programmée : le tome paraîtra tout seul à cette date.', 'yume-core' ) . '</li>';
-	$html      .= '<li>' . pastille( 'publie' ) . ' ' . esc_html__( 'le tome est sorti : bonne lecture !', 'yume-core' ) . '</li>';
-	$html      .= '</ul></section></div>';
+	);
+	$evenements = array();
+	foreach ( $lignes as $l ) {
+		$tome_id = (int) $l['tome_id'];
+		$ts      = 0;
+		if ( 'publie' === $l['etat'] ) {
+			$nature = 'sorti';
+			$ts     = ts_gmt( $l['date_sortie'] );
+			$jour   = $ts ? date_locale( $ts ) : '';
+			$texte  = __( 'Paru', 'yume-core' );
+		} elseif ( est_programme( $l ) ) {
+			$nature = 'programme';
+			$post   = get_post( $tome_id );
+			$ts     = $post ? ts_contenu( $post, 'post_date' ) : 0;
+			$jour   = (string) $l['date_programmee'];
+			$texte  = texte_etat( $l );
+		} else {
+			$nature = 'prevu';
+			$jour   = (string) $l['date_cible'];
+			/* translators: %s : état (« À l’heure », « En retard de 3 j ») */
+			$texte = sprintf( __( 'Prévu (date indicative) · %s', 'yume-core' ), texte_etat( $l ) );
+		}
+		if ( ! valider_date( $jour ) || ( 'prevu' !== $nature && ! $ts ) ) {
+			continue;
+		}
+		$url          = '' !== $l['url'] ? $l['url'] : ( '' !== $l['url_oeuvre'] ? $l['url_oeuvre'] : yume_url_page( 'planning' ) );
+		$evenements[] = array(
+			'tome_id'   => $tome_id,
+			'oeuvre_id' => (int) $l['oeuvre_id'],
+			'titre'     => trim( $l['oeuvre'] . ' ' . yume_libelle_tome( $tome_id, true ) ),
+			'nature'    => $nature,
+			'jour'      => $jour,
+			'ts'        => $ts,
+			'etat'      => $texte,
+			'url'       => (string) $url,
+			'maj'       => max( ts_gmt( $l['derniere_maj'] ), (int) $l['ts_activite'] ),
+		);
+	}
+	usort(
+		$evenements,
+		static function ( array $a, array $b ): int {
+			$cmp = strcmp( $a['jour'], $b['jour'] );
+			if ( 0 === $cmp ) {
+				$cmp = $a['ts'] <=> $b['ts'];
+			}
+			return 0 !== $cmp ? $cmp : strcmp( $a['titre'], $b['titre'] );
+		}
+	);
+	/**
+	 * Filtre les sorties datées du calendrier mensuel et du flux ICS.
+	 *
+	 * @param array $evenements Événements.
+	 * @param int   $oeuvre_id  Œuvre (0 : toutes).
+	 */
+	return (array) apply_filters( 'yume_planning_evenements', $evenements, $oeuvre_id );
+}
 
-	return $html . '</div>';
+/*
+ * -----------------------------------------------------------------------------
+ * yume/calendrier
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Mois affiché (?mois=AAAA-MM, sinon le mois courant à Paris).
+ *
+ * @return string « AAAA-MM ».
+ */
+function mois_calendrier(): string {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- affichage en lecture seule.
+	$mois = isset( $_GET['mois'] ) && is_string( $_GET['mois'] ) ? sanitize_text_field( wp_unslash( $_GET['mois'] ) ) : '';
+	if ( preg_match( '/^(\d{4})-(0[1-9]|1[0-2])$/', $mois, $m ) && (int) $m[1] >= 2000 && (int) $m[1] <= 2100 ) {
+		return $mois;
+	}
+	return substr( date_locale(), 0, 7 );
+}
+
+/**
+ * Adresse du calendrier pour un mois (filtres et onglet courants conservés).
+ *
+ * @param string $mois « AAAA-MM ».
+ */
+function url_mois( string $mois ): string {
+	$args = array_merge( filtres_planning(), array( 'vue' => vue_planning() ) );
+	return add_query_arg( array_filter( $args + array( 'mois' => $mois ) ), url_base_planning() ) . '#yn-calendrier';
+}
+
+/**
+ * Libellés d'une nature de sortie : icône (texte, jamais la couleur seule), libellé et
+ * explication de la légende.
+ *
+ * @return array<string,array{icone:string,libelle:string,legende:string}>
+ */
+function natures_calendrier(): array {
+	return array(
+		'programme' => array(
+			'icone'   => '◷',
+			'libelle' => __( 'Programmé', 'yume-core' ),
+			'legende' => __( 'sortie programmée : le tome paraîtra tout seul à cette date.', 'yume-core' ),
+		),
+		'prevu'     => array(
+			'icone'   => '◌',
+			'libelle' => __( 'Prévu', 'yume-core' ),
+			'legende' => __( 'date cible indicative : la relecture décide.', 'yume-core' ),
+		),
+		'sorti'     => array(
+			'icone'   => '✓',
+			'libelle' => __( 'Paru', 'yume-core' ),
+			'legende' => __( 'le tome est sorti : bonne lecture !', 'yume-core' ),
+		),
+	);
+}
+
+/**
+ * Liste des sorties d'un jour.
+ *
+ * @param array $evenements Événements du jour.
+ */
+function liste_evenements( array $evenements ): string {
+	$natures = natures_calendrier();
+	$html    = '<ul class="yn-calendrier__evts">';
+	foreach ( $evenements as $e ) {
+		$n     = $natures[ $e['nature'] ];
+		$html .= '<li class="yn-calendrier__evt yn-calendrier__evt--' . esc_attr( $e['nature'] ) . '" title="' . esc_attr( $e['etat'] ) . '">';
+		$html .= '<span class="yn-calendrier__icone" aria-hidden="true">' . esc_html( $n['icone'] ) . '</span>';
+		$html .= '<span class="yn-visually-hidden">' . esc_html( $n['libelle'] ) . ' : </span>';
+		$html .= '<a href="' . esc_url( $e['url'] ) . '">' . esc_html( $e['titre'] ) . '</a>';
+		if ( 'prevu' !== $e['nature'] ) {
+			$html .= ' <span class="yn-calendrier__heure">' . esc_html( format_fr( (int) $e['ts'], 'H:i' ) ) . '</span>';
+		}
+		$html .= '</li>';
+	}
+	return $html . '</ul>';
+}
+
+/**
+ * Rendu du bloc « Calendrier des sorties » : grille mensuelle accessible (tableau), liste en
+ * repli sous 600 px, navigation par ?mois=AAAA-MM sans JavaScript, abonnement ICS.
+ * Filtres GET du planning (type, etat, oeuvre) respectés. Le bloc n'a pas d'attribut.
+ */
+function rendu_calendrier(): string {
+	$filtres = filtres_planning();
+	$mois    = mois_calendrier();
+	$annee   = (int) substr( $mois, 0, 4 );
+	$num     = (int) substr( $mois, 5, 2 );
+	$debut   = new \DateTimeImmutable( $mois . '-01', fuseau() );
+	$nb      = (int) $debut->format( 't' );
+	$decal   = (int) $debut->format( 'N' ) - 1;
+	$auj     = date_locale();
+	$noms    = noms_mois();
+	$libelle = majuscule( $noms[ $num ] ) . ' ' . $annee;
+	$prec    = $debut->modify( '-1 month' );
+	$suiv    = $debut->modify( '+1 month' );
+
+	// Sorties du mois, par jour.
+	$par_jour = array();
+	foreach ( evenements_calendrier( $filtres['oeuvre'], $filtres['type'], $filtres['etat'] ) as $e ) {
+		if ( str_starts_with( $e['jour'], $mois . '-' ) ) {
+			$par_jour[ $e['jour'] ][] = $e;
+		}
+	}
+
+	$html  = '<section ' . attributs_racine(
+		'yn-calendrier',
+		array(
+			'id'              => 'yn-calendrier',
+			'aria-labelledby' => 'yn-calendrier-titre',
+		)
+	) . '>';
+	$html .= '<div class="yn-calendrier__tete">';
+	$html .= '<h2 id="yn-calendrier-titre" class="yn-calendrier__titre">' . esc_html( $libelle ) . '</h2>';
+	$html .= '<nav class="yn-calendrier__nav" aria-label="' . esc_attr__( 'Changer de mois', 'yume-core' ) . '">';
+	$html .= '<a class="yn-btn yn-btn--sm" rel="prev" href="' . esc_url( url_mois( $prec->format( 'Y-m' ) ) ) . '"><span aria-hidden="true">←</span> <span class="yn-visually-hidden">' . esc_html__( 'Mois précédent :', 'yume-core' ) . ' </span>' . esc_html( $noms[ (int) $prec->format( 'n' ) ] . ' ' . $prec->format( 'Y' ) ) . '</a>';
+	if ( substr( $auj, 0, 7 ) !== $mois ) {
+		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( url_mois( substr( $auj, 0, 7 ) ) ) . '">' . esc_html__( 'Ce mois-ci', 'yume-core' ) . '</a>';
+	}
+	$html .= '<a class="yn-btn yn-btn--sm" rel="next" href="' . esc_url( url_mois( $suiv->format( 'Y-m' ) ) ) . '"><span class="yn-visually-hidden">' . esc_html__( 'Mois suivant :', 'yume-core' ) . ' </span>' . esc_html( $noms[ (int) $suiv->format( 'n' ) ] . ' ' . $suiv->format( 'Y' ) ) . ' <span aria-hidden="true">→</span></a>';
+	$html .= '</nav></div>';
+
+	// Grille (bureau et tablette).
+	$jours_courts = noms_jours( true );
+	$jours_longs  = noms_jours();
+	$html        .= '<div class="yn-card yn-calendrier__cadre"><table class="yn-calendrier__grille">';
+	/* translators: %s : mois (« septembre 2026 ») */
+	$html .= '<caption class="yn-visually-hidden">' . esc_html( sprintf( __( 'Sorties de %s', 'yume-core' ), $noms[ $num ] . ' ' . $annee ) ) . '</caption>';
+	$html .= '<thead><tr>';
+	foreach ( array( 1, 2, 3, 4, 5, 6, 0 ) as $j ) {
+		$html .= '<th scope="col"><abbr title="' . esc_attr( $jours_longs[ $j ] ) . '">' . esc_html( $jours_courts[ $j ] ) . '</abbr></th>';
+	}
+	$html .= '</tr></thead><tbody><tr>';
+	$html .= str_repeat( '<td class="yn-calendrier__case yn-calendrier__case--vide"></td>', $decal );
+	for ( $jour = 1; $jour <= $nb; $jour++ ) {
+		$ymd = sprintf( '%s-%02d', $mois, $jour );
+		$col = ( $decal + $jour - 1 ) % 7;
+		if ( 0 === $col && $jour > 1 ) {
+			$html .= '</tr><tr>';
+		}
+		$classe = 'yn-calendrier__case' . ( $ymd === $auj ? ' yn-calendrier__case--aujourdhui' : '' ) . ( isset( $par_jour[ $ymd ] ) ? ' yn-calendrier__case--sorties' : '' );
+		$html  .= '<td class="' . esc_attr( $classe ) . '"' . ( $ymd === $auj ? ' aria-current="date"' : '' ) . '>';
+		$html  .= '<span class="yn-calendrier__num"><time datetime="' . esc_attr( $ymd ) . '">' . (int) $jour . '</time>';
+		if ( $ymd === $auj ) {
+			$html .= '<span class="yn-visually-hidden"> (' . esc_html__( 'aujourd’hui', 'yume-core' ) . ')</span>';
+		}
+		$html .= '</span>';
+		if ( isset( $par_jour[ $ymd ] ) ) {
+			$html .= liste_evenements( $par_jour[ $ymd ] );
+		}
+		$html .= '</td>';
+	}
+	$reste = ( 7 - ( $decal + $nb ) % 7 ) % 7;
+	$html .= str_repeat( '<td class="yn-calendrier__case yn-calendrier__case--vide"></td>', $reste );
+	$html .= '</tr></tbody></table></div>';
+
+	// Liste en repli (mobile) : seulement les jours qui ont des sorties.
+	$html .= '<div class="yn-card yn-calendrier__repli">';
+	if ( $par_jour ) {
+		$html .= '<ol class="yn-calendrier__liste">';
+		foreach ( $par_jour as $ymd => $evenements ) {
+			$ts    = ts_date( $ymd );
+			$html .= '<li' . ( $ymd === $auj ? ' aria-current="date"' : '' ) . '><p class="yn-calendrier__date"><time datetime="' . esc_attr( $ymd ) . '">' . esc_html( majuscule( format_fr( $ts, 'l j F' ) ) ) . '</time>';
+			if ( $ymd === $auj ) {
+				$html .= ' <span class="yn-chip yn-chip--info">' . esc_html__( 'aujourd’hui', 'yume-core' ) . '</span>';
+			}
+			$html .= '</p>' . liste_evenements( $evenements ) . '</li>';
+		}
+		$html .= '</ol>';
+	} else {
+		$html .= '<p class="yn-muted yn-calendrier__vide">' . esc_html__( 'Aucune sortie datée ce mois-ci.', 'yume-core' ) . '</p>';
+	}
+	$html .= '</div>';
+
+	// Légende et abonnement.
+	$html .= '<div class="yn-calendrier__pied"><ul class="yn-calendrier__legende" aria-label="' . esc_attr__( 'Légende', 'yume-core' ) . '">';
+	foreach ( natures_calendrier() as $nature => $n ) {
+		$html .= '<li><span class="yn-calendrier__evt yn-calendrier__evt--' . esc_attr( $nature ) . '"><span class="yn-calendrier__icone" aria-hidden="true">' . esc_html( $n['icone'] ) . '</span> ' . esc_html( $n['libelle'] ) . '</span> ' . esc_html( $n['legende'] ) . '</li>';
+	}
+	$html .= '</ul><p class="yn-calendrier__abonnement">';
+	$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( url_ics( $filtres['oeuvre'], true ) ) . '">' . esc_html__( 'S’abonner au calendrier (ICS)', 'yume-core' ) . '</a>';
+	$html .= '<a class="yn-calendrier__telecharger" href="' . esc_url( url_ics( $filtres['oeuvre'] ) ) . '">' . esc_html__( 'Télécharger le fichier .ics', 'yume-core' ) . '</a>';
+	$html .= '</p></div>';
+
+	return $html . '</section>';
 }
 
 /*

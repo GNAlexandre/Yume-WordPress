@@ -34,3 +34,4 @@ require_once __DIR__ . '/partenaires.php';
 require_once __DIR__ . '/blocs.php';
 require_once __DIR__ . '/seo.php';
 require_once __DIR__ . '/recherche.php';
+require_once __DIR__ . '/flux.php';

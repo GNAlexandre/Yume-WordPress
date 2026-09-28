@@ -5,8 +5,11 @@
  * - chaque jour à yume_setting( 'rappel_heure' ) (heure de Paris) : tome en retard (date cible
  *   dépassée ou aucune mise à jour depuis rappel_jours_sans_maj jours) → e-mail aux
  *   responsables et message sur le Discord de l'équipe ; tome bloqué sans responsable →
- *   signalement aux gérants. Au plus un rappel par tome tous les 3 jours (méta
- *   _yume_dernier_rappel) ;
+ *   signalement aux gérants. Rappels plafonnés (BUG-10) : un premier rappel, une relance
+ *   après le délai minimal (3 jours, méta _yume_dernier_rappel), puis au plus un par semaine ;
+ *   au-delà de yume_rappels_plafond semaines de retard (8 par défaut), plus aucun rappel : le
+ *   tome ne figure plus que dans le récapitulatif. Un tome en pause (méta yume_pause) n'est
+ *   jamais rappelé ni signalé ;
  * - chaque semaine, le jour digest_jour : récapitulatif aux gérants (sorties de la semaine,
  *   retards, bloqués, sorties prévues).
  *
@@ -29,6 +32,65 @@ function delai_rappel(): int {
 	$jours = max( 1, (int) apply_filters( 'yume_planning_delai_rappel', 3 ) );
 	// Une heure de marge : le rappel de 9 h passe encore trois jours plus tard à 9 h.
 	return $jours * DAY_IN_SECONDS - HOUR_IN_SECONDS;
+}
+
+/**
+ * Plafond des rappels d'un tome en retard, en semaines de retard (0 : aucun plafond).
+ */
+function plafond_rappels(): int {
+	/**
+	 * Nombre de semaines de retard au-delà duquel un tome ne reçoit plus de rappel (il reste
+	 * dans le récapitulatif hebdomadaire des gérants).
+	 *
+	 * @param int $semaines Défaut 8 ; 0 désactive le plafond.
+	 */
+	return max( 0, (int) apply_filters( 'yume_rappels_plafond', 8 ) );
+}
+
+/**
+ * Le retard d'un tome dépasse-t-il le plafond des rappels ?
+ *
+ * @param array $ligne Ligne du planning (jours_retard).
+ */
+function rappels_plafonnes( array $ligne ): bool {
+	$plafond = plafond_rappels();
+	return $plafond > 0 && (int) ( $ligne['jours_retard'] ?? 0 ) >= $plafond * 7;
+}
+
+/**
+ * Nombre de rappels de retard envoyés pour un tome depuis un instant (sa dernière activité).
+ *
+ * @param int $tome_id Tome.
+ * @param int $depuis  Horodatage.
+ */
+function rappels_envoyes_depuis( int $tome_id, int $depuis ): int {
+	global $wpdb;
+	$table = table_journal();
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+	return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE tome_id = %d AND champ = 'rappel' AND created_at >= %s", $tome_id, gmt( $depuis ) ) );
+}
+
+/**
+ * Un rappel de retard peut-il partir aujourd'hui pour ce tome ? Jamais pour un tome en pause
+ * ni au-delà du plafond ; sinon le premier rappel part, la relance attend le délai minimal
+ * (delai_rappel()) et les suivants une semaine.
+ *
+ * @param array $ligne Ligne du planning.
+ */
+function rappel_permis( array $ligne ): bool {
+	$tome_id = (int) $ligne['tome_id'];
+	if ( est_en_pause( $tome_id ) || rappels_plafonnes( $ligne ) ) {
+		return false;
+	}
+	$dernier = ts_gmt( (string) get_post_meta( $tome_id, META_DERNIER_RAPPEL, true ) );
+	if ( ! $dernier ) {
+		return true;
+	}
+	$delai = delai_rappel();
+	if ( rappels_envoyes_depuis( $tome_id, (int) ( $ligne['ts_activite'] ?? 0 ) ) >= 2 ) {
+		$delai = max( $delai, 7 * DAY_IN_SECONDS - HOUR_IN_SECONDS );
+	}
+	return maintenant() - $dernier >= $delai;
 }
 
 /**
@@ -193,11 +255,14 @@ function executer_rappels(): array {
 		)
 	) as $ligne ) {
 		$tome_id = (int) $ligne['tome_id'];
-		if ( ! in_array( $ligne['etat'], array( 'en_retard', 'bloque' ), true ) || rappel_recent( $tome_id ) ) {
+		if ( ! in_array( $ligne['etat'], array( 'en_retard', 'bloque' ), true ) || est_en_pause( $tome_id ) ) {
 			continue;
 		}
 
 		if ( 'en_retard' === $ligne['etat'] ) {
+			if ( ! rappel_permis( $ligne ) ) {
+				continue;
+			}
 			$destinataires = destinataires_rappel( $ligne );
 			$vers_gerants  = ! $destinataires;
 			if ( $vers_gerants ) {
@@ -243,6 +308,9 @@ function executer_rappels(): array {
 		}
 
 		// Tome bloqué : signalé aux gérants s'il manque quelqu'un.
+		if ( rappel_recent( $tome_id ) ) {
+			continue;
+		}
 		$manquants = roles_manquants( $ligne );
 		if ( ! $manquants ) {
 			continue;
@@ -397,7 +465,8 @@ function envoyer_digest( bool $forcer = false ): array {
 		static function ( array $l ): string {
 			$noms = implode( ', ', array_filter( wp_list_pluck( $l['responsables'], 'nom' ) ) );
 			/* translators: %s : pseudos */
-			return wp_strip_all_tags( phrase_retard( $l, false ) ) . ' ' . sprintf( __( 'Responsables : %s.', 'yume-core' ), '' !== $noms ? $noms : __( 'aucun', 'yume-core' ) );
+			$texte = wp_strip_all_tags( phrase_retard( $l, false ) ) . ' ' . sprintf( __( 'Responsables : %s.', 'yume-core' ), '' !== $noms ? $noms : __( 'aucun', 'yume-core' ) );
+			return rappels_plafonnes( $l ) ? $texte . ' ' . __( 'Plus de rappel automatique : mettez le tome à jour, en pause ou retirez-le du planning.', 'yume-core' ) : $texte;
 		}
 	) : '<p>' . esc_html__( 'Aucun retard : tout est à l’heure.', 'yume-core' ) . '</p>';
 	$html .= '<h2 style="font-size:17px;margin:20px 0 8px;">' . esc_html__( 'Tomes bloqués', 'yume-core' ) . '</h2>';

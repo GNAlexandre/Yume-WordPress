@@ -2205,6 +2205,8 @@ yume_tp_test(
 		$lec    = yume_tp_membre( 'subscriber', 'Kaede' );
 		wp_set_current_user( $gerant );
 		$html = yume_render_block( 'yume/team-members' );
+		// Vues ajoutées par le filtre yume_vues_equipe (« Indicateurs »…), placées avant « Réglages ».
+		$ajoutees = array_column( \Yume\Core\Planning\vues_equipe_ajoutees(), 'libelle' );
 		wp_set_current_user( 0 );
 		yume_assert_contains( 'class="yn-team yn-team--membres wp-block-yume-team-members" id="yn-team"', $html );
 		yume_assert_contains( '<h2 class="yn-team__bonjour">Membres et rôles</h2>', $html );
@@ -2214,7 +2216,7 @@ yume_tp_test(
 		yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
 		preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0], $liens, PREG_SET_ORDER );
 		$libelles = array_map( static fn( $l ) => html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), $liens );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
+		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles' ), $ajoutees, array( 'Réglages' ) ), $libelles );
 		$equipe = esc_url( yume_url_page( 'equipe' ) );
 		yume_assert_same( $equipe, $liens[0][1] );
 		yume_assert_same( $equipe . '#yn-mes-taches', $liens[1][1] );

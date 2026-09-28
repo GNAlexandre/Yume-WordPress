@@ -5,7 +5,7 @@
 	"title": "Barre de lecture",
 	"category": "yume",
 	"icon": "book-alt",
-	"description": "Barre collante du lecteur : progression, sommaire, marque-page, thème et panneau Paramètres (taille, interligne, opacité, police, largeur). À placer dans le modèle « Chapitre », sous l’en-tête de lecture.",
+	"description": "Barre collante du lecteur : progression, sommaire, marque-page, thème et panneau Paramètres (taille, interligne, opacité, police, largeur, accessibilité, raccourcis). À placer dans le modèle « Chapitre », sous l’en-tête de lecture.",
 	"keywords": [ "lecture", "chapitre", "réglages", "marque-page" ],
 	"textdomain": "yume-core",
 	"usesContext": [ "postId", "postType" ],

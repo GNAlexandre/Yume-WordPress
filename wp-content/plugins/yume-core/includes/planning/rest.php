@@ -8,6 +8,7 @@
  *                                     du planning (corbeille ; brouillon sans chapitre publié)
  * - GET   /planning/journal           public, sans notes d'équipe (JSON, ou RSS avec format=rss)
  * - POST  /planning/tomes             yume_maj_planning_tous : ajoute un tome au planning (brouillon)
+ * - GET   /planning.ics               public : calendrier iCalendar (RFC 5545) des sorties, ?oeuvre=<id|slug>
  *
  * @package Yume\Core
  */
@@ -208,6 +209,26 @@ function routes(): void {
 					'bloque_raison' => array( 'type' => 'string' ),
 					'responsables'  => schema_trio_entiers( __( 'Responsables (yume_maj_planning_tous).', 'yume-core' ) ),
 					'note_equipe'   => array( 'type' => 'string' ),
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		REST_NS,
+		'/planning\\.ics',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\rest_planning_ics',
+			'permission_callback' => '__return_true',
+			'args'                => array(
+				'oeuvre' => array(
+					'description'       => __( 'ID ou slug de l’œuvre (vide : toutes).', 'yume-core' ),
+					'type'              => 'string',
+					'default'           => '',
+					'sanitize_callback' => static function ( $valeur ): string {
+						return is_scalar( $valeur ) ? sanitize_title( (string) $valeur ) : '';
+					},
 				),
 			),
 		)
@@ -512,3 +533,244 @@ function servir_rss( $servi, $reponse, $requete, $serveur ): bool {
 	return true;
 }
 add_filter( 'rest_pre_serve_request', __NAMESPACE__ . '\\servir_rss', 10, 4 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Calendrier iCalendar (PAGE-02, AMEL-05)
+ * -----------------------------------------------------------------------------
+ */
+
+/** Transient du calendrier ICS : tableau clé d'œuvre (0 = toutes) => texte. */
+const TRANSIENT_ICS = 'yume_planning_ics';
+
+/**
+ * Œuvre publiée désignée par un ID ou un slug (0 si vide, WP_Error 404 si inconnue).
+ *
+ * @param string $valeur ID ou slug.
+ * @return int|\WP_Error
+ */
+function oeuvre_du_parametre( string $valeur ) {
+	if ( '' === $valeur ) {
+		return 0;
+	}
+	$id = 0;
+	if ( ctype_digit( $valeur ) ) {
+		$id = (int) $valeur;
+	} else {
+		$post = get_page_by_path( $valeur, OBJECT, 'yume_oeuvre' );
+		$id   = $post instanceof \WP_Post ? (int) $post->ID : 0;
+	}
+	if ( ! $id || 'yume_oeuvre' !== get_post_type( $id ) || 'publish' !== get_post_status( $id ) || post_password_required( $id ) ) {
+		return new \WP_Error( 'yume_oeuvre_inconnue', __( 'Œuvre inconnue.', 'yume-core' ), array( 'status' => 404 ) );
+	}
+	return $id;
+}
+
+/**
+ * GET /planning.ics.
+ *
+ * @param \WP_REST_Request $requete Requête.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function rest_planning_ics( \WP_REST_Request $requete ) {
+	$oeuvre_id = oeuvre_du_parametre( (string) $requete['oeuvre'] );
+	if ( is_wp_error( $oeuvre_id ) ) {
+		return $oeuvre_id;
+	}
+	$reponse = new \WP_REST_Response( calendrier_ics( $oeuvre_id ) );
+	$reponse->header( 'Content-Type', 'text/calendar; charset=utf-8' );
+	$reponse->header( 'Content-Disposition', 'inline; filename="planning.ics"' );
+	return $reponse;
+}
+
+/**
+ * Sert le calendrier tel quel (et non encodé en JSON).
+ *
+ * @param bool              $servi   Déjà servi.
+ * @param \WP_HTTP_Response $reponse Réponse.
+ * @param \WP_REST_Request  $requete Requête.
+ * @param \WP_REST_Server   $serveur Serveur.
+ */
+function servir_ics( $servi, $reponse, $requete, $serveur ): bool {
+	if ( $servi || ! $requete instanceof \WP_REST_Request || '/' . REST_NS . '/planning.ics' !== $requete->get_route() ) {
+		return (bool) $servi;
+	}
+	$donnees = $reponse instanceof \WP_HTTP_Response && 200 === $reponse->get_status() ? $reponse->get_data() : null;
+	if ( ! is_string( $donnees ) ) {
+		return (bool) $servi;
+	}
+	$serveur->send_header( 'Content-Type', 'text/calendar; charset=utf-8' );
+	$serveur->send_header( 'Content-Disposition', 'inline; filename="planning.ics"' );
+	echo $donnees; // phpcs:ignore WordPress.Security.EscapeOutput -- iCalendar construit et échappé par calendrier_ics().
+	return true;
+}
+add_filter( 'rest_pre_serve_request', __NAMESPACE__ . '\\servir_ics', 10, 4 );
+
+/**
+ * Adresse du calendrier ICS (webcal:// pour l'abonnement).
+ *
+ * @param int  $oeuvre_id Œuvre (0 : toutes).
+ * @param bool $webcal    Schéma webcal:// (abonnement dans l'application d'agenda).
+ */
+function url_ics( int $oeuvre_id = 0, bool $webcal = false ): string {
+	$url = rest_url( REST_NS . '/planning.ics' );
+	if ( $oeuvre_id ) {
+		$url = add_query_arg( 'oeuvre', $oeuvre_id, $url );
+	}
+	return $webcal ? (string) preg_replace( '#^https?://#i', 'webcal://', $url ) : $url;
+}
+
+/**
+ * Échappe une valeur TEXT (RFC 5545 §3.3.11) : \ ; , et retours à la ligne.
+ *
+ * @param string $texte Texte.
+ */
+function texte_ics( string $texte ): string {
+	return str_replace( array( '\\', ';', ',', "\r\n", "\r", "\n" ), array( '\\\\', '\;', '\,', '\n', '\n', '\n' ), $texte );
+}
+
+/**
+ * Plie une ligne de contenu à 75 octets (RFC 5545 §3.1) sans couper un caractère UTF-8 ;
+ * les lignes de suite commencent par une espace. Renvoie la ligne terminée par CRLF.
+ *
+ * @param string $ligne Ligne.
+ */
+function plier_ics( string $ligne ): string {
+	$sortie   = '';
+	$courante = '';
+	$max      = 75;
+	foreach ( mb_str_split( $ligne, 1, 'UTF-8' ) as $car ) {
+		if ( strlen( $courante ) + strlen( $car ) > $max ) {
+			$sortie  .= $courante . "\r\n ";
+			$courante = '';
+			$max      = 74; // L'espace de suite compte dans les 75 octets.
+		}
+		$courante .= $car;
+	}
+	return $sortie . $courante . "\r\n";
+}
+
+/**
+ * Calendrier ICS des sorties (mis en cache ; invalidé par invalider_ics()).
+ *
+ * @param int $oeuvre_id Œuvre (0 : toutes).
+ */
+function calendrier_ics( int $oeuvre_id = 0 ): string {
+	$cache = get_transient( TRANSIENT_ICS );
+	$cache = is_array( $cache ) ? $cache : array();
+	if ( isset( $cache[ $oeuvre_id ] ) && is_string( $cache[ $oeuvre_id ] ) ) {
+		return $cache[ $oeuvre_id ];
+	}
+	$ics                 = construire_ics( $oeuvre_id );
+	$cache[ $oeuvre_id ] = $ics;
+	// Une heure au plus : l'état (« en retard ») dépend du jour.
+	set_transient( TRANSIENT_ICS, $cache, HOUR_IN_SECONDS );
+	return $ics;
+}
+
+/**
+ * Vide le cache du calendrier ICS (mise à jour du planning, sortie, tome ou œuvre modifiés).
+ */
+function invalider_ics(): void {
+	delete_transient( TRANSIENT_ICS );
+}
+add_action( 'yume_planning_mis_a_jour', __NAMESPACE__ . '\\invalider_ics' );
+add_action( 'yume_tome_publie', __NAMESPACE__ . '\\invalider_ics' );
+
+/**
+ * Invalide le cache ICS quand un tome ou une œuvre change (statut, date, titre, suppression).
+ *
+ * @param int $post_id Contenu.
+ */
+function invalider_ics_contenu( $post_id ): void {
+	if ( in_array( get_post_type( (int) $post_id ), array( 'yume_tome', 'yume_oeuvre' ), true ) ) {
+		invalider_ics();
+	}
+}
+add_action( 'save_post', __NAMESPACE__ . '\\invalider_ics_contenu' );
+add_action( 'deleted_post', __NAMESPACE__ . '\\invalider_ics_contenu' );
+
+/**
+ * Construit le calendrier ICS (RFC 5545) : un VEVENT par tome daté du planning public.
+ *
+ * - prévu (date cible indicative) : DTSTART;VALUE=DATE, STATUS:TENTATIVE, « (prévision) » ;
+ * - programmé (statut future) : DTSTART en UTC à l'heure programmée, STATUS:CONFIRMED ;
+ * - sorti : DTSTART en UTC à la date de sortie, STATUS:CONFIRMED.
+ *
+ * @param int $oeuvre_id Œuvre (0 : toutes).
+ */
+function construire_ics( int $oeuvre_id = 0 ): string {
+	$hote = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	$site = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+	$nom  = $oeuvre_id
+		/* translators: 1: œuvre, 2: site */
+		? sprintf( __( 'Sorties — %1$s (%2$s)', 'yume-core' ), titre_brut( $oeuvre_id ), $site )
+		/* translators: %s : site */
+		: sprintf( __( 'Sorties — %s', 'yume-core' ), $site );
+	$l     = array(
+		'BEGIN:VCALENDAR',
+		'VERSION:2.0',
+		'PRODID:-//Yume Novel//Planning des sorties//FR',
+		'CALSCALE:GREGORIAN',
+		'METHOD:PUBLISH',
+		'X-WR-CALNAME:' . texte_ics( $nom ),
+		'X-WR-CALDESC:' . texte_ics( __( 'Sorties prévues (dates indicatives), programmées et parues.', 'yume-core' ) ),
+		'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
+		'X-PUBLISHED-TTL:PT6H',
+	);
+	$maint = gmdate( 'Ymd\THis\Z', maintenant() );
+	foreach ( evenements_calendrier( $oeuvre_id ) as $e ) {
+		$l[] = 'BEGIN:VEVENT';
+		$l[] = 'UID:tome-' . (int) $e['tome_id'] . '@' . $hote;
+		$l[] = 'DTSTAMP:' . ( $e['maj'] > 0 ? gmdate( 'Ymd\THis\Z', $e['maj'] ) : $maint );
+		if ( 'prevu' === $e['nature'] ) {
+			$jour = str_replace( '-', '', $e['jour'] );
+			$l[]  = 'DTSTART;VALUE=DATE:' . $jour;
+			$l[]  = 'DTEND;VALUE=DATE:' . gmdate( 'Ymd', (int) strtotime( $e['jour'] . ' 00:00:00 UTC' ) + DAY_IN_SECONDS );
+			$l[]  = 'STATUS:TENTATIVE';
+			$l[]  = 'TRANSP:TRANSPARENT';
+			/* translators: %s : « Œuvre T.2 » */
+			$resume = sprintf( __( '%s (prévision)', 'yume-core' ), $e['titre'] );
+		} else {
+			$l[]    = 'DTSTART:' . gmdate( 'Ymd\THis\Z', $e['ts'] );
+			$l[]    = 'DTEND:' . gmdate( 'Ymd\THis\Z', $e['ts'] + HOUR_IN_SECONDS );
+			$l[]    = 'STATUS:CONFIRMED';
+			$resume = $e['titre'];
+		}
+		$l[] = 'SUMMARY:' . texte_ics( $resume );
+		/* translators: %s : état (« Programmé le sam. 3 oct. », « En retard de 3 j ») */
+		$description = sprintf( __( 'État : %s', 'yume-core' ), $e['etat'] );
+		if ( 'prevu' === $e['nature'] ) {
+			$description .= "\n" . __( 'Date indicative : la relecture décide.', 'yume-core' );
+		}
+		if ( '' !== $e['url'] ) {
+			$description .= "\n" . $e['url'];
+		}
+		$l[] = 'DESCRIPTION:' . texte_ics( $description );
+		if ( '' !== $e['url'] ) {
+			$l[] = 'URL:' . esc_url_raw( $e['url'] );
+		}
+		$l[] = 'END:VEVENT';
+	}
+	$l[] = 'END:VCALENDAR';
+	return implode( '', array_map( __NAMESPACE__ . '\\plier_ics', $l ) );
+}
+
+/**
+ * <link rel="alternate" type="text/calendar"> sur la page du planning public.
+ */
+function lien_ics_entete(): void {
+	if ( ! is_singular() ) {
+		return;
+	}
+	$post = get_queried_object();
+	if ( ! $post instanceof \WP_Post || ( ! has_block( 'yume/planning', $post ) && ! has_block( 'yume/calendrier', $post ) ) ) {
+		return;
+	}
+	printf(
+		'<link rel="alternate" type="text/calendar" title="%s" href="%s" />' . "\n",
+		esc_attr__( 'Calendrier des sorties (ICS)', 'yume-core' ),
+		esc_url( url_ics() )
+	);
+}
+add_action( 'wp_head', __NAMESPACE__ . '\\lien_ics_entete', 4 );

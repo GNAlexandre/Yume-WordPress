@@ -9,6 +9,8 @@
  * - PUT    /yume/v1/moi/alertes/{oeuvre}     fréquence d'alerte (immediat, hebdo, jamais) ;
  * - GET    /yume/v1/moi/export               export JSON des données (RGPD) ;
  * - DELETE /yume/v1/moi                      suppression du compte (confirmation obligatoire).
+ * - POST   /yume/v1/commentaires/{id}/signalement  signaler un commentaire publié (motif
+ *                                            facultatif ; voir moderation.php).
  *
  * @package Yume\Core
  */
@@ -154,6 +156,36 @@ function enregistrer_routes(): void {
 				'methods'             => \WP_REST_Server::READABLE,
 				'callback'            => __NAMESPACE__ . '\\rest_export',
 				'permission_callback' => __NAMESPACE__ . '\\permission_connecte',
+			),
+		)
+	);
+
+	register_rest_route(
+		REST_NS,
+		'/commentaires/(?P<id>\\d+)/signalement',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => __NAMESPACE__ . '\\rest_signaler_commentaire',
+				'permission_callback' => __NAMESPACE__ . '\\permission_connecte',
+				'args'                => array(
+					'id'    => array(
+						'description'       => __( 'Identifiant du commentaire.', 'yume-core' ),
+						'type'              => 'integer',
+						'minimum'           => 1,
+						'required'          => true,
+						'validate_callback' => 'rest_validate_request_arg',
+						'sanitize_callback' => 'rest_sanitize_request_arg',
+					),
+					'motif' => array(
+						'description'       => __( 'Motif du signalement (facultatif, 200 caractères au plus).', 'yume-core' ),
+						'type'              => 'string',
+						'maxLength'         => MOTIF_SIGNALEMENT_MAX,
+						'default'           => '',
+						'validate_callback' => 'rest_validate_request_arg',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
 			),
 		)
 	);
@@ -354,6 +386,27 @@ function rest_supprimer_compte( \WP_REST_Request $requete ) {
 		array(
 			'supprime' => true,
 			'id'       => $user_id,
+		)
+	);
+}
+
+/**
+ * POST /commentaires/{id}/signalement : signale un commentaire publié (voir
+ * signaler_commentaire()).
+ *
+ * @param \WP_REST_Request $requete Requête.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function rest_signaler_commentaire( \WP_REST_Request $requete ) {
+	$resultat = signaler_commentaire( (int) $requete['id'], get_current_user_id(), (string) $requete['motif'] );
+	if ( is_wp_error( $resultat ) ) {
+		return $resultat;
+	}
+	return rest_ensure_response(
+		array(
+			'signale' => true,
+			'attente' => $resultat['attente'],
+			'message' => $resultat['message'],
 		)
 	);
 }

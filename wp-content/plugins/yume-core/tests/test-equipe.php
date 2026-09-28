@@ -229,8 +229,23 @@ yume_te_test(
 	function () {
 		$admin = yume_te_membre( 'administrator', 'Proprio' );
 		wp_set_current_user( $admin );
+		// Les vues ajoutées par le filtre yume_vues_equipe (« Indicateurs »…) sont placées juste
+		// avant « Réglages » ; elles sont écartées ici pour vérifier les entrées de base.
+		$ajoutees = array_column( \Yume\Core\Planning\vues_equipe_ajoutees(), 'libelle' );
+		$de_base  = static function ( array $entrees ) use ( $ajoutees ): array {
+			return array_values(
+				array_filter(
+					$entrees,
+					static function ( $e ) use ( $ajoutees ) {
+						return ! in_array( $e[0], $ajoutees, true );
+					}
+				)
+			);
+		};
 		$nav      = navigation_equipe( 'tableau', 2 );
-		$entrees  = yume_te_nav( $nav );
+		$toutes   = array_column( yume_te_nav( $nav ), 0 );
+		yume_assert_same( array_merge( $ajoutees, array( 'Réglages' ) ), array_slice( $toutes, -1 - count( $ajoutees ) ), 'vues ajoutées avant « Réglages »' );
+		$entrees  = $de_base( yume_te_nav( $nav ) );
 		$libelles = array_column( $entrees, 0 );
 		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
 		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[8][1], 'réglages dans l’espace équipe' );
@@ -255,7 +270,7 @@ yume_te_test(
 			'reglages' => 8,
 		) as $cle => $index ) {
 			$html    = navigation_equipe( $cle );
-			$entrees = yume_te_nav( $html );
+			$entrees = $de_base( yume_te_nav( $html ) );
 			yume_assert_same( ' aria-current="page"', $entrees[ $index ][2], $cle );
 			yume_assert_same( 1, substr_count( $html, 'aria-current' ), $cle . ' : une seule entrée active' );
 			yume_assert_same( url_vue_equipe(), $entrees[0][1], $cle . ' : adresse complète du tableau de bord' );

@@ -4,7 +4,7 @@
  * page-large affichant déjà le titre de la page en <h1>).
  *
  * - Connecté : navigation par rubriques (onglets accessibles avec JavaScript, sections
- *   empilées et ancres sans JavaScript) : Lecture en cours, Favoris et alertes, Notes et
+ *   empilées et ancres sans JavaScript) : Lecture en cours, Mes statistiques, Favoris et alertes, Notes et
  *   commentaires, Réglages de lecture, Alertes, Profil et sécurité, Données et suppression.
  * - Déconnecté : connexion (wp_login_form), mot de passe oublié et inscription en façade.
  *
@@ -24,6 +24,7 @@ defined( 'ABSPATH' ) || exit;
 function rubriques_compte( int $nb_favoris = 0 ): array {
 	return array(
 		'yn-lecture'  => __( 'Lecture en cours', 'yume-core' ),
+		'yn-stats'    => __( 'Mes statistiques', 'yume-core' ),
 		/* translators: %d : nombre de favoris. */
 		'yn-favoris'  => $nb_favoris > 0 ? sprintf( __( 'Favoris et alertes (%d)', 'yume-core' ), $nb_favoris ) : __( 'Favoris et alertes', 'yume-core' ),
 		'yn-notes'    => __( 'Notes et commentaires', 'yume-core' ),
@@ -39,7 +40,7 @@ function rubriques_compte( int $nb_favoris = 0 ): array {
  */
 function rendu_compte(): string {
 	if ( apercu_editeur() ) {
-		return rendu_apercu( 'yn-account', __( 'Page compte : lecture en cours, favoris et alertes, notes, réglages, profil, données (connexion et inscription pour les visiteurs).', 'yume-core' ) );
+		return rendu_apercu( 'yn-account', __( 'Page compte : lecture en cours, statistiques, favoris et alertes, notes, réglages, profil, données (connexion et inscription pour les visiteurs).', 'yume-core' ) );
 	}
 	$html = is_user_logged_in() ? compte_connecte() : compte_visiteur();
 	return $html;
@@ -237,6 +238,7 @@ function compte_connecte(): string {
 
 	$html .= '<div class="yn-account__contenu">';
 	$html .= section_lecture( $user_id );
+	$html .= section_statistiques( $user_id );
 	$html .= section_favoris( $user_id, $favoris );
 	$html .= section_notes( $user_id );
 	$html .= section_reglages( $user_id );
@@ -296,6 +298,66 @@ function section_lecture( int $user_id ): string {
 	} else {
 		$html .= '<div class="yn-account__cartes">' . $cartes . '</div>';
 	}
+	return $html . '</section>';
+}
+
+/**
+ * Mes statistiques (PAGE-06) : chiffres clés et état de chaque série commencée, calculés à
+ * partir des positions de lecture du membre connecté seulement (Reader\statistiques_lecture()).
+ *
+ * @param int $user_id Membre.
+ */
+function section_statistiques( int $user_id ): string {
+	$html = debut_section( 'yn-stats', __( 'Mes statistiques', 'yume-core' ), __( 'Estimées d’après votre position dans chaque série', 'yume-core' ) );
+	if ( ! function_exists( '\Yume\Core\Reader\statistiques_lecture' ) ) {
+		return $html . '<p class="yn-account__vide">' . esc_html__( 'Le lecteur en ligne n’est pas disponible.', 'yume-core' ) . '</p></section>';
+	}
+	$stats = \Yume\Core\Reader\statistiques_lecture( $user_id );
+	if ( ! $stats['series'] ) {
+		$bibliotheque = function_exists( 'yume_url_page' ) ? yume_url_page( 'bibliotheque' ) : home_url( '/' );
+		return $html . '<p class="yn-account__vide">' . esc_html__( 'Vos statistiques apparaîtront après votre premier chapitre lu en étant connecté.', 'yume-core' ) . ' <a href="' . esc_url( $bibliotheque ) . '">' . esc_html__( 'Parcourir la bibliothèque', 'yume-core' ) . '</a></p></section>';
+	}
+	$chiffres = array(
+		'tomes'     => array( __( 'Tomes terminés', 'yume-core' ), number_format_i18n( $stats['tomes_termines'] ) ),
+		'chapitres' => array( __( 'Chapitres lus', 'yume-core' ), number_format_i18n( $stats['chapitres_lus'] ) ),
+		'temps'     => array( __( 'Temps de lecture estimé', 'yume-core' ), \Yume\Core\Reader\duree_lisible( $stats['minutes'] ) ),
+		'en-cours'  => array( __( 'Séries en cours', 'yume-core' ), number_format_i18n( $stats['series_en_cours'] ) ),
+		'a-jour'    => array( __( 'Séries à jour', 'yume-core' ), number_format_i18n( $stats['series_a_jour'] ) ),
+	);
+	$html    .= '<div class="yn-card yn-account__bloc yn-account__stats"><p class="yn-label">' . esc_html__( 'En chiffres', 'yume-core' ) . '</p><dl class="yn-account__resume">';
+	foreach ( $chiffres as $cle => $chiffre ) {
+		$html .= '<dt class="yn-muted">' . esc_html( $chiffre[0] ) . '</dt><dd data-yn-stat="' . esc_attr( $cle ) . '"><strong>' . esc_html( $chiffre[1] ) . '</strong></dd>';
+	}
+	$html .= '</dl></div>';
+
+	$html .= '<h3 class="yn-account__sous-titre">' . esc_html__( 'Séries commencées', 'yume-core' ) . '</h3><div class="yn-account__cartes" data-yn-stats-series>';
+	foreach ( $stats['series'] as $serie ) {
+		$part = $serie['chapitres'] > 0 ? (int) floor( 100 * $serie['chapitres_lus'] / $serie['chapitres'] ) : 0;
+		if ( $serie['a_jour'] ) {
+			$etat = pastille( 'ok', '✓', __( 'À jour', 'yume-core' ) );
+		} else {
+			/* translators: %d : nombre de chapitres publiés restant à lire. */
+			$etat = pastille( 'info', '●', sprintf( _n( '%d chapitre à lire', '%d chapitres à lire', $serie['reste'], 'yume-core' ), $serie['reste'] ) );
+		}
+		$detail = sprintf(
+			/* translators: 1 : chapitres lus, 2 : chapitres publiés, 3 : tomes terminés, 4 : tomes publiés. */
+			__( 'Chapitres lus : %1$d sur %2$d · tomes terminés : %3$d sur %4$d', 'yume-core' ),
+			$serie['chapitres_lus'],
+			$serie['chapitres'],
+			$serie['tomes_termines'],
+			$serie['tomes']
+		);
+		$html .= '<article class="yn-card yn-account__carte" data-yn-serie="' . esc_attr( (string) $serie['oeuvre_id'] ) . '">'
+			. mini_couverture( $serie['oeuvre_id'], $serie['titre'] )
+			. '<div class="yn-account__carte-corps">'
+			. '<h4 class="yn-account__carte-titre"><a href="' . esc_url( $serie['url'] ) . '">' . esc_html( $serie['titre'] ) . '</a></h4>'
+			. '<p class="yn-muted yn-account__carte-detail">' . esc_html( $detail ) . '</p>'
+			. '<span class="yn-bar" aria-hidden="true"><span style="--v:' . esc_attr( (string) $part ) . '%"></span></span>'
+			. '<p class="yn-account__carte-detail">' . $etat . '</p>'
+			. '</div></article>';
+	}
+	$html .= '</div>';
+	$html .= '<p class="yn-muted yn-account__aide">' . esc_html__( 'Un chapitre compte comme lu quand vous l’avez parcouru jusqu’à 90 % ou que vous êtes passé au suivant. Temps estimé à partir de la longueur des chapitres. « À jour » : vous avez lu tous les chapitres publiés de la série.', 'yume-core' ) . '</p>';
 	return $html . '</section>';
 }
 

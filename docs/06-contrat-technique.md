@@ -129,7 +129,13 @@ caches en lecture seule pour l'API : `yume_note_moyenne` (number) · `yume_nb_no
 (object{traduction:int user_id, relecture:int, edition:int}) · `yume_date_cible` (string `Y-m-d`) ·
 `yume_bloque` (boolean) · `yume_bloque_raison` (string) · `yume_derniere_maj` (string `Y-m-d H:i:s` GMT) ·
 `yume_maj_par` (integer) · `yume_note_equipe` (string, **jamais exposé publiquement** :
-`auth_callback` = capacité `yume_maj_planning`) · `yume_nb_chapitres` (integer, cache : chapitres
+`auth_callback` = capacité `yume_maj_planning`) · `yume_pause` (object{depuis:string `Y-m-d H:i:s`
+GMT, par:int user_id} ; absente = tome pas en pause ; `prive` : lue en REST par l'équipe seulement,
+lecture seule via `/wp/v2` ; écrite par `Planning\basculer_pause()` — « Mettre en pause » /
+« Reprendre » du planning complet : un tome en pause n'est jamais `en_retard` (filtre
+`yume_planning_etat`), ne reçoit ni rappel ni signalement, figure hors des retards du récapitulatif ;
+badge « En pause » dans l'espace équipe seulement ; journal `pause` jamais public ; la reprise date
+`yume_derniere_maj`) · `yume_nb_chapitres` (integer, cache : chapitres
 **publiés** du tome, prologues et postfaces compris ; recalculé par core, `includes/core/cache.php`, sur
 `wp_after_insert_post` d'un chapitre ou du tome — publication, programmation échue, mise à jour, corbeille —,
 au changement de `yume_tome_id` d'un chapitre (ancien et nouveau tome), à la suppression définitive d'un
@@ -151,6 +157,12 @@ dépublié, sa sortie est rétablie à son retour en ligne) et `_yume_planning_s
 GMT : tome en ligne dont des chapitres restent à sortir) ; article d'annonce `_yume_annonce_retiree`
 (`{statut: publish|future, date, date_gmt}` : annonce remise en brouillon avec son tome dépublié ou
 reprogrammé, republiée à son retour).
+
+Méta de commentaire (module social, `includes/social/moderation.php`) : `_yume_signalements`
+(array ID du compte => `{motif:string ≤ 200, date:string GMT, ignore:bool}`) : signalements des
+lecteurs (AMEL-10) ; « Ignorer les signalements » ou l'approbation du commentaire (façade ou
+administration, `transition_comment_status`) les marque `ignore` ; un compte ne signale jamais deux
+fois le même commentaire.
 
 ## 5. Rôles et capacités (module core, à l'installation)
 
@@ -222,6 +234,7 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `github_repo` | `GNAlexandre/Yume-WordPress` | updater |
 | `maj_auto` | `true` | updater |
 | `partenaires` | les 4 partenaires de l'ancien site (`partenaires_par_defaut()`) | bibliothèque (`yume/partenaires`) |
+| `pwa_hors_ligne` | `true` | lecture (manifeste web et service worker, §14 ; champ ajouté par `yume_reglages_champs`, section « Site et réseaux ») |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
@@ -263,6 +276,22 @@ sur `admin_menu` priorité ≥ 20.
   listant les réglages non encore appliqués (`etat_prerequis(): array`, `prerequis_manquants(): array`,
   filtre `yume_prerequis_etat`) ; « Masquer » par compte (méta utilisateur `yume_prerequis_masques`,
   admin-post `yume_prerequis`). Liste complète : `docs/mise-en-production.md`.
+
+- **Santé** (`includes/core/admin/sante.php`, sous-menu *Yume → Santé*, slug `yume-sante`, capacité
+  `yume_reglages`) : tâches planifiées Yume (hooks `yume_*` programmés et tâches connues, filtre
+  `yume_taches_cron` hook => libellé) avec dernière exécution — option `yume_cron_derniers`
+  (hook => horodatage, non chargée d'office) écrite au début de chaque tâche par un écouteur
+  générique (`noter_execution_cron()`, priorité `PHP_INT_MIN`, accroché sur `init`) — et prochaine
+  exécution ; file d'e-mails (en attente, abandonnés 7 jours, derniers échecs) ; webhooks Discord
+  (hôte seulement, jamais l'adresse) et bouton « Envoyer un test » (admin-post `yume_sante_webhook`,
+  nonce, `yume_reglages` ou `manage_options`, envoi par `Planning\envoyer_test_discord()` donc
+  `envoyer_discord()`) ; version installée et dernière release lue dans l'option
+  `external_updates-yume-core` de Plugin Update Checker (sinon transient `update_plugins`), sans
+  requête réseau ; prérequis de mise en production (`etat_prerequis()`, administrateurs).
+  Tests *Outils → Santé du site* (`site_status_tests`, directs) : `yume_taches_cron` (critique si
+  rappels, récapitulatif ou envoi non programmés, recommandé si une tâche a plus d'une heure de
+  retard), `yume_emails` (abandon depuis 7 jours ou attente de plus d'une heure), `yume_webhooks`
+  (canal non configuré), `yume_version` (release plus récente connue).
 
 ## 6 ter. Sécurité (module core, `includes/core/securite.php` ; module updater, `integrite.php`)
 
@@ -351,8 +380,18 @@ et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces 
 | --- | --- | --- | --- |
 | `yume_tome_publie` | `int $tome_id` | publication (et core sur `transition_post_status` d'un tome vers `publish`, une seule fois par tome : meta `_yume_publie_notifie`) | planning (étape `publie`, 100 %, journal, Discord ; si des chapitres restent à sortir, étape gardée et journal `publie` partiel, « publié » au dernier chapitre), social (e-mails aux abonnés), core (cache `yume_derniere_sortie`) |
 | `yume_chapitre_publie` | `int $chapitre_id` | core (`transition_post_status` d'un chapitre publié isolément, hors publication de tome) | social (abonnés), planning (Discord) |
-| `yume_planning_mis_a_jour` | `int $tome_id, array $changements, int $user_id` | planning | — |
+| `yume_planning_mis_a_jour` | `int $tome_id, array $changements, int $user_id` | planning | planning (vide le cache du calendrier ICS, transient `yume_planning_ics`) |
 | `yume_publication_preparee` | `int $tome_id, array $rapport` | publication | — |
+| `yume_planning_pause` | `int $tome_id, bool $pause, int $user_id` | planning (`basculer_pause()`) | — |
+| `yume_commentaire_signale` | `int $comment_id, int $user_id, int $actifs, bool $attente` | social (`signaler_commentaire()`) | — |
+
+Filtres du lot planning/modération : `yume_rappels_plafond` (int, semaines de retard au-delà
+desquelles un tome ne reçoit plus de rappel, défaut 8, 0 = sans plafond : il reste dans le
+récapitulatif, avec la mention « Plus de rappel automatique ») ; `yume_planning_delai_rappel`
+(jours, défaut 3 : délai de la relance ; ensuite au plus un rappel par semaine, compté depuis la
+dernière mise à jour du tome) ; `yume_signalements_seuil` (int, défaut 3 : comptes différents qui
+renvoient un commentaire publié en attente de modération) ; `yume_signalements_debit` (int, défaut
+10 signalements par compte et par heure, `limite_atteinte( 'signalement', … )`).
 
 Émission : core note la transition sur `transition_post_status` mais émet sur `wp_after_insert_post`
 (les méta arrivent après le statut en REST). Aucune émission par core pendant
@@ -431,9 +470,10 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/chapter-nav` | bibliothèque | — | `.yn-chapter-nav` | Précédent · Sommaire · Suivant (liens `rel=prev/next`). Premier chapitre publié d'un tome qui a une page Illustrations : « Précédent » = « Illustrations » (aussi `<link rel=prev>` et ← du lecteur). Page Illustrations : `.yn-chapter-nav--illustrations`, Sommaire du tome · « Commencer la lecture · Chapitre 1 » (`rel=next`, premier chapitre publié) |
 | `yume/tome-illustrations` | bibliothèque | — | `.yn-tome-illustrations` | Planches de la galerie du tome, l'une sous l'autre, pleine largeur de la colonne (`--yn-width`), taille `large` (première `eager`/`fetchpriority=high`, suivantes `loading=lazy`), `figure.yn-illustration` + `figcaption` seulement s'il y a une légende, alt de la galerie (« Illustration N — Œuvre, Tome 9 » à défaut), lien vers l'image en grand ; rien sans galerie |
 | `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Sans carte propre (le thème fournit la carte). Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
-| `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent |
+| `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent ; boutons Flux RSS, JSON et « S’abonner au calendrier (ICS) » (`webcal://…/planning.ics`, `?oeuvre=` si filtré) ; onglets « Tableau » / « Calendrier » (`?vue=calendrier` : le tableau est remplacé par `yume/calendrier`, filtres et navigation gardent l’onglet) |
+| `yume/calendrier` | planning | — | `.yn-calendrier` | Calendrier mensuel des sorties (`evenements_calendrier()` : `yume_get_planning()` public, tomes parus depuis 365 jours compris ; filtre `yume_planning_evenements`) : `?mois=AAAA-MM` (sinon mois courant, Paris), liens mois précédent/suivant (`rel=prev/next`, sans JS), `<table>` avec `caption` et en-têtes de jours (`abbr`), aujourd’hui `aria-current="date"` ; nature d’une sortie par icône + texte masqué + bordure (`--programme` ◷ fond plein, `--prevu` ◌ pointillés, `--sorti` ✓) ; sous 600 px, liste des jours ayant des sorties (`.yn-calendrier__liste`) à la place de la grille ; légende, liens d’abonnement ICS (webcal) et de téléchargement. Respecte les filtres GET `type`, `etat`, `oeuvre` du planning |
 | `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
-| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, « Retirer du planning » en admin-post `yume_planning_retrait`) `?vue=journal` (journal complet paginé, filtres œuvre / tome) `?vue=lecture` (« Lecture à compléter », capacité `yume_publier` : tomes publiés sans aucun chapitre publié, groupés par œuvre, progression « X tomes sur Y ont la lecture en ligne », filtre `oeuvre`, bouton « Ajouter le DOCX » → `yume_url_page( 'publier' )?tome=ID` ; voir `includes/planning/lecture-a-completer.php`) et `?vue=reglages` (capacité `yume_reglages` : tous les champs de `sections_reglages()` / `champs_reglages()` visibles pour l'utilisateur — mêmes règles `capability` / `verrouille` que Yume → Réglages —, enregistrés en admin-post `yume_reglages_equipe` avec nonce puis `update_option()`, donc `assainir_reglages()` ; images par ID ou adresse, sans `wp.media` ; voir `includes/planning/reglages-equipe.php`). Autres vues : filtre `yume_vues_equipe` (clé => `libelle`, `capacite`, `rendu` callable qui rend toute la vue, navigation `navigation_equipe( <clé> )` comprise), entrée de navigation avant « Réglages », vue ignorée sans la capacité |
+| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, tri `tri=retard` « En retard d’abord » (retards du plus ancien au plus récent, puis bloqués, puis l'ordre du planning), « Retirer du planning » en admin-post `yume_planning_retrait`, « Mettre en pause » / « Reprendre » (`yume_maj_planning_tous`) en admin-post `yume_planning_pause` (nonce `yume_planning_pause_{id}`, champ `pause` 1/0), lien « Exporter en CSV » → `admin-post.php?action=yume_planning_export&_wpnonce=…` + filtres courants (nonce `yume_planning_export`, capacité `yume_voir_equipe` ; `text/csv; charset=utf-8` en pièce jointe `planning-yume-AAAA-MM-JJ.csv`, BOM UTF-8, séparateur `;`, colonnes Œuvre, Tome, Étape, Statut, Responsables, Date cible, Date programmée, Dernière mise à jour (Paris), Retard ; cellules commençant par `= + - @`, tabulation ou retour chariot préfixées de `'` ; `lignes_vue_planning()` / `csv_planning()`)) `?vue=journal` (journal complet paginé, filtres œuvre / tome) `?vue=lecture` (« Lecture à compléter », capacité `yume_publier` : tomes publiés sans aucun chapitre publié, groupés par œuvre, progression « X tomes sur Y ont la lecture en ligne », filtre `oeuvre`, bouton « Ajouter le DOCX » → `yume_url_page( 'publier' )?tome=ID` ; voir `includes/planning/lecture-a-completer.php`) et `?vue=kpi` (« Indicateurs », capacité `yume_reglages` — gérants et administrateurs, `yume_maj_planning_tous` étant aussi donnée aux éditeurs — : sorties par mois sur 12 mois (graphique en barres CSS `role="img"` + tableau), délai moyen par étape tiré du journal (lignes `creation`/`etape`), charge par membre, retards en cours, lecteurs actifs (table `progression`), favoris et lecteurs par œuvre (tables `favoris`, `progression`), e-mails envoyés/abandonnés/en attente (table `notifications`, 30 jours conservés) ; filtre `periode` = 30, 90 ou 365 jours ; agrégats seulement, transient `yume_kpi_{jours}` de 5 min effacé sur `yume_planning_mis_a_jour` ; style `yume-kpi` (`includes/planning/assets/kpi.css`) ; voir `includes/planning/kpi.php`) et `?vue=reglages` (capacité `yume_reglages` : tous les champs de `sections_reglages()` / `champs_reglages()` visibles pour l'utilisateur — mêmes règles `capability` / `verrouille` que Yume → Réglages —, enregistrés en admin-post `yume_reglages_equipe` avec nonce puis `update_option()`, donc `assainir_reglages()` ; images par ID ou adresse, sans `wp.media` ; voir `includes/planning/reglages-equipe.php`). Autres vues : filtre `yume_vues_equipe` (clé => `libelle`, `capacite`, `rendu` callable qui rend toute la vue, navigation `navigation_equipe( <clé> )` comprise), entrée de navigation avant « Réglages », vue ignorée sans la capacité. Vue ajoutée par social : `?vue=commentaires` (« Commentaires (N) », capacité `moderate_comments`, entrée présente seulement s'il y a des commentaires à modérer ou sur la vue elle-même ; `includes/social/moderation.php`) : commentaires publiés signalés (les plus signalés d'abord, motifs et comptes) puis en attente, 50 par liste ; actions Approuver / Ignorer les signalements / Indésirable / Corbeille en admin-post `yume_moderation` (champs `commentaire`, `op` = `approuver`, `ignorer`, `indesirable`, `corbeille` ; nonce `yume_moderation_{id}` ; `moderate_comments` + `edit_comment`, sinon boutons absents et message) |
 | `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`), case « Ajout au catalogue » (`sans_annonce` : champ caché `0` + case `1`, cochée d'office pour un tome publié ; récapitulatif sans « Article d'annonce » ni « Notifications » quand elle est cochée), note « remplacés en place » quand le tome a déjà des chapitres |
 | `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) ; avertissement sur un membre responsable de tomes en cours, lien « Modifier dans l'administration » (administrateur) pour les comptes non modifiables ici |
 | `yume/partenaires` | bibliothèque | `title` (string, « Nos partenaires »), `variante` (`cartes` \| `en-ligne`, `cartes`) | `.yn-partenaires`, `.yn-partenaires-en-ligne` | Section de l'accueil : logo (initiales à défaut), nom, description, lien en nouvel onglet ; variante `en-ligne` : paragraphe « Partenaires : A · B » (rien sans partenaire), rendu aussi par `partenaires_en_ligne()` dans la mention du pied de page du thème (paragraphe `yn-copyright`) ; réglage `partenaires` (§6) |
@@ -523,9 +563,13 @@ sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sa
 | `PUT /moi/notes/(?P<oeuvre>\d+)` | lecteurs | connecté ; `note` 1–5, 0 = retirer |
 | `PUT /moi/alertes/(?P<oeuvre>\d+)` | lecteurs | connecté ; `frequence` immediat/hebdo/jamais |
 | `GET /moi/export`, `DELETE /moi` | lecteurs | connecté (RGPD) ; `DELETE` exige `confirmation=SUPPRIMER` et `mot_de_passe`, refusé pour l'équipe et les administrateurs |
+| `POST /commentaires/(?P<id>\d+)/signalement` | lecteurs | connecté (nonce REST) — signale un commentaire publié d'un contenu public (`motif` facultatif, 200 caractères au plus) : 404 `yume_commentaire_introuvable`, 400 `yume_signalement_propre` (son propre commentaire), 409 `yume_deja_signale`, 429 `yume_trop_de_signalements` (débit) ; réponse `{signale, attente, message}`, `attente` vrai quand le seuil renvoie le commentaire en modération. Bouton « Signaler » du thème (`inc/commentaires.php`, script `assets/js/commentaires.js` chargé seulement sur les pages qui l'affichent) ; badge « Équipe » (auteur ayant `yume_voir_equipe`) sur `core/comment-author-name` |
 | `POST /planning/tomes` | planning | `yume_maj_planning_tous` — ajoute un tome brouillon au planning (œuvre, nature, numéro, titre, responsables, date cible) ; 409 si doublon |
 | `GET /planning/journal?format=rss` | planning | public — flux RSS du journal |
+| `GET /planning.ics` | planning | public — calendrier iCalendar (RFC 5545, `text/calendar; charset=utf-8`, servi brut par `rest_pre_serve_request`) : un `VEVENT` par tome daté du planning public (mêmes événements que `yume/calendrier`), `UID:tome-<id>@<hôte>`, `DTSTAMP` = dernière mise à jour ; prévu : `DTSTART;VALUE=DATE`, `STATUS:TENTATIVE`, « (prévision) » dans `SUMMARY` ; programmé et paru : `DTSTART` UTC, `STATUS:CONFIRMED` ; `SUMMARY` « Œuvre T.N », `DESCRIPTION` avec l’état, `URL` du tome paru sinon de l’œuvre ; lignes pliées à 75 octets, CRLF. `?oeuvre=<id\|slug>` (œuvre publiée, sinon 404 `yume_oeuvre_inconnue`). Cache : transient `yume_planning_ics` (1 h), vidé sur `yume_planning_mis_a_jour`, `yume_tome_publie`, `save_post`/`deleted_post` d’un tome ou d’une œuvre. `<link rel="alternate" type="text/calendar">` dans le `<head>` des pages contenant `yume/planning` ou `yume/calendrier` |
 | `GET /migration`, `POST /migration/executer`, `POST /migration/annuler` | migration | `manage_options` ; `confirmation=MIGRER` / `ANNULER`, exécution par lots, reprise (`ignorer`) |
+
+**Flux RSS d’une œuvre** (`includes/library/flux.php`) : `/oeuvres/{o}/feed/` (et `rss2`, `rss`, `atom`, `rdf`) sert en RSS 2.0 les tomes et chapitres publiés de l’œuvre (cache de la bibliothèque) et les articles liés (`yume_oeuvre_liee`), du plus récent au plus ancien, 50 au plus (filtres `yume_flux_oeuvre_max`, `yume_flux_oeuvre_elements`) ; l’ancien flux natif des commentaires de l’œuvre reste servi avec `?commentaires=1`. La fiche d’une œuvre publiée annonce ce flux par `<link rel="alternate" type="application/rss+xml">` (le lien natif des commentaires y est retiré).
 
 Précisions : `PUT /moi/alertes/{oeuvre}` répond 409 si l'œuvre n'est pas en favori ; `PUT /moi/reglages`
 accepte `reinitialiser` ; `GET /moi/progression?oeuvre=` renvoie `url`, `url_reprise` (`#yn-p-N`) et `titre`.
@@ -559,6 +603,14 @@ seulement (page compte) ; POST du bouton : appliqué ; POST « One-Click » RFC 
 directement. En-têtes `List-Unsubscribe` et `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
 ajoutés sur `wp_mail`. Action `yume_desabonnement( int $user_id, string $portee, int $oeuvre_id )`.
 
+Statistiques de lecture (PAGE-06, `includes/reader/statistiques.php`, rubrique « Mes statistiques »
+`#yn-stats` de la page compte) : `Reader\statistiques_lecture( int $user_id ): array` (`tomes_termines`,
+`chapitres_lus`, `minutes`, `series_en_cours`, `series_a_jour`, `series[]`) déduit de la table
+`progression` (une position par œuvre) : les chapitres publiés qui précèdent la position dans l'ordre de
+lecture sont lus, le chapitre courant aussi à 90 % (`SEUIL_CHAPITRE_LU`) ; minutes = `yume_temps_lecture`,
+sinon `yume_nb_mots` / 230 ; « À jour » = tous les chapitres publiés lus. Deux requêtes agrégées
+(`plan_de_lecture()` : tomes puis chapitres publiés de toutes les œuvres, méta jointes), membre connecté seulement.
+
 `dbDelta` : deux espaces après `PRIMARY KEY`, une colonne par ligne. Le SQL doit fonctionner
 sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développement local). Les tests tournent sur les deux moteurs
 (`YUME_DB_ENGINE=mysql` en local pour MariaDB).
@@ -570,6 +622,11 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 | `yn.theme` | `nuit` \| `papier` \| `sepia` | thème (bascule d'en-tête) et lecture (panneau) |
 | `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
 | `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
+| `yn.a11y` | `{contraste: bool, animations: 'systeme'\|'reduites'}` (appareil seulement, jamais envoyé au compte) | lecture (panneau Paramètres, script d'initialisation) |
+
+Stockage Cache Storage du service worker (lecture hors ligne) : caches `yume-lecture-{version}`,
+`yume-statique-{version}`, `yume-secours-{version}` (version = `YUME_CORE_VERSION` ; ceux des versions
+précédentes sont supprimés à l'activation).
 
 API du thème pour les autres scripts : `window.ynTheme.set( 'nuit'|'papier'|'sepia' )` si elle existe
 (sinon poser l'attribut et `localStorage['yn.theme']`) ; événement `document` `yn:theme`
@@ -582,6 +639,42 @@ position plus avancée. Le script `yume-debut-lecture` (bibliothèque) lit seule
 Ancre de reprise : `#yn-p-N` (paragraphe numéroté à partir de 1) dans l'URL d'un chapitre ; le lecteur y
 défile directement. Elle est produite par la REST, la page compte, `yume/oeuvre-actions`,
 `yume/resume-reading` et les lignes de tome.
+
+Options d'accessibilité du lecteur (AMEL-08), posées avant le premier rendu par le script d'initialisation
+d'après `yn.a11y` : `html[data-yn-contraste="renforce"]` (le bloc `yume/reader-tools` redéfinit alors les
+couleurs `--wp--preset--color--*` : texte blanc/noir, filets appuyés, colonne opaque, liens soulignés) et
+`html[data-yn-animations="reduites"]` (transitions et animations coupées, défilement non animé ; la
+préférence système `prefers-reduced-motion` s'applique toujours et verrouille la case). Police adaptée à la
+dyslexie : slug `opendyslexic` de `polices()` (13ᵉ police, OpenDyslexic OFL auto-hébergée dans
+`includes/reader/assets/polices/opendyslexic/`, `@font-face` du bloc ; repli Atkinson Hyperlegible puis
+Verdana), enregistrée comme toute police dans `yn.reglages` et `yume_reglages`. Raccourcis clavier du
+lecteur, listés dans le panneau : ← / → chapitre précédent / suivant, S paramètres, Échap fermer ; inactifs
+dans un champ de saisie (`input`, `textarea`, `select`, `contenteditable`, rôles `textbox`/`combobox`/`slider`)
+et panneau ouvert.
+
+**Lecture hors ligne (AMEL-07, `includes/reader/pwa.php`)** : adresses servies à la racine du site par
+paramètre (aucune règle de réécriture) sur `init` (priorité 99), GET seulement :
+`/?yume_manifest=1` (manifeste `application/manifest+json` : `name` « Yume Novel », `display`
+`standalone`, `start_url`/`scope` = racine, couleurs `fond`/`bande` de `theme.json`, icônes de l'icône du
+site 192/512 sinon `includes/reader/assets/icone.svg` ; filtre `yume_pwa_manifeste`),
+`/?yume_sw=1` (service worker : `self.YUME_SW_CONFIG` puis `includes/reader/assets/sw.js` ; en-têtes
+`Service-Worker-Allowed: /` (racine du site), `Cache-Control: no-cache, no-store`, `batcache_cancel()` si
+présent) et `/?yume_hors_ligne=1` (page de repli autonome, `noindex`, liste des chapitres en cache).
+`<link rel="manifest">` dans `<head>` de toutes les pages publiques ; script `yume-pwa` en pied de page
+(pas sur l'administration ni sur les pages exclues) qui enregistre le service worker (portée racine) et,
+sur une page de lecture, lui envoie `{type:'yume-memoriser', pages:[page, link[rel=next]], ressources}` ;
+`html[data-yn-hors-ligne="pret"]` quand c'est fait. Stratégie : pages `/lire/…` sans paramètre en réseau
+d'abord, cache en repli, 30 pages au plus (LRU, filtre `yume_pwa_max_chapitres`) ; ressources du thème,
+du plugin et de `wp-includes` en cache d'abord (120 au plus) ; autres navigations en réseau seul avec page
+de repli. Jamais interceptés : `wp-admin`, `wp-login.php`, REST (`/wp-json/`, `?rest_route=`),
+`admin-ajax.php`, requêtes autres que GET ; jamais mis en cache : pages `equipe`, `publier`, `membres`,
+`compte`, `connexion` (filtre `yume_pwa_exclus`). **Données personnelles** : seul le HTML public est
+gardé — le serveur n'écrit `<meta name="yume-hors-ligne" content="lecture">` que sur une page de lecture
+d'un visiteur non connecté, et le service worker n'enregistre qu'une réponse qui le porte ; pour un membre,
+il télécharge une copie anonyme (`credentials: 'omit'`). Aucun nonce, pseudo ni position n'entre donc
+dans le cache et rien n'est à vider à la déconnexion. Désactivation : réglage `pwa_hors_ligne` (§6) ou
+filtre `yume_pwa_actif` (bool) ; `/?yume_sw=1` sert alors un service worker qui vide les caches `yume-*`
+et se désinscrit, et les pages désinscrivent l'ancien.
 
 Attribut `html[data-yn-theme]` = `nuit` (défaut) \| `papier` \| `sepia`, posé avant le premier rendu
 par un script en ligne du thème (pas de flash). Variables du lecteur, posées sur `.yn-reader` :

@@ -575,6 +575,26 @@ function definitions_meta(): array {
 				'sanitize'    => __NAMESPACE__ . '\\san_texte_long',
 				'equipe'      => true,
 			),
+			'yume_pause'         => array(
+				'type'          => 'object',
+				'description'   => __( 'Tome mis en pause par l’équipe (ni retard ni rappel) : depuis (GMT, Y-m-d H:i:s) et par (ID utilisateur) ; vide sinon.', 'yume-core' ),
+				'sanitize'      => static function ( $v ) {
+					return is_array( $v ) ? array(
+						'depuis' => san_datetime( $v['depuis'] ?? '' ),
+						'par'    => san_entier( $v['par'] ?? 0 ),
+					) : '';
+				},
+				'schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'depuis' => $chaine,
+						'par'    => array( 'type' => 'integer' ),
+					),
+					'additionalProperties' => false,
+				),
+				'prive'         => true,
+				'lecture_seule' => true,
+			),
 			'yume_nb_chapitres'  => array(
 				'type'          => 'integer',
 				'description'   => __( 'Nombre de chapitres publiés (cache).', 'yume-core' ),

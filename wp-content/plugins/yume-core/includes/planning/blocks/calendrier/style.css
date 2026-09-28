@@ -1,0 +1,262 @@
+/**
+ * yume/calendrier — structure seulement (couleurs : variables et classes du thème).
+ * Grille mensuelle à partir de 600 px ; en dessous, liste des jours qui ont des sorties.
+ * Nature d'une sortie : icône + texte masqué + bordure (pleine, pointillée), jamais la couleur seule.
+ */
+.yn-calendrier {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.yn-calendrier p,
+.yn-calendrier h2 {
+	margin: 0;
+}
+
+.yn-calendrier__tete {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px 24px;
+}
+
+.yn-calendrier__titre {
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 24px;
+	line-height: 1.2;
+}
+
+.yn-calendrier__nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.yn-calendrier a.yn-btn {
+	text-decoration: none;
+}
+
+.yn-calendrier__cadre {
+	overflow: hidden;
+}
+
+.yn-calendrier__grille {
+	width: 100%;
+	margin: 0;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+
+.yn-calendrier__grille th {
+	padding: 10px 8px;
+	border: 0;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--mono);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.06em;
+	text-align: left;
+	text-transform: uppercase;
+}
+
+.yn-calendrier__grille abbr {
+	text-decoration: none;
+}
+
+.yn-calendrier__case {
+	height: 104px;
+	padding: 6px;
+	border: 0;
+	border-right: 1px solid var(--wp--preset--color--filet);
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	vertical-align: top;
+}
+
+.yn-calendrier__case:last-child {
+	border-right: 0;
+}
+
+.yn-calendrier__grille tbody tr:last-child .yn-calendrier__case {
+	border-bottom: 0;
+}
+
+.yn-calendrier__case--vide {
+	background: var(--wp--preset--color--selection);
+	opacity: 0.35;
+}
+
+.yn-calendrier__num {
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+	min-width: 26px;
+	height: 26px;
+	margin-bottom: 4px;
+	border-radius: 13px;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+/* Aujourd'hui : pastille pleine et contour de la case (en plus de aria-current). */
+.yn-calendrier__case--aujourdhui {
+	box-shadow: inset 0 0 0 2px var(--wp--preset--color--accent);
+}
+
+.yn-calendrier__case--aujourdhui .yn-calendrier__num {
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-calendrier .yn-calendrier__evts {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-calendrier li {
+	margin: 0;
+}
+
+.yn-calendrier__evt {
+	display: flex;
+	gap: 4px;
+	align-items: baseline;
+	box-sizing: border-box;
+	min-width: 0;
+	padding: 2px 6px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: 6px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.35;
+}
+
+.yn-calendrier__evt a {
+	min-width: 0;
+	overflow: hidden;
+	color: inherit;
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	text-overflow: ellipsis;
+}
+
+.yn-calendrier__icone {
+	flex: 0 0 auto;
+}
+
+.yn-calendrier__heure {
+	flex: 0 0 auto;
+	margin-left: auto;
+	font-weight: 400;
+	opacity: 0.85;
+}
+
+/* Programmé : fond plein. */
+.yn-calendrier__evt--programme {
+	background: var(--wp--preset--color--accent);
+	border-color: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+/* Prévu (indicatif) : bordure pointillée, italique. */
+.yn-calendrier__evt--prevu {
+	border-style: dashed;
+	color: var(--wp--preset--color--texte);
+	font-style: italic;
+}
+
+/* Paru : bordure pleine de succès. */
+.yn-calendrier__evt--sorti {
+	border-color: var(--wp--preset--color--succes);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+/* Liste en repli : masquée au-dessus de 600 px. */
+.yn-calendrier__repli {
+	display: none;
+	padding: 16px;
+}
+
+.yn-calendrier .yn-calendrier__liste {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-calendrier__date {
+	margin-bottom: 6px;
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-calendrier__liste > li[aria-current="date"] {
+	padding-left: 10px;
+	border-left: 3px solid var(--wp--preset--color--accent);
+}
+
+.yn-calendrier__pied {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px 24px;
+}
+
+.yn-calendrier .yn-calendrier__legende {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 13px;
+}
+
+.yn-calendrier__legende li {
+	display: flex;
+	gap: 6px;
+	align-items: baseline;
+}
+
+.yn-calendrier__legende .yn-calendrier__evt {
+	display: inline-flex;
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+.yn-calendrier__abonnement {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	align-items: center;
+	font-size: 13px;
+}
+
+@media (max-width: 599.98px) {
+	.yn-calendrier__cadre {
+		display: none;
+	}
+
+	.yn-calendrier__repli {
+		display: block;
+	}
+
+	.yn-calendrier__evt {
+		font-size: 14px;
+	}
+
+	.yn-calendrier .yn-calendrier__legende {
+		flex-direction: column;
+	}
+}

@@ -6,8 +6,9 @@
  * Champs journalisés : etape, avancement, responsables, date_cible, bloque, bloque_raison,
  * note_equipe (jamais publique), et les événements creation, publie (sortie complète, partielle,
  * retour en ligne, dernier chapitre), depublie, chapitre_publie, retire (tome retiré du planning), etape_forcee (équipe seulement), rappel, signalement
- * (gérants, non public), digest (non public) et lecture_ajoutee (lecture en ligne d'un tome
- * déjà paru ajoutée sans annonce : équipe seulement).
+ * (gérants, non public), digest (non public), lecture_ajoutee (lecture en ligne d'un tome
+ * déjà paru ajoutée sans annonce : équipe seulement) et pause (tome mis en pause ou repris :
+ * équipe seulement).
  *
  * @package Yume\Core
  */
@@ -31,7 +32,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause' );
 }
 
 /**
@@ -345,6 +346,12 @@ function texte_changement( $ligne, bool $equipe ): string {
 
 		case 'retire':
 			return __( 'retiré du planning', 'yume-core' );
+
+		case 'pause':
+			if ( ! $equipe ) {
+				return '';
+			}
+			return '1' === (string) $ligne->nouveau ? __( 'a mis en pause', 'yume-core' ) : __( 'a repris', 'yume-core' );
 
 		case 'etape_forcee':
 			if ( ! $equipe ) {

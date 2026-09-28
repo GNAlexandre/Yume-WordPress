@@ -26,3 +26,4 @@ require_once __DIR__ . '/desabonnement.php';
 require_once __DIR__ . '/blocs.php';
 require_once __DIR__ . '/compte.php';
 require_once __DIR__ . '/lignes-tomes.php';
+require_once __DIR__ . '/moderation.php';

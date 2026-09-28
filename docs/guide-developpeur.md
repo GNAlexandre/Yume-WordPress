@@ -83,6 +83,39 @@ Règles :
   comme sans fichiers de langue (environnement local hors ligne) : n'écrivez pas d'assertion sur un
   texte traduit par WordPress.
 
+### Tests de sécurité (matrice REST, DOCX malveillants)
+
+`tests/test-securite-rest.php` (module `securite-rest`) parcourt **toutes** les routes `yume/v1`
+déclarées (`rest_get_server()->get_routes( 'yume/v1' )`) et les appelle pour chaque méthode, en
+anonyme puis en lecteur, traducteur, éditeur, gérant et administrateur. Le rappel de la route n'est
+jamais exécuté (le filtre `rest_dispatch_request` renvoie un marqueur dès que la permission est
+accordée) : seul le `permission_callback` est évalué. Le résultat est comparé à la table
+`yume_tsrest_attentes()` en tête du fichier.
+
+**Toute nouvelle route fait échouer ce test tant qu'elle n'a pas d'attente** (« Nouvelle route sans
+attente de sécurité : ajoutez-la ») : c'est voulu, pour que chaque permission soit relue. Pour
+ajouter une route, une ligne par méthode, avec le motif exact passé à `register_rest_route` :
+
+```php
+'GET /yume/v1/planning/calendrier'           => 'publique',   // tout le monde, y compris anonyme
+'GET /yume/v1/moi/listes'                    => 'connectes',  // tout compte connecté
+'POST /yume/v1/tomes/(?P<id>\d+)/journal'    => array( 'editeur', 'gerant', 'administrateur' ),
+```
+
+Seules les routes `publique` peuvent avoir `permission_callback => '__return_true'`. Les paramètres
+de chemin sont remplacés par un tome en brouillon **sans responsable** (`id`, `tome`), une œuvre
+publiée (`oeuvre`) et un chapitre en brouillon (`chapitre`) ; un autre nom reçoit une valeur qui
+satisfait son motif. Le même fichier vérifie les routes sensibles du cœur (`/wp/v2/users`,
+`/users/me`, `/settings`, `/plugins`, commentaire anonyme) et l'absence des métas privées
+`yume_responsables` et `yume_maj_par` en contexte `view` anonyme.
+
+`tests/test-securite-import.php` (module `securite-import`) fabrique avec `ZipArchive` des DOCX
+piégés (entités externes, y compris DOCTYPE repoussé ou encodé en UTF-16, bombe de décompression,
+chemins `../`, SVG avec script, HTML dans le texte, relations externes `file://`/`http`) et vérifie que
+l'import les refuse ou les neutralise, sans requête réseau (`pre_http_request` intercepté) ni fichier
+écrit hors d'`uploads`. Un nouveau format d'entrée ou une nouvelle partie lue dans l'archive doit y
+recevoir son cas piégé.
+
 ## 4. Conventions
 
 Rappel du contrat (§0) :
@@ -143,7 +176,7 @@ l'implémenter. Ne jamais redéclarer une fonction `yume_*` d'un autre module.
 | Syntaxe PHP 8.1 / 8.2 / 8.3 / 8.4 | `tools/build/lint.sh` ; blueprints Playground à jour (`construire.php --verifier`) |
 | Normes de code | PHPCS, annotations sur la PR (bloquant, voir §4) |
 | Tests WordPress (6.6 sous PHP 8.1, dernière version sous PHP 8.4 ; chacune sur SQLite et sur MariaDB 10.11) | `tools/localenv/setup.sh --source wp-cli --langue fr_FR --bloquer-http [--version 6.6]` (avec `YUME_DB_ENGINE=mysql` et un service `mariadb:10.11` pour MariaDB), puis `wp eval-file wp-content/plugins/yume-core/tests/runner.php` ; contrôle de `debug.log` |
-| Rendu WordPress (6.6 sous PHP 8.1, dernière version sous PHP 8.4 ; SQLite) | même installation que les tests, démo `tools/playground/demo.php`, puis `tools/ci/rendu.sh` : styles calculés des blocs vérifiés dans Chromium (voir ci-dessous) ; artefact `rendu-mesures-<version>` |
+| Rendu WordPress (6.6 sous PHP 8.1, dernière version sous PHP 8.4 ; SQLite) | même installation que les tests, démo `tools/playground/demo.php`, puis `tools/ci/rendu.sh` : styles calculés des blocs vérifiés dans Chromium et audit d'accessibilité axe-core (voir ci-dessous) ; artefact `rendu-mesures-<version>` |
 | Rendu identique sur WordPress 6.6 et la dernière | `node tools/ci/rendu.js --comparer` sur les deux artefacts `rendu-mesures-*` |
 | Archives | `tools/build/zip.sh`, artefact `yume-archives-<version>-<n°>` (à décompresser : il contient `yume-core.zip`, `yume.zip`, `SHA256SUMS`) |
 
@@ -163,12 +196,16 @@ Le job « Rendu » l'empêche de revenir :
 
 1. `tools/localenv/setup.sh --source wp-cli --langue fr_FR --bloquer-http [--version 6.6]` (SQLite),
    puis `tools/localenv/wp.sh eval-file tools/playground/demo.php` (œuvre *Lanternes de brume haute*) ;
-2. `npm install` dans `tools/ci/` (Playwright, version figée dans `tools/ci/package.json`) et
+2. `npm ci` dans `tools/ci/` (Playwright et axe-core, versions figées dans `tools/ci/package.json`
+   et `tools/ci/package-lock.json` ; pour changer de version : `npm install --save-exact <paquet>@<version>`
+   dans `tools/ci/`, jamais d'édition du fichier de verrouillage à la main) et
    `npx playwright install --with-deps chromium` ;
 3. `tools/ci/rendu.sh` sert le site avec `php -S` et `tools/localenv/router.php`, puis
    `tools/ci/rendu.js` ouvre dans Chromium (fenêtre 1280×900) la page de l'œuvre, celle du tome 1 et
    le chapitre 1 avec le panneau *Paramètres de lecture* ouvert, et compare `font-size`,
-   `font-weight` et `color` des éléments listés dans `tools/ci/rendu-attendus.js` ;
+   `font-weight` et `color` des éléments listés dans `tools/ci/rendu-attendus.js` ; sur chacune de
+   ces pages, il exécute ensuite **axe-core** (règles WCAG 2.0/2.1 A et AA) : toute violation
+   d'impact `serious` ou `critical` fait échouer le job ;
 4. le job « Rendu identique… » compare ensuite les mesures des deux versions de WordPress.
 
 En cas d'échec, le journal liste chaque écart (aussi en annotation) :
@@ -184,13 +221,20 @@ contexte de l'élément) ; les autres valeurs sont les valeurs calculées exacte
 voulu se reporte dans ce tableau. Pour ajouter un contrôle : une entrée `{ selecteur, attendu }` dans la
 page concernée (le premier élément correspondant doit exister et être visible).
 
+Accessibilité : une violation axe se corrige dans le balisage ou le CSS de Yume. Seule une violation
+produite par le cœur de WordPress (ou un tiers) que Yume ne peut pas corriger peut être tolérée, par
+une entrée commentée de `AXE_EXCEPTIONS` en tête de `tools/ci/rendu.js`
+(`{ regle, page, cible, raison }`, par exemple `region` sur `#wp-skip-link` si une page était un jour
+contrôlée avec la barre d'administration). Les pages sont visitées en anonyme : la liste est vide
+aujourd'hui. `--sans-axe` désactive l'audit pour un diagnostic local.
+
 En local :
 
 ```sh
 . ~/.local/share/yume-localenv/env.sh
 export YUME_ENV=rendu
 tools/localenv/wp.sh eval-file tools/playground/demo.php
-npm install --prefix tools/ci && (cd tools/ci && npx playwright install chromium)
+npm ci --prefix tools/ci && (cd tools/ci && npx playwright install chromium)
 tools/ci/rendu.sh                        # port 8090 ; --port N, --sortie mesures.json, --libelle "WP 6.6"
 node tools/ci/rendu.js --comparer a.json b.json
 ```
