@@ -125,12 +125,15 @@ function donnees_personnelles( int $user_id ): array {
 		'notes'               => $notes,
 		'progression'         => $progression,
 		'commentaires'        => $commentaires,
+		'listes'              => donnees_listes( $user_id ),
+		'notifications'       => donnees_notifications( $user_id ),
+		'notifications_push'  => donnees_push( $user_id ),
 	);
 }
 
 /**
- * Efface les données du module lecteurs et lecture d'un membre (favoris, notes, positions,
- * réglages, préférences), sans supprimer le compte.
+ * Efface les données du module lecteurs et lecture d'un membre (favoris, notes, listes,
+ * notifications, abonnements push, positions, réglages, préférences), sans supprimer le compte.
  *
  * @param int $user_id Utilisateur.
  * @return int Nombre d'éléments supprimés.
@@ -140,6 +143,8 @@ function effacer_donnees( int $user_id ): int {
 		return 0;
 	}
 	$n = effacer_lignes_utilisateur( $user_id );
+	// Listes de lecture, notifications et abonnements Web Push (lot P3-D).
+	$n += effacer_listes( $user_id ) + effacer_notifications( $user_id ) + effacer_push( $user_id );
 	if ( function_exists( '\Yume\Core\Reader\supprimer_progression_par' ) ) {
 		$n += \Yume\Core\Reader\supprimer_progression_par( 'user_id', $user_id );
 	}
@@ -366,6 +371,31 @@ function exporter_donnees( $email, $page = 1 ): array {
 				array(
 					'name'  => __( 'Date', 'yume-core' ),
 					'value' => $position['le'],
+				),
+			),
+		);
+	}
+	foreach ( $donnees['listes'] as $liste ) {
+		$items[] = array(
+			'group_id'    => 'yume-listes',
+			'group_label' => __( 'Yume Novel — listes de lecture', 'yume-core' ),
+			'item_id'     => 'yume-liste-' . $liste['id'],
+			'data'        => array(
+				array(
+					'name'  => __( 'Liste', 'yume-core' ),
+					'value' => $liste['nom'],
+				),
+				array(
+					'name'  => __( 'Description', 'yume-core' ),
+					'value' => $liste['description'],
+				),
+				array(
+					'name'  => __( 'Publique', 'yume-core' ),
+					'value' => $liste['publique'] ? __( 'oui', 'yume-core' ) : __( 'non', 'yume-core' ),
+				),
+				array(
+					'name'  => __( 'Œuvres', 'yume-core' ),
+					'value' => implode( ', ', wp_list_pluck( $liste['oeuvres'], 'oeuvre' ) ),
 				),
 			),
 		);

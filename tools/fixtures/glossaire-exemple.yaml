@@ -1,0 +1,199 @@
+# ============================================================
+#  Glossaire — Les Lanternes de Brume-Haute (œuvre FICTIVE)
+#  Fixture synthétique du module glossaire (tests, démo) : même
+#  structure que les glossaires produits par Yume-Trad.
+#  provenance : humain | terminologue | glossariste | import | inconnue
+#  confiance  : sure | probable | hypothese
+#  Champs facultatifs propres au site : spoiler (booléen), tome
+#  (premier tome où l'entrée apparaît).
+# ============================================================
+
+personnages:
+- termes_source:
+  - アカリ
+  - 灯里
+  role: Héroïne
+  description: Fille de l'allumeuse du village ; entend la voix des lanternes depuis
+    son enfance et refuse de quitter la vallée.
+  cibles:
+    fr:
+      nom: Akari
+      pluriel: ''
+      genre: féminin
+      variantes:
+      - Akari-chan
+      interdits: []
+      force: false
+  provenance: humain
+  preuve: Planche couleur du tome 1
+  confiance: sure
+  tome: 1
+- termes_source:
+  - 霧見の翁
+  role: ''
+  description: |
+    Gardien du col de Brume-Haute.
+    Il tient le registre des départs depuis soixante ans.
+  cibles:
+    fr:
+      nom: Le Vieux Guetteur
+      pluriel: ''
+      genre: m
+      variantes: []
+      interdits:
+      - Vieil Homme du Brouillard
+      force: true
+  provenance: humain
+  preuve: ''
+  confiance: probable
+- termes_source:
+  - ソラ
+  description: Frère cadet d'Akari. Sa lanterne s'allume à la fin du premier tome.
+  spoiler: true
+  tome: 2
+  cibles:
+    fr:
+      nom: Sora
+      genre: masculin
+  provenance: terminologue
+  confiance: hypothese
+- termes_source:
+  - 名無しの旅人
+  description: Voyageur sans nom aperçu au col ; aucune forme française retenue pour l'instant.
+  cibles:
+    fr: null
+  provenance: glossariste
+  preuve: Chapitre 4, une seule occurrence
+  confiance: hypothese
+lieux:
+- termes_source:
+  - 霧高村
+  description: Village de montagne où chaque maison garde une lanterne de papier.
+  traduire: true
+  cibles:
+    fr:
+      nom: Brume-Haute
+      pluriel: ''
+      genre: f
+      variantes:
+      - Kiritaka
+      interdits: []
+      force: false
+  provenance: humain
+  confiance: sure
+- termes_source:
+  - 灯籠坂
+  description: Pente pavée qui mène au sanctuaire ; on y dépose les lanternes éteintes.
+  cibles:
+    fr:
+      nom: Côte des Lanternes
+      variantes: []
+      interdits: []
+  provenance: import
+  confiance: probable
+organisations:
+- termes_source:
+  - 灯守衆
+  role: Confrérie
+  description: 'Allumeurs héréditaires : ils entretiennent la flamme commune du village.'
+  cibles:
+    fr:
+      nom: Gardiens de la Flamme
+      pluriel: Gardiens de la Flamme
+      genre: masculin
+      variantes: []
+      interdits: []
+      force: false
+  provenance: humain
+  confiance: sure
+creatures:
+- termes_source:
+  - ヒダマリ
+  traduire: false
+  description: Petit esprit de chaleur qui niche dans les lanternes allumées.
+  cibles:
+    fr:
+      nom: Hidamari
+      pluriel: Hidamari
+      variantes: []
+      interdits:
+      - lutin
+      - farfadet
+      force: false
+  provenance: humain
+  confiance: sure
+- termes_source:
+  - 霧喰い
+  traduire: null
+  description: Bête invisible qui dévore le brouillard ; son passage laisse la vallée
+    nue et silencieuse.
+  cibles:
+    fr: {}
+  provenance: inconnue
+  confiance: hypothese
+objets:
+- termes_source:
+  - 送り灯
+  description: Lanterne qui s'allume seule la nuit où quelqu'un doit partir.
+  cibles:
+    fr:
+      nom: Lanterne de départ
+      pluriel: Lanternes de départ
+      genre: féminin
+      variantes:
+      - Lanterne d'adieu
+      interdits: []
+      force: true
+  provenance: humain
+  confiance: sure
+  champ_inconnu: ignoré par le site
+- termes_source:
+  - 七番
+  description: Numéro gravé sur la lanterne de la famille d'Akari.
+  cibles:
+    fr:
+      nom: 7
+      pluriel: ''
+  provenance: humain
+  confiance: probable
+termes:
+- termes_source:
+  - 灯送り
+  traduire: false
+  description: Cérémonie d'adieu où l'on confie une lanterne au vent du col.
+  cibles:
+    fr:
+      nom: Tōokuri
+      variantes: []
+      interdits: []
+  provenance: humain
+  confiance: sure
+evenements:
+- termes_source:
+  - 大霧の夜
+  description: Nuit où toutes les lanternes du village se sont allumées en même temps.
+  spoiler: true
+  tome: 3
+  cibles:
+    fr:
+      nom: Nuit du Grand Brouillard
+  provenance: terminologue
+  confiance: probable
+chansons:
+- termes_source:
+  - 灯の歌
+  description: Comptine que chantent les enfants en allumant les lanternes.
+  cibles:
+    fr:
+      nom: Chanson des lumignons
+  provenance: humain
+  confiance: sure
+- termes_source: []
+  description: Entrée incomplète, sans nom ni terme source (ignorée à l'import).
+  cibles:
+    fr: null
+anglicismes:
+- vo: See you!
+  fr: À la prochaine !
+- vo: Good night, lantern.
+  fr: Bonne nuit, petite lanterne.

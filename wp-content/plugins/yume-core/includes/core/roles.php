@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string[]
  */
 function capacites_propres(): array {
-	return array( 'yume_maj_planning', 'yume_maj_planning_tous', 'yume_publier', 'yume_gerer_equipe', 'yume_reglages', 'yume_voir_equipe' );
+	return array( 'yume_maj_planning', 'yume_maj_planning_tous', 'yume_publier', 'yume_gerer_equipe', 'yume_reglages', 'yume_voir_equipe', 'yume_glossaire' );
 }
 
 /**
@@ -47,10 +47,12 @@ function definitions_roles(): array {
 	$editeur = array_merge(
 		$equipe,
 		array( 'yume_publier', 'yume_maj_planning_tous' ),
+		// Glossaires des œuvres (module glossaire : import, restauration, envoi par Yume-Trad).
+		array( 'yume_glossaire' ),
 		capacites_types(),
 		array( 'edit_posts', 'publish_posts', 'edit_published_posts', 'moderate_comments', 'manage_categories' )
 	);
-	$gerant  = array_merge(
+	$gerant = array_merge(
 		$editeur,
 		array( 'yume_gerer_equipe', 'yume_reglages', 'edit_others_posts', 'delete_others_posts', 'list_users' ),
 		// Membres et rôles : changer le rôle d'un compte (limité aux rôles de l'équipe et au

@@ -112,6 +112,26 @@ l'ancienne valeur est alors conservée).
 - **Ouvrir dans l'administration** (en haut à droite) ouvre la page *Yume → Réglages*, qui reste
   disponible et enregistre exactement les mêmes réglages.
 
+### Mon profil public (facultatif)
+
+Chaque membre de l'équipe peut, **s'il le souhaite**, avoir une page publique qui présente son
+travail, à l'adresse `/contributeurs/{votre-pseudo}/`. Elle est **désactivée par défaut**.
+
+- **Activer** : *Mon compte* → rubrique **Profil public** → cochez **Afficher mon profil public**,
+  puis **Enregistrer le profil public**. Vous pouvez ajouter une courte présentation (300 caractères),
+  votre pseudo Discord, votre compte X (`@pseudo`), votre site et le mois de votre arrivée dans
+  l'équipe : tout est facultatif.
+- **Ce qui est visible** : votre pseudo, votre rôle (Traducteur, Relecteur…), ces informations
+  facultatives et la liste des **tomes publiés** dont vous êtes responsable d'une étape dans le
+  planning (traduction, relecture, édition). **Jamais** votre identifiant de connexion, votre
+  adresse e-mail ni les tomes en préparation. Votre profil apparaît aussi dans la liste
+  `/contributeurs/` et sous la page « L'équipe ».
+- **Retirer** : décochez la case et enregistrez : la page disparaît **immédiatement** (son adresse
+  ne mène plus nulle part). Quitter l'équipe la retire aussi.
+- Si votre pseudo est identique à votre identifiant de connexion, le profil ne peut pas être activé
+  (pour ne pas rendre cet identifiant public) : changez d'abord de pseudo dans **Profil et sécurité**.
+  Changer de pseudo change aussi l'adresse du profil.
+
 ## 4. Mettre à jour son planning
 
 Le planning public (`/planning/`) montre aux lecteurs où en est chaque tome. Il se met à jour
@@ -274,6 +294,39 @@ En ligne de commande : `docx2chapters.php publish … --publier maintenant --san
 (`--avec-annonce` pour forcer l'annonce ; sans l'une ni l'autre, le site choisit comme le
 formulaire). Voir `tools/docx2chapters/README.md`.
 
+### 5.5 Actualités d'une œuvre (onglet « Actualités » de la fiche)
+
+Un article d'actualité **lié à une œuvre** apparaît sur la fiche de cette œuvre :
+
+- pour lier un article, cochez l'œuvre dans le panneau **Œuvres liées** de l'éditeur d'article (les
+  annonces de sortie créées à la publication d'un tome sont liées d'office) ;
+- dès que l'œuvre a **au moins un article publié** lié, sa fiche affiche des onglets
+  **Présentation · Actualités** sous l'en-tête et un encart **Dernières actualités** (les 3 plus
+  récentes) sous la liste des tomes ;
+- l'onglet mène à la page `/oeuvres/{œuvre}/actualites/` : tous les articles liés, du plus récent au
+  plus ancien, 10 par page ;
+- les brouillons, articles programmés et articles protégés par mot de passe n'y figurent pas ; sans
+  article publié lié, ni onglet ni encart, et l'adresse `/actualites/` de l'œuvre n'existe pas.
+
+### 5.6 Glossaire d'une œuvre (Éditeurs Yume et Gérants)
+
+Le glossaire public d'une œuvre (`/oeuvres/{œuvre}/glossaire/`, onglet **Glossaire** de la fiche)
+vient du fichier `glossaire.yaml` de Yume-Trad :
+
+- **Téléverser** : *Espace équipe* → **Glossaires** → choisissez l'œuvre et le fichier, cliquez
+  **Vérifier** (rien n'est publié : vous voyez le nombre d'entrées et les entrées ignorées), puis
+  **Publier le glossaire**. Le nouveau fichier remplace entièrement l'ancien.
+- **Depuis Yume-Trad** : l'application peut envoyer le glossaire elle-même, quand vous le lui
+  demandez, avec un *mot de passe d'application* créé dans votre profil (voir `docs/glossaire.md`).
+- **Historique** : les 5 dernières versions restent disponibles : **Télécharger ce YAML** ou
+  **Restaurer cette version**.
+- Ce que voient les lecteurs : le nom français, le terme original, le genre et le pluriel, le rôle
+  et la description. Jamais les variantes, formes interdites, provenance, confiance ni preuve ; les
+  entrées sans traduction française restent cachées (sauf `traduire: false` : « Nom conservé »).
+  Connecté, l'équipe peut **Afficher les notes de traduction** sur la page.
+- Une entrée peut être masquée derrière « Révéler (spoiler) » avec `spoiler: true` (et `tome: N`)
+  dans le fichier.
+
 ## 6. Corriger un chapitre
 
 Pour une coquille signalée par un lecteur (Éditeurs Yume et Gérants) :
@@ -347,6 +400,7 @@ jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté d
   - *Annonces et notifications* : webhooks Discord (sorties, équipe), e-mails aux lecteurs, modèle
     du texte d'annonce ;
   - *Partenaires* : la section « Nos partenaires » de l'accueil (voir ci-dessous) ;
+  - *Recrutement* : la page « Rejoindre l'équipe » (voir ci-dessous) ;
   - *Mises à jour* : section réservée aux administrateurs (invisible pour les gérants).
 - Le lien **Contact** du menu ouvre le **Discord** de Yume (lien d'invitation réglé dans *Site et
   réseaux*).
@@ -382,6 +436,66 @@ jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté d
 Après la migration, les quatre partenaires de l'ancien site sont déjà en place et leurs logos sont
 retrouvés automatiquement dans la médiathèque.
 
+### Recrutement (page « Rejoindre l'équipe »)
+
+La page `/rejoindre-l-equipe/` (lien **Rejoindre l'équipe** du menu « Yume Novel », et depuis les
+mentions « Poste à pourvoir » de la page « L'équipe ») se règle dans *Réglages → Recrutement* :
+
+- **Introduction** : le texte d'accueil (une ligne vide sépare deux paragraphes) ;
+- **Postes** : un poste par ligne, sous la forme `Intitulé | Description courte | ouvert` ; remplacez
+  `ouvert` par `fermé` pour masquer un poste sans l'effacer. Sans poste ouvert, la page affiche
+  « Aucun poste ouvert pour le moment » ;
+- **Test de traduction** : lien facultatif vers le fichier du test (Google Drive, Dropbox…) ;
+- **Comment postuler** : la consigne affichée au-dessus du bouton **Postuler sur le Discord**
+  (lien : l'invitation Discord de *Site et réseaux*).
+
+Le site ne recueille aucune candidature : tout passe par le Discord (ticket dans le salon
+« tickets »), où l'équipe répond directement.
+
+### Recherche dans le texte des chapitres
+
+La recherche du site (`/?s=`) classe ses résultats en **Œuvres** (titre, titres alternatifs,
+auteur, illustrateur, éditeur VO), **Tomes** et **Actualités**, avec des filtres (contenu, statut de
+l'œuvre, genre, tri). Elle ignore les accents et les majuscules : « lanterne » trouve « Lanterné ».
+
+Un quatrième groupe, **Dans les chapitres**, cherche aussi dans le texte des chapitres et affiche un
+extrait autour du mot trouvé, avec un lien qui ouvre le chapitre au bon paragraphe. Il est
+**désactivé par défaut** : cochez *Yume → Réglages → Site et réseaux → Recherche dans les chapitres*
+pour l'activer.
+
+Coût : chaque recherche d'au moins 3 caractères lit alors le texte de 60 chapitres au plus (les plus
+récents qui contiennent les mots), ce qui charge davantage le serveur qu'une recherche dans les
+titres. Seuls les chapitres **publiés** d'un tome et d'une œuvre publiés sont lus ; ceux d'une œuvre
+**licenciée** ne le sont jamais. Si la recherche paraît lente, décochez la case : le reste de la
+recherche n'est pas touché.
+
+### Listes de lecture, cloche et notifications des lecteurs
+
+Ce que les lecteurs connectés trouvent sur le site (utile pour leur répondre sur Discord) :
+
+- **Listes de lecture** : sur la fiche d'une œuvre, le bouton **Ajouter à une liste** (à côté de
+  *Favori* et *Alerte*) propose trois listes toutes prêtes, **À lire**, **En cours** et **Terminé**
+  (une œuvre n'est que dans l'une des trois), et les listes personnelles du lecteur (20 au plus,
+  500 œuvres chacune), qu'il peut créer directement depuis ce menu. Par défaut, une œuvre passe
+  seule dans *En cours* quand il commence à la lire, puis dans *Terminé* quand il a lu le dernier
+  chapitre publié ; il peut couper ce classement automatique dans *Mon compte → Mes listes*, où il
+  renomme, décrit, rend publique ou supprime ses listes.
+- **Liste publique** : une liste rendue publique a une adresse à partager
+  (`/listes/12-mes-pepites/`) qui montre son nom, le pseudo de son auteur (jamais son identifiant de
+  connexion) et les couvertures des œuvres. Elle n'est pas proposée aux moteurs de recherche. Une
+  liste privée n'est visible que de son auteur.
+- **Cloche** : à côté de *Mon compte*, une cloche affiche le nombre de notifications non lues : sortie
+  d'un tome ou d'un chapitre d'une œuvre en favori (sauf alerte « Jamais ») et réponse à l'un de ses
+  commentaires. Un clic ouvre la liste, avec **Tout marquer comme lu** ; tout l'historique (90 jours)
+  est dans *Mon compte → Notifications*. Ces notifications ne dépendent pas des e-mails : un lecteur
+  désabonné des e-mails les reçoit quand même dans la cloche.
+- **Notifications navigateur** : dans *Mon compte → Notifications*, **Activer sur cet appareil**
+  affiche une notification du navigateur à chaque nouvelle entrée de la cloche, même site fermé. À
+  activer sur chaque appareil (ordinateur, téléphone) ; sur iPhone et iPad, il faut d'abord ajouter le
+  site à l'écran d'accueil. Si le navigateur a bloqué les notifications, il faut les réautoriser dans
+  ses réglages. Désactivable pour tout le site : *Yume → Réglages → Notifications →
+  Notifications navigateur*.
+
 ## 9. Mises à jour du site
 
 Le site se met à jour tout seul quand l'équipe technique publie une nouvelle version : rien à faire
@@ -405,3 +519,5 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | Un lecteur veut lire sans connexion (train, avion) | Qu'il ouvre les chapitres voulus une fois en ligne (le chapitre suivant est gardé aussi) : ils restent lisibles hors ligne sur cet appareil, 30 au plus. Il peut aussi installer le site comme une application (« Installer » / « Ajouter à l'écran d'accueil » du navigateur). Hors ligne, les autres pages affichent « Vous êtes hors ligne » avec la liste des chapitres disponibles. Désactivable : *Yume → Réglages* → **Lecture hors ligne**. |
 | Un lecteur a du mal à lire (dyslexie, vue basse, animations gênantes) | Dans un chapitre, bouton ⚙ **Paramètres** → **Accessibilité** : police adaptée à la dyslexie (OpenDyslexic), contraste renforcé, réduction des animations. Les raccourcis clavier (← → pour changer de chapitre) y sont listés. |
 | Un lecteur demande combien il a lu | *Mon compte* → **Mes statistiques** : tomes terminés, chapitres lus, temps de lecture estimé, séries en cours et badge « À jour » par série (d'après sa position de lecture, en étant connecté). |
+| Un lecteur ne retrouve pas une œuvre dans « En cours » ou « Terminé » | Le classement automatique suit sa position de lecture en étant connecté ; il a pu le couper dans *Mon compte → Mes listes*. Il peut toujours ranger l'œuvre à la main avec **Ajouter à une liste** sur la fiche. |
+| Un lecteur ne reçoit pas les notifications du navigateur | Elles s'activent appareil par appareil dans *Mon compte → Notifications* ; le navigateur doit les autoriser pour le site. Elles arrivent quelques minutes après la sortie (envoi planifié). Sa cloche, elle, se met à jour dans tous les cas. |

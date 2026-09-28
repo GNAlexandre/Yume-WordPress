@@ -8,54 +8,10 @@
 
 <!-- wp:query-title {"type":"search"} /-->
 
-<!-- wp:search {"label":"Nouvelle recherche","showLabel":false,"placeholder":"Titre d’œuvre, tome, actualité…","buttonText":"Rechercher","buttonPosition":"button-inside","buttonUseIcon":true,"className":"yn-recherche"} /--></div>
+<!-- wp:search {"label":"Nouvelle recherche","showLabel":false,"placeholder":"Titre d’œuvre, auteur, tome, actualité…","buttonText":"Rechercher","buttonPosition":"button-inside","buttonUseIcon":true,"className":"yn-recherche"} /--></div>
 <!-- /wp:group -->
 
-<!-- wp:query {"queryId":30,"query":{"perPage":12,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true},"className":"yn-resultats"} -->
-<div class="wp-block-query yn-resultats"><!-- wp:post-template -->
-<!-- wp:group {"tagName":"article","className":"yn-card yn-resultat","layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} -->
-<article class="wp-block-group yn-card yn-resultat"><!-- wp:paragraph {"className":"yn-label yn-type-contenu"} -->
-<p class="yn-label yn-type-contenu">Type de contenu</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:post-title {"level":2,"isLink":true,"className":"yn-resultat__titre"} /-->
-
-<!-- wp:post-excerpt {"excerptLength":32} /-->
-
-<!-- wp:post-date {"format":"j F Y"} /--></article>
-<!-- /wp:group -->
-<!-- /wp:post-template -->
-
-<!-- wp:query-pagination {"paginationArrow":"arrow","className":"yn-pagination","layout":{"type":"flex","justifyContent":"center"}} -->
-<!-- wp:query-pagination-previous {"label":"Page précédente"} /-->
-
-<!-- wp:query-pagination-numbers /-->
-
-<!-- wp:query-pagination-next {"label":"Page suivante"} /-->
-<!-- /wp:query-pagination -->
-
-<!-- wp:query-no-results -->
-<!-- wp:group {"className":"yn-card yn-vide","layout":{"type":"flex","orientation":"vertical"}} -->
-<div class="wp-block-group yn-card yn-vide"><!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Aucun résultat</h2>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph -->
-<p>Rien ne correspond à cette recherche. Vérifiez l’orthographe, essayez un titre plus court (« Grimgar », « Silent Witch »…) ou parcourez directement la bibliothèque.</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:buttons -->
-<div class="wp-block-buttons"><!-- wp:button {"className":"yn-lien-bibliotheque"} -->
-<div class="wp-block-button yn-lien-bibliotheque"><a class="wp-block-button__link wp-element-button" href="/bibliotheque/">Voir la bibliothèque</a></div>
-<!-- /wp:button -->
-
-<!-- wp:button {"className":"is-style-yn-secondaire yn-lien-actualites"} -->
-<div class="wp-block-button is-style-yn-secondaire yn-lien-actualites"><a class="wp-block-button__link wp-element-button" href="/actualites/">Dernières actualités</a></div>
-<!-- /wp:button --></div>
-<!-- /wp:buttons --></div>
-<!-- /wp:group -->
-<!-- /wp:query-no-results --></div>
-<!-- /wp:query --></main>
+<!-- wp:yume/recherche /--></main>
 <!-- /wp:group -->
 
 <!-- wp:template-part {"slug":"footer","tagName":"footer","className":"yn-site-footer"} /-->

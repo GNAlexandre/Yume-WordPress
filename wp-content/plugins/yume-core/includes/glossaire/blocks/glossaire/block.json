@@ -1,0 +1,25 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/glossaire",
+	"title": "Glossaire de l’œuvre",
+	"category": "yume",
+	"icon": "book-alt",
+	"description": "Glossaire public d’une œuvre (personnages, lieux, termes, anglicismes), importé depuis Yume-Trad : sommaire, recherche instantanée, filtre par catégorie ; notes de traduction pour l’équipe.",
+	"keywords": [
+		"glossaire",
+		"lexique",
+		"traduction"
+	],
+	"textdomain": "yume-core",
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

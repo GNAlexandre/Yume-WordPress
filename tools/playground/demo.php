@@ -292,6 +292,22 @@ if ( $yume_demo_article && $yume_demo_oeuvre && taxonomy_exists( 'yume_oeuvre_li
 	wp_set_object_terms( $yume_demo_article, 'lanternes-de-brume-haute', 'yume_oeuvre_liee' );
 }
 
+// Second article lié (plus ancien) : onglet « Actualités » de la fiche et page /actualites/.
+$yume_demo_article_2 = yume_demo_contenu(
+	array(
+		'post_type'    => 'post',
+		'post_name'    => 'lanternes-de-brume-haute-le-tome-2-en-relecture',
+		'post_title'   => 'Lanternes de Brume Haute : le tome 2 en relecture',
+		'post_status'  => 'publish',
+		'post_date'    => wp_date( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS ),
+		'post_excerpt' => 'La traduction du tome 2 est terminée : place à la relecture avant la sortie prévue dans deux semaines.',
+		'post_content' => yume_demo_paragraphe( 'La traduction du tome 2 est terminée : place à la relecture avant la sortie prévue dans deux semaines.' ),
+	)
+);
+if ( $yume_demo_article_2 && $yume_demo_oeuvre && taxonomy_exists( 'yume_oeuvre_liee' ) ) {
+	wp_set_object_terms( $yume_demo_article_2, 'lanternes-de-brume-haute', 'yume_oeuvre_liee' );
+}
+
 // Pages du contrat (§11) : les mêmes que la migration (Migration_Planner::PAGES_A_CREER, mêmes
 // slugs, parents et contenus), créées par Yume Core si elles ne sont pas en ligne. Une page déjà
 // présente à son adresse est reprise : aucun doublon si le script est relancé.
@@ -351,6 +367,38 @@ foreach ( $yume_demo_reelles as $yume_demo_page ) {
 		$yume_demo_donnees['ID'] = (int) $yume_demo_existe->ID;
 	}
 	wp_insert_post( wp_slash( $yume_demo_donnees ) );
+}
+
+// Profil public du compte equipe (PAGE-04, consentement explicite) : /contributeurs/equipe-demo/,
+// liste /contributeurs/ et page « L'équipe ».
+if ( $yume_demo_ids['equipe'] && function_exists( 'Yume\\Core\\Social\\enregistrer_profil_public' ) ) {
+	\Yume\Core\Social\enregistrer_profil_public(
+		(int) $yume_demo_ids['equipe'],
+		array(
+			'public'  => true,
+			'bio'     => 'Compte de démonstration de l’équipe : traduction et relecture des Lanternes de Brume Haute.',
+			'x'       => '@YumeNovel',
+			'arrivee' => '2024-09',
+		)
+	);
+}
+
+// Glossaire de l'œuvre (PAGE-05) : fixture synthétique tools/fixtures/glossaire-exemple.yaml
+// (dans Playground, recopiée dans le blueprint par construire.php). Relancé : « inchangé ».
+$yume_demo_glossaire = $GLOBALS['yume_demo_glossaire_yaml'] ?? '';
+if ( '' === $yume_demo_glossaire && is_readable( dirname( __DIR__ ) . '/fixtures/glossaire-exemple.yaml' ) ) {
+	$yume_demo_glossaire = (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/glossaire-exemple.yaml' );
+}
+if ( $yume_demo_oeuvre && '' !== $yume_demo_glossaire && function_exists( 'Yume\\Core\\Glossaire\\importer' ) ) {
+	\Yume\Core\Glossaire\importer(
+		(int) $yume_demo_oeuvre,
+		$yume_demo_glossaire,
+		array(
+			'user_id' => 0,
+			'source'  => 'televersement',
+			'note'    => 'Démonstration',
+		)
+	);
 }
 
 flush_rewrite_rules( false );

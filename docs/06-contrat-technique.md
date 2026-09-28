@@ -80,6 +80,75 @@ celle de la fiche (`is_singular( 'yume_oeuvre' )`) avec la variable publique `yu
 gabarit `single-yume_oeuvre-{onglet}` du thème en tête de hiérarchie. Le module qui déclare un
 onglet décide lui-même d'une 404 (œuvre sans contenu pour cet onglet).
 
+**Onglets de la fiche d'une œuvre** (`includes/library/onglets.php`, PAGE-01) :
+`\Yume\Core\Library\onglets_oeuvre( int $oeuvre_id ): array` = slug => `array{ libelle: string, url: string }`,
+filtre `apply_filters( 'yume_onglets_oeuvre', array $onglets, int $oeuvre_id )` ; la clé `fiche`
+(« Présentation », permalien) est toujours présente et en premier (un filtre ne peut ni la retirer ni
+la déplacer), les entrées sans libellé ou sans adresse sont ignorées. Un module qui déclare une
+sous-page ajoute son onglet par ce filtre **seulement quand l'œuvre a du contenu** pour lui, place
+`<!-- wp:yume/oeuvre-onglets /-->` dans son gabarit `single-yume_oeuvre-{onglet}.html` et renvoie
+lui-même une 404 sinon. Référencement commun à toutes les sous-pages (rien à faire côté module) :
+titre du document « {Libellé de l'onglet} — {Œuvre} » (+ « Page N » au-delà de la première), adresse
+canonique = celle de la sous-page (filtre natif `get_canonical_url`, donc aussi `og:url` ; `?pg=N`
+compris), `og:title` identique et `og:type` `website` (filtre `yume_open_graph`) ; pagination par le
+paramètre `pg` : le module déclare son nombre de pages par le filtre
+`apply_filters( 'yume_pages_onglet_oeuvre', 1, int $oeuvre_id, string $onglet )`, ce qui émet les
+`<link rel="prev|next">` (`wp_head`, priorité 9). La fiche garde sa canonique et son titre.
+`seo.php` n'est pas modifié : le JSON-LD de l'œuvre (BookSeries) reste émis sur ses sous-pages.
+
+**Actualités d'une œuvre** (`includes/library/actualites.php`, PAGE-01) : sous-page
+`/oeuvres/{oeuvre}/actualites/` (`yume_sous_pages_oeuvre`), articles `post` publiés sans mot de passe
+liés par la taxonomie `yume_oeuvre_liee` (terme `_yume_terme_lie` de l'œuvre), annonces de sortie
+comprises (catégorie « Sorties », `includes/publication/class-annonce.php`), du plus récent au plus
+ancien, 10 par page (`?pg=N`). Onglet « Actualités » seulement si l'œuvre a au moins un article
+publié lié ; sinon, ou au-delà de la dernière page, **404** (`template_redirect`, priorité 8).
+Gabarit du thème `templates/single-yume_oeuvre-actualites.html` : en-tête de la fiche,
+`yume/oeuvre-onglets`, `yume/oeuvre-news`. Fonctions : `actualites_oeuvre( int $oeuvre_id, int $nombre = 10,
+int $page = 1 ): array{ids:int[],total:int}`, `a_des_actualites( int ): bool`.
+
+**Glossaire d'une œuvre** (module `glossaire`, `includes/glossaire/`, PAGE-05 ; mode d'emploi et
+format : `docs/glossaire.md`) : sous-page `/oeuvres/{oeuvre}/glossaire/` (`yume_sous_pages_oeuvre`),
+gabarit du thème `templates/single-yume_oeuvre-glossaire.html` (en-tête de la fiche,
+`yume/oeuvre-onglets`, `yume/glossaire`). Onglet « Glossaire » (`yume_onglets_oeuvre`, priorité 30) et
+page seulement si `glossaire_visible( int $oeuvre_id )` : au moins une entrée publique ou un
+anglicisme, ou (équipe, `yume_voir_equipe`) au moins une entrée ; sinon **404**
+(`template_redirect`, priorité 5). Balises : titre « Glossaire — {Œuvre} », canonique = adresse du
+glossaire (`get_canonical_url`), description et `og:*` (`yume_open_graph`), **noindex, follow** sous
+`SEUIL_INDEXATION` (5) entrées publiques + anglicismes (`wp_robots`). Fonctions
+(`Yume\Core\Glossaire\`) : `analyser_glossaire( string $yaml ): array|WP_Error` (aucune écriture),
+`importer( int $oeuvre_id, string $yaml, array $args ): array|WP_Error` (`user_id`, `source`
+`api|televersement|restauration`, `note`, `simulation`), `restaurer_version( int $version_id, int
+$user_id )`, `etat_glossaire( int ): array{version,entrees,publiques,anglicismes,maj}`,
+`lire_entrees( int ): array`, `versions( int ): array`, `url_glossaire( int ): string`. Import :
+remplacement des entrées de l'œuvre + nouvelle version dans une transaction (MariaDB/MySQL :
+`START TRANSACTION`, ou `SAVEPOINT` si une transaction est déjà ouverte ; SQLite : suppression puis
+insertion), rien d'écrit si l'empreinte SHA-256 est celle de la version en ligne (statut
+`inchange`), 5 versions gardées par œuvre, journal de l'équipe (champ `glossaire`, `tome_id` 0,
+jamais public). Méta privée de l'œuvre `_yume_glossaire` (état ci-dessus, cache de l'onglet). Filtres :
+`yume_glossaire_envois_par_heure` (20), `yume_glossaire_fichier_local` (tests). Vue d'équipe
+`?vue=glossaire` (`yume_vues_equipe`, capacité `yume_glossaire`) ; admin-post `yume_glossaire`
+(nonce `yume_glossaire` : `verifier`, `publier`, `publier_brouillon`, `annuler`, `restaurer` ;
+brouillon vérifié : transient `yume_glossaire_brouillon_{user}`, 30 min) et `yume_glossaire_yaml`
+(téléchargement, nonce `yume_glossaire_yaml_{version}`).
+
+**Contributeurs** (`includes/social/profil-public.php`, PAGE-04) : `/contributeurs/` (liste des profils
+publics) et `/contributeurs/{slug}/` (profil), règles de réécriture propres (`regles_contributeurs()`,
+variables publiques `yume_contributeurs` et `yume_contributeur`, vidage des règles quand leur signature
+change : option `yume_regles_contributeurs`, md5 des règles + `YUME_CORE_VERSION`). Jamais `/equipe/…`
+(espace équipe) ni l'identifiant de connexion : `user_nicename` étant dérivé de `user_login` par
+WordPress, l'adresse utilise la méta `yume_profil_slug` tirée du pseudo (`generer_slug_profil()`,
+suffixe `-2`… si déjà pris). La requête principale n'est ni l'accueil ni une archive (aucun article
+chargé, `posts_pre_query`) ; `pre_handle_404` rend **404** pour un compte sans consentement, hors de
+l'équipe (`yume_voir_equipe`) ou dont le pseudo redevient l'identifiant, 200 sinon ; modèle du thème
+`yume-contributeur` en tête de la hiérarchie `index`. Référencement : titre « {Pseudo}, contributeur » /
+« Contributeurs », `<link rel="canonical">`, `og:type` `profile` et description = présentation
+(filtre `yume_open_graph`), **noindex, follow** pour un profil sans présentation ni tome publié et pour
+la liste vide ; plan du site : fournisseur `contributeurs` (`wp-sitemap-contributeurs-1.xml` : la liste
+et les profils indexables). Fonctions : `profil_public_actif( int ): bool`, `url_profil_public( int ): string`,
+`url_contributeurs(): string`, `contributeurs_publics(): WP_User[]`, `contributions_profil( int ): array`
+(tomes **publiés** d'œuvres publiées dont le compte est responsable d'une étape, lus dans la méta privée
+`yume_responsables` seulement pour un profil public), `enregistrer_profil_public( int, array ): string[]`.
+
 Taxonomies (sur `yume_oeuvre`, `show_in_rest`, hiérarchiques pour type/statut) :
 
 | Taxonomie | Termes créés à l'installation (slug : nom) |
@@ -176,6 +245,8 @@ fois le même commentaire.
 
 Capacités propres : `yume_maj_planning` (ses tomes), `yume_maj_planning_tous`, `yume_publier`,
 `yume_gerer_equipe`, `yume_reglages`, `yume_voir_equipe` (accès à /equipe/).
+`yume_glossaire` (glossaires des œuvres : import, restauration, envoi par Yume-Trad ; Éditeur Yume,
+Gérant, administrateur).
 Capacités de types : `edit_yume_oeuvres`, `edit_others_yume_oeuvres`, `publish_yume_oeuvres`,
 `delete_yume_oeuvres`, … (idem `yume_tomes`, `yume_chapitres`).
 
@@ -183,7 +254,7 @@ Capacités de types : `edit_yume_oeuvres`, `edit_others_yume_oeuvres`, `publish_
 | --- | --- | --- |
 | `subscriber` | Lecteur (renommé) | `read` |
 | `yume_traducteur`, `yume_relecteur`, `yume_graphiste` | Traducteur, Relecteur, Graphiste | `read`, `upload_files`, `yume_voir_equipe`, `yume_maj_planning`, `edit_yume_tomes` |
-| `yume_editeur` | Éditeur Yume | les précédentes + `yume_publier`, `yume_maj_planning_tous`, toutes les capacités des 3 types (y compris others/publish/delete), `edit_posts`, `publish_posts`, `edit_published_posts`, `moderate_comments`, `manage_categories` |
+| `yume_editeur` | Éditeur Yume | les précédentes + `yume_publier`, `yume_maj_planning_tous`, `yume_glossaire`, toutes les capacités des 3 types (y compris others/publish/delete), `edit_posts`, `publish_posts`, `edit_published_posts`, `moderate_comments`, `manage_categories` |
 | `yume_gerant` | Gérant | `yume_editeur` + `yume_gerer_equipe`, `yume_reglages`, `edit_others_posts`, `delete_posts`, `delete_published_posts`, `delete_others_posts`, `list_users`, `promote_users` (limitée, voir ci-dessous) ; **ni** `create_users` **ni** `edit_users` (SEC-03) |
 | `administrator` | — | tout, y compris toutes les capacités `yume_*` |
 
@@ -243,6 +314,12 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `maj_auto` | `true` | updater |
 | `partenaires` | les 4 partenaires de l'ancien site (`partenaires_par_defaut()`) | bibliothèque (`yume/partenaires`) |
 | `pwa_hors_ligne` | `true` | lecture (manifeste web et service worker, §14 ; champ ajouté par `yume_reglages_champs`, section « Site et réseaux ») |
+| `notifications_navigateur` | `true` | lecteurs (Web Push, AMEL-06, §13 ; champ ajouté par `yume_reglages_champs`, section « Notifications » ; filtre `yume_push_actif`) |
+| `recherche_chapitres` | `false` | bibliothèque (groupe « Dans les chapitres » de `yume/recherche` ; champ ajouté par `yume_reglages_champs`, section « Site et réseaux » ; filtre `yume_recherche_chapitres_active`) |
+| `recrutement_intro` | texte d'accueil de l'équipe | planning (`yume/recrutement`, section « Recrutement » ajoutée par `yume_reglages_sections`) |
+| `recrutement_postes` | Traducteur EN→FR, Relecteur, Graphiste (clean et typeset), ouverts | planning : texte, une ligne par poste « Intitulé \| Description courte \| ouvert\|fermé » (12 au plus, assaini par `assainir_postes_recrutement()`) ; seuls les postes ouverts sont affichés |
+| `recrutement_test_url` | `''` | planning : lien du test de traduction (http(s), facultatif) |
+| `recrutement_consigne` | ticket dans le salon « tickets » du Discord | planning : texte au-dessus du bouton « Postuler sur le Discord » (lien : `discord_invite`) |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
@@ -346,7 +423,7 @@ yume_illustrations_tome( int $tome_id ): array;                       // int[] i
 yume_url_illustrations( int $tome_id ): string;                       // /lire/{o}/{tome}/illustrations/ ou '' (pas de page : §3)
 yume_est_page_illustrations(): bool;                                  // requête principale = page Illustrations (objet de la requête : le tome)
 yume_url_illustrations_avant( int $chapitre_id ): string;             // page Illustrations qui précède ce chapitre (premier publié du tome) ou ''
-yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion','actualites','mentions-legales','accueil' → URL de la page (option yume_pages) ; filtre yume_url_page
+yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion','actualites','mentions-legales','rejoindre','accueil' → URL de la page (option yume_pages) ; filtre yume_url_page
 ```
 
 **planning** (`includes/planning/api.php`) :
@@ -434,6 +511,9 @@ champ `lecture_ajoutee` (`{chapitres, programme}`, jamais public). Défaut (form
 `Service::sans_annonce_par_defaut()` = vrai pour un tome au statut `publish`, faux sinon ; le
 service seul vaut faux par défaut.
 
+`yume_glossaire_importe( int $oeuvre_id, int $version_id )` (module glossaire) : un glossaire vient
+d'être importé (nouvelle version en ligne) ; pas émis pour une simulation ni un envoi « inchangé ».
+
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 
 Le contenu est stocké en **blocs Gutenberg** (modifiable dans l'éditeur) avec ces classes :
@@ -477,6 +557,9 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/chapter-header` | bibliothèque | — | `.yn-chapter-header` | Fil d'Ariane, « Chapitre N », sous-titre, crédits, temps de lecture. Page Illustrations : `.yn-chapter-header--illustrations`, fil œuvre › tome › Illustrations, h1 « Illustrations », tome en sous-titre, nombre d'illustrations |
 | `yume/chapter-nav` | bibliothèque | — | `.yn-chapter-nav` | Précédent · Sommaire · Suivant (liens `rel=prev/next`). Premier chapitre publié d'un tome qui a une page Illustrations : « Précédent » = « Illustrations » (aussi `<link rel=prev>` et ← du lecteur). Page Illustrations : `.yn-chapter-nav--illustrations`, Sommaire du tome · « Commencer la lecture · Chapitre 1 » (`rel=next`, premier chapitre publié) |
 | `yume/tome-illustrations` | bibliothèque | — | `.yn-tome-illustrations` | Planches de la galerie du tome, l'une sous l'autre, pleine largeur de la colonne (`--yn-width`), taille `large` (première `eager`/`fetchpriority=high`, suivantes `loading=lazy`), `figure.yn-illustration` + `figcaption` seulement s'il y a une légende, alt de la galerie (« Illustration N — Œuvre, Tome 9 » à défaut), lien vers l'image en grand ; rien sans galerie |
+| `yume/glossaire` | glossaire | — | `.yn-glossaire` | Glossaire de l'œuvre du contexte : sommaire des catégories (ancres, compteurs), une section `h2` par catégorie, cartes (`h3` nom, termes VO avec `lang="ja"` si japonais, genre et pluriel, rôle, description ; « Nom conservé » pour `traduire: false` ; spoiler dans `<details>` « Révéler (spoiler, tome N) »), anglicismes en tableau VO → FR ; recherche instantanée et filtre par catégorie (`view.js`, attribut `data-yn-recherche` normalisé, compteur `role=status`) ; jamais de champ interne pour un visiteur ; équipe : notes de traduction (`?notes=1` ou bascule) et entrées « À définir » ; rien sans glossaire |
+| `yume/oeuvre-onglets` | bibliothèque | — | `.yn-onglets-oeuvre` | `<nav aria-label="Sections de l’œuvre">` + `ul` de liens vers les onglets de `onglets_oeuvre()` (Présentation, Actualités, Glossaire…), `aria-current="page"` sur l'onglet affiché (Présentation sur la fiche) ; rien si l'œuvre n'a que sa fiche. Dessin de l'intitulé de `yume/tome-list` ; sur mobile la rangée défile horizontalement sans barre visible. Placé sous l'en-tête dans `single-yume_oeuvre.html` et dans chaque gabarit de sous-page |
+| `yume/oeuvre-news` | bibliothèque | `limite` (number, 0) | `.yn-oeuvre-news` | Actualités de l'œuvre (articles liés, annonces de sortie comprises) en cartes `.yn-card.yn-carte-article` de la page Actualités (image 16:9 ou dégradé, catégories, titre `h3`, extrait, date). `limite` = 0 : liste paginée de la sous-page (`h2.yn-visually-hidden` « Actualités de {Œuvre} · page N sur M », l'onglet servant d'intitulé visible ; 10 par page, `?pg=N`, `nav.yn-pagination`) ; `limite` > 0 (au plus 12) : encart `.yn-oeuvre-news--encart` « Dernières actualités » + lien « Toutes les actualités », **rien sans article** (fiche : `{"limite":3}` après `yume/tome-list`) |
 | `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Sans carte propre (le thème fournit la carte). Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
 | `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent ; boutons Flux RSS, JSON et « S’abonner au calendrier (ICS) » (`webcal://…/planning.ics`, `?oeuvre=` si filtré) ; onglets « Tableau » / « Calendrier » (`?vue=calendrier` : le tableau est remplacé par `yume/calendrier`, filtres et navigation gardent l’onglet) |
 | `yume/calendrier` | planning | — | `.yn-calendrier` | Calendrier mensuel des sorties (`evenements_calendrier()` : `yume_get_planning()` public, tomes parus depuis 365 jours compris ; filtre `yume_planning_evenements`) : `?mois=AAAA-MM` (sinon mois courant, Paris), liens mois précédent/suivant (`rel=prev/next`, sans JS), `<table>` avec `caption` et en-têtes de jours (`abbr`), aujourd’hui `aria-current="date"` ; nature d’une sortie par icône + texte masqué + bordure (`--programme` ◷ fond plein, `--prevu` ◌ pointillés, `--sorti` ✓) ; sous 600 px, liste des jours ayant des sorties (`.yn-calendrier__liste`) à la place de la grille ; légende, liens d’abonnement ICS (webcal) et de téléchargement. Respecte les filtres GET `type`, `etat`, `oeuvre` du planning |
@@ -485,11 +568,15 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`), case « Ajout au catalogue » (`sans_annonce` : champ caché `0` + case `1`, cochée d'office pour un tome publié ; récapitulatif sans « Article d'annonce » ni « Notifications » quand elle est cochée), note « remplacés en place » quand le tome a déjà des chapitres |
 | `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) ; avertissement sur un membre responsable de tomes en cours, lien « Modifier dans l'administration » (administrateur) pour les comptes non modifiables ici |
 | `yume/partenaires` | bibliothèque | `title` (string, « Nos partenaires »), `variante` (`cartes` \| `en-ligne`, `cartes`) | `.yn-partenaires`, `.yn-partenaires-en-ligne` | Section de l'accueil : logo (initiales à défaut), nom, description, lien en nouvel onglet ; variante `en-ligne` : paragraphe « Partenaires : A · B » (rien sans partenaire), rendu aussi par `partenaires_en_ligne()` dans la mention du pied de page du thème (paragraphe `yn-copyright`) ; réglage `partenaires` (§6) |
+| `yume/recherche` | bibliothèque | `perPage` (20 : un seul groupe affiché), `apercu` (5 : par groupe quand tous sont affichés), `showFilters` (true) | `.yn-search` | Page de résultats de `/?s=` (modèle `search.html` du thème, à la place de la boucle de requête ; AMEL-04, `includes/library/recherche.php` + `recherche-rendu.php`). Groupes `oeuvres` (titre, `yume_titres_alt`, `yume_auteur`, `yume_illustrateur`, `yume_editeur_vo`), `tomes` (titre ; publiés, œuvre publiée), `actualites` (articles publiés sans mot de passe : titre, extrait, texte ; préfiltre SQL limité à 300, filtre `yume_recherche_actualites_max`) et, si `recherche_chapitres` est actif, `chapitres` (texte et titre des chapitres publiés d'un tome et d'une œuvre publiés, œuvre ni `licenciee` ni statut du filtre `yume_recherche_statuts_exclus_chapitres` ; terme ≥ 3 caractères ; 60 chapitres lus au plus, les plus récents, filtre `yume_recherche_chapitres_max`, compteur « N+ » au-delà ; extrait de 200 caractères autour de la première occurrence, lien `#yn-p-N` vers le bloc de premier niveau). GET : `s`, `contenu` (un groupe), `statut` (liste de slugs, groupes de la bibliothèque), `genre`, `tri` (`pertinence` par défaut, `recent`, `az`), `pg_{groupe}` (pagination propre à chaque groupe, ancre `#yn-search-{groupe}`) ; compteurs par groupe ; tout mot doit figurer (ET) ; comparaison sur texte « plié » (`plier()` : minuscules, sans accents ni ligatures, apostrophe typographique) identique sur SQLite et MariaDB : SQL ne fait qu'un préfiltre `LIKE` large (lettres accentuables en `_` sauf collation `*_ci` MySQL, `œ`/`æ` et `< > & "` en `%`, filtre `yume_recherche_like_insensible`), PHP décide. Surlignage `<mark class="yn-search__marque">` dans un texte toujours échappé (le terme n'est jamais débarrassé de ses balises, il est échappé). Aucun résultat : œuvres au titre proche (distance d'édition) et lien Bibliothèque. Index (œuvres, tomes) dans le cache de la bibliothèque (`en_cache( 'recherche' )`, renouvelé aussi au changement des métas ci-dessus et de `_thumbnail_id`) |
 | `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture, repère `<header aria-label="Barre de lecture">` (les gabarits de lecture n'ont pas d'en-tête du site) : progression, sommaire, marque-page, thème, panneau Paramètres. Page Illustrations : même barre (retour et Sommaire vers le tome, réglages, thème, compte) sans marque-page, configuration `chapitre: 0` (aucun suivi, position jamais écrite), `next` = chapitre 1 |
-| `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte |
+| `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte ; membre connecté : menu « Ajouter à une liste » (`details[data-yn-menu="listes"]`, inséré par `render.php` via `inserer_menu_listes()`, `listes.php`) : une case par liste (PUT/DELETE REST à chaque case), création rapide (POST puis PUT), sans JavaScript formulaire `admin-post.php?action=yume_listes_oeuvre` (nonce `yume_social_{oeuvre}`, messages `?yn-lmsg=`) |
 | `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
 | `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) |
-| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion » (la page connexion propose aussi l'inscription) ou « Mon compte » (+ « Espace équipe » si capacité) et « Se déconnecter » ; placé dans `core/navigation` |
+| `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion » (la page connexion propose aussi l'inscription) ou « Mon compte » (+ « Espace équipe » si capacité) et « Se déconnecter » ; placé dans `core/navigation`. Membre connecté : cloche des notifications en tête (`.yn-cloche`, `inserer_cloche()`, `notifications-lecteur.php`) — pastille du nombre de non lues (rendu serveur), bouton `aria-expanded`/`aria-controls` qui ouvre le panneau `#yn-cloche-panneau` (8 dernières, « Tout marquer comme lu », lien `compte#yn-notifications`), lien simple sans JavaScript ; script `yume-cloche` (`blocks/auth-links/view.js`) chargé pour les membres seulement : rafraîchi à l'ouverture et toutes les 5 min si l'onglet est visible ; aucun script ni requête pour un visiteur |
+| `yume/liste-publique` | lecteurs | — | `.yn-liste-publique` | Page d'une liste de lecture (`/listes/{id}-{slug}/`, gabarit injecté par `listes.php`, hors inserteur) : « Liste de lecture », titre en `<h1>`, « par {nom affiché} » (jamais l'identifiant de connexion), nombre d'œuvres, date de mise à jour, description, grille de couvertures des œuvres publiées ; propriétaire : état Publique/Privée et lien « Gérer mes listes » |
+| `yume/recrutement` | planning | — | `.yn-recrutement` | Page « Rejoindre l'équipe » : introduction (`recrutement_intro`), `h2` « Postes ouverts » + cartes `.yn-recrutement__poste` (`h3`, description, pastille « Recrutement ouvert ») ou « Aucun poste ouvert pour le moment », carte « Postuler » : consigne, bouton « Postuler sur le Discord » (`discord_invite`, nouvel onglet) et « Télécharger le test de traduction » si `recrutement_test_url`. **Aucun formulaire** : le site ne recueille aucune candidature |
+| `yume/profil-contributeur` | lecteurs | `mode` (`auto` \| `liste`, `auto`), `titre` (string, « Profils des contributeurs ») | `.yn-contributeur`, `.yn-contributeurs` | `auto` : profil sur `/contributeurs/{slug}/` (fil d'Ariane, avatar à initiales, `h1` pseudo, rôle Yume, « Dans l'équipe depuis », présentation, liens `rel="me nofollow noopener"`, contributions par œuvre), liste avec `h1` « Contributeurs » sur `/contributeurs/`. `liste` (ou hors de `/contributeurs/`) : `h2` + cartes (initiales, pseudo lié, rôle, nombre de tomes publiés), **rien** sans profil public. Ajouté automatiquement sous le contenu de la page « L'équipe » (slug `lequipe`, filtre `render_block_core/post-content`) avec un bouton « Rejoindre l'équipe » ; les mentions « Poste à pourvoir » de cette page mènent à la page de recrutement |
 | `yume/theme-toggle` | **thème** | — | `.yn-theme-toggle` | Bascule Nuit ↔ Papier (`aria-pressed`, `[data-yn-theme-toggle]`) |
 
 Les blocs posés dans le modèle `page-large` (planning, compte, équipe, publication) commencent leurs
@@ -540,6 +627,7 @@ lien « Contact » de l'en-tête (classe `yn-lien-discord`) ouvre l'invitation D
 | `connexion` | `connexion` | formulaire de connexion/inscription rendu par `yume/account` quand déconnecté |
 | `actualites` | `actualites` | page des articles (`page_for_posts`) |
 | `mentions-legales` | `mentions-legales` | texte de base à compléter par l'équipe |
+| `rejoindre` | `rejoindre-l-equipe` | `yume/recrutement` (lien « Rejoindre l'équipe » du sous-menu « Yume Novel » de l'en-tête, classe `yn-lien-rejoindre` ; `yume_url_page( 'rejoindre' )` → `/rejoindre-l-equipe/` sans page enregistrée) |
 | `accueil` | `accueil` | page d'accueil statique (`page_on_front`), rendue par `front-page.html` |
 
 Pages supplémentaires : `actualites` (slug `actualites`, page des articles) et `mentions-legales`
@@ -571,11 +659,22 @@ sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sa
 | `PUT /moi/notes/(?P<oeuvre>\d+)` | lecteurs | connecté ; `note` 1–5, 0 = retirer |
 | `PUT /moi/alertes/(?P<oeuvre>\d+)` | lecteurs | connecté ; `frequence` immediat/hebdo/jamais |
 | `GET /moi/export`, `DELETE /moi` | lecteurs | connecté (RGPD) ; `DELETE` exige `confirmation=SUPPRIMER` et `mot_de_passe`, refusé pour l'équipe et les administrateurs |
+| `GET /moi/listes` | lecteurs | connecté — listes du membre (les trois listes système `a_lire`, `en_cours`, `termine` créées au besoin, puis les personnelles) : `{listes: [{id, nom, slug, description, publique, systeme (clé ou null), nb, oeuvres (IDs publiés), url, cree_le, maj_le, contient?}], auto, max, reste}` ; `?oeuvre=` ajoute `contient` |
+| `POST /moi/listes` | lecteurs | connecté — `nom` (1–60), `description` (280), `publique` ; 201 ; 409 `yume_listes_limite` au-delà de 20 listes personnelles, 400 `yume_liste_nom` |
+| `PATCH, DELETE /moi/listes/(?P<id>\d+)` | lecteurs | connecté — liste du membre seulement (sinon 404 `yume_liste_introuvable`) ; listes système : ni renommées ni supprimées (400 `yume_liste_systeme`), `publique` et `description` modifiables |
+| `PUT, DELETE /moi/listes/(?P<id>\d+)/oeuvres/(?P<oeuvre>\d+)` | lecteurs | connecté — ajoute (201, 200 si déjà présente) ou retire une œuvre publiée (404 sinon) ; 409 `yume_liste_pleine` au-delà de 500 œuvres ; une liste système retire l'œuvre des deux autres ; réponse `{oeuvre, listes: [IDs des listes du membre qui la contiennent]}` |
+| `GET /moi/notifications` | lecteurs | connecté — `page`, `limite` (1–50, 20), `non_lues` ; `{notifications: [{id, type (sortie\|reponse), objet_id, titre, url, cree_le, lu, lu_le}], non_lues, total, page, pages}`, en-têtes `X-WP-Total`, `X-WP-TotalPages`, `Cache-Control: no-store, private`. Le service worker s'y authentifie sans nonce par les en-têtes `X-Yume-Push-Endpoint` et `X-Yume-Push-Auth` de l'abonnement (`authentifier_push()`, filtre `rest_authentication_errors` priorité 150, cette route en GET seulement) |
+| `POST /moi/notifications/lues` | lecteurs | connecté — `ids` (200 au plus, celles du membre seulement) ou toutes si absent ; `{marquees, non_lues}` |
+| `POST, DELETE /moi/push` | lecteurs | connecté — abonnement Web Push de l'appareil : `endpoint` (https d'un service push connu, sinon 400 `yume_push_hote`), `p256dh` et `auth` (base64url, 65 et 16 octets) ou `keys` au format `PushSubscription.toJSON()` ; 201 ; 403 `yume_push_inactif` si désactivé ; `DELETE` : `endpoint` |
+| `GET /push/cle` | lecteurs | public — `{actif, cle}` : clé publique VAPID (point P-256 non compressé, base64url), `null` si les notifications navigateur sont désactivées |
 | `POST /commentaires/(?P<id>\d+)/signalement` | lecteurs | connecté (nonce REST) — signale un commentaire publié d'un contenu public (`motif` facultatif, 200 caractères au plus) : 404 `yume_commentaire_introuvable`, 400 `yume_signalement_propre` (son propre commentaire), 409 `yume_deja_signale`, 429 `yume_trop_de_signalements` (débit) ; réponse `{signale, attente, message}`, `attente` vrai quand le seuil renvoie le commentaire en modération. Bouton « Signaler » du thème (`inc/commentaires.php`, script `assets/js/commentaires.js` chargé seulement sur les pages qui l'affichent) ; badge « Équipe » (auteur ayant `yume_voir_equipe`) sur `core/comment-author-name` |
 | `POST /planning/tomes` | planning | `yume_maj_planning_tous` — ajoute un tome brouillon au planning (œuvre, nature, numéro, titre, responsables, date cible) ; 409 si doublon |
 | `GET /planning/journal?format=rss` | planning | public — flux RSS du journal |
 | `GET /planning.ics` | planning | public — calendrier iCalendar (RFC 5545, `text/calendar; charset=utf-8`, servi brut par `rest_pre_serve_request`) : un `VEVENT` par tome daté du planning public (mêmes événements que `yume/calendrier`), `UID:tome-<id>@<hôte>`, `DTSTAMP` = dernière mise à jour ; prévu : `DTSTART;VALUE=DATE`, `STATUS:TENTATIVE`, « (prévision) » dans `SUMMARY` ; programmé et paru : `DTSTART` UTC, `STATUS:CONFIRMED` ; `SUMMARY` « Œuvre T.N », `DESCRIPTION` avec l’état, `URL` du tome paru sinon de l’œuvre ; lignes pliées à 75 octets, CRLF. `?oeuvre=<id\|slug>` (œuvre publiée, sinon 404 `yume_oeuvre_inconnue`). Cache : transient `yume_planning_ics` (1 h), vidé sur `yume_planning_mis_a_jour`, `yume_tome_publie`, `save_post`/`deleted_post` d’un tome ou d’une œuvre. `<link rel="alternate" type="text/calendar">` dans le `<head>` des pages contenant `yume/planning` ou `yume/calendrier` |
 | `GET /migration`, `POST /migration/executer`, `POST /migration/annuler` | migration | `manage_options` ; `confirmation=MIGRER` / `ANNULER`, exécution par lots, reprise (`ignorer`) |
+| `POST /oeuvres/(?P<oeuvre>[\w-]+)/glossaire` | glossaire | `yume_glossaire` (mot de passe d'application ou cookie + nonce) — envoi ponctuel d'un glossaire YAML (corps brut `application/yaml`, JSON `{yaml, note}` ou multipart `glossaire`) ; `simulation=1` : bilan sans écriture ; réponse `{statut: importe\|inchange\|simulation, oeuvre, nb_entrees, total, anglicismes, publiques, avertissements, sha256, version}` ; 400/413/415 (`yume_glossaire_*`), 404 `yume_oeuvre_introuvable`, 429 `yume_glossaire_limite` (20 envois/h/compte). `docs/glossaire.md` |
+| `GET /oeuvres/(?P<oeuvre>[\w-]+)/glossaire` | glossaire | `yume_glossaire` — métadonnées de la version en ligne (`version: {id, cree_le, sha256, nb_entrees, source, auteur, note}` ou `null`), sans le contenu |
+| `GET /suggestions?q=` | bibliothèque | public (`includes/library/recherche-rest.php`) — suggestions instantanées de la recherche : `q` obligatoire (200 caractères au plus) ; moins de 2 caractères : liste vide ; 8 au plus (`suggestions()`) : œuvres publiées par titre et titres alternatifs, puis tomes publiés ; réponse `{q, total, suggestions: [{type: oeuvre\|tome, id, titre, detail, url, image (miniature ou '')}], recherche (URL /?s=)}` ; cache transient 5 min (clé versionnée par le cache de la bibliothèque) ; débit : 60 demandes par minute et par IP hachée (HMAC, transient `yume_sugg_*`, filtre `yume_suggestions_limite`, 0 = sans limite), au-delà 429 `yume_trop_de_requetes`. Utilisée par le champ de recherche de l'en-tête du thème (`inc/recherche.php` étend le filtre `render_block_core/search` sur le bloc de classe `yn-nav__recherche` : champ `role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`, `aria-controls` → `ul[role=listbox]`, `aria-activedescendant` géré par `assets/js/suggestions.js`, annonce `aria-live` du nombre ; filtre de thème `yume_theme_suggestions_recherche`) |
 
 **Flux RSS d’une œuvre** (`includes/library/flux.php`) : `/oeuvres/{o}/feed/` (et `rss2`, `rss`, `atom`, `rdf`) sert en RSS 2.0 les tomes et chapitres publiés de l’œuvre (cache de la bibliothèque) et les articles liés (`yume_oeuvre_liee`), du plus récent au plus ancien, 50 au plus (filtres `yume_flux_oeuvre_max`, `yume_flux_oeuvre_elements`) ; l’ancien flux natif des commentaires de l’œuvre reste servi avec `?commentaires=1`. La fiche d’une œuvre publiée annonce ce flux par `<link rel="alternate" type="application/rss+xml">` (le lien natif des commentaires y est retiré).
 
@@ -591,6 +690,12 @@ accepte `reinitialiser` ; `GET /moi/progression?oeuvre=` renvoie `url`, `url_rep
 | `progression` | `user_id`, `oeuvre_id`, `tome_id`, `chapitre_id`, `paragraphe` INT, `pourcentage` TINYINT, `updated_at` ; PK (user_id, oeuvre_id) | lecture |
 | `planning_journal` | `id` BIGINT AI, `tome_id`, `user_id`, `champ` VARCHAR(40), `ancien` TEXT, `nouveau` TEXT, `public` TINYINT, `created_at` ; KEY tome_id, KEY created_at | planning |
 | `notifications` | `id` AI, `destinataire` VARCHAR(190), `user_id`, `sujet` VARCHAR(255), `html` LONGTEXT, `contexte` VARCHAR(60), `statut` VARCHAR(10) DEFAULT 'attente', `tentatives` TINYINT, `created_at`, `envoye_le` ; KEY statut | planning |
+| `glossaire` | `id` AI, `oeuvre_id`, `categorie` VARCHAR(40), `ordre` INT, `nom` VARCHAR(255) (nom français, sinon premier terme source ; anglicismes : `fr`), `termes_source` TEXT (un par ligne), `recherche` TEXT (nom, variantes, termes source, description : minuscules sans accents), `donnees` LONGTEXT (JSON de l'entrée normalisée, `public` compris) ; KEY (oeuvre_id, categorie) | glossaire |
+| `listes` | `id` AI, `user_id`, `nom` VARCHAR(80), `slug` VARCHAR(100), `description` VARCHAR(300), `publique` TINYINT, `systeme` VARCHAR(20) (`a_lire`, `en_cours`, `termine` ou ''), `cree_le`, `maj_le` ; KEY user_id | social (listes de lecture, PAGE-07) |
+| `listes_oeuvres` | `liste_id`, `oeuvre_id`, `ajoute_le`, `ordre` INT ; PK (liste_id, oeuvre_id), KEY oeuvre_id | social |
+| `notifications_lecteur` | `id` AI, `user_id`, `type` VARCHAR(20) (`sortie`, `reponse`), `objet_id` (tome, chapitre ou commentaire), `titre` VARCHAR(255) (texte brut), `url` VARCHAR(500), `cree_le`, `lu_le` (NULL = non lue) ; KEY (user_id, lu_le), KEY cree_le | social (centre de notifications, AMEL-11) |
+| `push` | `id` AI, `user_id`, `endpoint` VARCHAR(1000), `empreinte` CHAR(64) (SHA-256 de l'endpoint, UNIQUE), `p256dh` VARCHAR(200), `auth` VARCHAR(100), `cree_le`, `dernier_envoi` (NULL possible), `echecs` SMALLINT ; KEY user_id | social (Web Push, AMEL-06) |
+| `glossaire_versions` | `id` AI, `oeuvre_id`, `user_id`, `source` VARCHAR(20) (`api`, `televersement`, `restauration`), `cree_le` DATETIME (GMT), `sha256` CHAR(64), `nb_entrees` INT (hors anglicismes), `yaml` LONGTEXT, `note` VARCHAR(255) ; KEY oeuvre_id ; 5 dernières par œuvre | glossaire |
 
 `planning_journal.champ` contient aussi des événements (`creation`, `publie`, `depublie`,
 `chapitre_publie`, `retire`, `etape_forcee`, `rappel`, `signalement`, `digest` ; `tome_id` 0 pour le
@@ -603,6 +708,16 @@ Méta utilisateur : `yume_reglages` (`{size, lh, font, width, bgAlpha, theme}`) 
 désabonnement, effacé avec les données du membre). Méta internes : `_yume_alerte_envoyee` (tome ou chapitre
 notifié aux lecteurs), `_yume_migration_cle`, `_yume_source_id`, `_yume_migration_run` ; options
 `yume_redirections`, `yume_migration_*` ; actions `yume_migration_terminee`, `yume_migration_annulee`.
+
+Méta utilisateur du profil public (`includes/social/profil-public.php`, PAGE-04, membres de l'équipe
+seulement, rubrique « Profil public » de la page compte, formulaire `admin-post.php?action=yume_compte_profil_public`
+avec nonce) : `yume_profil_public` (booléen, **faux par défaut** : consentement explicite ; décoché =
+profil retiré immédiatement et `yume_profil_slug` effacé), `yume_profil_bio` (texte brut, 300 caractères),
+`yume_profil_liens` (`{discord: pseudo 2-37 car., x: https://x.com/{pseudo} (depuis @pseudo ou une
+adresse x.com/twitter.com), site: URL http(s)}` ; une saisie invalide est ignorée), `yume_profil_arrivee`
+(« AAAA-MM », facultatif), `yume_profil_slug` (adresse publique, suit le pseudo : `profile_update`). Un
+pseudo identique à l'identifiant de connexion empêche l'activation. Exporteur de données personnelles
+WordPress `yume-profil-public`.
 
 Désabonnement des e-mails d'alerte (`includes/social/desabonnement.php`) : chaque e-mail porte un lien
 signé `?yn-desabo={user_id}&yn-portee=oeuvre|commentaires|tout&yn-oeuvre={id}&yn-sig=…` (HMAC du membre,
@@ -618,6 +733,47 @@ Statistiques de lecture (PAGE-06, `includes/reader/statistiques.php`, rubrique �
 lecture sont lus, le chapitre courant aussi à 90 % (`SEUIL_CHAPITRE_LU`) ; minutes = `yume_temps_lecture`,
 sinon `yume_nb_mots` / 230 ; « À jour » = tous les chapitres publiés lus. Deux requêtes agrégées
 (`plan_de_lecture()` : tomes puis chapitres publiés de toutes les œuvres, méta jointes), membre connecté seulement.
+
+Listes, notifications et Web Push (lot P3-D, `includes/social/listes.php`, `notifications-lecteur.php`,
+`push.php`) : schéma distinct (option `yume_social_schema_lecteur` = `VERSION_SCHEMA_LECTEUR`, créé par
+`installer_tables_lecteur()` depuis `installer_tables()` et `verifier_schema()`).
+
+- **Listes (PAGE-07)** : 20 listes personnelles et 500 œuvres par liste au plus ; les listes système
+  s'excluent. Remplissage automatique (méta utilisateur `yume_listes_auto` = `'0'` pour le couper,
+  filtre `yume_listes_auto( bool, $user_id, $oeuvre_id )`) sur `yume_progression_enregistree` : « En
+  cours » dès la première position, « Terminé » quand le dernier chapitre publié est lu à 90 % ; une
+  œuvre « Terminé » n'en sort que pour un chapitre publié après son classement. Action
+  `yume_liste_oeuvre_ajoutee( int $oeuvre_id, array $liste )`. Page publique `/listes/{id}-{slug}/`
+  (variable de requête `yume_liste`, règle vidée une fois par `verifier_regles_listes()` avec l'option
+  `yume_listes_regles`, adresse non canonique → 301) : liste privée, inconnue ou d'un compte supprimé →
+  404 (sauf pour son propriétaire) ; gabarit : modèle de thème `yume-liste` s'il existe, sinon en-tête +
+  `yume/liste-publique` + pied (filtre `yume_liste_gabarit`) ; `noindex, follow` par défaut (filtre
+  `yume_listes_indexables`). Rubrique « Mes listes » `#yn-listes` du compte (formulaires `admin-post`
+  `yume_liste_creer|modifier|supprimer|retirer`, `yume_listes_auto`, nonce `yume_listes`).
+- **Centre de notifications (AMEL-11)** : alimenté par `yume_tome_publie` / `yume_chapitre_publie`
+  (priorité 21 : membres dont l'œuvre est en favori hors alerte « jamais », titre = objet de l'e-mail
+  d'alerte, verrou `_yume_notif_lecteur`, retirées si le contenu est dépublié) et par les réponses
+  approuvées à un commentaire d'un membre (`wp_insert_comment` et `transition_comment_status`, verrou
+  de commentaire `_yume_notif_reponse`). Action `yume_notifications_creees( int[] $user_ids, string $type,
+  int $objet_id )`. Purge quotidienne (`yume_notifications_lecteur_purge`) au-delà de 90 jours (filtre
+  `yume_notifications_duree`). Rubrique « Notifications » `#yn-notifications` du compte
+  (`admin-post.php?action=yume_notifications_lues`).
+- **Web Push (AMEL-06)** : option `yume_vapid` (non chargée automatiquement : `public` base64url,
+  `prive` PEM — jamais exposée —, `cree_le`), générée par OpenSSL (`prime256v1`) à la première
+  demande. Jeton VAPID JWT ES256 (`aud` = origine du service push, `exp` + 12 h, `sub` = `mailto:` de
+  l'administration, filtre `yume_push_sujet`) signé par `openssl_sign` (DER → R||S). Push **sans charge
+  utile** : `wp_safe_remote_post` avec `Authorization: vapid t=…, k=…`, `TTL: 86400`, `Urgency:
+  normal`, corps vide. Envoi en tâche cron `yume_push_envoyer` (planifiée 10 s après
+  `yume_notifications_creees` si l'un des membres a un abonnement ; lots de 50, lot suivant planifié s'il
+  en reste) : un abonnement reçoit un push si son membre a une notification non lue plus récente que
+  `dernier_envoi`. 404/410 → abonnement supprimé ; autre échec → `echecs` + 1, suppression à 5. Hôtes
+  acceptés (https, port 443) : `fcm.googleapis.com`, `updates.push.services.mozilla.com`,
+  `*.notify.windows.com`, `web.push.apple.com`. 10 appareils par membre au plus. Désactivation :
+  réglage `notifications_navigateur` ou filtre `yume_push_actif`.
+
+Listes, notifications et abonnements sont dans l'export RGPD (`/moi/export` : clés `listes`,
+`notifications`, `notifications_push` sans le secret `auth` ; exporteur WordPress, groupe `yume-listes`)
+et effacés avec les données du membre ou son compte (`deleted_user`).
 
 `dbDelta` : deux espaces après `PRIMARY KEY`, une colonne par ligne. Le SQL doit fonctionner
 sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développement local). Les tests tournent sur les deux moteurs
@@ -683,6 +839,19 @@ il télécharge une copie anonyme (`credentials: 'omit'`). Aucun nonce, pseudo n
 dans le cache et rien n'est à vider à la déconnexion. Désactivation : réglage `pwa_hors_ligne` (§6) ou
 filtre `yume_pwa_actif` (bool) ; `/?yume_sw=1` sert alors un service worker qui vide les caches `yume-*`
 et se désinscrit, et les pages désinscrivent l'ancien.
+
+**Notifications navigateur dans le service worker (AMEL-06)** : `sw.js` gère aussi `push` et
+`notificationclick`. `self.YUME_SW_CONFIG` porte `horsLigneActif`, `notifications` (URL de
+`GET /yume/v1/moi/notifications?non_lues=1&limite=1`), `site` et `icone`. À un push (sans charge utile),
+le service worker demande cette URL (`credentials: 'include'`, `cache: 'no-store'`, en-têtes
+`X-Yume-Push-Endpoint` et `X-Yume-Push-Auth` tirés de `pushManager.getSubscription()`), affiche la
+notification (titre = nom du site, corps = titre de la notification, `tag` `yume-{id}` ; texte générique
+si la requête échoue) ; un clic ouvre son adresse si elle est de même origine, sinon l'accueil. Rien n'est
+mis en cache. Lecture hors ligne désactivée mais notifications actives : `/?yume_sw=1` sert le même
+fichier avec `horsLigneActif: false` (aucune interception, caches `yume-*` vidés) et les pages ne
+désinscrivent plus le service worker. L'abonnement est demandé depuis la rubrique « Notifications » du
+compte (`blocks/auth-links/view.js`, attribut `data-yn-push` : clé, URL et portée du service worker,
+empreintes des abonnements du membre).
 
 Attribut `html[data-yn-theme]` = `nuit` (défaut) \| `papier` \| `sepia`, posé avant le premier rendu
 par un script en ligne du thème (pas de flash). Variables du lecteur, posées sur `.yn-reader` :

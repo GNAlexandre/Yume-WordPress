@@ -18,7 +18,9 @@
  *
  * Désactivation : réglage Yume → Réglages « Lecture hors ligne » (pwa_hors_ligne) ou filtre
  * yume_pwa_actif. Désactivé, /?yume_sw=1 sert un service worker qui vide les caches Yume et se
- * désinscrit, et les pages désinscrivent l'ancien service worker.
+ * désinscrit, et les pages désinscrivent l'ancien service worker — sauf si les notifications
+ * navigateur (includes/social/push.php) sont actives : le même service worker est alors servi
+ * sans lecture hors ligne (horsLigneActif = false), pour ses seuls gestionnaires push.
  *
  * @package Yume\Core
  */
@@ -71,6 +73,13 @@ function champ_reglage_pwa( $champs ): array {
 	return $champs;
 }
 add_filter( 'yume_reglages_champs', __NAMESPACE__ . '\\champ_reglage_pwa' );
+
+/**
+ * Les notifications navigateur (Web Push, module lecteurs) ont-elles besoin du service worker ?
+ */
+function push_actif_sw(): bool {
+	return function_exists( '\Yume\Core\Social\push_actif' ) && \Yume\Core\Social\push_actif();
+}
 
 /**
  * Chemin de la racine du site (« / » ou « /sous-dossier/ »).
@@ -163,15 +172,26 @@ function configuration_sw(): array {
 	 */
 	$max = (int) apply_filters( 'yume_pwa_max_chapitres', PWA_MAX_CHAPITRES );
 	return array(
-		'version'      => YUME_CORE_VERSION,
-		'base'         => $base,
-		'lecture'      => $base . 'lire/',
-		'horsLigne'    => $base . '?' . QV_HORS_LIGNE . '=1',
-		'systeme'      => chemins_systeme(),
-		'exclus'       => chemins_exclus(),
-		'statiques'    => array_values( array_unique( array_filter( $statiques, static fn( $c ) => '/' !== $c ) ) ),
-		'maxChapitres' => max( 1, min( 200, $max ) ),
-		'maxStatiques' => 120,
+		'version'        => YUME_CORE_VERSION,
+		'base'           => $base,
+		'lecture'        => $base . 'lire/',
+		'horsLigne'      => $base . '?' . QV_HORS_LIGNE . '=1',
+		'systeme'        => chemins_systeme(),
+		'exclus'         => chemins_exclus(),
+		'statiques'      => array_values( array_unique( array_filter( $statiques, static fn( $c ) => '/' !== $c ) ) ),
+		'maxChapitres'   => max( 1, min( 200, $max ) ),
+		'maxStatiques'   => 120,
+		// Notifications navigateur (push.php) : dernière notification non lue, titre, icône.
+		'horsLigneActif' => pwa_actif(),
+		'notifications'  => add_query_arg(
+			array(
+				'non_lues' => '1',
+				'limite'   => '1',
+			),
+			rest_url( 'yume/v1/moi/notifications' )
+		),
+		'site'           => wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES ),
+		'icone'          => icones_manifeste()[0]['src'] ?? '',
 	);
 }
 
@@ -180,7 +200,7 @@ function configuration_sw(): array {
  * désactivée, un service worker qui vide les caches Yume et se désinscrit.
  */
 function contenu_sw(): string {
-	if ( ! pwa_actif() ) {
+	if ( ! pwa_actif() && ! push_actif_sw() ) {
 		return "/* Yume Novel : lecture hors ligne désactivée. */\n"
 			. "self.addEventListener('install',function(){self.skipWaiting();});\n"
 			. "self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(n){return Promise.all(n.filter(function(x){return x.indexOf('yume-')===0;}).map(function(x){return caches.delete(x);}));}).then(function(){return self.registration.unregister();}));});\n";
@@ -423,6 +443,9 @@ add_action( 'wp_head', __NAMESPACE__ . '\\entete_pwa', 3 );
 function script_pwa(): void {
 	if ( is_admin() || is_feed() || is_embed() ) {
 		return;
+	}
+	if ( ! pwa_actif() && push_actif_sw() ) {
+		return; // Service worker gardé pour les notifications navigateur (sans cache).
 	}
 	if ( ! pwa_actif() ) {
 		$script = '(function(){if(!("serviceWorker" in navigator)){return;}navigator.serviceWorker.getRegistrations().then(function(l){l.forEach(function(r){var w=r.active||r.waiting||r.installing;if(w&&w.scriptURL.indexOf("' . QV_SW . '=1")>-1){try{w.postMessage({type:"yume-vider"});}catch(e){}r.unregister();}});}).catch(function(){});}());';

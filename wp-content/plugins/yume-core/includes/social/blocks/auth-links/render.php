@@ -10,4 +10,5 @@
 
 defined( 'ABSPATH' ) || exit;
 
-echo \Yume\Core\Social\rendu_auth_links(); // phpcs:ignore WordPress.Security.EscapeOutput -- HTML échappé à la construction.
+// Cloche des notifications (notifications-lecteur.php) : membres connectés seulement.
+echo \Yume\Core\Social\inserer_cloche( \Yume\Core\Social\rendu_auth_links() ); // phpcs:ignore WordPress.Security.EscapeOutput -- HTML échappé à la construction.

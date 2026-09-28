@@ -439,6 +439,12 @@ function texte_changement( $ligne, bool $equipe ): string {
 			/* translators: %s : rôles manquants */
 			return sprintf( __( 'signalé aux gérants : %s', 'yume-core' ), $manquant ? implode( ', ', $manquant ) : __( 'tome bloqué', 'yume-core' ) );
 
+		case 'glossaire':
+			// Module glossaire (import d'un glossaire d'œuvre) : équipe seulement.
+			$infos = is_array( $nouveau ) ? $nouveau : array();
+			/* translators: 1: titre de l'œuvre, 2: nombre d'entrées */
+			return $equipe ? sprintf( _n( 'a mis à jour le glossaire de « %1$s » (%2$d entrée)', 'a mis à jour le glossaire de « %1$s » (%2$d entrées)', max( 1, (int) ( $infos['entrees'] ?? 0 ) ), 'yume-core' ), (string) ( $infos['titre'] ?? '' ), (int) ( $infos['entrees'] ?? 0 ) ) : '';
+
 		case 'digest':
 			$infos = is_array( $nouveau ) ? $nouveau : array();
 			return sprintf(

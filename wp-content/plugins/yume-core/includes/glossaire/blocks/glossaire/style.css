@@ -1,0 +1,321 @@
+/**
+ * yume/glossaire — glossaire public d'une œuvre (modèle « Œuvre — Glossaire » du thème).
+ * Cartes sur une colonne (mobile), deux (tablette et bureau) ; sommaire en pastilles.
+ */
+.yn-glossaire {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	margin-block: 24px 48px;
+}
+
+.yn-glossaire > *,
+.yn-glossaire [hidden] {
+	margin: 0;
+}
+
+.yn-glossaire [hidden] {
+	display: none !important;
+}
+
+.yn-glossaire__tete {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.yn-glossaire__tete > * {
+	margin: 0;
+}
+
+.yn-glossaire__titre {
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: var(--wp--preset--font-size--tres-grand);
+	line-height: 1.2;
+}
+
+.yn-glossaire__intro {
+	max-width: 70ch;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-glossaire__equipe {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 6px !important;
+}
+
+/* Recherche et filtre. */
+.yn-glossaire__outils {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px 16px;
+	padding: 16px;
+}
+
+.yn-glossaire__outils > * {
+	margin: 0;
+}
+
+.yn-glossaire__champ {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.yn-glossaire__champ--recherche {
+	flex: 1 1 260px;
+}
+
+.yn-glossaire__champ input,
+.yn-glossaire__champ select {
+	width: 100%;
+}
+
+.yn-glossaire__champ label {
+	font-size: 13px;
+}
+
+.yn-glossaire__compte {
+	flex-basis: 100%;
+	min-height: 1.4em;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 14px;
+}
+
+.yn-glossaire__compte:empty {
+	min-height: 0;
+}
+
+/* Sommaire. */
+.yn-glossaire__sommaire ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-glossaire__sommaire li {
+	margin: 0;
+}
+
+.yn-glossaire__sommaire a {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 36px;
+	padding: 4px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: 18px;
+	background: var(--wp--preset--color--bande);
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.yn-glossaire__sommaire a:hover {
+	border-color: var(--wp--preset--color--accent);
+}
+
+.yn-glossaire__nb {
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--mono);
+	font-size: 12px;
+	font-weight: 500;
+}
+
+/* Catégories et entrées. */
+.yn-glossaire__categorie {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	scroll-margin-top: 90px;
+}
+
+.yn-glossaire__categorie > * {
+	margin: 0;
+}
+
+.yn-glossaire__categorie > h2 {
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: var(--wp--preset--font-size--grand);
+	line-height: 1.3;
+}
+
+.yn-glossaire__entrees {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+@media (min-width: 782px) {
+	.yn-glossaire__entrees {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.yn-glossaire__entree {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 16px 18px;
+}
+
+.yn-glossaire__entree > * {
+	margin: 0;
+}
+
+.yn-glossaire__entree--a-definir {
+	border-style: dashed;
+	border-color: var(--wp--preset--color--avertissement);
+}
+
+.yn-glossaire__entete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+}
+
+.yn-glossaire__nom {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: var(--wp--preset--font-size--moyen);
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.yn-glossaire__vo {
+	color: var(--wp--preset--color--accent-2);
+	font-size: 15px;
+	overflow-wrap: anywhere;
+}
+
+.yn-glossaire__gram {
+	font-size: 13px;
+	font-style: italic;
+}
+
+.yn-glossaire__role {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+}
+
+.yn-glossaire__description {
+	color: var(--wp--preset--color--texte);
+	font-size: 15px;
+	line-height: 1.55;
+}
+
+.yn-glossaire__spoiler summary {
+	display: inline-flex;
+	align-items: center;
+	min-height: 32px;
+	color: var(--wp--preset--color--accent);
+	font-size: 14px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.yn-glossaire__spoiler[open] summary {
+	margin-bottom: 6px;
+}
+
+.yn-glossaire__spoiler > p {
+	margin: 0 0 6px;
+}
+
+/* Notes de traduction (équipe). */
+.yn-glossaire__notes {
+	display: grid;
+	gap: 4px;
+	margin: 6px 0 0 !important;
+	padding: 10px 12px;
+	border-left: 3px solid var(--wp--preset--color--accent);
+	border-radius: 4px;
+	background: var(--wp--preset--color--bande);
+	font-size: 13px;
+}
+
+.yn-glossaire__notes > div {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 8px;
+}
+
+.yn-glossaire__notes dt {
+	color: var(--wp--preset--color--texte-faible);
+	font-weight: 700;
+}
+
+.yn-glossaire__notes dt::after {
+	content: " :";
+}
+
+.yn-glossaire__notes dd {
+	margin: 0;
+	color: var(--wp--preset--color--texte);
+	overflow-wrap: anywhere;
+}
+
+.yn-glossaire__notes del {
+	color: var(--wp--preset--color--erreur);
+}
+
+/* Anglicismes. */
+.yn-glossaire__tableau {
+	max-width: 100%;
+	overflow-x: auto;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card, 12px);
+	background: var(--wp--preset--color--carte);
+}
+
+.yn-glossaire__tableau table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 15px;
+}
+
+.yn-glossaire__tableau caption {
+	padding: 12px 16px 4px;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 13px;
+	text-align: left;
+}
+
+.yn-glossaire__tableau th,
+.yn-glossaire__tableau td {
+	padding: 10px 16px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	text-align: left;
+	vertical-align: top;
+}
+
+.yn-glossaire__tableau th {
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 13px;
+}
+
+.yn-glossaire__tableau td:first-child {
+	color: var(--wp--preset--color--accent-2);
+}
+
+.yn-glossaire__vide {
+	padding: 16px;
+}

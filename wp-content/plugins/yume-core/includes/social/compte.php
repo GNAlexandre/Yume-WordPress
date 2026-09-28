@@ -4,8 +4,8 @@
  * page-large affichant déjà le titre de la page en <h1>).
  *
  * - Connecté : navigation par rubriques (onglets accessibles avec JavaScript, sections
- *   empilées et ancres sans JavaScript) : Lecture en cours, Mes statistiques, Favoris et alertes, Notes et
- *   commentaires, Réglages de lecture, Alertes, Profil et sécurité, Données et suppression.
+ *   empilées et ancres sans JavaScript) : Lecture en cours, Mes statistiques, Favoris et alertes, Mes
+ *   listes (listes.php), Notifications (notifications-lecteur.php), Notes et commentaires, Réglages de lecture, Alertes, Profil et sécurité, Données et suppression.
  * - Déconnecté : connexion (wp_login_form), mot de passe oublié et inscription en façade.
  *
  * @package Yume\Core
@@ -23,15 +23,17 @@ defined( 'ABSPATH' ) || exit;
  */
 function rubriques_compte( int $nb_favoris = 0 ): array {
 	return array(
-		'yn-lecture'  => __( 'Lecture en cours', 'yume-core' ),
-		'yn-stats'    => __( 'Mes statistiques', 'yume-core' ),
+		'yn-lecture'       => __( 'Lecture en cours', 'yume-core' ),
+		'yn-stats'         => __( 'Mes statistiques', 'yume-core' ),
 		/* translators: %d : nombre de favoris. */
-		'yn-favoris'  => $nb_favoris > 0 ? sprintf( __( 'Favoris et alertes (%d)', 'yume-core' ), $nb_favoris ) : __( 'Favoris et alertes', 'yume-core' ),
-		'yn-notes'    => __( 'Notes et commentaires', 'yume-core' ),
-		'yn-reglages' => __( 'Réglages de lecture', 'yume-core' ),
-		'yn-alertes'  => __( 'Alertes', 'yume-core' ),
-		'yn-profil'   => __( 'Profil et sécurité', 'yume-core' ),
-		'yn-donnees'  => __( 'Données et suppression', 'yume-core' ),
+		'yn-favoris'       => $nb_favoris > 0 ? sprintf( __( 'Favoris et alertes (%d)', 'yume-core' ), $nb_favoris ) : __( 'Favoris et alertes', 'yume-core' ),
+		'yn-listes'        => __( 'Mes listes', 'yume-core' ),
+		'yn-notifications' => __( 'Notifications', 'yume-core' ),
+		'yn-notes'         => __( 'Notes et commentaires', 'yume-core' ),
+		'yn-reglages'      => __( 'Réglages de lecture', 'yume-core' ),
+		'yn-alertes'       => __( 'Alertes', 'yume-core' ),
+		'yn-profil'        => __( 'Profil et sécurité', 'yume-core' ),
+		'yn-donnees'       => __( 'Données et suppression', 'yume-core' ),
 	);
 }
 
@@ -208,7 +210,7 @@ function compte_connecte(): string {
 			}
 		)
 	);
-	$rubriques = rubriques_compte( count( $favoris ) );
+	$rubriques = rubriques_profil_public( rubriques_compte( count( $favoris ) ), $user_id );
 	$donnees   = array_merge( donnees_rest(), array( 'libelles' => libelles_frequences() ) );
 
 	$html  = '<div ' . attributs_racine(
@@ -240,10 +242,13 @@ function compte_connecte(): string {
 	$html .= section_lecture( $user_id );
 	$html .= section_statistiques( $user_id );
 	$html .= section_favoris( $user_id, $favoris );
+	$html .= section_listes( $user_id );
+	$html .= section_notifications( $user_id );
 	$html .= section_notes( $user_id );
 	$html .= section_reglages( $user_id );
 	$html .= section_alertes( $user_id );
 	$html .= section_profil( $user );
+	$html .= section_profil_public( $user );
 	$html .= section_donnees( $user );
 	$html .= '</div></div>';
 	$html .= '<p class="yn-visually-hidden" role="status" aria-live="polite" data-yn-annonce></p>';
@@ -563,7 +568,11 @@ function section_alertes( int $user_id ): string {
 			. '<span class="yn-muted" id="' . esc_attr( $id . '-aide' ) . '">' . esc_html( $option[1] ) . '</span></span>'
 			. '<input type="checkbox" role="switch" class="yn-interrupteur" id="' . esc_attr( $id ) . '" name="yn_' . esc_attr( $cle ) . '" value="1" aria-describedby="' . esc_attr( $id . '-aide' ) . '"' . checked( $prefs[ $cle ], true, false ) . '></label></li>';
 	}
-	$html .= '<li class="yn-account__interrupteur yn-account__interrupteur--bientot"><span class="yn-account__interrupteur-texte">' . esc_html__( 'Notifications navigateur (bientôt)', 'yume-core' ) . '</span>' . pastille( 'info', '◷', 'v2.1' ) . '</li>';
+	if ( push_actif() ) {
+		// Notifications navigateur (AMEL-06) : activées appareil par appareil (push.php).
+		$html .= '<li class="yn-account__interrupteur"><span class="yn-account__interrupteur-texte">' . esc_html__( 'Notifications navigateur', 'yume-core' )
+			. '<span class="yn-muted">' . esc_html__( 'À activer sur chaque appareil dans la rubrique', 'yume-core' ) . ' <a href="#yn-notifications">' . esc_html__( 'Notifications', 'yume-core' ) . '</a>.</span></span></li>';
+	}
 	$html .= '</ul><div class="yn-account__boutons"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Enregistrer les alertes', 'yume-core' ) . '</button></div></form>';
 	return $html . '</section>';
 }
@@ -619,12 +628,12 @@ function section_donnees( \WP_User $user ): string {
 	$export = add_query_arg( '_wpnonce', wp_create_nonce( 'wp_rest' ), rest_url( REST_NS . '/moi/export' ) );
 	$html  .= '<div class="yn-account__deux">'
 		. '<div class="yn-card yn-account__bloc"><h3 class="yn-account__sous-titre">' . esc_html__( 'Vos données', 'yume-core' ) . '</h3>'
-		. '<p>' . esc_html__( 'Nous conservons uniquement votre pseudo, votre adresse e-mail, vos favoris et alertes, vos notes, vos positions de lecture, vos réglages de lecture et vos commentaires.', 'yume-core' ) . '</p>'
+		. '<p>' . esc_html__( 'Nous conservons uniquement votre pseudo, votre adresse e-mail, vos favoris et alertes, vos listes de lecture, vos notifications, vos notes, vos positions de lecture, vos réglages de lecture et vos commentaires.', 'yume-core' ) . '</p>'
 		. '<p><a class="yn-btn" href="' . esc_url( $export ) . '" download>' . esc_html__( 'Télécharger mes données (JSON)', 'yume-core' ) . '</a></p></div>';
 
 	$html .= '<div class="yn-card yn-account__bloc yn-account__danger"><h3 class="yn-account__sous-titre">' . esc_html__( 'Supprimer mon compte', 'yume-core' ) . '</h3>';
 	if ( peut_supprimer_compte( (int) $user->ID ) ) {
-		$html .= '<p>' . esc_html__( 'La suppression est définitive : vos favoris, notes, positions, réglages et préférences sont effacés ; vos commentaires restent publiés mais anonymisés.', 'yume-core' ) . '</p>'
+		$html .= '<p>' . esc_html__( 'La suppression est définitive : vos favoris, listes, notifications, notes, positions, réglages et préférences sont effacés ; vos commentaires restent publiés mais anonymisés.', 'yume-core' ) . '</p>'
 			. '<form class="yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 			. '<input type="hidden" name="action" value="yume_compte_supprimer">'
 			. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'

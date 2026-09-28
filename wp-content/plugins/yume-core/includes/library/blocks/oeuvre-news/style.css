@@ -1,0 +1,90 @@
+/**
+ * yume/oeuvre-news — actualités d'une œuvre. Les cartes reprennent celles de la page
+ * Actualités du thème (.yn-card.yn-carte-article) ; l'intitulé reprend celui de yume/tome-list.
+ */
+.yn-oeuvre-news {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.yn-oeuvre-news > * {
+	margin: 0;
+}
+
+.yn-oeuvre-news__tete {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 24px;
+	align-items: flex-end;
+	justify-content: space-between;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-oeuvre-news .yn-oeuvre-news__titre {
+	margin: 0 0 -1px;
+	padding: 10px 4px;
+	border-bottom: 2px solid var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.5;
+	letter-spacing: 0;
+}
+
+.yn-oeuvre-news__tout {
+	padding: 10px 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.yn-oeuvre-news .yn-oeuvre-news__grille {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+	gap: 24px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-oeuvre-news__item {
+	margin: 0;
+}
+
+.yn-oeuvre-news .yn-carte-article__corps {
+	display: flex;
+	flex-direction: column;
+}
+
+.yn-oeuvre-news .yn-carte-article__image img {
+	display: block;
+}
+
+.yn-oeuvre-news__vide {
+	margin: 0;
+}
+
+/*
+ * Encart sur la fiche en deux colonnes (voir yume/oeuvre-infos et yume/oeuvre-onglets) : juste
+ * après le sommaire des tomes, avant les commentaires et les infos.
+ */
+@media (min-width: 1000px) {
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-oeuvre-news) > .yn-oeuvre-news {
+		grid-row: 2;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-oeuvre-news) > .yn-fiche__commentaires,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-oeuvre-news) > .yn-oeuvre-infos {
+		grid-row: 3;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-oeuvre-news) > .yn-oeuvre-news {
+		grid-row: 3;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-oeuvre-news) > .yn-fiche__commentaires,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-oeuvre-news) > .yn-oeuvre-infos {
+		grid-row: 4;
+	}
+}

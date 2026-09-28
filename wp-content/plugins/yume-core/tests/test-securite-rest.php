@@ -101,10 +101,28 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			'PATCH /yume/v1/moi/alertes/(?P<oeuvre>\d+)'  => 'connectes',
 			'GET /yume/v1/moi/export'                     => 'connectes',
 
+			// Listes de lecture, notifications du lecteur et Web Push (lot P3-D, includes/social).
+			'GET /yume/v1/moi/listes'                     => 'connectes',
+			'POST /yume/v1/moi/listes'                    => 'connectes',
+			'PATCH /yume/v1/moi/listes/(?P<id>\d+)'       => 'connectes',
+			'DELETE /yume/v1/moi/listes/(?P<id>\d+)'      => 'connectes',
+			'PUT /yume/v1/moi/listes/(?P<id>\d+)/oeuvres/(?P<oeuvre>\d+)' => 'connectes',
+			'DELETE /yume/v1/moi/listes/(?P<id>\d+)/oeuvres/(?P<oeuvre>\d+)' => 'connectes',
+			'GET /yume/v1/moi/notifications'              => 'connectes',
+			'POST /yume/v1/moi/notifications/lues'        => 'connectes',
+			'POST /yume/v1/moi/push'                      => 'connectes',
+			'DELETE /yume/v1/moi/push'                    => 'connectes',
+			'GET /yume/v1/push/cle'                       => 'publique',
+
 			// Migration (includes/migration) : administrateur seulement (manage_options).
 			'GET /yume/v1/migration'                      => array( 'administrateur' ),
 			'POST /yume/v1/migration/executer'            => array( 'administrateur' ),
 			'POST /yume/v1/migration/annuler'             => array( 'administrateur' ),
+			'GET /yume/v1/suggestions'                    => 'publique', // Recherche (includes/library/recherche-rest.php).
+
+			// Glossaire (includes/glossaire/rest.php) : capacité yume_glossaire.
+			'GET /yume/v1/oeuvres/(?P<oeuvre>[\w-]+)/glossaire' => $equipe_planning,
+			'POST /yume/v1/oeuvres/(?P<oeuvre>[\w-]+)/glossaire' => $equipe_planning,
 		);
 	}
 

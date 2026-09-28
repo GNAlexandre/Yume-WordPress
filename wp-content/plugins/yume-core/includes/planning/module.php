@@ -29,3 +29,4 @@ require_once __DIR__ . '/reglages-equipe.php';
 require_once __DIR__ . '/lecture-a-completer.php';
 require_once __DIR__ . '/kpi.php';
 require_once __DIR__ . '/membres.php';
+require_once __DIR__ . '/recrutement.php';

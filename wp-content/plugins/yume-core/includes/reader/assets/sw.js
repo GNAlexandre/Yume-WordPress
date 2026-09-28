@@ -22,6 +22,15 @@
  *   ligne, ces pages affichent la page « Hors ligne ».
  * - Limite : CONFIG.maxChapitres pages de lecture (30 par défaut), la moins récemment
  *   consultée est retirée en premier (LRU) ; CONFIG.maxStatiques ressources.
+ * - Lecture hors ligne désactivée mais notifications navigateur actives
+ *   (CONFIG.horsLigneActif === false) : aucune requête interceptée, caches Yume vidés ; seuls
+ *   les gestionnaires push et notificationclick restent.
+ *
+ * Notifications navigateur (AMEL-06, includes/social/push.php) : les push arrivent SANS charge
+ * utile. À l'événement « push », le service worker demande la dernière notification non lue
+ * (CONFIG.notifications = GET /yume/v1/moi/notifications?non_lues=1&limite=1, cookies inclus,
+ * en-têtes X-Yume-Push-Endpoint et X-Yume-Push-Auth tirés de l'abonnement, cache « no-store » :
+ * rien n'est mis en cache) et l'affiche ; un clic ouvre son adresse (même origine seulement).
  *
  * JavaScript sans étape de build (ES2019), sans dépendance.
  */
@@ -40,6 +49,7 @@
 	const LECTURE = String( CONFIG.lecture || '/lire/' );
 	const HORS_LIGNE = String( CONFIG.horsLigne || '/?yume_hors_ligne=1' );
 	const MARQUEUR = /<meta\s+name=["']yume-hors-ligne["']\s+content=["']lecture["']/i;
+	const HORS_LIGNE_ACTIF = CONFIG.horsLigneActif !== false;
 
 	const BASE = String( CONFIG.base || '/' );
 	function prefixer( chemin ) {
@@ -268,6 +278,10 @@
 	/* ------------------------------------------------------------------ */
 
 	self.addEventListener( 'install', function ( evenement ) {
+		if ( ! HORS_LIGNE_ACTIF ) {
+			evenement.waitUntil( self.skipWaiting() );
+			return;
+		}
 		evenement.waitUntil(
 			caches.open( CACHE_SECOURS ).then( function ( cache ) {
 				return fetch( HORS_LIGNE, { credentials: 'omit' } ).then( function ( reponse ) {
@@ -284,7 +298,7 @@
 			caches.keys().then( function ( noms ) {
 				return Promise.all(
 					noms.filter( function ( nom ) {
-						return nom.indexOf( PREFIXE ) === 0 && [ CACHE_LECTURE, CACHE_STATIQUE, CACHE_SECOURS ].indexOf( nom ) < 0;
+						return nom.indexOf( PREFIXE ) === 0 && ( ! HORS_LIGNE_ACTIF || [ CACHE_LECTURE, CACHE_STATIQUE, CACHE_SECOURS ].indexOf( nom ) < 0 );
 					} ).map( function ( nom ) {
 						return caches.delete( nom );
 					} )
@@ -297,7 +311,7 @@
 
 	self.addEventListener( 'fetch', function ( evenement ) {
 		const requete = evenement.request;
-		if ( requete.method !== 'GET' ) {
+		if ( ! HORS_LIGNE_ACTIF || requete.method !== 'GET' ) {
 			return;
 		}
 		let url;
@@ -344,7 +358,7 @@
 			);
 			return;
 		}
-		if ( donnees.type !== 'yume-memoriser' ) {
+		if ( donnees.type !== 'yume-memoriser' || ! HORS_LIGNE_ACTIF ) {
 			return;
 		}
 		const pages = ( Array.isArray( donnees.pages ) ? donnees.pages : [] ).slice( 0, 3 ).map( function ( brute ) {
@@ -373,6 +387,85 @@
 					evenement.source.postMessage( { type: 'yume-memorise' } );
 				}
 			} ).catch( function () {} )
+		);
+	} );
+
+	/* ------------------------------------------------------------------ */
+	/* Notifications navigateur (push sans charge utile)                   */
+	/* ------------------------------------------------------------------ */
+
+	const NOTIFICATIONS = String( CONFIG.notifications || '' );
+	const TITRE_SITE = String( CONFIG.site || 'Yume Novel' );
+
+	/** Adresse de même origine, sinon l'accueil du site. */
+	function urlLocale( brute ) {
+		try {
+			const url = new URL( String( brute || BASE ), self.location.href );
+			return url.origin === self.location.origin ? url.href : new URL( BASE, self.location.href ).href;
+		} catch ( e ) {
+			return BASE;
+		}
+	}
+
+	/**
+	 * Dernière notification non lue du membre abonné. Requête authentifiée (cookies et
+	 * abonnement de l'appareil), jamais mise en cache.
+	 */
+	function derniereNotification() {
+		const defaut = { titre: 'Du nouveau sur ' + TITRE_SITE, url: BASE, tag: 'yume-notification' };
+		if ( ! NOTIFICATIONS ) {
+			return Promise.resolve( defaut );
+		}
+		return self.registration.pushManager.getSubscription().then( function ( abonnement ) {
+			const entetes = { Accept: 'application/json' };
+			if ( abonnement ) {
+				const json = abonnement.toJSON();
+				entetes[ 'X-Yume-Push-Endpoint' ] = abonnement.endpoint;
+				entetes[ 'X-Yume-Push-Auth' ] = ( json.keys && json.keys.auth ) || '';
+			}
+			return fetch( NOTIFICATIONS, { credentials: 'include', cache: 'no-store', headers: entetes } );
+		} ).then( function ( reponse ) {
+			return reponse.ok ? reponse.json() : null;
+		} ).then( function ( donnees ) {
+			const notification = donnees && Array.isArray( donnees.notifications ) ? donnees.notifications[ 0 ] : null;
+			if ( ! notification ) {
+				return defaut;
+			}
+			return { titre: String( notification.titre || defaut.titre ), url: notification.url, tag: 'yume-' + notification.id };
+		} ).catch( function () {
+			return defaut;
+		} );
+	}
+
+	self.addEventListener( 'push', function ( evenement ) {
+		evenement.waitUntil(
+			derniereNotification().then( function ( notification ) {
+				const options = {
+					body: notification.titre,
+					tag: notification.tag,
+					data: { url: urlLocale( notification.url ) },
+					lang: 'fr',
+				};
+				if ( CONFIG.icone ) {
+					options.icon = String( CONFIG.icone );
+				}
+				return self.registration.showNotification( TITRE_SITE, options );
+			} )
+		);
+	} );
+
+	self.addEventListener( 'notificationclick', function ( evenement ) {
+		evenement.notification.close();
+		const cible = urlLocale( evenement.notification.data && evenement.notification.data.url );
+		evenement.waitUntil(
+			self.clients.matchAll( { type: 'window', includeUncontrolled: true } ).then( function ( fenetres ) {
+				for ( let i = 0; i < fenetres.length; i++ ) {
+					if ( fenetres[ i ].url === cible && 'focus' in fenetres[ i ] ) {
+						return fenetres[ i ].focus();
+					}
+				}
+				return self.clients.openWindow ? self.clients.openWindow( cible ) : null;
+			} )
 		);
 	} );
 }() );

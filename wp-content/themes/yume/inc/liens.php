@@ -48,6 +48,10 @@ function yume_theme_definitions_liens(): array {
 		'equipe'        => array(
 			'chemin' => 'lequipe',
 		),
+		'rejoindre'     => array(
+			'option' => 'rejoindre',
+			'chemin' => 'rejoindre-l-equipe',
+		),
 		'la-yume-novel' => array(
 			'chemin' => 'la-yume-novel',
 		),

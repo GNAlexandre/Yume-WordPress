@@ -1193,7 +1193,7 @@ yume_test(
 );
 
 yume_test(
-	'bloc account (membre) : huit rubriques en h2 (dont Mes statistiques), favoris, alertes, suppression selon le profil',
+	'bloc account (membre) : dix rubriques en h2 (dont Mes statistiques), favoris, alertes, suppression selon le profil',
 	function () {
 		$s = yume_ts_oeuvre( 1 );
 		$u = yume_ts_membre();
@@ -1201,11 +1201,12 @@ yume_test(
 		wp_set_current_user( $u );
 		$html = yume_render_block( 'yume/account' );
 		wp_set_current_user( 0 );
-		foreach ( array( 'yn-lecture', 'yn-stats', 'yn-favoris', 'yn-notes', 'yn-reglages', 'yn-alertes', 'yn-profil', 'yn-donnees' ) as $ancre ) {
+		// Dix rubriques depuis le lot P3-D (Mes listes, Notifications).
+		foreach ( array( 'yn-lecture', 'yn-stats', 'yn-favoris', 'yn-listes', 'yn-notifications', 'yn-notes', 'yn-reglages', 'yn-alertes', 'yn-profil', 'yn-donnees' ) as $ancre ) {
 			yume_assert_contains( 'id="' . $ancre . '"', $html );
 			yume_assert_contains( 'href="#' . $ancre . '"', $html );
 		}
-		yume_assert_same( 8, substr_count( $html, '<h2 ' ) );
+		yume_assert_same( 10, substr_count( $html, '<h2 ' ) );
 		yume_assert_not_contains( '<h1', $html );
 		yume_assert_contains( 'Favoris et alertes (1)', $html );
 		yume_assert_contains( 'data-yn-frequence', $html );

@@ -10,4 +10,5 @@
 
 defined( 'ABSPATH' ) || exit;
 
-echo \Yume\Core\Social\rendu_oeuvre_actions( (array) $attributes, $block ?? null ); // phpcs:ignore WordPress.Security.EscapeOutput -- HTML échappé à la construction.
+// Menu « Ajouter à une liste » (listes.php) inséré à côté de Favori et Alerte.
+echo \Yume\Core\Social\inserer_menu_listes( \Yume\Core\Social\rendu_oeuvre_actions( (array) $attributes, $block ?? null ), $block ?? null ); // phpcs:ignore WordPress.Security.EscapeOutput -- HTML échappé à la construction.

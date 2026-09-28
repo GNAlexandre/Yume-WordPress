@@ -1,0 +1,110 @@
+/**
+ * Suggestions instantanées du champ de recherche de l'en-tête (AMEL-04) : panneau sous le
+ * champ, options avec miniature de couverture, option active surlignée.
+ */
+.yn-nav__recherche {
+	position: relative;
+}
+
+.yn-suggest {
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: 200;
+	width: min(380px, calc(100vw - 32px));
+	max-height: min(70vh, 480px);
+	overflow-y: auto;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius-card);
+	background: var(--wp--preset--color--carte);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.yn-suggest[hidden] {
+	display: none;
+}
+
+.yn-suggest .yn-suggest__liste {
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+}
+
+.yn-suggest .yn-suggest__option {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	margin: 0;
+	padding: 6px 8px;
+	border-radius: var(--yn-radius);
+	color: var(--wp--preset--color--texte);
+	cursor: pointer;
+}
+
+.yn-suggest .yn-suggest__option:hover,
+.yn-suggest .yn-suggest__option.is-active {
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-suggest .yn-suggest__option.is-active {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: -2px;
+}
+
+.yn-suggest__vignette {
+	flex: 0 0 32px;
+	width: 32px;
+	height: 48px;
+	border-radius: 4px;
+	background: var(--yn-degrade-couverture);
+	object-fit: cover;
+}
+
+.yn-suggest__texte {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.yn-suggest__titre {
+	overflow: hidden;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.3;
+	text-overflow: ellipsis;
+}
+
+.yn-suggest__detail {
+	overflow: hidden;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.yn-suggest .yn-suggest__option--tout {
+	margin-top: 4px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	border-radius: 0 0 var(--yn-radius) var(--yn-radius);
+	color: var(--wp--preset--color--accent);
+	font-size: 13px;
+}
+
+.yn-suggest .yn-suggest__option--tout .yn-suggest__titre {
+	font-size: 13px;
+}
+
+/* Menu mobile ouvert : le panneau suit le champ, pleine largeur. */
+.wp-block-navigation__responsive-container.is-menu-open .yn-suggest {
+	position: static;
+	width: 100%;
+	margin-top: 6px;
+	box-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.yn-suggest .yn-suggest__option {
+		transition: background-color 0.1s ease;
+	}
+}

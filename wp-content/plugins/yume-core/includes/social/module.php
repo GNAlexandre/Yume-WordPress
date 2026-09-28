@@ -27,3 +27,7 @@ require_once __DIR__ . '/blocs.php';
 require_once __DIR__ . '/compte.php';
 require_once __DIR__ . '/lignes-tomes.php';
 require_once __DIR__ . '/moderation.php';
+require_once __DIR__ . '/profil-public.php';
+require_once __DIR__ . '/listes.php';
+require_once __DIR__ . '/notifications-lecteur.php';
+require_once __DIR__ . '/push.php';

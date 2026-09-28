@@ -1,0 +1,81 @@
+/**
+ * yume/oeuvre-onglets — onglets de la fiche d'une œuvre (Présentation, Actualités, Glossaire…),
+ * même dessin que l'intitulé de yume/tome-list : filet sous la rangée, onglet affiché souligné
+ * de la couleur d'accent. Sur mobile, la rangée défile horizontalement (sans barre visible)
+ * au lieu d'élargir la page.
+ */
+.yn-onglets-oeuvre {
+	max-width: 100%;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
+	-webkit-overflow-scrolling: touch;
+}
+
+.yn-onglets-oeuvre::-webkit-scrollbar {
+	display: none;
+}
+
+.yn-onglets-oeuvre .yn-onglets-oeuvre__liste {
+	display: flex;
+	gap: 24px;
+	min-width: max-content;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	box-shadow: inset 0 -1px 0 var(--wp--preset--color--filet);
+}
+
+.yn-onglets-oeuvre__item {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+.yn-onglets-oeuvre .yn-onglets-oeuvre__lien {
+	display: block;
+	padding: 10px 4px;
+	border-bottom: 2px solid transparent;
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.5;
+	white-space: nowrap;
+	text-decoration: none;
+}
+
+.yn-onglets-oeuvre .yn-onglets-oeuvre__lien:hover {
+	border-bottom-color: var(--wp--preset--color--filet);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-onglets-oeuvre .yn-onglets-oeuvre__lien[aria-current="page"] {
+	border-bottom-color: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+/* La rangée défile : le contour de focus reste à l'intérieur pour ne pas être rogné. */
+.yn-onglets-oeuvre .yn-onglets-oeuvre__lien:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: -2px;
+}
+
+/*
+ * Fiche d'œuvre en deux colonnes (grille de .yn-fiche__corps posée par yume/oeuvre-infos au-delà
+ * de 1000 px, commentaires et infos en ligne 2) : les onglets prennent la ligne 1, le sommaire
+ * des tomes la 2 et les commentaires la 3 (l'encart yume/oeuvre-news décale d'une ligne).
+ */
+@media (min-width: 1000px) {
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre) > .yn-onglets-oeuvre {
+		grid-row: 1;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre) > .yn-tome-list {
+		grid-row: 2;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre) > .yn-fiche__commentaires,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre) > .yn-oeuvre-infos {
+		grid-row: 3;
+	}
+}

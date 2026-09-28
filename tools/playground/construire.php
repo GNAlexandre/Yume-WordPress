@@ -53,6 +53,11 @@ $yume_pg_pages = is_readable( __DIR__ . '/pages-institutionnelles.json' ) ? (str
 if ( '' !== trim( $yume_pg_pages ) ) {
 	$yume_pg_demo = preg_replace( '/^<\?php\n/', "<?php\n\$GLOBALS['yume_demo_pages_json'] = <<<'YUME_PAGES_JSON'\n" . rtrim( $yume_pg_pages ) . "\nYUME_PAGES_JSON;\n", $yume_pg_demo, 1 );
 }
+// Glossaire de démonstration (tools/fixtures/glossaire-exemple.yaml), recopié de même.
+$yume_pg_glossaire = is_readable( dirname( __DIR__ ) . '/fixtures/glossaire-exemple.yaml' ) ? (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/glossaire-exemple.yaml' ) : '';
+if ( '' !== trim( $yume_pg_glossaire ) ) {
+	$yume_pg_demo = preg_replace( '/^<\?php\n/', "<?php\n\$GLOBALS['yume_demo_glossaire_yaml'] = <<<'YUME_GLOSSAIRE_YAML'\n" . rtrim( $yume_pg_glossaire ) . "\nYUME_GLOSSAIRE_YAML;\n", $yume_pg_demo, 1 );
+}
 
 /**
  * Étapes qui installent et activent le plugin et le thème depuis des ressources (url ou git:directory).

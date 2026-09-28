@@ -2853,7 +2853,10 @@ yume_test(
 		$ajout = static fn( array $slugs ): array => array_merge( $slugs, array( 'onglet-essai', '123', 'feed' ) );
 		add_filter( 'yume_sous_pages_oeuvre', $ajout );
 		try {
-			yume_assert_same( array( 'onglet-essai' ), \Yume\Core\Core\onglets_oeuvre() );
+			// Les modules déclarent aussi les leurs (actualites, glossaire…) : seul l'ajout du test compte.
+			$onglets = \Yume\Core\Core\onglets_oeuvre();
+			yume_assert_true( in_array( 'onglet-essai', $onglets, true ) );
+			yume_assert_same( array(), array_values( array_intersect( array( '123', 'feed' ), $onglets ) ), 'slugs numériques et réservés écartés' );
 			// En production le filtre est posé avant init ; ici les règles Yume sont remises en tête.
 			$wp_rewrite->extra_rules_top = array_merge( \Yume\Core\Core\regles_reecriture(), array_diff_key( $wp_rewrite->extra_rules_top, \Yume\Core\Core\regles_reecriture() ) );
 			$wp_rewrite->flush_rules( false );

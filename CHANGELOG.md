@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.8 — 2026-09-28
+
+- Phase 3 nouvelles pages : glossaire par œuvre (format YAML de Yume-Trad, envoi ponctuel authentifié, téléversement et historique dans l'espace équipe, notes de traduction réservées à l'équipe) ; onglets de la fiche d'œuvre et actualités par œuvre ; page « Rejoindre l'équipe » et profils publics de contributeurs sur consentement ; listes de lecture, centre de notifications et notifications navigateur ; recherche avancée insensible aux accents avec suggestions (chapitres désactivés par défaut).
+
 ## 2.0.0-dev.7 — 2026-09-28
 
 - Routage : sous-pages d'œuvre /oeuvres/{oeuvre}/{onglet}/ déclarées par le filtre yume_sous_pages_oeuvre (préparation des actualités et du glossaire).

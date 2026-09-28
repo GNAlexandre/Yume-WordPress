@@ -215,6 +215,8 @@ yume_test(
 	function () {
 		yume_assert_true( pwa_actif(), 'actif par défaut' );
 		add_filter( 'yume_pwa_actif', '__return_false' );
+		// Notifications navigateur (lot P3-D) coupées aussi : sinon le service worker reste, sans cache.
+		add_filter( 'yume_push_actif', '__return_false' );
 		try {
 			yume_assert_false( pwa_actif() );
 			$js = contenu_sw();
@@ -227,6 +229,7 @@ yume_test(
 			yume_assert_same( '', yume_lp_sortie( 'Yume\Core\Reader\entete_pwa' ), 'pas de manifeste' );
 		} finally {
 			remove_filter( 'yume_pwa_actif', '__return_false' );
+			remove_filter( 'yume_push_actif', '__return_false' );
 		}
 		// Réglage Yume → Réglages « Lecture hors ligne ».
 		$avant = get_option( 'yume_reglages' );
