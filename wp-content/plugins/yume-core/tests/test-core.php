@@ -2845,3 +2845,50 @@ yume_test(
 		yume_assert_false( in_array( $url, $adresses, true ), 'page Illustrations absente du plan du site' );
 	}
 );
+
+yume_test(
+	'Sous-pages d’œuvre (yume_sous_pages_oeuvre) : /oeuvres/{o}/{onglet}/ avant les tomes, slug de tome réservé, gabarit dédié',
+	function () {
+		global $wp_rewrite;
+		$ajout = static fn( array $slugs ): array => array_merge( $slugs, array( 'onglet-essai', '123', 'feed' ) );
+		add_filter( 'yume_sous_pages_oeuvre', $ajout );
+		try {
+			yume_assert_same( array( 'onglet-essai' ), \Yume\Core\Core\onglets_oeuvre() );
+			// En production le filtre est posé avant init ; ici les règles Yume sont remises en tête.
+			$wp_rewrite->extra_rules_top = array_merge( \Yume\Core\Core\regles_reecriture(), array_diff_key( $wp_rewrite->extra_rules_top, \Yume\Core\Core\regles_reecriture() ) );
+			$wp_rewrite->flush_rules( false );
+
+			$oeuvre = yume_tc_oeuvre( 'Onglets' );
+			$slug   = get_post_field( 'post_name', $oeuvre );
+			yume_tc_tome( $oeuvre, 1 );
+
+			$requete = yume_tc_requete( home_url( '/oeuvres/' . $slug . '/onglet-essai/' ) );
+			yume_assert_true( $requete->is_singular( 'yume_oeuvre' ), 'sous-page = fiche de l’œuvre' );
+			yume_assert_same( $oeuvre, (int) $requete->get_queried_object_id() );
+			yume_assert_same( 'onglet-essai', $requete->get( 'yume_onglet' ) );
+
+			// Les tomes gardent leur adresse.
+			$tome = yume_tc_requete( home_url( '/oeuvres/' . $slug . '/tome-1/' ) );
+			yume_assert_true( $tome->is_singular( 'yume_tome' ), 'tome' );
+
+			yume_assert_same( 'onglet-essai-2', \Yume\Core\Core\slug_autorise( 'onglet-essai', 'yume_tome' ) );
+			yume_assert_same( 'onglet-essai', \Yume\Core\Core\slug_autorise( 'onglet-essai', 'yume_chapitre' ) );
+			yume_assert_same( trailingslashit( (string) get_permalink( $oeuvre ) ) . 'onglet-essai/', \Yume\Core\Core\url_onglet_oeuvre( $oeuvre, 'onglet-essai' ) );
+			yume_assert_same( '', \Yume\Core\Core\url_onglet_oeuvre( $oeuvre, 'inconnu' ) );
+
+			$GLOBALS['wp_query'] = $requete; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			yume_assert_same( 'onglet-essai', \Yume\Core\Core\onglet_oeuvre() );
+			yume_assert_same( array( 'single-yume_oeuvre-onglet-essai.php', 'single.php' ), \Yume\Core\Core\gabarit_onglet_oeuvre( array( 'single.php' ) ) );
+		} finally {
+			remove_filter( 'yume_sous_pages_oeuvre', $ajout );
+			foreach ( array_keys( $wp_rewrite->extra_rules_top ) as $motif ) {
+				if ( str_contains( $motif, 'onglet' ) ) {
+					unset( $wp_rewrite->extra_rules_top[ $motif ] );
+				}
+			}
+			$wp_rewrite->extra_rules_top = array_merge( \Yume\Core\Core\regles_reecriture(), array_diff_key( $wp_rewrite->extra_rules_top, \Yume\Core\Core\regles_reecriture() ) );
+			$wp_rewrite->flush_rules( false );
+			$GLOBALS['wp_query'] = $GLOBALS['wp_the_query']; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
+	}
+);

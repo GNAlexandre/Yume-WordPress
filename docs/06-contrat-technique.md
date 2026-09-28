@@ -72,6 +72,14 @@ Tous `show_in_rest => true`, `rest_base` = `oeuvres`, `tomes`, `chapitres`. `cap
 Le titre d'un tome est lisible seul (« Grimgar of Fantasy and Ash — Tome 9 ») ; celui d'un chapitre
 aussi (« Chapitre 1 — La Crête Brumeuse »).
 
+**Sous-pages d'une œuvre** (`includes/core/routing.php`) : `/oeuvres/{oeuvre}/{onglet}/`, déclarées
+par le filtre `yume_sous_pages_oeuvre` (liste de slugs, ni numériques ni réservés), règle placée
+avant celles des tomes ; un tome ne peut pas prendre l'un de ces slugs (`-2` ajouté). La requête est
+celle de la fiche (`is_singular( 'yume_oeuvre' )`) avec la variable publique `yume_onglet` ;
+`onglet_oeuvre(): string` (onglet affiché ou `''`), `url_onglet_oeuvre( int, string ): string` ;
+gabarit `single-yume_oeuvre-{onglet}` du thème en tête de hiérarchie. Le module qui déclare un
+onglet décide lui-même d'une 404 (œuvre sans contenu pour cet onglet).
+
 Taxonomies (sur `yume_oeuvre`, `show_in_rest`, hiérarchiques pour type/statut) :
 
 | Taxonomie | Termes créés à l'installation (slug : nom) |

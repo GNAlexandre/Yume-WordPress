@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.7 — 2026-09-28
+
+- Routage : sous-pages d'œuvre /oeuvres/{oeuvre}/{onglet}/ déclarées par le filtre yume_sous_pages_oeuvre (préparation des actualités et du glossaire).
+
 ## 2.0.0-dev.6 — 2026-09-28
 
 - Phase 2 améliorations : flux ICS du planning, calendrier mensuel et RSS par œuvre ; vue Indicateurs et page Santé (crons, e-mails, test Discord) ; pause d'un tome, tri « en retard d'abord », export CSV, rappels plafonnés ; signalement et modération des commentaires, badge Équipe ; lecture hors ligne, police OpenDyslexic, contraste renforcé, statistiques de lecture ; matrice de sécurité REST, DOCX et EPUB piégés, axe-core en CI ; lecteur YAML pour le glossaire.
