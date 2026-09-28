@@ -1035,3 +1035,28 @@ YAML;
 		yume_assert_not_contains( 'SABREUR', $carte, 'terme VO identique au nom (casse près) non répété' );
 	}
 );
+
+yume_test(
+	'Lecteur YAML en temps linéaire : chaînes entre guillemets et listes en ligne sur des milliers de lignes (pas de déni de service par le CPU)',
+	function () {
+		$cas = array(
+			'guillemets'     => 't: "' . str_repeat( "abcdefghi\n", 40000 ) . "\"\n",
+			'apostrophes'    => "t: '" . str_repeat( "it''s\n", 40000 ) . "'\n",
+			'liste en ligne' => 't: [' . str_repeat( "  a,\n", 40000 ) . "  b]\n",
+			'non fermé'      => 't: "' . str_repeat( "abcdefghi\n", 40000 ),
+		);
+		foreach ( $cas as $nom => $yaml ) {
+			$debut = microtime( true );
+			try {
+				\Yume\Core\Glossaire\Lecteur_Yaml::analyser( $yaml );
+			} catch ( \Yume\Core\Glossaire\Erreur_Yaml $e ) {
+				yume_assert_same( 'non fermé', $nom, $e->getMessage() );
+			}
+			// Environ 400 Ko : quelques centièmes de seconde en temps linéaire, plusieurs
+			// dizaines de secondes avec l'ancienne relecture depuis le début.
+			yume_assert_true( microtime( true ) - $debut < 2.0, $nom . ' : ' . round( microtime( true ) - $debut, 2 ) . ' s' );
+		}
+		$r = \Yume\Core\Glossaire\Lecteur_Yaml::analyser( "t: [\"a\n  b\", 'c''d', {k: \"v # x\"}] # commentaire\n" );
+		yume_assert_same( array( 't' => array( 'a b', "c'd", array( 'k' => 'v # x' ) ) ), $r );
+	}
+);

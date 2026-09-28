@@ -449,13 +449,18 @@ class Lecteur_Yaml {
 	/**
 	 * Position du guillemet fermant (même type qu'en $depart), null s'il manque.
 	 *
-	 * @param string $texte  Texte.
-	 * @param int    $depart Position du guillemet ouvrant.
+	 * Sur un texte qui s'allonge ligne après ligne, $reprise mémorise où l'analyse s'est arrêtée :
+	 * l'appel suivant reprend là au lieu de tout relire (temps linéaire, pas quadratique).
+	 *
+	 * @param string   $texte   Texte.
+	 * @param int      $depart  Position du guillemet ouvrant.
+	 * @param int|null $reprise Position de reprise (entrée et sortie), null : juste après $depart.
 	 */
-	private function fin_guillemets( string $texte, int $depart ): ?int {
+	private function fin_guillemets( string $texte, int $depart, ?int &$reprise = null ): ?int {
 		$q   = $texte[ $depart ];
 		$len = strlen( $texte );
-		for ( $k = $depart + 1; $k < $len; $k++ ) {
+		$k   = null !== $reprise ? $reprise : $depart + 1;
+		for ( ; $k < $len; $k++ ) {
 			$c = $texte[ $k ];
 			if ( '"' === $q && '\\' === $c ) {
 				++$k;
@@ -469,6 +474,7 @@ class Lecteur_Yaml {
 				return $k;
 			}
 		}
+		$reprise = $k;
 		return null;
 	}
 
@@ -480,16 +486,17 @@ class Lecteur_Yaml {
 	 * @throws Erreur_Yaml Guillemet non fermé ou contenu après.
 	 */
 	private function scalaire_guillemets( string $texte ): string {
-		$debut = $this->i;
-		$acc   = $texte;
-		$fin   = $this->fin_guillemets( $acc, 0 );
+		$debut   = $this->i;
+		$acc     = $texte;
+		$reprise = null;
+		$fin     = $this->fin_guillemets( $acc, 0, $reprise );
 		while ( null === $fin ) {
 			++$this->i;
 			if ( $this->fin() ) {
 				throw new Erreur_Yaml( 'guillemet non fermé.', $debut + 1 );
 			}
 			$acc .= "\n" . $this->lignes[ $this->i ];
-			$fin  = $this->fin_guillemets( $acc, 0 );
+			$fin  = $this->fin_guillemets( $acc, 0, $reprise );
 		}
 		$reste = trim( substr( $acc, $fin + 1 ) );
 		if ( '' !== $reste && ! str_starts_with( $reste, '#' ) ) {
@@ -654,7 +661,8 @@ class Lecteur_Yaml {
 	private function flux_lignes( string $texte, int $seuil ): array {
 		$debut = $this->i;
 		$acc   = $texte;
-		while ( ! $this->flux_equilibre( $acc ) ) {
+		$etat  = array();
+		while ( ! $this->flux_equilibre( $acc, $etat ) ) {
 			++$this->i;
 			if ( $this->fin() || ( '' !== trim( $this->lignes[ $this->i ] ) && strspn( $this->lignes[ $this->i ], ' ' ) <= $seuil ) ) {
 				throw new Erreur_Yaml( 'crochet ou accolade non fermé.', $debut + 1 );
@@ -672,21 +680,35 @@ class Lecteur_Yaml {
 	}
 
 	/**
-	 * Crochets et accolades équilibrés (hors guillemets) ?
+	 * Crochets et accolades équilibrés (hors guillemets) ? Analyse incrémentale : $etat garde la
+	 * position, le niveau et une chaîne entre guillemets encore ouverte d'un appel à l'autre.
 	 *
-	 * @param string $s Texte.
+	 * @param string $s    Texte (qui ne fait que s'allonger d'un appel à l'autre).
+	 * @param array  $etat État (vide au premier appel).
 	 */
-	private function flux_equilibre( string $s ): bool {
-		$niveau = 0;
-		$len    = strlen( $s );
-		for ( $k = 0; $k < $len; $k++ ) {
+	private function flux_equilibre( string $s, array &$etat ): bool {
+		$k        = (int) ( $etat['k'] ?? 0 );
+		$niveau   = (int) ( $etat['niveau'] ?? 0 );
+		$ouvert   = $etat['guillemet'] ?? null;
+		$reprise  = $etat['reprise'] ?? null;
+		$len      = strlen( $s );
+		$resultat = false;
+		while ( $k < $len ) {
+			if ( null !== $ouvert ) {
+				$fin = $this->fin_guillemets( $s, $ouvert, $reprise );
+				if ( null === $fin ) {
+					$k = $len;
+					break;
+				}
+				$k       = $fin + 1;
+				$ouvert  = null;
+				$reprise = null;
+				continue;
+			}
 			$c = $s[ $k ];
 			if ( '"' === $c || "'" === $c ) {
-				$fin = $this->fin_guillemets( $s, $k );
-				if ( null === $fin ) {
-					return false;
-				}
-				$k = $fin;
+				$ouvert  = $k;
+				$reprise = null;
 				continue;
 			}
 			if ( '#' === $c && ( 0 === $k || ' ' === $s[ $k - 1 ] ) && 0 === $niveau ) {
@@ -697,11 +719,19 @@ class Lecteur_Yaml {
 			} elseif ( ']' === $c || '}' === $c ) {
 				--$niveau;
 				if ( 0 === $niveau ) {
-					return true;
+					$resultat = true;
+					break;
 				}
 			}
+			++$k;
 		}
-		return false;
+		$etat = array(
+			'k'         => $k,
+			'niveau'    => $niveau,
+			'guillemet' => $ouvert,
+			'reprise'   => $reprise,
+		);
+		return $resultat;
 	}
 
 	/**
