@@ -1,0 +1,16 @@
+# Relecture obligatoire (audit P0-D, §3.3) : toute demande de fusion qui touche ces chemins
+# attend l'approbation du propriétaire indiqué, si la règle « Require review from Code Owners »
+# du ruleset de la branche main est cochée (docs/mise-en-production.md, partie GitHub).
+# Le dernier motif qui correspond l'emporte.
+
+# Mises à jour du plugin sur le site (source des releases, vérification des archives).
+/wp-content/plugins/yume-core/includes/updater/   @GNAlexandre
+
+# Bibliothèques tierces vendorisées (plugin-update-checker et ses dépendances).
+/wp-content/plugins/yume-core/lib/                @GNAlexandre
+
+# Construction des archives de release.
+/tools/build/                                     @GNAlexandre
+
+# Workflows, Dependabot et ce fichier.
+/.github/                                         @GNAlexandre

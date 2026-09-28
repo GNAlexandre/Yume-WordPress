@@ -219,15 +219,38 @@ Pour WordPress 6.6 : `tools/localenv/setup.sh --dossier /tmp/yume-66 --version 6
    git push origin v2.1.0
    ```
 5. **`release.yml`** vérifie le tag (format `vX.Y.Z`, versions identiques au tag, commit présent sur
-   la branche par défaut), rejoue toute la CI, construit les archives et crée la release GitHub
-   « Yume Novel v2.1.0 » avec `yume-core.zip`, `yume.zip`, `SHA256SUMS` et des notes de version
-   générées (modifiables ensuite sur GitHub : elles s'affichent dans « Voir les détails » de la mise
-   à jour).
+   la branche par défaut), rejoue toute la CI, puis **attend l'approbation** d'un relecteur de
+   l'environnement protégé `release` (*Actions →* l'exécution → *Review deployments → Approve*).
+   Une fois approuvé, il construit les archives, contrôle `SHA256SUMS` (exactement `yume-core.zip`
+   et `yume.zip`, noms nus, `sha256sum -c`) et crée la release GitHub « Yume Novel v2.1.0 » avec
+   `yume-core.zip`, `yume.zip`, `SHA256SUMS` et des notes de version générées (modifiables ensuite
+   sur GitHub : elles s'affichent dans « Voir les détails » de la mise à jour). **Ne jamais
+   remplacer un asset à la main** : le site refuserait l'archive.
 6. **Sur le site** : le plugin interroge la dernière release **toutes les 12 heures** (ou tout de
    suite avec le lien « Vérifier les mises à jour » sous Yume Core dans *Extensions*). La nouvelle
    version apparaît dans *Tableau de bord → Mises à jour* ; si *Yume → Réglages → Mises à jour
    automatiques* est coché (défaut), WordPress l'installe seul lors de son passage de mises à jour
    automatiques suivant. Le thème suit le même chemin avec `yume.zip`.
+7. **Vérification d'intégrité** (automatique, y compris pour les mises à jour automatiques) : avant
+   d'installer, le plugin télécharge `SHA256SUMS` et l'archive de la même release (hôtes GitHub
+   seulement) et refuse l'archive si son empreinte SHA-256 diffère, si elle manque dans
+   `SHA256SUMS`, si `SHA256SUMS` est absent ou si le tag ne correspond pas à la version proposée.
+   Un refus s'affiche « Mise à jour … refusée : … » et est consigné (`[yume-core]` dans le journal
+   PHP). Cause habituelle : asset modifié à la main ou release incomplète ; republier une version
+   corrigée (`v2.1.1`) par le workflow. Désactivation de secours seulement :
+   `define( 'YUME_EXIGER_EMPREINTE', false );` dans `wp-config.php` (défaut : vrai), à retirer
+   aussitôt. Détails : `docs/05-pipeline-github-wordpress.md` §7.
+
+**Réglages GitHub requis** (propriétaire du dépôt, une fois ; liste détaillée dans
+`docs/05-pipeline-github-wordpress.md` §7.2) :
+
+- [ ] 2FA obligatoire pour tous les comptes ayant un accès en écriture ;
+- [ ] environnement `release` avec relecteurs obligatoires (et « Prevent self-review »), limité
+      aux tags `v*` ;
+- [ ] ruleset de tags `v*` : création, modification et suppression réservées aux mainteneurs ;
+- [ ] protection de la branche par défaut : PR, 1 relecture, CI requise, pas de force push ;
+- [ ] permissions Actions par défaut en lecture seule ; Dependabot, secret scanning et push
+      protection activés.
 
 ### Une version par commit
 
@@ -277,9 +300,9 @@ Une seule fois (docs/05 §3, plan de bascule docs/02 §8) :
 
 Dépôt privé : les mises à jour exigent un jeton GitHub en lecture seule (*fine-grained token*,
 permission *Contents : read* sur ce dépôt) déclaré dans `wp-config.php` :
-`define( 'YUME_GITHUB_TOKEN', 'github_pat_…' );`. Le plan actuel ne donne pas accès à
-`wp-config.php` (ni SFTP ni SSH) : **le dépôt doit donc rester public** pour que yumenovel.fr se
-mette à jour.
+`define( 'YUME_GITHUB_TOKEN', 'github_pat_…' );`. `wp-config.php` se modifie par SFTP quand le
+plan WordPress.com le permet (`docs/mise-en-production.md` §6) ; sans SFTP, pas de jeton possible :
+**le dépôt doit alors rester public** pour que yumenovel.fr se mette à jour.
 
 Seuls les comptes qui peuvent déjà installer des mises à jour (`update_plugins` : les
 administrateurs) voient et modifient *Dépôt GitHub* et *Mises à jour automatiques* : un gérant ne

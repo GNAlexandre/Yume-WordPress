@@ -159,19 +159,29 @@ Capacités de types : `edit_yume_oeuvres`, `edit_others_yume_oeuvres`, `publish_
 | `subscriber` | Lecteur (renommé) | `read` |
 | `yume_traducteur`, `yume_relecteur`, `yume_graphiste` | Traducteur, Relecteur, Graphiste | `read`, `upload_files`, `yume_voir_equipe`, `yume_maj_planning`, `edit_yume_tomes` |
 | `yume_editeur` | Éditeur Yume | les précédentes + `yume_publier`, `yume_maj_planning_tous`, toutes les capacités des 3 types (y compris others/publish/delete), `edit_posts`, `publish_posts`, `edit_published_posts`, `moderate_comments`, `manage_categories` |
-| `yume_gerant` | Gérant | `yume_editeur` + `yume_gerer_equipe`, `yume_reglages`, `edit_others_posts`, `delete_posts`, `delete_published_posts`, `delete_others_posts`, `list_users`, `create_users`, `edit_users`, `promote_users` (limitées, voir ci-dessous) |
+| `yume_gerant` | Gérant | `yume_editeur` + `yume_gerer_equipe`, `yume_reglages`, `edit_others_posts`, `delete_posts`, `delete_published_posts`, `delete_others_posts`, `list_users`, `promote_users` (limitée, voir ci-dessous) ; **ni** `create_users` **ni** `edit_users` (SEC-03) |
 | `administrator` | — | tout, y compris toutes les capacités `yume_*` |
 
-Gestion des membres par un gérant (tout compte sans `manage_options`) : `create_users`, `edit_users`
-et `promote_users` ne portent que sur le Lecteur et les rôles de l'équipe (`roles_gerables()` :
-`subscriber`, `yume_traducteur`, `yume_relecteur`, `yume_graphiste`, `yume_editeur`). Le filtre
-`editable_roles` limite les rôles attribuables à cette liste (user-new.php, user-edit.php, users.php,
-REST `/wp/v2/users`) ; `map_meta_cap` refuse `edit_user`, `promote_user`, `remove_user` et
+Gestion des membres par un gérant (tout compte sans `manage_options`) : il ne fait que changer des
+rôles (`promote_users`, `list_users`) ; il ne crée pas de compte et ne modifie jamais le profil d'un
+autre compte (mot de passe, e-mail : `edit_user` refusé, donc REST `POST /wp/v2/users/{id}` avec
+`password`/`email` → 403 et `user-edit.php` inaccessible ; SEC-03). Seul son propre profil reste
+modifiable. Un mot de passe perdu se réinitialise par « Mot de passe oublié ? » ou par un
+administrateur ; les comptes naissent de l'inscription des lecteurs. `promote_users` ne porte que sur
+le Lecteur et les rôles de l'équipe (`roles_gerables()` : `subscriber`, `yume_traducteur`,
+`yume_relecteur`, `yume_graphiste`, `yume_editeur`). Le filtre `editable_roles` limite les rôles
+attribuables à cette liste (users.php, REST `/wp/v2/users` avec `roles` seul) ; `map_meta_cap` refuse
+`edit_user`, `promote_user`, `remove_user` et
 `delete_user` sur tout compte ayant un autre rôle (administrateurs, autres gérants, rôles WordPress
 éditoriaux) ou super administrateur, et `promote_user` sur son propre compte. En façade, la page
 « Membres et rôles » (`yume/team-members`, capacité `yume_gerer_equipe`) applique les mêmes règles,
 y compris pour un administrateur : rôles attribuables = rôles de l'équipe de `roles_gerables()`, retrait
 = retour à `subscriber`, contrôle `current_user_can( 'promote_user', $id )` à chaque action.
+
+Les rôles sont stockés en base : `installer_roles()` ajoute les capacités manquantes et retire celles
+de `capacites_retirees()` (`yume_gerant` : `create_users`, `edit_users`) ; `verifier_roles()` (sur
+`init`) relance l'installation dès que la signature des définitions et des retraits change (option
+`yume_core_roles`), donc à la mise à jour de l'extension sur un site existant.
 
 Fonction utilitaire : `yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool`
 (vrai si `yume_maj_planning_tous`, ou `yume_maj_planning` et l'utilisateur est un des responsables).
@@ -243,6 +253,35 @@ sur `admin_menu` priorité ≥ 20.
   détachées de leur parent, bouton « Recréer les pages manquantes » (admin-post
   `yume_recreer_pages`) qui appelle `recreer_pages_yume(): array` (clé → ID ; mêmes slugs, parents
   et contenus que la migration, réglages de lecture reportés ; utilisée aussi par la démo).
+
+- **Prérequis de mise en production** (`includes/core/admin/notices.php`, administrateurs) : avis
+  listant les réglages non encore appliqués (`etat_prerequis(): array`, `prerequis_manquants(): array`,
+  filtre `yume_prerequis_etat`) ; « Masquer » par compte (méta utilisateur `yume_prerequis_masques`,
+  admin-post `yume_prerequis`). Liste complète : `docs/mise-en-production.md`.
+
+## 6 ter. Sécurité (module core, `includes/core/securite.php` ; module updater, `integrite.php`)
+
+- **REST utilisateurs** : `/wp/v2/users` et `/wp/v2/users/{id}` réservés aux comptes
+  `list_users` (filtre `yume_acces_utilisateurs_rest`) ; `rest_prepare_user` retire `slug` et `link`
+  (pas d'identifiant de connexion exposé). Métas d'équipe `yume_responsables` et `yume_maj_par`
+  marquées `prive` : jamais exposées hors contexte `edit`.
+- **En-têtes** (`send_headers`, `admin_init`, `login_init` ; filtre `yume_entetes_securite`) :
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Permissions-Policy`, `X-Frame-Options: SAMEORIGIN` et
+  `Content-Security-Policy: frame-ancestors 'self' https://wordpress.com https://*.wordpress.com`
+  (aperçu du tableau de bord WordPress.com), `Content-Security-Policy-Report-Only:
+  object-src 'none'; base-uri 'self'`. Sur `/embed/` : ni X-Frame-Options ni CSP. Balise
+  `generator` retirée.
+- **XML-RPC** : `system.multicall`, `pingback.*` et méthodes de lecture des utilisateurs retirées,
+  authentification par XML-RPC refusée, en-tête `X-Pingback` retiré ; exception pour les requêtes
+  signées de Jetpack (`requete_jetpack()`, filtre `yume_requete_jetpack`).
+- **Comptes** : inscription et « mot de passe oublié » limités en débit, réponse identique que le
+  compte existe ou non ; changement d'adresse : avis à l'ancienne adresse et sessions fermées.
+- **Intégrité des mises à jour** : `upgrader_pre_download` (priorité 999) télécharge le paquet
+  depuis un hôte autorisé (github.com, objects/release-assets.githubusercontent.com,
+  api.github.com), compare son SHA-256 au fichier `SHA256SUMS` de la release et refuse sinon
+  (`WP_Error` `yume_maj_*`, action `yume_updater_refus`). Sans `SHA256SUMS` : refus si
+  `YUME_EXIGER_EMPREINTE` (ou filtre `yume_updater_exiger_empreinte`) est vrai, sinon avertissement.
 
 ## 7. API PHP partagée (signatures figées)
 

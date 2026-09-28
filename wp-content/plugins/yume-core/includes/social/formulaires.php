@@ -149,7 +149,9 @@ function traiter_inscription(): void {
 		return (bool) apply_filters( 'yume_notifier_admin_inscription', false );
 	};
 	add_filter( 'wp_send_new_user_notification_to_admin', $notifier_admin );
+	traitement_facade( true );
 	$user_id = register_new_user( $pseudo, $email );
+	traitement_facade( false );
 	remove_filter( 'wp_send_new_user_notification_to_admin', $notifier_admin );
 
 	if ( is_wp_error( $user_id ) ) {
@@ -201,7 +203,9 @@ function traiter_oubli(): void {
 	if ( '' === $identifiant ) {
 		rediriger( $retour, 'oubli-vide', 'yn-oubli' );
 	}
+	traitement_facade( true );
 	retrieve_password( $identifiant );
+	traitement_facade( false );
 	rediriger( $retour, 'oubli-envoye', 'yn-connexion' );
 }
 add_action( 'admin_post_nopriv_yume_oubli', __NAMESPACE__ . '\\traiter_oubli' );

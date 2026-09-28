@@ -539,6 +539,7 @@ function definitions_meta(): array {
 				'sanitize'    => __NAMESPACE__ . '\\san_responsables',
 				'default'     => $trio_zero,
 				'schema'      => schema_trio( 'integer' ),
+				'prive'       => true,
 			),
 			'yume_date_cible'    => array(
 				'type'        => 'string',
@@ -566,6 +567,7 @@ function definitions_meta(): array {
 				'description' => __( 'Auteur de la dernière mise à jour du planning (ID utilisateur).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_entier',
 				'default'     => 0,
+				'prive'       => true,
 			),
 			'yume_note_equipe'   => array(
 				'type'        => 'string',
@@ -697,19 +699,71 @@ function preparer_note_equipe( $valeur ) {
 }
 
 /**
+ * Clés lisibles en REST par l'équipe seulement : note d'équipe ('equipe') et ID des comptes
+ * de l'équipe ('prive' : responsables, auteur de la dernière mise à jour ; SEC-04). Les noms
+ * des responsables restent publics par /yume/v1/planning.
+ *
+ * @return string[]
+ */
+function cles_meta_equipe(): array {
+	static $cles = null;
+	if ( null === $cles ) {
+		$cles = array();
+		foreach ( definitions_meta() as $defs ) {
+			foreach ( $defs as $cle => $def ) {
+				if ( ! empty( $def['equipe'] ) || ! empty( $def['prive'] ) ) {
+					$cles[] = $cle;
+				}
+			}
+		}
+		$cles = array_values( array_unique( $cles ) );
+	}
+	return $cles;
+}
+
+/**
+ * Valeur d'une méta réservée à l'équipe en réponse REST : null hors de l'équipe (la clé est
+ * ensuite retirée par masquer_note_equipe()), sinon la valeur typée selon son schéma, comme
+ * le fait le cœur sans prepare_callback (WP_REST_Meta_Fields::prepare_value()).
+ *
+ * @param mixed            $valeur  Valeur.
+ * @param \WP_REST_Request $requete Requête.
+ * @param array            $args    Déclaration de la méta (schema…).
+ * @return mixed
+ */
+function preparer_meta_privee( $valeur, $requete = null, $args = array() ) {
+	if ( ! current_user_can( 'yume_maj_planning' ) ) {
+		return null;
+	}
+	$schema = is_array( $args ) && isset( $args['schema'] ) && is_array( $args['schema'] ) ? $args['schema'] : array();
+	if ( ! $schema ) {
+		return $valeur;
+	}
+	if ( '' === $valeur && in_array( $schema['type'] ?? '', array( 'boolean', 'integer', 'number' ), true ) ) {
+		$valeur = 'boolean' === $schema['type'] ? false : 0;
+	}
+	if ( is_wp_error( rest_validate_value_from_schema( $valeur, $schema ) ) ) {
+		return null;
+	}
+	return rest_sanitize_value_from_schema( $valeur, $schema );
+}
+
+/**
  * Déclare toutes les métadonnées (init).
  */
 function enregistrer_meta(): void {
 	foreach ( definitions_meta() as $post_type => $defs ) {
 		foreach ( $defs as $cle => $def ) {
 			$show_in_rest = true;
-			if ( isset( $def['schema'] ) || ! empty( $def['equipe'] ) ) {
+			if ( isset( $def['schema'] ) || ! empty( $def['equipe'] ) || ! empty( $def['prive'] ) ) {
 				$show_in_rest = array();
 				if ( isset( $def['schema'] ) ) {
 					$show_in_rest['schema'] = $def['schema'];
 				}
 				if ( ! empty( $def['equipe'] ) ) {
 					$show_in_rest['prepare_callback'] = __NAMESPACE__ . '\\preparer_note_equipe';
+				} elseif ( ! empty( $def['prive'] ) ) {
+					$show_in_rest['prepare_callback'] = __NAMESPACE__ . '\\preparer_meta_privee';
 				}
 			}
 			if ( ! empty( $def['equipe'] ) ) {
@@ -754,7 +808,8 @@ function filtre_meta_protegee( $protegee, $meta_key, $meta_type ) {
 add_filter( 'is_protected_meta', __NAMESPACE__ . '\\filtre_meta_protegee', 10, 3 );
 
 /**
- * Réponse REST d'un tome : la note d'équipe n'est jamais exposée hors de l'équipe.
+ * Réponse REST d'un tome : la note d'équipe et les ID des comptes de l'équipe (responsables,
+ * auteur de la dernière mise à jour) ne sont jamais exposés hors de l'équipe.
  *
  * @param \WP_REST_Response $reponse Réponse.
  * @return \WP_REST_Response
@@ -762,9 +817,12 @@ add_filter( 'is_protected_meta', __NAMESPACE__ . '\\filtre_meta_protegee', 10, 3
 function masquer_note_equipe( $reponse ) {
 	if ( $reponse instanceof \WP_REST_Response && ! current_user_can( 'yume_maj_planning' ) ) {
 		$data = $reponse->get_data();
-		if ( is_array( $data ) && isset( $data['meta'] ) && is_array( $data['meta'] ) && array_key_exists( 'yume_note_equipe', $data['meta'] ) ) {
-			unset( $data['meta']['yume_note_equipe'] );
-			$reponse->set_data( $data );
+		if ( is_array( $data ) && isset( $data['meta'] ) && is_array( $data['meta'] ) ) {
+			$masquees = array_intersect( cles_meta_equipe(), array_keys( $data['meta'] ) );
+			if ( $masquees ) {
+				$data['meta'] = array_diff_key( $data['meta'], array_flip( $masquees ) );
+				$reponse->set_data( $data );
+			}
 		}
 	}
 	return $reponse;

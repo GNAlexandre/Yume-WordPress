@@ -16,9 +16,10 @@ php tools/docx2chapters/docx2chapters.php convert tome.docx --out /tmp/tome10
 php tools/docx2chapters/docx2chapters.php analyse tome.docx
 php tools/docx2chapters/docx2chapters.php analyse tome.epub --json
 
-# Envoi au site : tome et chapitres en brouillon (ou mis à jour s'ils existent déjà)
+# Envoi au site : tome et chapitres en brouillon (ou mis à jour s'ils existent déjà).
+# Mot de passe d'application lu dans ~/.config/yume/credentials ou YUME_APP_PASSWORD (voir plus bas).
 php tools/docx2chapters/docx2chapters.php publish tome.docx \
-  --site https://yumenovel.fr --user pseudo --app-password "abcd efgh ijkl mnop qrst uvwx" \
+  --site https://yumenovel.fr --user pseudo \
   --oeuvre 12 --numero 10 --pdf https://www.clictune.com/xxxx --epub https://www.clictune.com/yyyy \
   --traduction Calumi --relecture Angeloids --edition JojoGg
 
@@ -53,9 +54,10 @@ appelle `POST /wp-json/yume/v1/publications/{id}/publier`. Le fichier est d'abor
 un fichier illisible n'est jamais envoyé.
 
 - **Authentification** : mot de passe d'application WordPress (Profil → Mots de passe
-  d'application) d'un compte **Éditeur Yume** ou **Gérant** (capacité `yume_publier`). Il peut
-  être passé par la variable d'environnement `YUME_APP_PASSWORD` plutôt qu'en option. WordPress
-  n'accepte les mots de passe d'application qu'en HTTPS (ou sur un site local).
+  d'application) d'un compte **Éditeur Yume** ou **Gérant** (capacité `yume_publier`), créé pour
+  cet outil seul et nommé (« docx2chapters – poste de X ») pour pouvoir le révoquer. WordPress
+  n'accepte les mots de passe d'application qu'en HTTPS (ou sur un site local). Voir
+  [Mot de passe d'application](#mot-de-passe-dapplication).
 - **Réutilisation** : si le tome existe déjà (même œuvre, nature et numéro — par exemple le
   brouillon créé par le planning), il est mis à jour : ses adresses sont conservées et ses
   chapitres sont remplacés en place, sans doublon. `--retirer-absents` met en brouillon les
@@ -72,6 +74,33 @@ un fichier illisible n'est jamais envoyé.
 
 Codes de sortie : `0` réussite, `1` erreur (fichier refusé, erreur du site), `2` utilisation
 incorrecte.
+
+## Mot de passe d'application
+
+Ne le tapez **pas** dans la ligne de commande : il resterait dans l'historique du shell et serait
+visible des autres utilisateurs de la machine (`ps`). L'outil le cherche dans cet ordre :
+
+1. `--app-password` s'il est donné (déconseillé ; l'outil affiche alors un avertissement) ;
+2. la variable d'environnement `YUME_APP_PASSWORD` ;
+3. le fichier d'identifiants `~/.config/yume/credentials` (ou `$XDG_CONFIG_HOME/yume/credentials`,
+   ou le chemin donné par `YUME_CREDENTIALS`), qui doit n'être lisible que par vous : l'outil
+   refuse un fichier lisible par d'autres.
+
+Méthode conseillée, une fois pour toutes :
+
+```sh
+mkdir -p ~/.config/yume && chmod 700 ~/.config/yume
+( umask 077; printf 'YUME_APP_PASSWORD=%s\n' "$(read -rsp 'Mot de passe d’application : ' p; echo "$p")" > ~/.config/yume/credentials )
+chmod 600 ~/.config/yume/credentials
+```
+
+Le fichier contient une ligne `YUME_APP_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx` (les lignes
+commençant par `#` sont ignorées). Pour une seule session, `read -rs YUME_APP_PASSWORD && export
+YUME_APP_PASSWORD` évite aussi l'historique. Sous Windows (PowerShell) :
+`$env:YUME_APP_PASSWORD = Read-Host -MaskInput`.
+
+En cas de fuite (poste perdu, capture d'écran, départ d'un membre) : Profil → Mots de passe
+d'application → **Révoquer**, puis en créer un nouveau.
 
 ## Préparer le DOCX
 

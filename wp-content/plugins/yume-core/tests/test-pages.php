@@ -2,7 +2,7 @@
 /**
  * Tests des pages Yume (contrat §11) : repli de yume_url_page() sur le chemin quand la page
  * enregistrée n'est pas en ligne, avis d'administration des pages manquantes et recréation
- * (includes/core/admin/notices.php).
+ * (includes/core/admin/notices.php), et avis « Prérequis de mise en production » (AMEL-01).
  *
  * @package Yume\Core
  */
@@ -12,6 +12,13 @@ defined( 'ABSPATH' ) || exit;
 use Yume\Core\Migration\Migration_Planner;
 
 use function Yume\Core\Core\avis_pages_yume;
+use function Yume\Core\Core\avis_prerequis_production;
+use function Yume\Core\Core\changer_prerequis_masques;
+use function Yume\Core\Core\etat_deux_facteurs;
+use function Yume\Core\Core\etat_prerequis;
+use function Yume\Core\Core\prerequis_manquants;
+use function Yume\Core\Core\prerequis_masques;
+use function Yume\Core\Core\url_action_prerequis;
 use function Yume\Core\Core\pages_yume_manquantes;
 use function Yume\Core\Core\peut_recreer_pages_yume;
 use function Yume\Core\Core\recreer_pages_yume;
@@ -260,6 +267,202 @@ yume_test(
 		ob_start();
 		avis_pages_yume();
 		yume_assert_same( '', ob_get_clean(), 'plus rien à signaler' );
+		wp_set_current_user( $courant );
+	}
+);
+
+/**
+ * État « prêt pour la production » (aucun prérequis manquant), modifiable par clé.
+ *
+ * @param array $modifs Clés à changer.
+ */
+function yume_test_prerequis_etat( array $modifs = array() ): array {
+	return array_merge(
+		array(
+			'langue'           => 'fr_FR',
+			'wp_debug'         => false,
+			'wp_debug_display' => false,
+			'script_debug'     => false,
+			'debug_log'        => false,
+			'deux_facteurs'    => 'active',
+			'inscriptions'     => true,
+			'role_defaut'      => 'subscriber',
+			'blog_public'      => true,
+			'xmlrpc'           => true,
+			'jetpack'          => true,
+		),
+		$modifs
+	);
+}
+
+/**
+ * Affiche l'avis des prérequis pour un état simulé, sur un écran d'administration donné, et
+ * renvoie le HTML.
+ *
+ * @param array  $etat  État simulé (filtre yume_prerequis_etat).
+ * @param string $ecran Identifiant de l'écran courant.
+ */
+function yume_test_prerequis_avis( array $etat, string $ecran = 'dashboard' ): string {
+	require_once ABSPATH . 'wp-admin/includes/class-wp-screen.php';
+	require_once ABSPATH . 'wp-admin/includes/screen.php';
+	$avant                     = $GLOBALS['current_screen'] ?? null;
+	$GLOBALS['current_screen'] = WP_Screen::get( $ecran ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- écran simulé, rétabli plus bas.
+	$filtre                    = static fn() => $etat;
+	add_filter( 'yume_prerequis_etat', $filtre );
+	ob_start();
+	avis_prerequis_production();
+	$html = (string) ob_get_clean();
+	remove_filter( 'yume_prerequis_etat', $filtre );
+	$GLOBALS['current_screen'] = $avant; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+	return $html;
+}
+
+yume_test(
+	'Prérequis de mise en production : langue, débogage, 2FA, rôle par défaut, indexation, XML-RPC sans Jetpack',
+	function () {
+		yume_assert_same( array(), prerequis_manquants( yume_test_prerequis_etat() ), 'site prêt : rien à signaler' );
+
+		$cles = static fn( array $modifs ) => array_keys( prerequis_manquants( yume_test_prerequis_etat( $modifs ) ) );
+		yume_assert_same( array( 'langue' ), $cles( array( 'langue' => 'en_US' ) ) );
+		yume_assert_contains( '« en_US »', prerequis_manquants( yume_test_prerequis_etat( array( 'langue' => 'en_US' ) ) )['langue'] );
+		yume_assert_same( array( 'wp_debug' ), $cles( array( 'wp_debug' => true ) ) );
+		yume_assert_contains(
+			'WP_DEBUG_DISPLAY',
+			prerequis_manquants(
+				yume_test_prerequis_etat(
+					array(
+						'wp_debug'         => true,
+						'wp_debug_display' => true,
+					)
+				)
+			)['wp_debug']
+		);
+		yume_assert_same( array( 'script_debug' ), $cles( array( 'script_debug' => true ) ) );
+		yume_assert_same( array( 'debug_log' ), $cles( array( 'debug_log' => true ) ) );
+		yume_assert_same( array( 'deux_facteurs' ), $cles( array( 'deux_facteurs' => 'absente' ) ) );
+		yume_assert_same( array( 'deux_facteurs_rappel' ), $cles( array( 'deux_facteurs' => 'inconnue' ) ) );
+		yume_assert_same( array( 'role_defaut' ), $cles( array( 'role_defaut' => 'administrator' ) ) );
+		yume_assert_contains( '« yume_editeur »', prerequis_manquants( yume_test_prerequis_etat( array( 'role_defaut' => 'yume_editeur' ) ) )['role_defaut'] );
+		yume_assert_same(
+			array(),
+			$cles(
+				array(
+					'inscriptions' => false,
+					'role_defaut'  => 'administrator',
+				)
+			),
+			'inscriptions fermées : rôle sans effet'
+		);
+		yume_assert_same( array( 'blog_public' ), $cles( array( 'blog_public' => false ) ) );
+		yume_assert_same( array( 'xmlrpc' ), $cles( array( 'jetpack' => false ) ) );
+		yume_assert_same(
+			array(),
+			$cles(
+				array(
+					'jetpack' => false,
+					'xmlrpc'  => false,
+				)
+			)
+		);
+
+		// État réel observé : réglages du cœur lus en direct.
+		update_option( 'WPLANG', 'fr_FR' );
+		update_option( 'users_can_register', 1 );
+		update_option( 'default_role', 'editor' );
+		update_option( 'blog_public', '0' );
+		$etat = etat_prerequis();
+		yume_assert_true( $etat['inscriptions'] );
+		yume_assert_same( 'editor', $etat['role_defaut'] );
+		yume_assert_false( $etat['blog_public'] );
+		yume_assert_same( defined( 'WP_DEBUG' ) && WP_DEBUG, $etat['wp_debug'] );
+		yume_assert_same( get_locale(), $etat['langue'] );
+		$manquants = prerequis_manquants( $etat );
+		yume_assert_true( isset( $manquants['role_defaut'], $manquants['blog_public'] ) );
+		update_option( 'default_role', 'subscriber' );
+		update_option( 'blog_public', '1' );
+		$manquants = prerequis_manquants( etat_prerequis() );
+		yume_assert_false( isset( $manquants['role_defaut'] ) || isset( $manquants['blog_public'] ) );
+
+		// Sans Two-Factor ni Jetpack SSO : 2FA non détectable, simple rappel.
+		if ( ! class_exists( 'Two_Factor_Core' ) && ! class_exists( 'Jetpack' ) ) {
+			yume_assert_same( 'inconnue', etat_deux_facteurs( get_current_user_id() ) );
+		}
+	}
+);
+
+yume_test(
+	'Avis des prérequis : administrateurs seulement (manage_options), lien vers la liste de mise en production',
+	function () {
+		$courant = get_current_user_id();
+		$etat    = yume_test_prerequis_etat(
+			array(
+				'langue'   => 'en_US',
+				'wp_debug' => true,
+			)
+		);
+		foreach ( array( 'subscriber', 'yume_editeur', 'yume_gerant' ) as $role ) {
+			wp_set_current_user( yume_factory_user( $role ) );
+			yume_assert_same( '', yume_test_prerequis_avis( $etat ), $role . ' : rien' );
+		}
+		wp_set_current_user( yume_factory_user( 'administrator' ) );
+		$html = yume_test_prerequis_avis( $etat );
+		yume_assert_contains( 'Prérequis de mise en production', $html );
+		yume_assert_contains( 'data-prerequis="langue"', $html );
+		yume_assert_contains( 'data-prerequis="wp_debug"', $html );
+		yume_assert_not_contains( 'data-prerequis="blog_public"', $html );
+		yume_assert_contains( 'https://github.com/GNAlexandre/Yume-WordPress/blob/main/docs/mise-en-production.md', $html );
+		yume_assert_contains( esc_url( url_action_prerequis( 'masquer' ) ), $html );
+		yume_assert_contains( '_wpnonce=', url_action_prerequis( 'masquer' ) );
+		yume_assert_same( '', yume_test_prerequis_avis( yume_test_prerequis_etat() ), 'site prêt : pas d’avis' );
+		yume_assert_true( false !== has_action( 'admin_post_yume_prerequis' ) );
+		yume_assert_true( false !== has_action( 'admin_notices', 'Yume\\Core\\Core\\avis_prerequis_production' ) );
+		wp_set_current_user( $courant );
+	}
+);
+
+yume_test(
+	'Avis des prérequis : masqué par administrateur (méta), un nouveau prérequis réapparaît, « Revoir » sur le tableau de bord Yume',
+	function () {
+		$courant = get_current_user_id();
+		$admin   = yume_factory_user( 'administrator' );
+		$autre   = yume_factory_user( 'administrator' );
+		wp_set_current_user( $admin );
+		$etat   = yume_test_prerequis_etat( array( 'langue' => 'en_US' ) );
+		$filtre = static fn() => $etat;
+		add_filter( 'yume_prerequis_etat', $filtre );
+		changer_prerequis_masques( 'masquer' );
+		remove_filter( 'yume_prerequis_etat', $filtre );
+		yume_assert_same( array( 'langue' ), prerequis_masques( $admin ) );
+		yume_assert_same( '', yume_test_prerequis_avis( $etat ), 'rappel masqué' );
+
+		// Un autre prérequis manquant apparaît : seul lui est affiché.
+		$html = yume_test_prerequis_avis(
+			yume_test_prerequis_etat(
+				array(
+					'langue'      => 'en_US',
+					'blog_public' => false,
+				)
+			)
+		);
+		yume_assert_contains( 'data-prerequis="blog_public"', $html );
+		yume_assert_not_contains( 'data-prerequis="langue"', $html );
+
+		// Masqué pour cet administrateur seulement.
+		wp_set_current_user( $autre );
+		yume_assert_contains( 'data-prerequis="langue"', yume_test_prerequis_avis( $etat ) );
+
+		// Tableau de bord Yume : lien « Revoir » quand des rappels sont masqués.
+		wp_set_current_user( $admin );
+		$html = yume_test_prerequis_avis( $etat, 'toplevel_page_yume' );
+		yume_assert_contains( '1 prérequis de mise en production masqué.', $html );
+		yume_assert_contains( esc_url( url_action_prerequis( 'revoir' ) ), $html );
+		yume_assert_same( '', yume_test_prerequis_avis( $etat ), 'ailleurs : pas de rappel « Revoir »' );
+		yume_assert_same( '', yume_test_prerequis_avis( yume_test_prerequis_etat( array( 'wp_debug' => true ) ), 'edit-post' ), 'pas sur les écrans d’édition' );
+		yume_assert_contains( 'data-prerequis="wp_debug"', yume_test_prerequis_avis( yume_test_prerequis_etat( array( 'wp_debug' => true ) ), 'yume_page_yume-reglages' ) );
+
+		changer_prerequis_masques( 'revoir' );
+		yume_assert_same( array(), prerequis_masques( $admin ) );
+		yume_assert_contains( 'data-prerequis="langue"', yume_test_prerequis_avis( $etat ) );
 		wp_set_current_user( $courant );
 	}
 );

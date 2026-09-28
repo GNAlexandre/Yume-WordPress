@@ -23,6 +23,7 @@ require_once __DIR__ . '/meta.php';
 require_once __DIR__ . '/cache.php';
 require_once __DIR__ . '/terms.php';
 require_once __DIR__ . '/roles.php';
+require_once __DIR__ . '/securite.php';
 require_once __DIR__ . '/settings.php';
 require_once __DIR__ . '/events.php';
 require_once __DIR__ . '/install.php';

@@ -1,0 +1,31 @@
+# Mises à jour automatiques des dépendances (audit P0-D, §3.3) : Dependabot ouvre une demande de
+# fusion par semaine et par écosystème ; elle passe par la CI et la revue comme toute autre.
+# Rien d'autre à surveiller : le plugin n'a pas de dépendance Composer (lib/ est vendorisée et
+# suivie à la main, voir wp-content/plugins/yume-core/lib/README.md).
+version: 2
+updates:
+  # Actions GitHub des workflows (.github/workflows/*.yml).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Playwright du contrôle de rendu de la CI (tools/ci/package.json).
+  - package-ecosystem: npm
+    directory: /tools/ci
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"

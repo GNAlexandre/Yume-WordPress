@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.4 — 2026-09-28
+
+- Phase 0 sécurité : intégrité des mises à jour (SHA256SUMS, hôtes autorisés), points d'entrée WordPress (REST utilisateurs, XML-RPC, en-têtes, inscription et mot de passe oublié limités), gérant sans gestion directe des comptes, liste de mise en production et avis des prérequis, Dependabot et CODEOWNERS.
+
 ## 2.0.0-dev.3 — 2026-09-26
 
 - Page « Illustrations » avant le chapitre 1 (/lire/{œuvre}/{tome}/illustrations/) : galerie du début du tome dans le lecteur, sommaire, navigation et bouton « Commencer la lecture ».

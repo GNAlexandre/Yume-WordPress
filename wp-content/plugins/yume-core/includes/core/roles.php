@@ -53,9 +53,10 @@ function definitions_roles(): array {
 	$gerant  = array_merge(
 		$editeur,
 		array( 'yume_gerer_equipe', 'yume_reglages', 'edit_others_posts', 'delete_others_posts', 'list_users' ),
-		// Membres et rôles : ajouter un membre, changer son rôle (limité aux rôles de l'équipe et
-		// au Lecteur par roles_gerables()), modifier son profil.
-		array( 'create_users', 'edit_users', 'promote_users' ),
+		// Membres et rôles : changer le rôle d'un compte (limité aux rôles de l'équipe et au
+		// Lecteur par roles_gerables()). Ni create_users ni edit_users (SEC-03) : voir
+		// capacites_retirees().
+		array( 'promote_users' ),
 		// Sans ces deux capacités, delete_others_posts ne permet pas de supprimer un article publié.
 		array( 'delete_posts', 'delete_published_posts' )
 	);
@@ -80,6 +81,23 @@ function definitions_roles(): array {
 			'nom'  => __( 'Gérant', 'yume-core' ),
 			'caps' => array_values( array_unique( $gerant ) ),
 		),
+	);
+}
+
+/**
+ * Capacités retirées des rôles Yume par une mise à jour : installer_roles() les enlève des rôles
+ * stockés en base (sites existants), verifier_roles() relance l'installation quand cette liste
+ * change.
+ *
+ * SEC-03 : le gérant ne modifie plus le profil d'un autre compte (mot de passe, e-mail) ni n'en
+ * crée ; la page « Membres et rôles » n'a besoin que de promote_users. Le mot de passe d'un
+ * membre se réinitialise par « Mot de passe oublié ? » ou par un administrateur.
+ *
+ * @return array<string,string[]> slug du rôle => capacités à retirer.
+ */
+function capacites_retirees(): array {
+	return array(
+		'yume_gerant' => array( 'create_users', 'edit_users' ),
 	);
 }
 
@@ -122,6 +140,14 @@ function installer_roles(): void {
 			if ( empty( $stockes[ $slug ]['capabilities'][ $cap ] ) ) {
 				$stockes[ $slug ]['capabilities'][ $cap ] = true;
 				$modifie                                  = true;
+			}
+		}
+	}
+	foreach ( capacites_retirees() as $slug => $caps ) {
+		foreach ( $caps as $cap ) {
+			if ( isset( $stockes[ $slug ]['capabilities'][ $cap ] ) ) {
+				unset( $stockes[ $slug ]['capabilities'][ $cap ] );
+				$modifie = true;
 			}
 		}
 	}
@@ -218,8 +244,10 @@ function limiter_roles_attribuables( $roles ) {
 add_filter( 'editable_roles', __NAMESPACE__ . '\\limiter_roles_attribuables' );
 
 /**
- * Un compte sans manage_options (gérant) ne modifie, ne promeut ni ne supprime que des comptes
- * dont tous les rôles sont dans roles_gerables() ; il ne change jamais son propre rôle.
+ * Un compte sans manage_options (gérant) ne promeut que des comptes dont tous les rôles sont
+ * dans roles_gerables() ; il ne change jamais son propre rôle. Même règle pour edit_user,
+ * remove_user et delete_user si un compte non administrateur en reçoit les capacités (le gérant
+ * ne les a pas : SEC-03, capacites_retirees()).
  *
  * @param string[] $caps    Capacités primitives exigées.
  * @param string   $cap     Capacité demandée.
@@ -249,11 +277,18 @@ function limiter_gestion_membres( $caps, $cap, $user_id, $args ) {
 add_filter( 'map_meta_cap', __NAMESPACE__ . '\\limiter_gestion_membres', 10, 4 );
 
 /**
- * Réinstalle les capacités quand les définitions des rôles ont changé (nouvelle capacité dans
- * une mise à jour du plugin), sans attendre une montée de version.
+ * Réinstalle les capacités quand les définitions des rôles ont changé (capacité ajoutée ou
+ * retirée dans une mise à jour du plugin), sans attendre une montée de version.
  */
 function verifier_roles(): void {
-	$signature = md5( (string) wp_json_encode( array_map( static fn( array $def ): array => $def['caps'], definitions_roles() ) ) );
+	$signature = md5(
+		(string) wp_json_encode(
+			array(
+				array_map( static fn( array $def ): array => $def['caps'], definitions_roles() ),
+				capacites_retirees(),
+			)
+		)
+	);
 	if ( get_option( 'yume_core_roles' ) === $signature ) {
 		return;
 	}

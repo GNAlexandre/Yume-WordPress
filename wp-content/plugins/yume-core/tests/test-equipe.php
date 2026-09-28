@@ -1225,3 +1225,167 @@ yume_te_test(
 		);
 	}
 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * SEC-03 : le gérant change les rôles, jamais le profil d'un autre compte
+ * -----------------------------------------------------------------------------
+ */
+
+yume_te_test(
+	'SEC-03 : un gérant ne change ni le mot de passe ni l’e-mail d’un autre compte (REST, user-edit.php)',
+	function () {
+		$gerant = yume_te_membre( 'yume_gerant', 'Hikari' );
+		$admin  = yume_te_membre( 'administrator', 'Admin' );
+		$trad   = yume_te_membre( 'yume_traducteur', 'Calumi' );
+		$lec    = yume_te_membre( 'subscriber', 'Kaede' );
+
+		foreach ( array( $lec, $trad ) as $cible ) {
+			$avant = get_userdata( $cible );
+			$rep   = yume_rest( 'POST', '/wp/v2/users/' . $cible, array( 'password' => 'Nouveau-mot-de-passe-42' ), $gerant );
+			yume_assert_same( 403, $rep->get_status(), "mot de passe du compte $cible" );
+			$rep = yume_rest( 'POST', '/wp/v2/users/' . $cible, array( 'email' => 'pirate' . $cible . '@example.com' ), $gerant );
+			yume_assert_same( 403, $rep->get_status(), "e-mail du compte $cible" );
+			// Un rôle accompagné d'un autre champ exige edit_user : refusé aussi.
+			$rep = yume_rest(
+				'POST',
+				'/wp/v2/users/' . $cible,
+				array(
+					'roles'    => array( 'yume_relecteur' ),
+					'password' => 'Nouveau-mot-de-passe-42',
+				),
+				$gerant
+			);
+			yume_assert_same( 403, $rep->get_status(), "rôle + mot de passe du compte $cible" );
+			clean_user_cache( $cible );
+			$apres = get_userdata( $cible );
+			yume_assert_same( $avant->user_pass, $apres->user_pass, 'mot de passe inchangé' );
+			yume_assert_same( $avant->user_email, $apres->user_email, 'e-mail inchangé' );
+			yume_assert_same( $avant->roles, $apres->roles, 'rôle inchangé' );
+		}
+
+		// user-edit.php (current_user_can( 'edit_user', $id )) et user-new.php (create_users).
+		wp_set_current_user( $gerant );
+		yume_assert_false( current_user_can( 'edit_user', $lec ), 'user-edit.php d’un lecteur' );
+		yume_assert_false( current_user_can( 'edit_user', $trad ), 'user-edit.php d’un membre' );
+		yume_assert_false( current_user_can( 'create_users' ), 'user-new.php' );
+		yume_assert_true( current_user_can( 'edit_user', $gerant ), 'son propre profil reste modifiable' );
+		yume_assert_true( current_user_can( 'list_users' ), 'liste des comptes (users.php)' );
+		wp_set_current_user( 0 );
+
+		// Son propre profil (REST) et la liste des comptes en contexte edit : inchangés.
+		$rep = yume_rest( 'POST', '/wp/v2/users/' . $gerant, array( 'name' => 'Hikari G.' ), $gerant );
+		yume_assert_same( 200, $rep->get_status(), wp_json_encode( $rep->get_data() ) );
+		$rep = yume_rest( 'GET', '/wp/v2/users', array( 'context' => 'edit' ), $gerant );
+		yume_assert_same( 200, $rep->get_status() );
+
+		// L'administrateur, lui, peut toujours.
+		$rep = yume_rest( 'POST', '/wp/v2/users/' . $lec, array( 'email' => 'kaede-nouvelle@example.com' ), $admin );
+		yume_assert_same( 200, $rep->get_status(), wp_json_encode( $rep->get_data() ) );
+		yume_assert_same( 'kaede-nouvelle@example.com', get_userdata( $lec )->user_email );
+		$rep = yume_rest( 'POST', '/wp/v2/users/' . $trad, array( 'password' => 'Autre-mot-de-passe-42' ), $admin );
+		yume_assert_same( 200, $rep->get_status() );
+		yume_assert_true( wp_check_password( 'Autre-mot-de-passe-42', get_userdata( $trad )->user_pass, $trad ) );
+		wp_set_current_user( $admin );
+		yume_assert_true( current_user_can( 'edit_user', $lec ) );
+		yume_assert_true( current_user_can( 'create_users' ) );
+	}
+);
+
+yume_te_test(
+	'SEC-03 : sans edit_users, le gérant change toujours les rôles (Membres et rôles, REST)',
+	function () {
+		$gerant = yume_te_membre( 'yume_gerant', 'Hikari' );
+		$trad   = yume_te_membre( 'yume_traducteur', 'Calumi' );
+		$lec    = yume_te_membre( 'subscriber', 'Kaede' );
+		$lec2   = yume_te_membre( 'subscriber', 'Mio' );
+		wp_set_current_user( $gerant );
+		$post = static function ( string $op, array $champs ): array {
+			$nonce = 'ajout' === $op ? 'yume_membres_ajout' : 'yume_membres_' . (int) ( $champs['user_id'] ?? 0 );
+			return array_merge(
+				array(
+					'op'          => $op,
+					'_yume_nonce' => wp_create_nonce( $nonce ),
+				),
+				array_map( 'strval', $champs )
+			);
+		};
+
+		// Changer le rôle d'un membre.
+		$r = \Yume\Core\Planning\traiter_formulaire_membres(
+			$post(
+				'role',
+				array(
+					'user_id' => $trad,
+					'role'    => 'yume_editeur',
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( array( 'yume_editeur' ), array_values( get_userdata( $trad )->roles ) );
+
+		// Ajouter un compte existant (lecteur) à l'équipe.
+		$r = \Yume\Core\Planning\traiter_formulaire_membres(
+			$post(
+				'ajout',
+				array(
+					'compte' => get_userdata( $lec )->user_login,
+					'role'   => 'yume_graphiste',
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( array( 'yume_graphiste' ), array_values( get_userdata( $lec )->roles ) );
+
+		// Retirer de l'équipe : retour au rôle Lecteur.
+		$r = \Yume\Core\Planning\traiter_formulaire_membres( $post( 'retrait', array( 'user_id' => $trad ) ), $gerant );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( array( 'subscriber' ), array_values( get_userdata( $trad )->roles ) );
+		wp_set_current_user( 0 );
+
+		// REST : un changement de rôle seul n'exige que promote_user.
+		$rep = yume_rest( 'POST', '/wp/v2/users/' . $lec2, array( 'roles' => array( 'yume_relecteur' ) ), $gerant );
+		yume_assert_same( 200, $rep->get_status(), wp_json_encode( $rep->get_data() ) );
+		yume_assert_same( array( 'yume_relecteur' ), array_values( get_userdata( $lec2 )->roles ) );
+	}
+);
+
+yume_te_test(
+	'SEC-03 : un site existant perd create_users et edit_users du gérant à la mise à jour (yume_core_roles)',
+	function () {
+		$roles = wp_roles();
+		// État d'avant la mise à jour : capacités stockées en base, ancienne signature.
+		$stockes = get_option( $roles->role_key );
+		$stockes['yume_gerant']['capabilities']['create_users'] = true;
+		$stockes['yume_gerant']['capabilities']['edit_users']   = true;
+		update_option( $roles->role_key, $stockes, true );
+		$roles->for_site();
+		update_option( 'yume_core_roles', 'signature-precedente', true );
+		$gerant = yume_te_membre( 'yume_gerant', 'Hikari' );
+		$lec    = yume_te_membre( 'subscriber', 'Kaede' );
+		yume_assert_true( user_can( $gerant, 'edit_user', $lec ), 'état initial : le gérant modifiait les profils' );
+
+		\Yume\Core\Core\verifier_roles();
+
+		$role = get_role( 'yume_gerant' );
+		yume_assert_false( $role->has_cap( 'create_users' ) );
+		yume_assert_false( $role->has_cap( 'edit_users' ) );
+		yume_assert_true( $role->has_cap( 'promote_users' ) );
+		yume_assert_true( $role->has_cap( 'list_users' ) );
+		$en_base = get_option( $roles->role_key );
+		yume_assert_false( isset( $en_base['yume_gerant']['capabilities']['edit_users'] ), 'retiré de l’option des rôles' );
+		yume_assert_false( isset( $en_base['yume_gerant']['capabilities']['create_users'] ) );
+		yume_assert_true( ! empty( $en_base['administrator']['capabilities']['edit_users'] ), 'administrateur inchangé' );
+		yume_assert_false( user_can( $gerant, 'edit_user', $lec ) );
+		yume_assert_true( user_can( $gerant, 'promote_user', $lec ) );
+		yume_assert_true( 'signature-precedente' !== get_option( 'yume_core_roles' ), 'signature mise à jour' );
+
+		// Idempotent : une seconde vérification n'écrit plus rien.
+		$avant = get_option( $roles->role_key );
+		\Yume\Core\Core\verifier_roles();
+		\Yume\Core\Core\installer_roles();
+		yume_assert_same( $avant, get_option( $roles->role_key ) );
+	}
+);
