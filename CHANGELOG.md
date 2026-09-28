@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.12 — 2026-09-28
+
+- Corrections du parcours final : liens des commentaires soulignés, Échap des suggestions sans fermer le menu mobile, tableau du tableau de bord défilant à 390 px, « des »/« du » dans les titres d'annonce, messages de publication exacts sans DOCX.
+
 ## 2.0.0-dev.11 — 2026-09-28
 
 - Glossaire : lecteur YAML en temps linéaire pour les chaînes entre guillemets et les listes en ligne sur plusieurs lignes (déni de service par le CPU corrigé).

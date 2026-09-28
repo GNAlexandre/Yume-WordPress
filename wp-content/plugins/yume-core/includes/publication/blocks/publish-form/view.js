@@ -239,7 +239,7 @@
 				var libelle = nature.options[ nature.selectedIndex ].text + ( numero.value ? ' ' + numero.value.replace( '.', ',' ) : '' );
 				recapTome.appendChild( el( 'strong', '', libelle ) );
 				var nomOeuvre = oeuvre && oeuvre.value ? oeuvre.options[ oeuvre.selectedIndex ].text.replace( / \([^)]*\)$/, '' ) : '';
-				recapTome.appendChild( document.createTextNode( ( nomOeuvre ? ' de ' + nomOeuvre : '' ) + ' avec sa couverture et ses liens PDF et EPUB' ) );
+				recapTome.appendChild( document.createTextNode( ( nomOeuvre ? ' de ' + nomOeuvre : '' ) + ' avec sa couverture et ses liens de téléchargement' ) );
 			}
 			if ( recapChapitres && chapitres ) {
 				var numerotes = chapitres.filter( function ( c ) {
@@ -581,7 +581,9 @@
 								: sortie.tome.titre + ' : lecture en ligne programmée le ' + dateSortie + ', sans annonce (ni article, ni Discord, ni e-mail).';
 						} else {
 							texteSortie = sortie.statut === 'publish'
-								? sortie.tome.titre + ' est en ligne ! Les chapitres, l’annonce et les notifications sont partis.'
+								? ( sortie.chapitres > 0
+									? sortie.tome.titre + ' est en ligne ! Les chapitres, l’annonce et les notifications sont partis.'
+									: sortie.tome.titre + ' est en ligne ! L’annonce et les notifications sont parties ; la lecture en ligne reste à ajouter (Lecture à compléter).' )
 								: sortie.tome.titre + ' sortira le ' + dateSortie + '.';
 						}
 						if ( etat ) {

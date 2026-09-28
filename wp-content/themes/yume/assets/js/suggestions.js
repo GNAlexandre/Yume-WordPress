@@ -229,11 +229,15 @@
 					}
 					break;
 				case 'Escape':
+					// Ne pas laisser remonter Échap jusqu'au menu mobile : seule la liste (ou le champ)
+					// est fermée.
 					if ( estOuvert() ) {
 						e.preventDefault();
+						e.stopPropagation();
 						fermer();
 					} else if ( champ.value ) {
 						e.preventDefault();
+						e.stopPropagation();
 						champ.value = '';
 						dernier = '';
 						liste.textContent = '';

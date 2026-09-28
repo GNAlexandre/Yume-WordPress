@@ -124,7 +124,9 @@ final class Annonce {
 	 * @param string $texte Texte.
 	 */
 	public static function elision( string $texte ): string {
-		return (string) preg_replace( '/\b([Ll])e\s+(?=[aeiouyàâéèêëîïôûùAEIOUYÀÂÉÈÊËÎÏÔÛÙ])/u', '$1’', $texte );
+		$texte = (string) preg_replace( '/\b([Ll])e\s+(?=[aeiouyàâéèêëîïôûùAEIOUYÀÂÉÈÊËÎÏÔÛÙ])/u', '$1’', $texte );
+		$texte = (string) preg_replace( '/\b([Dd])e\s+[Ll]es\s+/u', '$1es ', $texte );
+		return (string) preg_replace( '/\b([Dd])e\s+[Ll]e\s+/u', '$1u ', $texte );
 	}
 
 	/**

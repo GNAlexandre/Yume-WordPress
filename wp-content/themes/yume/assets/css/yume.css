@@ -1877,6 +1877,12 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 	margin: 0 0 0.6em;
 }
 
+/* Liens dans le texte d'un commentaire : soulignés (WCAG 1.4.1, theme.json retire le soulignement). */
+.yn-commentaire .wp-block-comment-content a {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
 .yn-commentaire .comment-awaiting-moderation {
 	display: inline-block;
 	margin-bottom: 6px;

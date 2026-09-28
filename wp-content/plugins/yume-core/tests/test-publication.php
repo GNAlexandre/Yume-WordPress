@@ -2093,3 +2093,14 @@ yume_test(
 		}
 	)
 );
+
+yume_test(
+	'Titre d’annonce : élision et contraction de l’article (« des Lanternes », « du Voyageur », « L’arc »)',
+	function () {
+		yume_assert_same( 'Le tome 2 des Lanternes de Brume-Haute est disponible !', Annonce::elision( 'Le tome 2 de Les Lanternes de Brume-Haute est disponible !' ) );
+		yume_assert_same( 'L’arc 3 du Voyageur est disponible !', Annonce::elision( 'Le arc 3 de Le Voyageur est disponible !' ) );
+		yume_assert_same( 'Le tome 1 de Grimgar est disponible !', Annonce::elision( 'Le tome 1 de Grimgar est disponible !' ) );
+		yume_assert_same( 'Le tome 1 de L’Attaque des Titans', Annonce::elision( 'Le tome 1 de L’Attaque des Titans' ) );
+		yume_assert_same( 'Le tome 5 du monde de Lesley', Annonce::elision( 'Le tome 5 du monde de Lesley' ) );
+	}
+);

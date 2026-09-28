@@ -311,7 +311,7 @@ if ( $yume_tome ) {
 				<div class="yn-card yn-publish__recap">
 					<span class="yn-label"><?php esc_html_e( 'Ce qui sera créé', 'yume-core' ); ?></span>
 					<ul class="yn-publish__recap-liste" data-yn-recap>
-						<li><span class="yn-chip yn-chip--ok" aria-hidden="true">✓</span><span data-yn-recap-tome><strong><?php echo esc_html( $yume_tome ? yume_libelle_tome( (int) $yume_tome->ID ) : __( 'Le tome', 'yume-core' ) ); ?></strong> <?php esc_html_e( 'avec sa couverture et ses liens PDF et EPUB', 'yume-core' ); ?></span></li>
+						<li><span class="yn-chip yn-chip--ok" aria-hidden="true">✓</span><span data-yn-recap-tome><strong><?php echo esc_html( $yume_tome ? yume_libelle_tome( (int) $yume_tome->ID ) : __( 'Le tome', 'yume-core' ) ); ?></strong> <?php esc_html_e( 'avec sa couverture et ses liens de téléchargement', 'yume-core' ); ?></span></li>
 						<li><span class="yn-chip yn-chip--ok" aria-hidden="true">✓</span><span data-yn-recap-chapitres>
 							<?php
 							if ( $yume_chaps ) {
