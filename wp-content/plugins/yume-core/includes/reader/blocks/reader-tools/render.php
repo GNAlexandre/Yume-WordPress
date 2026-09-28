@@ -103,14 +103,17 @@ if ( is_user_logged_in() ) {
 	$yume_lien_compte = '<a class="yn-btn yn-btn--primary yn-btn--sm yn-reader-tools__compte" href="' . esc_url( $yume_url_cnx ) . '">' . esc_html__( 'Connexion', 'yume-core' ) . '</a>';
 }
 
+// Repère « banner » : la barre remplace l'en-tête du site sur les gabarits de lecture (aucune
+// partie header), son contenu ne doit pas rester hors de tout repère (WCAG 1.3.1, axe region).
 $yume_attributs = get_block_wrapper_attributes(
 	array(
 		'class'           => 'yn-reader-tools',
+		'aria-label'      => __( 'Barre de lecture', 'yume-core' ),
 		'data-yn-lecteur' => wp_json_encode( $yume_config ),
 	)
 );
 ?>
-<div <?php echo $yume_attributs; // phpcs:ignore WordPress.Security.EscapeOutput -- attributs échappés par WordPress. ?>>
+<header <?php echo $yume_attributs; // phpcs:ignore WordPress.Security.EscapeOutput -- attributs échappés par WordPress. ?>>
 	<?php if ( $yume_fond ) : ?>
 		<div class="yn-reader-tools__fond" aria-hidden="true" style="<?php echo esc_attr( '--yn-image-fond:url("' . esc_url_raw( $yume_fond ) . '")' ); ?>"></div>
 	<?php endif; ?>
@@ -273,4 +276,4 @@ $yume_attributs = get_block_wrapper_attributes(
 			</p>
 		</form>
 	</dialog>
-</div>
+</header>

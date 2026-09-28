@@ -384,6 +384,34 @@ function fermer_archives_auteur( $qv ) {
 add_filter( 'request', __NAMESPACE__ . '\\fermer_archives_auteur', 1 );
 
 /**
+ * Lien « auteur » (liste des utilisateurs, colonne Auteur, blocs, REST) : les archives d'auteur
+ * étant fermées, /author/{identifiant}/ mènerait à une 404 et révélerait l'identifiant de
+ * connexion. Qui peut modifier le compte d'un autre est envoyé sur sa fiche (user-edit.php) ;
+ * son propre compte mène au profil de l'administration (gestionnaires des comptes) ou à la page
+ * « Mon compte » ; tout autre visiteur va sur l'accueil.
+ *
+ * @param string $lien      Lien d'origine.
+ * @param int    $auteur_id Auteur.
+ * @return string
+ */
+function lien_auteur( $lien, $auteur_id = 0 ) {
+	$auteur_id = (int) $auteur_id;
+	if ( $auteur_id <= 0 ) {
+		return home_url( '/' );
+	}
+	if ( get_current_user_id() === $auteur_id ) {
+		// Chacun peut modifier son propre compte : profil de l'administration pour qui gère les
+		// comptes, page « Mon compte » pour les autres.
+		return current_user_can( 'list_users' ) ? admin_url( 'profile.php' ) : yume_url_page( 'compte' );
+	}
+	if ( current_user_can( 'edit_user', $auteur_id ) ) {
+		return add_query_arg( 'user_id', $auteur_id, admin_url( 'user-edit.php' ) );
+	}
+	return home_url( '/' );
+}
+add_filter( 'author_link', __NAMESPACE__ . '\\lien_auteur', 10, 2 );
+
+/**
  * Plan du site : pas de fournisseur « users » (il listerait les identifiants de connexion).
  *
  * @param mixed  $fournisseur Fournisseur.

@@ -181,3 +181,8 @@ html:not([data-yn-theme]) .yn-partenaires .yn-partenaire__logo--monogramme {
 		transform: none;
 	}
 }
+
+/* Variante en ligne (pied de page) : noms liés séparés par « · », un nom n'est jamais coupé. */
+.yn-partenaires-en-ligne a {
+	white-space: nowrap;
+}

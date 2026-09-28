@@ -441,6 +441,9 @@ yume_test(
 		$s    = yume_tr_serie( 3 );
 		$html = yume_tr_sur( $s['chapitres'][1], static fn() => yume_render_block( 'yume/reader-tools' ) );
 		yume_assert_contains( 'class="yn-reader-tools wp-block-yume-reader-tools"', $html );
+		// Repère « banner » nommé : aucun contenu de la barre hors repère (axe region).
+		yume_assert_true( (bool) preg_match( '/^<header [^>]*class="yn-reader-tools wp-block-yume-reader-tools"[^>]*aria-label="Barre de lecture"/', trim( $html ) ), 'barre dans un <header> nommé' );
+		yume_assert_same( '</header>', substr( trim( $html ), -9 ), 'panneau Paramètres compris dans le repère' );
 		yume_assert_contains( 'data-yn-progression', $html );
 		yume_assert_contains( 'role="progressbar"', $html );
 		yume_assert_contains( 'data-yn-action="marque-page"', $html );
@@ -675,6 +678,7 @@ yume_test(
 		$url  = yume_url_illustrations( $s['tome'] );
 		$html = yume_tr_sur_illustrations( $s['tome'], static fn() => yume_render_block( 'yume/reader-tools' ) );
 		yume_assert_contains( 'class="yn-reader-tools wp-block-yume-reader-tools"', $html );
+		yume_assert_contains( 'aria-label="Barre de lecture"', $html, 'même repère que sur un chapitre' );
 		yume_assert_not_contains( 'data-yn-action="marque-page"', $html, 'pas de marque-page' );
 		yume_assert_contains( 'data-yn-action="theme"', $html );
 		yume_assert_contains( 'id="yn-parametres-lecture"', $html, 'panneau Paramètres' );

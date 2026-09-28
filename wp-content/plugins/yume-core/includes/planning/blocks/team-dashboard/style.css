@@ -616,6 +616,18 @@
 	color: var(--wp--preset--color--texte-fort);
 }
 
+/* Lien dans le texte d'une entrée (nom du tome) : souligné, la couleur seule ne le distingue
+   pas du texte qui l'entoure (WCAG 1.4.1). Déclaré après .yn-team__carte a, qui le retire. */
+.yn-team .yn-journal__texte a {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+.yn-team .yn-journal__texte a:hover,
+.yn-team .yn-journal__texte a:focus-visible {
+	text-decoration-thickness: 2px;
+}
+
 /* Déconnexion (sous le nom, toujours visible). */
 .yn-team__sortie {
 	padding: 0 14px;

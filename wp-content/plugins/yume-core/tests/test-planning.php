@@ -2921,3 +2921,71 @@ yume_tp_test(
 		);
 	}
 );
+
+yume_test(
+	'BUG-01 : le lien du tome dans une entrée du journal est souligné (pas distingué par la couleur seule)',
+	function () {
+		$entree = array(
+			'ts'      => time(),
+			'auteur'  => 'Calumi',
+			'cible'   => 'Tome de test T.1',
+			'tome_id' => 42,
+			'parties' => array(),
+			'publie'  => false,
+		);
+		$html   = \Yume\Core\Planning\liste_journal( array( $entree ), 'yn-team__journal yn-journal', false, static fn( int $id ) => 'https://exemple.test/?tome=' . $id );
+		yume_assert_contains( '<span class="yn-journal__texte"><b>Calumi</b> · <a href="https://exemple.test/?tome=42">Tome de test T.1</a>', $html );
+
+		// Les deux feuilles qui affichent le journal soulignent ce lien (WCAG 1.4.1).
+		$feuilles = array(
+			'team-dashboard' => '.yn-team',
+			'planning'       => '.yn-planning',
+		);
+		foreach ( $feuilles as $bloc => $parent ) {
+			$css = (string) file_get_contents( YUME_CORE_DIR . 'includes/planning/blocks/' . $bloc . '/style.css' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+			yume_assert_true( (bool) preg_match( '/' . preg_quote( $parent, '/' ) . ' \.yn-journal__texte a \{\s*text-decoration: underline;/', $css ), $bloc );
+		}
+	}
+);
+
+yume_test(
+	'Vues ajoutées à l’espace équipe (yume_vues_equipe) : entrée de navigation, ?vue= et capacité respectées',
+	function () {
+		$ajout = static function ( array $vues ): array {
+			$vues['essai']    = array(
+				'libelle'  => 'Vue d’essai',
+				'capacite' => 'yume_voir_equipe',
+				'rendu'    => static fn(): string => '<p>rendu-essai</p>',
+			);
+			$vues['reservee'] = array(
+				'libelle'  => 'Réservée',
+				'capacite' => 'manage_options',
+				'rendu'    => static fn(): string => '<p>rendu-reserve</p>',
+			);
+			$vues['journal']  = array(
+				'libelle' => 'Écrase le journal',
+				'rendu'   => static fn(): string => 'non',
+			);
+			return $vues;
+		};
+		add_filter( 'yume_vues_equipe', $ajout );
+		$avant = get_current_user_id();
+		wp_set_current_user( yume_factory_user( 'yume_traducteur' ) );
+		try {
+			$vues = \Yume\Core\Planning\vues_equipe_ajoutees();
+			yume_assert_same( array( 'essai' ), array_keys( $vues ) );
+			$nav = \Yume\Core\Planning\navigation_equipe( 'essai' );
+			yume_assert_contains( 'Vue d’essai', $nav );
+			yume_assert_contains( 'vue=essai" aria-current="page"', $nav );
+			yume_assert_not_contains( 'Réservée', $nav );
+			$_GET['vue'] = 'essai';
+			yume_assert_same( 'essai', \Yume\Core\Planning\vue_equipe() );
+			$_GET['vue'] = 'reservee';
+			yume_assert_same( '', \Yume\Core\Planning\vue_equipe() );
+		} finally {
+			unset( $_GET['vue'] );
+			remove_filter( 'yume_vues_equipe', $ajout );
+			wp_set_current_user( $avant );
+		}
+	}
+);

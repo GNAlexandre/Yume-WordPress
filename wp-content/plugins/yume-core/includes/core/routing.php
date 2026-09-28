@@ -203,15 +203,34 @@ function numero_segment( \WP_Post $chapitre ): ?string {
  * @return array<int,string>
  */
 function segments_tome( int $tome_id ): array {
-	static $cache = array();
-	$cle          = $tome_id . ':' . wp_cache_get_last_changed( 'posts' );
-	if ( isset( $cache[ $cle ] ) ) {
-		return $cache[ $cle ];
+	$cache = &cache_segments();
+	$cle   = $tome_id . ':' . wp_cache_get_last_changed( 'posts' );
+	if ( ! isset( $cache[ $cle ] ) ) {
+		$cache[ $cle ] = calculer_segments( $tome_id > 0 ? ids_par_meta( CPT_CHAPITRE, 'yume_tome_id', $tome_id, statuts_actifs() ) : array() );
 	}
+	return $cache[ $cle ];
+}
+
+/**
+ * Cache (requête en cours) des segments d'URL par tome : « tome:last_changed » => segments.
+ *
+ * @return array<string,array<int,string>>
+ */
+function &cache_segments(): array {
+	static $cache = array();
 	if ( count( $cache ) > 200 ) {
 		$cache = array();
 	}
-	$ids = $tome_id > 0 ? ids_par_meta( CPT_CHAPITRE, 'yume_tome_id', $tome_id, statuts_actifs() ) : array();
+	return $cache;
+}
+
+/**
+ * Segments d'URL d'une liste ordonnée (menu_order, ID) de chapitres d'un même tome.
+ *
+ * @param int[] $ids Chapitres.
+ * @return array<int,string>
+ */
+function calculer_segments( array $ids ): array {
 	if ( $ids ) {
 		_prime_post_caches( $ids, false, true );
 	}
@@ -247,8 +266,43 @@ function segments_tome( int $tome_id ): array {
 			$ordonnes[ $id ] = $segments[ $id ];
 		}
 	}
-	$cache[ $cle ] = $ordonnes;
 	return $ordonnes;
+}
+
+/**
+ * Calcule en une requête (et un amorçage des caches) les segments d'URL de plusieurs tomes,
+ * avant l'affichage d'une liste de liens vers leurs chapitres (fiche d'œuvre, accueil) : sans
+ * cela, chaque premier permalien de chapitre d'un tome coûte une requête et un amorçage.
+ *
+ * @param int[] $tome_ids Tomes.
+ */
+function amorcer_segments( array $tome_ids ): void {
+	global $wpdb;
+	$cache    = &cache_segments();
+	$version  = wp_cache_get_last_changed( 'posts' );
+	$tome_ids = array_values(
+		array_filter(
+			array_unique( array_map( 'intval', $tome_ids ) ),
+			static fn( int $id ): bool => $id > 0 && ! isset( $cache[ $id . ':' . $version ] )
+		)
+	);
+	if ( ! $tome_ids ) {
+		return;
+	}
+	$statuts = statuts_actifs();
+	$sql     = "SELECT p.ID, m.meta_value AS tome FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'yume_tome_id'"
+		. ' WHERE p.post_type = %s AND m.meta_value IN (' . implode( ', ', array_fill( 0, count( $tome_ids ), '%s' ) ) . ')'
+		. ' AND p.post_status IN (' . implode( ', ', array_fill( 0, count( $statuts ), '%s' ) ) . ') ORDER BY p.menu_order ASC, p.ID ASC';
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	$lignes   = (array) $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( CPT_CHAPITRE ), array_map( 'strval', $tome_ids ), $statuts ) ), ARRAY_A );
+	$par_tome = array_fill_keys( $tome_ids, array() );
+	foreach ( $lignes as $ligne ) {
+		$par_tome[ (int) $ligne['tome'] ][] = (int) $ligne['ID'];
+	}
+	_prime_post_caches( array_map( 'intval', wp_list_pluck( $lignes, 'ID' ) ), false, true );
+	foreach ( $par_tome as $tome_id => $ids ) {
+		$cache[ $tome_id . ':' . $version ] = calculer_segments( array_values( array_unique( $ids ) ) );
+	}
 }
 
 /**

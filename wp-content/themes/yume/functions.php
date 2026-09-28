@@ -17,5 +17,7 @@ require_once YUME_THEME_DIR . '/inc/setup.php';
 require_once YUME_THEME_DIR . '/inc/assets.php';
 require_once YUME_THEME_DIR . '/inc/liens.php';
 require_once YUME_THEME_DIR . '/inc/blocs.php';
+require_once YUME_THEME_DIR . '/inc/langue.php';
 require_once YUME_THEME_DIR . '/inc/commentaires.php';
 require_once YUME_THEME_DIR . '/inc/gabarits.php';
+require_once YUME_THEME_DIR . '/inc/recherche.php';

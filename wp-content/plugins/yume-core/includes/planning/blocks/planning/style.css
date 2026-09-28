@@ -269,6 +269,17 @@ a.yn-planning__filtre[aria-current="true"] {
 	color: var(--wp--preset--color--texte-fort);
 }
 
+/* Lien dans le texte d'une entrée : souligné, la couleur seule ne suffit pas (WCAG 1.4.1). */
+.yn-planning .yn-journal__texte a {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+.yn-planning .yn-journal__texte a:hover,
+.yn-planning .yn-journal__texte a:focus-visible {
+	text-decoration-thickness: 2px;
+}
+
 .yn-planning .yn-planning__legende ul {
 	display: flex;
 	flex-direction: column;

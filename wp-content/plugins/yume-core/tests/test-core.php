@@ -2129,6 +2129,28 @@ yume_test(
 );
 
 yume_test(
+	'BUG-12 : le lien d’auteur ne mène jamais aux archives fermées (fiche du compte, « Mon compte » ou accueil)',
+	function () {
+		$admin  = yume_factory_user( 'administrator' );
+		$membre = yume_factory_user( 'yume_traducteur' );
+		$autre  = yume_factory_user( 'yume_relecteur' );
+
+		wp_set_current_user( $admin );
+		yume_assert_same( add_query_arg( 'user_id', $membre, admin_url( 'user-edit.php' ) ), get_author_posts_url( $membre ), 'administrateur : fiche du compte' );
+		yume_assert_same( admin_url( 'profile.php' ), get_author_posts_url( $admin ), 'son propre compte : profil' );
+
+		wp_set_current_user( $membre );
+		yume_assert_same( yume_url_page( 'compte' ), get_author_posts_url( $membre ), 'sans edit_user : page « Mon compte »' );
+		yume_assert_same( home_url( '/' ), get_author_posts_url( $autre ), 'compte d’un autre : accueil' );
+
+		wp_set_current_user( 0 );
+		yume_assert_same( home_url( '/' ), get_author_posts_url( $membre ), 'visiteur : accueil' );
+		yume_assert_not_contains( get_userdata( $membre )->user_nicename, get_author_posts_url( $membre ), 'identifiant non révélé' );
+		yume_assert_same( home_url( '/' ), get_author_posts_url( 0 ) );
+	}
+);
+
+yume_test(
 	'MET-1 : la méta-boîte n’écrase ni la publication ni une mise à jour concurrente du planning',
 	function () {
 		$editeur = yume_factory_user( 'yume_editeur' );

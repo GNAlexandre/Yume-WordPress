@@ -129,7 +129,12 @@ caches en lecture seule pour l'API : `yume_note_moyenne` (number) · `yume_nb_no
 (object{traduction:int user_id, relecture:int, edition:int}) · `yume_date_cible` (string `Y-m-d`) ·
 `yume_bloque` (boolean) · `yume_bloque_raison` (string) · `yume_derniere_maj` (string `Y-m-d H:i:s` GMT) ·
 `yume_maj_par` (integer) · `yume_note_equipe` (string, **jamais exposé publiquement** :
-`auth_callback` = capacité `yume_maj_planning`) · `yume_nb_chapitres` (integer, cache).
+`auth_callback` = capacité `yume_maj_planning`) · `yume_nb_chapitres` (integer, cache : chapitres
+**publiés** du tome, prologues et postfaces compris ; recalculé par core, `includes/core/cache.php`, sur
+`wp_after_insert_post` d'un chapitre ou du tome — publication, programmation échue, mise à jour, corbeille —,
+au changement de `yume_tome_id` d'un chapitre (ancien et nouveau tome), à la suppression définitive d'un
+chapitre et sur `yume_tome_publie` ; lu par la bibliothèque via `Library\nb_chapitres_tome()`, avec repli
+sur le calcul quand la méta est absente, tome migré).
 
 **`yume_chapitre`** : `yume_tome_id` (integer) · `yume_oeuvre_id` (integer, dénormalisé) ·
 `yume_numero` (number ; 0 pour prologue) · `yume_sous_titre` (string) · `yume_nature` (string enum
@@ -428,11 +433,11 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/upcoming` | planning | `count` (3) | `.yn-upcoming` | Sans carte propre (le thème fournit la carte). Prochaines sorties compactes (date, œuvre, libellé, pastille d'état) |
 | `yume/planning` | planning | `showFilters` (true) | `.yn-planning` | Tableau public du planning + légende + journal public récent |
 | `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
-| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, « Retirer du planning » en admin-post `yume_planning_retrait`) `?vue=journal` (journal complet paginé, filtres œuvre / tome) `?vue=lecture` (« Lecture à compléter », capacité `yume_publier` : tomes publiés sans aucun chapitre publié, groupés par œuvre, progression « X tomes sur Y ont la lecture en ligne », filtre `oeuvre`, bouton « Ajouter le DOCX » → `yume_url_page( 'publier' )?tome=ID` ; voir `includes/planning/lecture-a-completer.php`) et `?vue=reglages` (capacité `yume_reglages` : tous les champs de `sections_reglages()` / `champs_reglages()` visibles pour l'utilisateur — mêmes règles `capability` / `verrouille` que Yume → Réglages —, enregistrés en admin-post `yume_reglages_equipe` avec nonce puis `update_option()`, donc `assainir_reglages()` ; images par ID ou adresse, sans `wp.media` ; voir `includes/planning/reglages-equipe.php`) |
+| `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, « Retirer du planning » en admin-post `yume_planning_retrait`) `?vue=journal` (journal complet paginé, filtres œuvre / tome) `?vue=lecture` (« Lecture à compléter », capacité `yume_publier` : tomes publiés sans aucun chapitre publié, groupés par œuvre, progression « X tomes sur Y ont la lecture en ligne », filtre `oeuvre`, bouton « Ajouter le DOCX » → `yume_url_page( 'publier' )?tome=ID` ; voir `includes/planning/lecture-a-completer.php`) et `?vue=reglages` (capacité `yume_reglages` : tous les champs de `sections_reglages()` / `champs_reglages()` visibles pour l'utilisateur — mêmes règles `capability` / `verrouille` que Yume → Réglages —, enregistrés en admin-post `yume_reglages_equipe` avec nonce puis `update_option()`, donc `assainir_reglages()` ; images par ID ou adresse, sans `wp.media` ; voir `includes/planning/reglages-equipe.php`). Autres vues : filtre `yume_vues_equipe` (clé => `libelle`, `capacite`, `rendu` callable qui rend toute la vue, navigation `navigation_equipe( <clé> )` comprise), entrée de navigation avant « Réglages », vue ignorée sans la capacité |
 | `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`), case « Ajout au catalogue » (`sans_annonce` : champ caché `0` + case `1`, cochée d'office pour un tome publié ; récapitulatif sans « Article d'annonce » ni « Notifications » quand elle est cochée), note « remplacés en place » quand le tome a déjà des chapitres |
 | `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) ; avertissement sur un membre responsable de tomes en cours, lien « Modifier dans l'administration » (administrateur) pour les comptes non modifiables ici |
-| `yume/partenaires` | bibliothèque | `title` (string, « Nos partenaires ») | `.yn-partenaires` | Section de l'accueil : logo (initiales à défaut), nom, description, lien en nouvel onglet ; réglage `partenaires` (§6) |
-| `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture : progression, sommaire, marque-page, thème, panneau Paramètres. Page Illustrations : même barre (retour et Sommaire vers le tome, réglages, thème, compte) sans marque-page, configuration `chapitre: 0` (aucun suivi, position jamais écrite), `next` = chapitre 1 |
+| `yume/partenaires` | bibliothèque | `title` (string, « Nos partenaires »), `variante` (`cartes` \| `en-ligne`, `cartes`) | `.yn-partenaires`, `.yn-partenaires-en-ligne` | Section de l'accueil : logo (initiales à défaut), nom, description, lien en nouvel onglet ; variante `en-ligne` : paragraphe « Partenaires : A · B » (rien sans partenaire), rendu aussi par `partenaires_en_ligne()` dans la mention du pied de page du thème (paragraphe `yn-copyright`) ; réglage `partenaires` (§6) |
+| `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture, repère `<header aria-label="Barre de lecture">` (les gabarits de lecture n'ont pas d'en-tête du site) : progression, sommaire, marque-page, thème, panneau Paramètres. Page Illustrations : même barre (retour et Sommaire vers le tome, réglages, thème, compte) sans marque-page, configuration `chapitre: 0` (aucun suivi, position jamais écrite), `next` = chapitre 1 |
 | `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte |
 | `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
 | `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) |
@@ -445,6 +450,30 @@ les paramètres GET `type`, `statut` (`slug[,slug…]`), `genre`, `tri` (`recent
 (pagination) ; filtre `yume_bibliotheque_groupes_statuts`. `yume/latest-releases` affiche une carte par
 tome, datée par ses chapitres pour un arc ou un web novel. Filtre `yume_bibliotheque_ligne_tome` : le
 module lecteurs y ajoute la progression personnelle sur les lignes de `yume/tome-list`.
+Performance (`library/donnees.php`) : les statistiques des tomes d'une œuvre (`stats_oeuvre()`, en
+transient versionné) lisent les chapitres de tous les tomes en **une** requête
+(`chapitres_des_tomes()`, même ordre que `yume_get_chapitres()`) et sautent les tomes dont
+`yume_nb_chapitres` vaut 0 hors sortie progressive ; `amorcer_caches()` charge en un appel les contenus,
+leurs méta, leurs couvertures et, pour les chapitres de la liste, les segments d'URL de leurs tomes
+(`Core\amorcer_segments()`, `includes/core/routing.php`) : `yume/tome-list` et `yume/latest-releases` ne
+font plus une requête par tome pour les permaliens des chapitres. Les pages de `yume_pages` sont
+chargées en une requête sur `template_redirect` (`amorcer_pages_yume()`) avant le rendu des liens.
+
+**Référencement** (`library/seo.php`, `wp_head`) : JSON-LD (filtre `yume_bibliotheque_jsonld`) et
+`rel=prev|next` des œuvres, tomes et chapitres publiés ; à la priorité 5, `<meta name="description">`,
+Open Graph (`og:site_name`, `og:locale` = `fr_FR`, `og:type` = `website` pour l'accueil et les autres
+pages, `book` pour une œuvre ou un tome, `article` pour un chapitre ou un article avec
+`article:published_time`/`modified_time`, `og:title`, `og:description` = `description_seo()`, `og:url`
+canonique, `og:image` + `:width`/`:height`/`:alt` = couverture de l'œuvre ou du tome (celle du tome pour
+un chapitre), image mise en avant d'un article (sinon couverture de l'œuvre liée), sinon image par défaut :
+bannière (`banniere_id`), logo, icône du site) et Twitter Card (`twitter:card` = `summary_large_image`
+avec une image, `summary` sans ; `twitter:site` = `@YumeNovel`). Rien sur les 404, la recherche, la page
+Illustrations (noindex), un contenu non publié ou protégé par mot de passe, les pages privées (`compte`,
+`connexion`, `equipe` et ses sous-pages de `yume_pages`, ou page contenant `yume/account`,
+`yume/team-dashboard`, `yume/team-members`, `yume/publish-form`) ; description et `og:description`
+omises si vides. Filtre `yume_open_graph( array $balises, int $post_id )` (clé = propriété `og:*`,
+`article:*`, `twitter:*` ou `description` ; tableau vide : rien n'est émis). L'Open Graph de Jetpack est
+coupé (`jetpack_enable_open_graph` → faux) pour éviter les doublons.
 `yume/planning` montre à un membre connecté (`yume_voir_equipe`) « Modifier dans l'espace équipe »
 (en tête et sous chaque tome, vers `?vue=planning`). Thème : avec `comment_registration` = 1, le
 formulaire de commentaire est remplacé par une invitation à se connecter ou à créer un compte ; le

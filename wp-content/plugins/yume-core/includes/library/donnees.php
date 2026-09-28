@@ -31,6 +31,9 @@ const PREFIXE_CACHE = 'yume_bib_';
  */
 const FORMAT_CACHE = '2';
 
+/** Statuts des chapitres lus par les statistiques d'un tome (publiés et à venir). */
+const STATUTS_STATS = array( 'publish', 'future', 'draft', 'pending' );
+
 /** Durée de vie des transients (filet de sécurité : l'invalidation est explicite). */
 const DUREE_CACHE = 12 * HOUR_IN_SECONDS;
 
@@ -504,10 +507,12 @@ function sortie_progressive( int $tome_id ): bool {
 /**
  * Statistiques d'un tome, calculées sans cache.
  *
- * @param int $tome_id ID du tome.
+ * @param int             $tome_id   ID du tome.
+ * @param \WP_Post[]|null $chapitres Chapitres du tome (publiés, programmés, brouillons, en attente)
+ *                                   dans l'ordre de yume_get_chapitres(), s'ils sont déjà chargés.
  * @return array{chapitres:int,speciaux:array<string,int>,publies:int,mots:int,minutes:int,premier:int,dernier:int,dernier_ts:int,a_venir:int,en_cours:bool}
  */
-function calculer_stats_tome( int $tome_id ): array {
+function calculer_stats_tome( int $tome_id, ?array $chapitres = null ): array {
 	$stats = array(
 		'chapitres'  => 0,
 		'speciaux'   => array(),
@@ -520,10 +525,12 @@ function calculer_stats_tome( int $tome_id ): array {
 		'a_venir'    => 0,
 		'en_cours'   => false,
 	);
-	if ( $tome_id <= 0 || ! function_exists( 'yume_get_chapitres' ) ) {
+	if ( $tome_id <= 0 || ( null === $chapitres && ! function_exists( 'yume_get_chapitres' ) ) ) {
 		return $stats;
 	}
-	$chapitres = yume_get_chapitres( $tome_id, array( 'status' => array( 'publish', 'future', 'draft', 'pending' ) ) );
+	if ( null === $chapitres ) {
+		$chapitres = yume_get_chapitres( $tome_id, array( 'status' => STATUTS_STATS ) );
+	}
 	foreach ( $chapitres as $chapitre ) {
 		if ( 'publish' !== $chapitre->post_status ) {
 			++$stats['a_venir'];
@@ -551,6 +558,80 @@ function calculer_stats_tome( int $tome_id ): array {
 }
 
 /**
+ * Nombre de chapitres publiés d'un tome : le cache yume_nb_chapitres tenu par core (publication,
+ * mise à jour, suppression d'un chapitre), sinon le calcul (tome migré sans cette métadonnée).
+ *
+ * @param int $tome_id ID du tome.
+ */
+function nb_chapitres_tome( int $tome_id ): int {
+	if ( $tome_id > 0 && metadata_exists( 'post', $tome_id, 'yume_nb_chapitres' ) ) {
+		return max( 0, (int) get_post_meta( $tome_id, 'yume_nb_chapitres', true ) );
+	}
+	return (int) calculer_stats_tome( $tome_id )['publies'];
+}
+
+/**
+ * Chapitres de plusieurs tomes en une requête (et un amorçage des caches), dans l'ordre de
+ * yume_get_chapitres() : menu_order, numéro (sans numéro en dernier), date, ID.
+ *
+ * @param int[]    $tome_ids Tomes.
+ * @param string[] $statuts  Statuts des chapitres.
+ * @return array<int,\WP_Post[]> ID du tome => chapitres.
+ */
+function chapitres_des_tomes( array $tome_ids, array $statuts ): array {
+	global $wpdb;
+	$tome_ids = array_values( array_unique( array_filter( array_map( 'intval', $tome_ids ) ) ) );
+	$par_tome = array_fill_keys( $tome_ids, array() );
+	if ( ! $tome_ids || ! $statuts ) {
+		return $par_tome;
+	}
+	$sql = "SELECT p.ID, m.meta_value AS tome FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'yume_tome_id'"
+		. ' WHERE p.post_type = %s AND m.meta_value IN (' . implode( ', ', array_fill( 0, count( $tome_ids ), '%s' ) ) . ')'
+		. ' AND p.post_status IN (' . implode( ', ', array_fill( 0, count( $statuts ), '%s' ) ) . ') ORDER BY p.menu_order ASC, p.ID ASC';
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	$lignes = (array) $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( TYPE_CHAPITRE ), array_map( 'strval', $tome_ids ), array_values( $statuts ) ) ), ARRAY_A );
+	_prime_post_caches( array_values( array_unique( array_map( 'intval', wp_list_pluck( $lignes, 'ID' ) ) ) ), false, true );
+	foreach ( $lignes as $ligne ) {
+		$chapitre = get_post( (int) $ligne['ID'] );
+		if ( $chapitre instanceof \WP_Post && ! isset( $par_tome[ (int) $ligne['tome'] ][ $chapitre->ID ] ) ) {
+			$par_tome[ (int) $ligne['tome'] ][ $chapitre->ID ] = $chapitre;
+		}
+	}
+	foreach ( $par_tome as $tome_id => $chapitres ) {
+		$chapitres = array_values( $chapitres );
+		usort( $chapitres, __NAMESPACE__ . '\\comparer_chapitres' );
+		$par_tome[ $tome_id ] = $chapitres;
+	}
+	return $par_tome;
+}
+
+/**
+ * Ordre des chapitres d'un tome, identique à celui de yume_get_chapitres().
+ *
+ * @param \WP_Post $a Chapitre.
+ * @param \WP_Post $b Chapitre.
+ */
+function comparer_chapitres( \WP_Post $a, \WP_Post $b ): int {
+	$cmp = ( $a->menu_order <=> $b->menu_order );
+	if ( 0 !== $cmp ) {
+		return $cmp;
+	}
+	$na = \Yume\Core\Core\numero_ou_null( get_post_meta( $a->ID, 'yume_numero', true ) );
+	$nb = \Yume\Core\Core\numero_ou_null( get_post_meta( $b->ID, 'yume_numero', true ) );
+	if ( $na !== $nb ) {
+		if ( null === $na ) {
+			return 1;
+		}
+		if ( null === $nb ) {
+			return -1;
+		}
+		return $na <=> $nb;
+	}
+	$cmp = strcmp( (string) $a->post_date, (string) $b->post_date );
+	return 0 !== $cmp ? $cmp : ( $a->ID <=> $b->ID );
+}
+
+/**
  * Statistiques des tomes publiés d'une œuvre (en cache), indexées par ID de tome.
  *
  * @param int $oeuvre_id ID de l'œuvre.
@@ -568,8 +649,20 @@ function stats_oeuvre( int $oeuvre_id ): array {
 			if ( ! function_exists( 'yume_get_tomes' ) ) {
 				return $stats;
 			}
-			foreach ( yume_get_tomes( $oeuvre_id ) as $tome ) {
-				$stats[ (int) $tome->ID ] = calculer_stats_tome( (int) $tome->ID );
+			$tomes = yume_get_tomes( $oeuvre_id );
+			// Chapitres de tous les tomes en une requête (au lieu d'une par tome) ; un tome dont
+			// le cache yume_nb_chapitres vaut 0 et qui ne sort pas chapitre par chapitre n'a rien
+			// à compter (ses chapitres non publiés ne servent qu'au badge « En cours »).
+			$a_lire = array();
+			foreach ( $tomes as $tome ) {
+				$id = (int) $tome->ID;
+				if ( ! metadata_exists( 'post', $id, 'yume_nb_chapitres' ) || nb_chapitres_tome( $id ) > 0 || sortie_progressive( $id ) ) {
+					$a_lire[] = $id;
+				}
+			}
+			$chapitres = chapitres_des_tomes( $a_lire, STATUTS_STATS );
+			foreach ( $tomes as $tome ) {
+				$stats[ (int) $tome->ID ] = calculer_stats_tome( (int) $tome->ID, $chapitres[ (int) $tome->ID ] ?? array() );
 			}
 			return $stats;
 		}
@@ -759,4 +852,33 @@ function amorcer_caches( array $ids ): void {
 	if ( $couvertures ) {
 		_prime_post_caches( $couvertures, false, true );
 	}
+	// Permaliens des chapitres : segments d'URL de leurs tomes calculés en une requête.
+	if ( function_exists( 'Yume\\Core\\Core\\amorcer_segments' ) ) {
+		$tomes = array();
+		foreach ( $ids as $id ) {
+			if ( TYPE_CHAPITRE === get_post_type( $id ) ) {
+				$tomes[] = (int) get_post_meta( $id, 'yume_tome_id', true );
+			}
+		}
+		if ( $tomes ) {
+			\Yume\Core\Core\amorcer_segments( $tomes );
+		}
+	}
 }
+
+/**
+ * Pages Yume (option yume_pages : bibliothèque, planning, compte, équipe…) chargées en une requête
+ * au début de chaque page publique : l'en-tête, le pied de page et les blocs résolvent leurs
+ * adresses (yume_url_page()) sans une requête par page.
+ */
+function amorcer_pages_yume(): void {
+	$pages = get_option( 'yume_pages', array() );
+	if ( ! is_array( $pages ) || is_admin() ) {
+		return;
+	}
+	$ids = array_values( array_unique( array_filter( array_map( 'absint', $pages ) ) ) );
+	if ( $ids ) {
+		_prime_post_caches( $ids, false, false );
+	}
+}
+add_action( 'template_redirect', __NAMESPACE__ . '\\amorcer_pages_yume', 1 );

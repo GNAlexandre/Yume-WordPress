@@ -634,8 +634,44 @@ function url_vue_equipe( string $vue = '', array $args = array() ): string {
 }
 
 /**
+ * Vues ajoutées à l'espace équipe par les autres fichiers (filtre yume_vues_equipe), limitées à
+ * celles que le compte courant peut voir : clé => array{libelle: string, capacite: string,
+ * rendu: callable(): string}. Chaque vue a son entrée dans la navigation (avant « Réglages ») et
+ * s'affiche par ?vue=<clé>.
+ *
+ * @return array<string,array{libelle:string,capacite:string,rendu:callable}>
+ */
+function vues_equipe_ajoutees(): array {
+	/**
+	 * Filtre les vues ajoutées à l'espace équipe.
+	 *
+	 * @param array $vues clé (sanitize_key) => array{libelle, capacite, rendu}.
+	 */
+	$vues   = (array) apply_filters( 'yume_vues_equipe', array() );
+	$retenu = array();
+	foreach ( $vues as $cle => $vue ) {
+		$cle = sanitize_key( (string) $cle );
+		if ( '' === $cle || in_array( $cle, array( 'planning', 'journal', 'reglages', 'lecture' ), true ) || ! is_array( $vue ) ) {
+			continue;
+		}
+		if ( ! isset( $vue['libelle'], $vue['rendu'] ) || ! is_callable( $vue['rendu'] ) ) {
+			continue;
+		}
+		$capacite = (string) ( $vue['capacite'] ?? 'yume_voir_equipe' );
+		if ( current_user_can( $capacite ) ) {
+			$retenu[ $cle ] = array(
+				'libelle'  => (string) $vue['libelle'],
+				'capacite' => $capacite,
+				'rendu'    => $vue['rendu'],
+			);
+		}
+	}
+	return $retenu;
+}
+
+/**
  * Vue demandée de l'espace équipe (paramètre GET « vue ») : 'planning', 'journal', 'reglages',
- * 'lecture' ou ''.
+ * 'lecture', une vue ajoutée (vues_equipe_ajoutees()) ou ''.
  */
 function vue_equipe(): string {
 	if ( est_apercu_editeur() ) {
@@ -643,7 +679,7 @@ function vue_equipe(): string {
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- choix d'affichage en lecture seule.
 	$vue = isset( $_GET['vue'] ) && is_string( $_GET['vue'] ) ? sanitize_key( wp_unslash( $_GET['vue'] ) ) : '';
-	return in_array( $vue, array( 'planning', 'journal', 'reglages', 'lecture' ), true ) ? $vue : '';
+	return in_array( $vue, array( 'planning', 'journal', 'reglages', 'lecture' ), true ) || isset( vues_equipe_ajoutees()[ $vue ] ) ? $vue : '';
 }
 
 /**
@@ -685,6 +721,9 @@ function navigation_equipe( string $actif, int $retards = 0 ): string {
 	$membres = url_membres();
 	if ( '' !== $membres ) {
 		$html .= '<li><a href="' . esc_url( $membres ) . '"' . $courant( 'membres' ) . '>' . esc_html__( 'Membres et rôles', 'yume-core' ) . '</a></li>';
+	}
+	foreach ( vues_equipe_ajoutees() as $cle => $ajoutee ) {
+		$html .= '<li><a href="' . esc_url( url_vue_equipe( $cle ) ) . '"' . $courant( $cle ) . '>' . esc_html( $ajoutee['libelle'] ) . '</a></li>';
 	}
 	if ( current_user_can( 'yume_reglages' ) ) {
 		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'reglages' ) ) . '"' . $courant( 'reglages' ) . '>' . esc_html__( 'Réglages', 'yume-core' ) . '</a></li>';
@@ -1063,6 +1102,10 @@ function rendu_team_dashboard(): string {
 	}
 	if ( 'lecture' === $vue ) {
 		return rendu_vue_lecture();
+	}
+	$ajoutees = vues_equipe_ajoutees();
+	if ( isset( $ajoutees[ $vue ] ) ) {
+		return (string) call_user_func( $ajoutees[ $vue ]['rendu'] );
 	}
 
 	$user    = wp_get_current_user();

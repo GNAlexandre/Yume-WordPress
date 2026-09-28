@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.5 — 2026-09-28
+
+- Phase 1 corrections : accessibilité (liens du journal soulignés, repère de la barre de lecture, recherches nommées, titres de Nos réseaux), accueil avec h1, partenaires du pied de page suivant le réglage, lien Contactez-nous, libellés français quelle que soit la langue, liens d'auteur sans 404, Open Graph et Twitter Cards, requêtes N+1 supprimées, vues de l'espace équipe extensibles (yume_vues_equipe).
+
 ## 2.0.0-dev.4 — 2026-09-28
 
 - Phase 0 sécurité : intégrité des mises à jour (SHA256SUMS, hôtes autorisés), points d'entrée WordPress (REST utilisateurs, XML-RPC, en-têtes, inscription et mot de passe oublié limités), gérant sans gestion directe des comptes, liste de mise en production et avis des prérequis, Dependabot et CODEOWNERS.

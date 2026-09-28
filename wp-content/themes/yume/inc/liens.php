@@ -17,6 +17,7 @@ defined( 'ABSPATH' ) || exit;
  * Clés de liens connues et leur définition.
  *
  * - `page`    : clé de yume_url_page() (extension) ;
+ * - `option`  : clé de l'option `yume_pages` (page publiée enregistrée sous cette clé) ;
  * - `chemin`  : chemin de page WordPress à rechercher, puis adresse de repli ;
  * - `reglage` : clé de yume_setting() (extension) et valeur par défaut du contrat §6.
  *
@@ -57,6 +58,7 @@ function yume_theme_definitions_liens(): array {
 			'chemin' => 'a-propos',
 		),
 		'contact'       => array(
+			'option' => 'contactez-nous',
 			'chemin' => 'contactez-nous',
 		),
 		'mentions'      => array(
@@ -84,9 +86,38 @@ function yume_theme_definitions_liens(): array {
  * @return string Adresse, ou chaîne vide si la page n'existe pas ou n'est pas publiée.
  */
 function yume_theme_url_page_par_chemin( string $chemin ): string {
-	$page = get_page_by_path( $chemin, OBJECT, 'page' );
-	if ( $page instanceof WP_Post && 'publish' === $page->post_status ) {
-		return (string) get_permalink( $page );
+	static $pages = null, $version = '';
+	// Toutes les pages racines des liens du thème en une requête, au lieu d'un get_page_by_path()
+	// (deux requêtes) par lien ; rechargées si une page a changé depuis.
+	$derniere = wp_cache_get_last_changed( 'posts' );
+	if ( null === $pages || $version !== $derniere ) {
+		$version = $derniere;
+		$chemins = array_filter( array_column( yume_theme_definitions_liens(), 'chemin' ) );
+		$chemins = array_values( array_unique( array_merge( $chemins, array( 'mentions-legales' ) ) ) );
+		$pages   = array();
+		foreach ( get_posts(
+			array(
+				'post_type'        => 'page',
+				'post_status'      => 'publish',
+				'post_parent'      => 0,
+				'post_name__in'    => $chemins,
+				'posts_per_page'   => count( $chemins ),
+				'orderby'          => 'ID',
+				'order'            => 'ASC',
+				'suppress_filters' => false,
+			)
+		) as $trouvee ) {
+			$pages[ $trouvee->post_name ] ??= $trouvee;
+		}
+	}
+	if ( isset( $pages[ $chemin ] ) ) {
+		return (string) get_permalink( $pages[ $chemin ] );
+	}
+	if ( str_contains( $chemin, '/' ) ) {
+		$page = get_page_by_path( $chemin, OBJECT, 'page' );
+		if ( $page instanceof WP_Post && 'publish' === $page->post_status ) {
+			return (string) get_permalink( $page );
+		}
 	}
 	return '';
 }
@@ -138,6 +169,14 @@ function yume_theme_lien( string $cle ): string {
 	if ( '' === $url && 'bibliotheque' === ( $definition['page'] ?? '' ) && post_type_exists( 'yume_oeuvre' ) ) {
 		$archive = get_post_type_archive_link( 'yume_oeuvre' );
 		$url     = is_string( $archive ) ? $archive : '';
+	}
+
+	if ( '' === $url && isset( $definition['option'] ) ) {
+		$pages = get_option( 'yume_pages', array() );
+		$id    = is_array( $pages ) ? absint( $pages[ $definition['option'] ] ?? 0 ) : 0;
+		if ( $id > 0 && 'page' === get_post_type( $id ) && 'publish' === get_post_status( $id ) ) {
+			$url = (string) get_permalink( $id );
+		}
 	}
 
 	if ( '' === $url && isset( $definition['chemin'] ) ) {

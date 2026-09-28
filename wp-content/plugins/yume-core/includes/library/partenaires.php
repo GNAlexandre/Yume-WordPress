@@ -296,11 +296,38 @@ function logo_partenaire( array $partenaire ): string {
 }
 
 /**
- * Rendu de yume/partenaires : titre et cartes (lien dans un nouvel onglet, rel="noopener").
+ * Partenaires en ligne (pied de page) : noms liés séparés par « · », sans logo ni description ;
+ * chaîne vide sans partenaire.
  *
- * @param array<string,mixed> $attributes Attributs du bloc (title).
+ * @return string HTML échappé.
+ */
+function partenaires_en_ligne(): string {
+	$liens = array();
+	foreach ( partenaires() as $partenaire ) {
+		$liens[] = sprintf( '<a href="%1$s">%2$s</a>', esc_url( $partenaire['url'] ), esc_html( $partenaire['nom'] ) );
+	}
+	return implode( ' · ', $liens );
+}
+
+/**
+ * Rendu de yume/partenaires : titre et cartes (lien dans un nouvel onglet, rel="noopener") ;
+ * variante « en-ligne » : un paragraphe « Partenaires : A · B · C » (rien sans partenaire).
+ *
+ * @param array<string,mixed> $attributes Attributs du bloc (title, variante).
  */
 function rendu_partenaires( array $attributes ): string {
+	if ( 'en-ligne' === ( $attributes['variante'] ?? '' ) ) {
+		$liens = partenaires_en_ligne();
+		if ( '' === $liens ) {
+			return rendu_sans_contexte( 'yn-partenaires-en-ligne', __( 'Aucun partenaire : ajoutez-les dans Yume → Réglages → Partenaires.', 'yume-core' ) );
+		}
+		return sprintf(
+			'<p %1$s>%2$s&nbsp;: %3$s</p>',
+			attributs_racine( 'yn-partenaires-en-ligne' ),
+			esc_html__( 'Partenaires', 'yume-core' ),
+			$liens
+		);
+	}
 	$liste = partenaires();
 	if ( ! $liste ) {
 		return rendu_sans_contexte( 'yn-partenaires', __( 'Aucun partenaire : ajoutez-les dans Yume → Réglages → Partenaires.', 'yume-core' ) );

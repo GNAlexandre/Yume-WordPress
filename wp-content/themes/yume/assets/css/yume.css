@@ -1288,6 +1288,11 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 	margin-block-start: 40px;
 }
 
+/* Titre h1 de l'accueil visuellement masqué : la première section garde sa place. */
+.yn-accueil > .yn-visually-hidden + * {
+	margin-block-start: 0;
+}
+
 .yn-accueil__duo {
 	gap: 24px;
 }

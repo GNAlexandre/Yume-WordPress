@@ -315,3 +315,28 @@ function yume_theme_encre_fond_personnalise( $contenu, $bloc ) {
 	return $balises->get_updated_html();
 }
 add_filter( 'render_block', 'yume_theme_encre_fond_personnalise', 10, 2 );
+
+/**
+ * Partenaires de la mention du pied de page (paragraphe yn-copyright) : la liste écrite dans le
+ * modèle (lisible dans l'éditeur, conservée sans l'extension) est remplacée en façade par le
+ * réglage « partenaires » de l'extension (noms liés séparés par « · ») ; réglage vide : la
+ * mention « · Partenaires : … » disparaît.
+ *
+ * @param string $contenu Rendu du paragraphe.
+ * @param array  $bloc    Bloc analysé.
+ * @return string
+ */
+function yume_theme_partenaires_pied( $contenu, $bloc ) {
+	if ( ! is_string( $contenu ) || ! preg_match( '/(?:^|\s)yn-copyright(?:\s|$)/', (string) ( $bloc['attrs']['className'] ?? '' ) ) ) {
+		return $contenu;
+	}
+	if ( ! function_exists( 'Yume\Core\Library\partenaires_en_ligne' ) ) {
+		return $contenu;
+	}
+	$liens = \Yume\Core\Library\partenaires_en_ligne();
+	$suite = '' === $liens ? '' : ' · ' . esc_html__( 'Partenaires', 'yume' ) . '&nbsp;: ' . $liens;
+	// Du « · Partenaires : » du modèle jusqu'à la fin du paragraphe.
+	$remplace = preg_replace( '/\s*·\s*Partenaires(?:\s|&nbsp;|\x{00A0}|\x{202F})*:.*?(?=<\/p>)/su', addcslashes( $suite, '\\$' ), $contenu, 1 );
+	return is_string( $remplace ) ? $remplace : $contenu;
+}
+add_filter( 'render_block_core/paragraph', 'yume_theme_partenaires_pied', 10, 2 );
