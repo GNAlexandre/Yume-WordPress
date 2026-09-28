@@ -1,0 +1,100 @@
+/**
+ * Espace équipe, vue « Santé du site » (?vue=sante) — compléments de kpi.css (cartes et
+ * tableaux de la vue Indicateurs), structure seulement (couleurs : variables du thème). Chargée
+ * par includes/planning/sante-equipe.php quand la vue est rendue.
+ */
+.yn-sante__table tbody th {
+	font-weight: 600;
+}
+
+.yn-sante__hook {
+	display: block;
+	width: fit-content;
+	max-width: 100%;
+	margin-top: 4px;
+	overflow-wrap: anywhere;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	font-weight: 400;
+}
+
+.yn-sante__table td .yn-chip {
+	white-space: normal;
+}
+
+.yn-sante__test {
+	margin: 0;
+}
+
+.yn-kpi__carte > .yn-sante__sous-titre {
+	margin: 4px 0 0;
+	font-size: 16px;
+}
+
+.yn-team .yn-sante__echecs {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	overflow-wrap: anywhere;
+}
+
+.yn-team--sante .yn-kpi__liste {
+	overflow-wrap: anywhere;
+}
+
+/* Petits écrans : chaque ligne des tableaux devient une fiche (libellé de colonne devant la
+   valeur), sans défilement horizontal. */
+@media (max-width: 699.98px) {
+	.yn-sante__table thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.yn-sante__table,
+	.yn-sante__table tbody,
+	.yn-sante__table tr,
+	.yn-sante__table th,
+	.yn-sante__table td {
+		display: block;
+		width: auto;
+	}
+
+	.yn-sante__table tr {
+		padding: 10px 0;
+		border-bottom: 1px solid var(--wp--preset--color--filet);
+	}
+
+	.yn-sante__table tr:first-child {
+		padding-top: 0;
+	}
+
+	.yn-sante__table tbody th,
+	.yn-sante__table tbody td {
+		padding: 2px 0;
+		border-bottom: 0;
+	}
+
+	.yn-sante__table tbody td {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 4px 8px;
+		font-size: 14px;
+	}
+
+	.yn-sante__table tbody td::before {
+		content: attr(data-libelle) " :";
+		min-width: 9em;
+		color: var(--wp--preset--color--texte-faible);
+		font-size: 13px;
+		font-weight: 600;
+	}
+}

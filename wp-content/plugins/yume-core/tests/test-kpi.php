@@ -2,8 +2,9 @@
 /**
  * Tests des indicateurs de l'espace équipe (?vue=kpi : sorties par mois, délais par étape tirés
  * du journal, charge par membre, audience agrégée, e-mails, cache, accès et navigation) et de la
- * santé du site (Yume → Santé : dernière exécution des tâches planifiées, tests « Santé du
- * site », bouton « Envoyer un test » d'un webhook Discord).
+ * santé du site (vue ?vue=sante de l'espace équipe, sous-menu Yume → Santé qui y mène : dernière
+ * exécution des tâches planifiées, tests « Santé du site », bouton « Envoyer un test » d'un
+ * webhook Discord, dates en français).
  *
  * Lancement : tools/localenv/test.sh kpi
  *
@@ -19,6 +20,7 @@ use function Yume\Core\Planning\donnees_kpi;
 use function Yume\Core\Planning\emails_kpi;
 use function Yume\Core\Planning\navigation_equipe;
 use function Yume\Core\Planning\rendu_vue_kpi;
+use function Yume\Core\Planning\rendu_vue_sante;
 use function Yume\Core\Planning\retards_kpi;
 use function Yume\Core\Planning\sorties_par_mois;
 use function Yume\Core\Planning\table_journal;
@@ -558,7 +560,7 @@ yume_tk_test(
 );
 
 yume_tk_test(
-	'Santé : « Envoyer un test » (capacité, nonce, envoi Discord intercepté) et page Yume → Santé',
+	'Santé : « Envoyer un test » (capacité, nonce, envoi Discord intercepté, retour sur la vue) et vue ?vue=sante',
 	static function () {
 		$gerant     = yume_factory_user( 'yume_gerant' );
 		$traducteur = yume_factory_user( 'yume_traducteur' );
@@ -666,19 +668,139 @@ yume_tk_test(
 			);
 			yume_assert_contains( 'HTTP 404', wp_json_encode( \Yume\Core\Planning\echecs_recents( 1 ) ), 'échec noté' );
 
-			// Page : bouton de test, adresse secrète du webhook jamais affichée.
-			ob_start();
-			\Yume\Core\Core\afficher_page_sante();
-			$html = (string) ob_get_clean();
+			// Retour : message mémorisé, affiché une fois dans la zone d'annonce de la vue.
+			$url = \Yume\Core\Core\retour_test_webhook( 'ok', 'sorties', $gerant );
+			yume_assert_contains( 'vue=sante', $url );
+			yume_assert_contains( '#yn-sante-retour', $url );
+			yume_assert_same( 'erreur', \Yume\Core\Core\message_test_webhook( 'nonce', 'sorties' )['type'] );
+
+			// Vue : bouton de test, adresse secrète du webhook jamais affichée.
+			$_GET['vue'] = 'sante';
+			yume_assert_same( 'sante', vue_equipe() );
+			$html = rendu_vue_sante();
+			yume_assert_contains( 'Message de test envoyé', $html, 'retour affiché' );
+			yume_assert_contains( 'Annonces des sorties', $html );
 			yume_assert_contains( 'Envoyer un test', $html );
 			yume_assert_contains( 'name="_wpnonce"', $html );
+			yume_assert_contains( 'value="yume_sante_webhook"', $html );
+			yume_assert_contains( 'admin-post.php', $html );
 			yume_assert_contains( 'Configuré (discord.com)', $html );
+			yume_assert_contains( 'Non configuré', $html );
+			yume_assert_contains( 'vue=reglages#yn-reglages-notifications', $html, 'canal non configuré : lien vers les réglages' );
 			yume_assert_not_contains( 'secret-sorties', $html );
+			yume_assert_not_contains( 'webhooks/1', $html );
 			yume_assert_contains( 'Tâches planifiées', $html );
+			yume_assert_contains( 'Derniers échecs d’envoi', $html );
+			yume_assert_contains( 'HTTP 404', $html, 'échec listé' );
 			yume_assert_contains( 'Version installée : ' . YUME_CORE_VERSION, $html );
+			yume_assert_contains( 'aria-current="page"', $html );
+			yume_assert_true( wp_style_is( 'yume-sante', 'enqueued' ), 'feuille de style chargée' );
 			yume_assert_not_contains( 'Prérequis de mise en production', $html, 'prérequis : administrateurs seulement' );
+			yume_assert_not_contains( 'Message de test envoyé', rendu_vue_sante(), 'message lu une seule fois' );
+
+			wp_set_current_user( $traducteur );
+			$html = rendu_vue_sante();
+			yume_assert_contains( 'Seuls les gérants', $html, 'accès refusé' );
+			yume_assert_not_contains( 'Envoyer un test', $html );
+			yume_assert_same( '', vue_equipe(), '?vue=sante ignoré' );
 		} finally {
 			remove_filter( 'pre_http_request', $filtre, 10 );
+		}
+	}
+);
+
+yume_tk_test(
+	'Santé : navigation (« Santé du site » juste avant « Réglages »), prérequis une seule fois, sous-menu et avis',
+	static function () {
+		$gerant     = yume_factory_user( 'yume_gerant' );
+		$admin      = yume_factory_user( 'administrator' );
+		$traducteur = yume_factory_user( 'yume_traducteur' );
+		$editeur    = yume_factory_user( 'yume_editeur' );
+
+		foreach ( array( $gerant, $admin ) as $uid ) {
+			wp_set_current_user( $uid );
+			yume_assert_true( isset( vues_equipe_ajoutees()['sante'] ) );
+			$nav = navigation_equipe( 'tableau' );
+			yume_assert_true( preg_match_all( '#<li><a [^>]*>([^<]+)</a></li>#', $nav, $m ) > 0 );
+			$libelles = array_map( 'html_entity_decode', $m[1] );
+			$sante    = array_search( 'Santé du site', $libelles, true );
+			yume_assert_true( false !== $sante, 'entrée présente' );
+			yume_assert_same( 'Réglages', $libelles[ $sante + 1 ] ?? '', 'juste avant Réglages' );
+			yume_assert_contains( 'vue=sante', $nav );
+		}
+		foreach ( array( $traducteur, $editeur ) as $uid ) {
+			wp_set_current_user( $uid );
+			yume_assert_false( isset( vues_equipe_ajoutees()['sante'] ) );
+			yume_assert_not_contains( 'vue=sante', navigation_equipe( 'tableau' ) );
+			yume_assert_not_contains( 'Santé du site', navigation_equipe( 'tableau' ) );
+		}
+
+		// Administrateur : prérequis affichés une seule fois (pas d'avis en plus en façade).
+		$etat = static function ( $e ) {
+			$e['langue']   = 'en_US';
+			$e['wp_debug'] = true;
+			return $e;
+		};
+		add_filter( 'yume_prerequis_etat', $etat );
+		wp_set_current_user( $admin );
+		$html = rendu_vue_sante();
+		remove_filter( 'yume_prerequis_etat', $etat );
+		yume_assert_same( 1, substr_count( $html, 'Prérequis de mise en production' ), 'une seule fois' );
+		yume_assert_same( 1, substr_count( $html, 'data-prerequis="langue"' ) );
+		yume_assert_contains( 'id="yn-sante-prerequis"', $html );
+
+		// Sous-menu Yume → Santé : mène à la vue ; l'avis global n'est pas affiché sur cet écran
+		// et renvoie vers la vue pour le détail.
+		yume_assert_contains( 'vue=sante', \Yume\Core\Core\url_sante() );
+		yume_assert_true( false !== has_action( 'admin_menu', 'Yume\Core\Core\ajouter_page_sante' ) );
+		require_once ABSPATH . 'wp-admin/includes/class-wp-screen.php';
+		require_once ABSPATH . 'wp-admin/includes/screen.php';
+		$avant = $GLOBALS['current_screen'] ?? null;
+		add_filter( 'yume_prerequis_etat', $etat );
+		try {
+			$GLOBALS['current_screen'] = WP_Screen::get( 'yume_page_yume-sante' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- écran simulé, rétabli plus bas.
+			yume_assert_false( \Yume\Core\Core\ecran_prerequis(), 'pas d’avis sur Yume → Santé' );
+			$GLOBALS['current_screen'] = WP_Screen::get( 'dashboard' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			delete_user_meta( $admin, \Yume\Core\Core\META_PREREQUIS_MASQUES );
+			ob_start();
+			\Yume\Core\Core\avis_prerequis_production();
+			$avis = (string) ob_get_clean();
+			yume_assert_contains( 'vue=sante#yn-sante-prerequis', $avis, 'avis : lien vers le détail' );
+		} finally {
+			remove_filter( 'yume_prerequis_etat', $etat );
+			$GLOBALS['current_screen'] = $avant; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
+
+		// Tests de WordPress : le lien d'action mène aussi à la vue.
+		yume_assert_contains( 'vue=sante', \Yume\Core\Core\test_sante_version()['actions'] );
+	}
+);
+
+yume_tk_test(
+	'Santé : dates en français (« 29 septembre 2026 à 9 h 00 ») même si la langue du site est en_US',
+	static function () {
+		$gerant = yume_factory_user( 'yume_gerant' );
+		wp_set_current_user( $gerant );
+		$locale = static fn() => 'en_US';
+		add_filter( 'locale', $locale );
+		try {
+			// 29 septembre 2026, 9 h 00 à Paris (UTC+2) ; 5 octobre 2026, 14 h 05.
+			$prochaine = ( new DateTimeImmutable( '2026-09-29 09:00:00', new DateTimeZone( 'Europe/Paris' ) ) )->getTimestamp();
+			$derniere  = ( new DateTimeImmutable( '2026-10-05 14:05:00', new DateTimeZone( 'Europe/Paris' ) ) )->getTimestamp();
+			wp_clear_scheduled_hook( 'yume_planning_rappels' );
+			wp_schedule_event( $prochaine, 'daily', 'yume_planning_rappels' );
+			update_option( \Yume\Core\Core\OPTION_CRON_DERNIERS, array( 'yume_planning_rappels' => $derniere ), false );
+			yume_assert_same( '29 septembre 2026 à 9 h 00', \Yume\Core\Planning\date_sante( $prochaine, '' ) );
+			$html = rendu_vue_sante();
+			yume_assert_contains( '29 septembre 2026 à 9 h 00', $html );
+			yume_assert_contains( '5 octobre 2026 à 14 h 05', $html );
+			yume_assert_not_contains( 'September', $html );
+			yume_assert_not_contains( 'October', $html );
+			yume_assert_contains( 'data-libelle="Prochaine exécution"', $html, 'libellés des colonnes pour la liste mobile' );
+		} finally {
+			remove_filter( 'locale', $locale );
+			wp_clear_scheduled_hook( 'yume_planning_rappels' );
+			delete_option( \Yume\Core\Core\OPTION_CRON_DERNIERS );
 		}
 	}
 );

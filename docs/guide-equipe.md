@@ -406,7 +406,8 @@ jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté d
   réseaux*).
 - Si une page du site (planning, espace équipe, compte…) a été supprimée ou dépubliée, un avis
   l'indique en haut de l'administration avec un bouton **Recréer les pages manquantes**.
-- Les tâches automatiques (rappels, e-mails) se contrôlent dans *Yume → Santé* (voir ci-dessous).
+- Les tâches automatiques (rappels, e-mails) se contrôlent dans **Santé du site** (menu de l'espace
+  équipe, voir ci-dessous).
 
 ### Indicateurs et santé du site
 
@@ -415,12 +416,16 @@ jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté d
   ouvertes et en retard de chaque membre, retards en cours, lecteurs actifs, favoris et lecteurs par
   œuvre, e-mails envoyés. Choisissez la période (30 jours, 90 jours ou 12 mois) puis **Afficher**.
   Les chiffres sont recalculés toutes les 5 minutes ; aucun lecteur n'y est nommé.
-- **Santé** (*Yume → Santé* dans l'administration) : dernière et prochaine exécution des tâches
-  automatiques (rappels, récapitulatifs, envoi des e-mails), e-mails en attente ou abandonnés,
-  webhooks Discord avec un bouton **Envoyer un test** (un message de test doit arriver sur le
-  canal), version installée du site et dernière version connue. Les mêmes contrôles apparaissent
-  dans *Outils → Santé du site*. Une tâche « en retard » signifie en général que le site a eu peu
-  de visites : le cron de WordPress ne tourne qu'au passage des visiteurs.
+- **Santé du site** (menu de l'espace équipe, juste avant *Réglages*, `/equipe/?vue=sante`, gérants
+  et administrateurs ; *Yume → Santé* dans l'administration y mène aussi) : dernière et prochaine
+  exécution des tâches automatiques (rappels, récapitulatifs, envoi des e-mails), e-mails en
+  attente ou abandonnés et derniers échecs d'envoi, webhooks Discord avec un bouton **Envoyer un
+  test** (un message de test doit arriver sur le canal ; le résultat s'affiche en haut de la page),
+  version installée du site et dernière version connue. Les administrateurs y voient aussi les
+  **prérequis de mise en production** (l'avis de l'administration renvoie vers cette page). Les
+  mêmes contrôles apparaissent dans *Outils → Santé du site*. Une tâche « en retard » signifie en
+  général que le site a eu peu de visites : le cron de WordPress ne tourne qu'au passage des
+  visiteurs.
 
 ### Partenaires de l'accueil
 

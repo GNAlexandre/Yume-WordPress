@@ -1,12 +1,15 @@
 <?php
 /**
- * Santé du site (audit AMEL-12) : page « Yume → Santé » (capacité yume_reglages) et tests
- * personnalisés de l'écran « Outils → Santé du site » de WordPress (filtre site_status_tests).
+ * Santé du site (audit AMEL-12) : données de la vue « Santé du site » de l'espace équipe
+ * (?vue=sante, capacité yume_reglages, rendu dans includes/planning/sante-equipe.php), tests
+ * personnalisés de l'écran « Outils → Santé du site » de WordPress (filtre site_status_tests) et
+ * sous-menu Yume → Santé, qui mène à la vue de l'espace équipe.
  *
  * - Tâches planifiées Yume : dernière exécution (option yume_cron_derniers, horodatage noté au
  *   début de chaque tâche par un écouteur générique) et prochaine exécution ;
  * - file d'e-mails : en attente, abandonnés, derniers échecs ;
- * - webhooks Discord configurés, bouton « Envoyer un test » (admin-post yume_sante_webhook, nonce) ;
+ * - webhooks Discord configurés, bouton « Envoyer un test » (admin-post yume_sante_webhook, nonce,
+ *   retour sur la vue de l'espace équipe) ;
  * - version installée et dernière release connue, lue dans l'état mis en cache par la
  *   vérification des mises à jour (aucune requête réseau à l'affichage) ;
  * - prérequis de mise en production (etat_prerequis(), notices.php).
@@ -18,10 +21,10 @@ namespace Yume\Core\Core;
 
 defined( 'ABSPATH' ) || exit;
 
-/** Slug de la page Yume → Santé. */
+/** Slug du sous-menu Yume → Santé (redirigé vers la vue de l'espace équipe). */
 const PAGE_SANTE = 'yume-sante';
 
-/** Capacité de la page et du bouton de test (gérants et administrateurs). */
+/** Capacité de la vue et du bouton de test (gérants et administrateurs). */
 const CAPACITE_SANTE = 'yume_reglages';
 
 /** Option : dernière exécution de chaque tâche planifiée Yume (hook => horodatage). */
@@ -29,6 +32,9 @@ const OPTION_CRON_DERNIERS = 'yume_cron_derniers';
 
 /** Action admin-post du test de webhook. */
 const ACTION_TEST_WEBHOOK = 'yume_sante_webhook';
+
+/** Zone d'annonce du retour du bouton de test dans la vue « Santé du site ». */
+const RETOUR_SANTE = 'yn-sante-retour';
 
 /** Retard toléré d'une tâche planifiée avant alerte (le cron WordPress suit le trafic). */
 const RETARD_CRON_TOLERE = HOUR_IN_SECONDS;
@@ -52,6 +58,8 @@ function taches_cron_yume(): array {
 		'yume_notifications_envoyer'        => __( 'Envoi de la file d’e-mails (toutes les 5 minutes)', 'yume-core' ),
 		'yume_social_recap_hebdo'           => __( 'Récapitulatif hebdomadaire des lecteurs', 'yume-core' ),
 		'yume_publication_sortie_groupee'   => __( 'Annonce groupée des sorties programmées', 'yume-core' ),
+		'yume_notifications_lecteur_purge'  => __( 'Purge des notifications des lecteurs (90 jours)', 'yume-core' ),
+		'yume_push_envoyer'                 => __( 'Envoi des notifications navigateur', 'yume-core' ),
 		'puc_cron_check_updates-yume-core'  => __( 'Recherche de mises à jour (extension)', 'yume-core' ),
 		'puc_cron_check_updates_theme-yume' => __( 'Recherche de mises à jour (thème)', 'yume-core' ),
 	);
@@ -65,7 +73,7 @@ function taches_cron_yume(): array {
 		}
 	}
 	/**
-	 * Filtre les tâches planifiées suivies par Yume → Santé.
+	 * Filtre les tâches planifiées suivies par la page « Santé du site ».
 	 *
 	 * @param array<string,string> $taches Hook => libellé.
 	 */
@@ -241,7 +249,7 @@ function resultat_sante( string $test, string $statut, string $libelle, string $
 			'color' => 'good' === $statut ? 'blue' : ( 'critical' === $statut ? 'red' : 'orange' ),
 		),
 		'description' => $description,
-		'actions'     => current_user_can( CAPACITE_SANTE ) ? '<p><a href="' . esc_url( admin_url( 'admin.php?page=' . PAGE_SANTE ) ) . '">' . esc_html__( 'Ouvrir Yume → Santé', 'yume-core' ) . '</a></p>' : '',
+		'actions'     => current_user_can( CAPACITE_SANTE ) ? '<p><a href="' . esc_url( url_sante() ) . '">' . esc_html__( 'Ouvrir la santé du site dans l’espace équipe', 'yume-core' ) . '</a></p>' : '',
 		'test'        => $test,
 	);
 }
@@ -323,10 +331,10 @@ function test_sante_webhooks(): array {
 			'recommended',
 			__( 'Webhooks Discord de Yume non configurés', 'yume-core' ),
 			/* translators: %s : canaux */
-			'<p>' . esc_html( sprintf( __( 'Sans webhook, rien n’est publié sur Discord pour : %s. Renseignez-les dans Yume → Réglages → Annonces et notifications.', 'yume-core' ), implode( ', ', $absents ) ) ) . '</p>'
+			'<p>' . esc_html( sprintf( __( 'Sans webhook, rien n’est publié sur Discord pour : %s. Renseignez-les dans les Réglages de l’espace équipe (Annonces et notifications).', 'yume-core' ), implode( ', ', $absents ) ) ) . '</p>'
 		);
 	}
-	return resultat_sante( 'yume_webhooks', 'good', __( 'Webhooks Discord de Yume configurés', 'yume-core' ), '<p>' . esc_html__( 'Les deux canaux Discord sont réglés ; le bouton « Envoyer un test » de Yume → Santé vérifie qu’ils répondent.', 'yume-core' ) . '</p>' );
+	return resultat_sante( 'yume_webhooks', 'good', __( 'Webhooks Discord de Yume configurés', 'yume-core' ), '<p>' . esc_html__( 'Les deux canaux Discord sont réglés ; le bouton « Envoyer un test » de la page « Santé du site » de l’espace équipe vérifie qu’ils répondent.', 'yume-core' ) . '</p>' );
 }
 
 /**
@@ -407,49 +415,90 @@ function traiter_test_webhook( array $post, int $user_id ): string {
 }
 
 /**
- * Action admin-post « Envoyer un test » : traite puis revient sur Yume → Santé.
+ * Message affiché après « Envoyer un test ».
+ *
+ * @param string $resultat Résultat de traiter_test_webhook().
+ * @param string $canal    Canal testé.
+ * @return array{type:string,message:string} type : ok ou erreur.
+ */
+function message_test_webhook( string $resultat, string $canal ): array {
+	$messages = array(
+		'ok'     => array( 'ok', __( 'Message de test envoyé : vérifiez qu’il est arrivé sur Discord.', 'yume-core' ) ),
+		'echec'  => array( 'erreur', __( 'Discord a refusé le message de test : vérifiez l’adresse du webhook (détail dans « Derniers échecs d’envoi »).', 'yume-core' ) ),
+		'absent' => array( 'erreur', __( 'Ce webhook n’est pas configuré.', 'yume-core' ) ),
+		'canal'  => array( 'erreur', __( 'Canal inconnu.', 'yume-core' ) ),
+		'nonce'  => array( 'erreur', __( 'Votre session a expiré : rechargez la page puis réessayez.', 'yume-core' ) ),
+		'droits' => array( 'erreur', __( 'Vous n’avez pas le droit d’envoyer ce test.', 'yume-core' ) ),
+	);
+	$message  = $messages[ $resultat ] ?? $messages['canal'];
+	$webhooks = etat_webhooks();
+	return array(
+		'type'    => $message[0],
+		'message' => $message[1] . ( isset( $webhooks[ $canal ] ) && 'canal' !== $resultat ? ' (' . $webhooks[ $canal ]['libelle'] . ')' : '' ),
+	);
+}
+
+/**
+ * Action admin-post « Envoyer un test » : traite, mémorise le message puis revient sur la vue
+ * « Santé du site » de l'espace équipe (Outils → Santé du site sans le module planning).
  */
 function action_test_webhook(): void {
-	$resultat = traiter_test_webhook( $_POST, get_current_user_id() ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié par traiter_test_webhook().
-	if ( in_array( $resultat, array( 'droits', 'nonce' ), true ) ) {
-		wp_die( esc_html__( 'Vous n’avez pas le droit d’envoyer ce test, ou le formulaire a expiré : rechargez la page.', 'yume-core' ), 403 );
+	$user_id  = get_current_user_id();
+	$resultat = traiter_test_webhook( $_POST, $user_id ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié par traiter_test_webhook().
+	if ( 'droits' === $resultat ) {
+		wp_die( esc_html__( 'Vous n’avez pas le droit d’envoyer ce test.', 'yume-core' ), 403 );
 	}
 	$canal = isset( $_POST['canal'] ) && is_string( $_POST['canal'] ) ? sanitize_key( $_POST['canal'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-	wp_safe_redirect(
-		add_query_arg(
-			array(
-				'page'         => PAGE_SANTE,
-				'yume_webhook' => $resultat,
-				'yume_canal'   => $canal,
-			),
-			admin_url( 'admin.php' )
-		) . '#yume-sante-webhooks'
-	);
+	wp_safe_redirect( retour_test_webhook( $resultat, $canal, $user_id ) );
 	exit;
 }
 add_action( 'admin_post_' . ACTION_TEST_WEBHOOK, __NAMESPACE__ . '\\action_test_webhook' );
 
 /**
- * Paramètres de retour retirés de l'adresse affichée.
+ * Mémorise le message du test (retour de formulaire de l'espace équipe, lu une fois par la vue)
+ * et renvoie l'adresse de retour : la zone d'annonce de la vue « Santé du site ».
  *
- * @param array $args Paramètres.
+ * @param string $resultat Résultat de traiter_test_webhook().
+ * @param string $canal    Canal testé.
+ * @param int    $user_id  Utilisateur.
  */
-function parametres_retires_sante( array $args ): array {
-	return array_merge( $args, array( 'yume_webhook', 'yume_canal' ) );
+function retour_test_webhook( string $resultat, string $canal, int $user_id ): string {
+	if ( ! function_exists( '\\Yume\\Core\\Planning\\retour_formulaire' ) ) {
+		return admin_url( 'site-health.php' );
+	}
+	$message = message_test_webhook( $resultat, $canal );
+	\Yume\Core\Planning\retour_formulaire(
+		$user_id,
+		array(
+			'type'    => $message['type'],
+			'message' => $message['message'],
+			'cible'   => RETOUR_SANTE,
+			'details' => array(),
+		)
+	);
+	return url_sante() . '#' . RETOUR_SANTE;
 }
-add_filter( 'removable_query_args', __NAMESPACE__ . '\\parametres_retires_sante' );
 
 /*
  * -----------------------------------------------------------------------------
- * Page Yume → Santé
+ * Sous-menu Yume → Santé : lien vers la vue de l'espace équipe
  * -----------------------------------------------------------------------------
  */
 
 /**
- * Sous-menu « Santé » (priorité 20, avant Réglages replacé en fin de menu).
+ * Adresse de la vue « Santé du site » de l'espace équipe (?vue=sante), ou de l'écran
+ * Outils → Santé du site si le module planning (espace équipe) n'est pas chargé.
+ */
+function url_sante(): string {
+	return function_exists( '\\Yume\\Core\\Planning\\url_vue_equipe' ) ? \Yume\Core\Planning\url_vue_equipe( 'sante' ) : admin_url( 'site-health.php' );
+}
+
+/**
+ * Sous-menu « Santé » (priorité 20, avant Réglages replacé en fin de menu) : comme « Publier un
+ * tome », il mène à l'espace équipe (redirection au chargement de la page).
  */
 function ajouter_page_sante(): void {
-	add_submenu_page(
+	$hook = add_submenu_page(
 		'yume',
 		__( 'Santé du site Yume', 'yume-core' ),
 		__( 'Santé', 'yume-core' ),
@@ -457,184 +506,31 @@ function ajouter_page_sante(): void {
 		PAGE_SANTE,
 		__NAMESPACE__ . '\\afficher_page_sante'
 	);
+	if ( $hook ) {
+		add_action( 'load-' . $hook, __NAMESPACE__ . '\\rediriger_page_sante' );
+	}
 }
 add_action( 'admin_menu', __NAMESPACE__ . '\\ajouter_page_sante', 20 );
 
 /**
- * Styles d'administration Yume sur la page Santé.
- *
- * @param string $hook Écran courant.
+ * Yume → Santé mène à la vue « Santé du site » de l'espace équipe.
  */
-function ressources_page_sante( $hook ): void {
-	if ( 'yume_page_' . PAGE_SANTE === $hook ) {
-		wp_enqueue_style( 'yume-core-admin', YUME_CORE_URL . 'includes/core/assets/admin.css', array(), YUME_CORE_VERSION );
+function rediriger_page_sante(): void {
+	if ( current_user_can( CAPACITE_SANTE ) && function_exists( '\\Yume\\Core\\Planning\\url_vue_equipe' ) ) {
+		wp_safe_redirect( url_sante() );
+		exit;
 	}
 }
-add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\\ressources_page_sante' );
 
 /**
- * Date et heure lisibles d'un horodatage (« 28 septembre 2026 à 9 h 00 »), ou « jamais ».
- *
- * @param int    $ts     Horodatage.
- * @param string $jamais Texte si vide.
- */
-function date_sante( int $ts, string $jamais ): string {
-	if ( $ts <= 0 ) {
-		return $jamais;
-	}
-	/* translators: 1: date, 2: heure */
-	return sprintf( __( '%1$s à %2$s', 'yume-core' ), wp_date( 'j F Y', $ts ), wp_date( 'G \h i', $ts ) );
-}
-
-/**
- * Pastille d'état (texte + icône, jamais la couleur seule).
- *
- * @param bool   $ok    État correct.
- * @param string $texte Libellé.
- */
-function pastille_sante( bool $ok, string $texte ): string {
-	return '<span class="yume-sante__etat yume-sante__etat--' . ( $ok ? 'ok' : 'alerte' ) . '"><span class="dashicons dashicons-' . ( $ok ? 'yes-alt' : 'warning' ) . '" aria-hidden="true"></span> ' . esc_html( $texte ) . '</span>';
-}
-
-/**
- * Page Yume → Santé.
+ * Page de repli, sans module planning (pas d'espace équipe) : renvoi vers Outils → Santé du site,
+ * qui affiche les mêmes contrôles.
  */
 function afficher_page_sante(): void {
 	if ( ! current_user_can( CAPACITE_SANTE ) ) {
 		wp_die( esc_html__( 'Vous n’avez pas accès à cette page.', 'yume-core' ), 403 );
 	}
-	echo '<div class="wrap yume-admin yume-sante">';
-	echo '<h1>' . esc_html__( 'Santé du site Yume', 'yume-core' ) . '</h1>';
-	echo '<p>' . esc_html__( 'Tâches automatiques, e-mails, Discord et version installée. Les mêmes contrôles figurent dans Outils → Santé du site.', 'yume-core' ) . '</p>';
-
-	// Retour du bouton de test.
-	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- message d'affichage après redirection.
-	$retour = isset( $_GET['yume_webhook'] ) && is_string( $_GET['yume_webhook'] ) ? sanitize_key( $_GET['yume_webhook'] ) : '';
-	$canal  = isset( $_GET['yume_canal'] ) && is_string( $_GET['yume_canal'] ) ? sanitize_key( $_GET['yume_canal'] ) : '';
-	// phpcs:enable
-	$messages = array(
-		'ok'     => array( 'success', __( 'Message de test envoyé : vérifiez qu’il est arrivé sur Discord.', 'yume-core' ) ),
-		'echec'  => array( 'error', __( 'Discord a refusé le message de test : vérifiez l’adresse du webhook (détail dans « Derniers échecs d’envoi »).', 'yume-core' ) ),
-		'absent' => array( 'warning', __( 'Ce webhook n’est pas configuré.', 'yume-core' ) ),
-		'canal'  => array( 'error', __( 'Canal inconnu.', 'yume-core' ) ),
-	);
-	if ( isset( $messages[ $retour ] ) ) {
-		$webhooks = etat_webhooks();
-		$nom      = isset( $webhooks[ $canal ] ) ? ' (' . $webhooks[ $canal ]['libelle'] . ')' : '';
-		printf( '<div class="notice notice-%1$s" role="status"><p>%2$s</p></div>', esc_attr( $messages[ $retour ][0] ), esc_html( $messages[ $retour ][1] . $nom ) );
-	}
-
-	// Tâches planifiées.
-	echo '<h2>' . esc_html__( 'Tâches planifiées', 'yume-core' ) . '</h2>';
-	echo '<p>' . esc_html__( 'Le cron de WordPress se déclenche au passage des visiteurs : un léger retard est normal. La dernière exécution n’est connue que depuis l’installation de cette page.', 'yume-core' ) . '</p>';
-	echo '<table class="widefat striped yume-admin__table"><thead><tr>';
-	foreach ( array( __( 'Tâche', 'yume-core' ), __( 'Dernière exécution', 'yume-core' ), __( 'Prochaine exécution', 'yume-core' ), __( 'État', 'yume-core' ) ) as $entete ) {
-		echo '<th scope="col">' . esc_html( $entete ) . '</th>';
-	}
-	echo '</tr></thead><tbody>';
-	foreach ( etat_taches_cron() as $hook => $tache ) {
-		if ( $tache['retard'] ) {
-			$etat = pastille_sante( false, __( 'En retard', 'yume-core' ) );
-		} elseif ( $tache['prochaine'] ) {
-			$etat = pastille_sante( true, __( 'Programmée', 'yume-core' ) );
-		} else {
-			$etat = '<span class="yume-sante__etat">' . esc_html__( 'Non programmée', 'yume-core' ) . '</span>';
-		}
-		echo '<tr><th scope="row">' . esc_html( $tache['libelle'] ) . '<br><code>' . esc_html( $hook ) . '</code></th>';
-		echo '<td>' . esc_html( date_sante( $tache['derniere'], __( 'pas encore mesurée', 'yume-core' ) ) ) . '</td>';
-		echo '<td>' . esc_html( date_sante( $tache['prochaine'], '—' ) ) . '</td>';
-		echo '<td>' . $etat . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput -- pastille_sante() échappe.
-	}
-	echo '</tbody></table>';
-
-	// E-mails.
-	echo '<h2>' . esc_html__( 'E-mails', 'yume-core' ) . '</h2>';
-	$emails = etat_emails();
-	if ( null === $emails ) {
-		echo '<p>' . esc_html__( 'La file d’e-mails (module planning) n’est pas chargée.', 'yume-core' ) . '</p>';
-	} else {
-		echo '<ul class="ul-disc">';
-		/* translators: %d : nombre */
-		echo '<li>' . esc_html( sprintf( _n( '%d e-mail en attente d’envoi', '%d e-mails en attente d’envoi', $emails['attente'], 'yume-core' ), $emails['attente'] ) ) . ( $emails['plus_ancienne'] ? esc_html( ' · ' . sprintf( /* translators: %s : date */ __( 'le plus ancien depuis le %s', 'yume-core' ), date_sante( $emails['plus_ancienne'], '' ) ) ) : '' ) . '</li>';
-		/* translators: %d : nombre */
-		echo '<li>' . esc_html( sprintf( _n( '%d e-mail abandonné après 3 tentatives ces 7 derniers jours', '%d e-mails abandonnés après 3 tentatives ces 7 derniers jours', $emails['abandons'], 'yume-core' ), $emails['abandons'] ) ) . '</li>';
-		echo '</ul>';
-		echo '<h3>' . esc_html__( 'Derniers échecs d’envoi (7 jours)', 'yume-core' ) . '</h3>';
-		if ( ! $emails['echecs'] ) {
-			echo '<p>' . esc_html__( 'Aucun échec d’envoi.', 'yume-core' ) . '</p>';
-		} else {
-			echo '<ul class="ul-disc">';
-			foreach ( array_slice( $emails['echecs'], 0, 10 ) as $echec ) {
-				$ts = strtotime( (string) $echec['date'] . ' UTC' );
-				echo '<li>' . esc_html( date_sante( $ts ? (int) $ts : 0, '' ) . ' · ' . ( 'discord' === $echec['type'] ? 'Discord' : __( 'E-mail', 'yume-core' ) ) . ' · ' . $echec['message'] ) . '</li>';
-			}
-			echo '</ul>';
-		}
-	}
-
-	// Webhooks.
-	echo '<h2 id="yume-sante-webhooks">' . esc_html__( 'Webhooks Discord', 'yume-core' ) . '</h2>';
-	echo '<table class="widefat striped yume-admin__table"><thead><tr>';
-	foreach ( array( __( 'Canal', 'yume-core' ), __( 'État', 'yume-core' ), __( 'Test', 'yume-core' ) ) as $entete ) {
-		echo '<th scope="col">' . esc_html( $entete ) . '</th>';
-	}
-	echo '</tr></thead><tbody>';
-	foreach ( etat_webhooks() as $cle => $webhook ) {
-		echo '<tr><th scope="row">' . esc_html( $webhook['libelle'] ) . '</th><td>';
-		/* translators: %s : hôte du webhook */
-		echo $webhook['configure'] ? pastille_sante( true, sprintf( __( 'Configuré (%s)', 'yume-core' ), $webhook['hote'] ) ) : pastille_sante( false, __( 'Non configuré', 'yume-core' ) ); // phpcs:ignore WordPress.Security.EscapeOutput -- pastille_sante() échappe.
-		echo '</td><td>';
-		if ( $webhook['configure'] ) {
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-			echo '<input type="hidden" name="action" value="' . esc_attr( ACTION_TEST_WEBHOOK ) . '"><input type="hidden" name="canal" value="' . esc_attr( $cle ) . '">';
-			wp_nonce_field( ACTION_TEST_WEBHOOK );
-			/* translators: %s : canal */
-			echo '<button type="submit" class="button" aria-label="' . esc_attr( sprintf( __( 'Envoyer un test : %s', 'yume-core' ), $webhook['libelle'] ) ) . '">' . esc_html__( 'Envoyer un test', 'yume-core' ) . '</button></form>';
-		} else {
-			echo '<a href="' . esc_url( admin_url( 'admin.php?page=' . PAGE_REGLAGES ) ) . '">' . esc_html__( 'Régler dans Yume → Réglages', 'yume-core' ) . '</a>';
-		}
-		echo '</td></tr>';
-	}
-	echo '</tbody></table>';
-
-	// Version.
-	$v = etat_version();
-	echo '<h2>' . esc_html__( 'Version', 'yume-core' ) . '</h2><ul class="ul-disc">';
-	/* translators: %s : version */
-	echo '<li>' . esc_html( sprintf( __( 'Version installée : %s', 'yume-core' ), $v['installee'] ) ) . '</li>';
-	echo '<li>' . esc_html(
-		'' !== $v['derniere']
-			/* translators: %s : version */
-			? sprintf( __( 'Dernière release connue : %s', 'yume-core' ), $v['derniere'] )
-			: __( 'Dernière release : pas encore vérifiée (la recherche automatique tourne toutes les 12 heures).', 'yume-core' )
-	) . '</li>';
-	if ( $v['verifie'] ) {
-		/* translators: %s : date */
-		echo '<li>' . esc_html( sprintf( __( 'Dernière recherche de mise à jour : %s', 'yume-core' ), date_sante( $v['verifie'], '' ) ) ) . '</li>';
-	}
-	echo '</ul>';
-	if ( $v['maj'] ) {
-		echo '<p>' . pastille_sante( false, __( 'Une mise à jour est disponible.', 'yume-core' ) ); // phpcs:ignore WordPress.Security.EscapeOutput -- pastille_sante() échappe.
-		if ( current_user_can( 'update_plugins' ) ) {
-			echo ' <a href="' . esc_url( self_admin_url( 'update-core.php' ) ) . '">' . esc_html__( 'Voir les mises à jour', 'yume-core' ) . '</a>';
-		}
-		echo '</p>';
-	}
-
-	// Prérequis de mise en production (administrateurs : ils portent sur des réglages du site).
-	if ( current_user_can( 'manage_options' ) ) {
-		$manquants = prerequis_manquants( etat_prerequis() );
-		echo '<h2>' . esc_html__( 'Prérequis de mise en production', 'yume-core' ) . '</h2>';
-		if ( ! $manquants ) {
-			echo '<p>' . pastille_sante( true, __( 'Tous les prérequis vérifiables sont remplis.', 'yume-core' ) ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput -- pastille_sante() échappe.
-		} else {
-			echo '<ul class="ul-disc">';
-			foreach ( $manquants as $message ) {
-				echo '<li>' . esc_html( $message ) . '</li>';
-			}
-			echo '</ul>';
-		}
-		echo '<p><a href="' . esc_url( URL_DOC_MISE_EN_PRODUCTION ) . '">' . esc_html__( 'Liste complète de mise en production', 'yume-core' ) . '</a></p>';
-	}
-	echo '</div>';
+	echo '<div class="wrap"><h1>' . esc_html__( 'Santé du site Yume', 'yume-core' ) . '</h1>';
+	echo '<div class="notice notice-warning"><p>' . esc_html__( 'Le détail de la santé du site s’affiche dans l’espace équipe, qui n’est pas disponible (module planning absent). Les mêmes contrôles figurent dans Outils → Santé du site.', 'yume-core' ) . '</p>';
+	echo '<p><a class="button" href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Ouvrir Outils → Santé du site', 'yume-core' ) . '</a></p></div></div>';
 }
