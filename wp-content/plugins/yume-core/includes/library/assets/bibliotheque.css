@@ -120,6 +120,14 @@
 	object-position: center 30%;
 }
 
+/* Ambiance : la couverture très floutée et agrandie ne laisse que ses couleurs (ni texte ni
+   logo lisible) ; l'agrandissement cache les bords transparents du flou. */
+.yn-fiche-banniere--ambiance .yn-fiche-banniere__image {
+	object-position: center;
+	filter: blur(48px) saturate(1.4);
+	transform: scale(1.35);
+}
+
 .yn-fiche-banniere::after {
 	content: "";
 	position: absolute;

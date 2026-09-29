@@ -2,6 +2,30 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.1 — 2026-09-29
+
+- Version 2.1.1 : œuvres (création, modification, genres, cadrage des couvertures), menu de l'équipe en rubriques, fonds tirés des couvertures, découpage manuel des chapitres à l'import.
+
+## 2.1.1-dev.4 — 2026-09-29
+
+- Import : découpage manuel des chapitres, étiquettes DOCX (Prologue, 1, Bonus…), ouvertures illustrées
+
+## 2.1.1-dev.3 — 2026-09-29
+
+- Couvertures : cadrage réglable à la création et sur les œuvres existantes.
+
+## 2.1.1-dev.2 — 2026-09-29
+
+- Vue Œuvres : mise en page de la section Genres, intitulés et bouton de fichier.
+
+## 2.1.1-dev.1 — 2026-09-29
+
+- Espace équipe : modifier les œuvres, genres, menu en rubriques ; fonds tirés des couvertures ; ligne « Tomes 1 à N » qui disparaît à l'ouverture.
+
+## 2.1.0 — 2026-09-29
+
+- Espace équipe : vue « Œuvres » et formulaire « Nouvelle œuvre ».
+
 ## 2.0.2 — 2026-09-29
 
 - Version 2.0.2 : correctifs de la recette (menus de l'œuvre, règles de réécriture, CI unique).

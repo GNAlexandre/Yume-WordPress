@@ -641,3 +641,267 @@ yume_test(
 		yume_tsimp_nettoyer();
 	}
 );
+
+yume_test(
+	'découpage manuel : formes invalides refusées (taille, repères, natures, HTML dans les titres, doublons) et droits contrôlés',
+	function () {
+		$ancre = static fn( int $i ): string => 'e' . $i . '-' . substr( hash( 'crc32b', (string) $i ), 0, 6 );
+		$plan  = static function ( array $debuts, array $extra = array() ): array {
+			return array_merge( array( 'debuts' => $debuts ), $extra );
+		};
+		$refus = static function ( $valeur, string $message ): void {
+			$r = Service::plan( $valeur );
+			yume_assert_true( is_wp_error( $r ), $message );
+			yume_assert_same( 'yume_plan_invalide', $r->get_error_code(), $message );
+			yume_assert_same( 400, $r->get_error_data()['status'], $message );
+		};
+		yume_assert_same( null, Service::plan( '' ) );
+		yume_assert_same( null, Service::plan( null ) );
+		$refus( '{pas du json', 'JSON illisible' );
+		$refus( 'e1-abcdef', 'chaîne quelconque' );
+		$refus( array( 'debuts' => 'e1-abcdef' ), 'débuts non listés' );
+		$refus( array( 'debuts' => array( 'e1-abcdef' => array( 'nature' => 'chapitre' ) ) ), 'débuts en objet (clés) refusés' );
+		$refus( $plan( array() ), 'aucun début' );
+		$refus( str_repeat( ' ', Service::PLAN_OCTETS_MAX + 1 ), 'JSON démesuré' );
+		$trop = array();
+		for ( $i = 1; $i <= 3001; $i++ ) {
+			$trop[] = array( 'ancre' => $ancre( $i ) );
+		}
+		$refus( $plan( $trop ), 'plus de 3 000 débuts' );
+		yume_assert_same( 3000, count( Service::plan( $plan( array_slice( $trop, 0, 3000 ) ) )['debuts'] ), '3 000 débuts acceptés' );
+		foreach ( array( '<script>', 'e0-abcdef', 'e1-ABCDEF', 'e1-abcdefg', 'e1-abcde', 'x1-abcdef', "e1-abcdef\n", 'e12345678-abcdef', '../e1-abcdef' ) as $faux ) {
+			$refus( $plan( array( array( 'ancre' => $faux ) ) ), 'repère invalide ' . $faux );
+		}
+		$refus( $plan( array( array( 'ancre' => array( 'e1-abcdef' ) ) ) ), 'repère non textuel' );
+		$refus( $plan( array( 'e1-abcdef' ) ), 'entrée non tableau' );
+		$refus(
+			$plan(
+				array(
+					array(
+						'ancre'  => 'e1-abcdef',
+						'nature' => 'annexe',
+					),
+				)
+			),
+			'nature inconnue'
+		);
+		$refus(
+			$plan(
+				array(
+					array(
+						'ancre'  => 'e1-abcdef',
+						'nature' => array( 'chapitre' ),
+					),
+				)
+			),
+			'nature non textuelle'
+		);
+		$refus(
+			$plan(
+				array(
+					array(
+						'ancre' => 'e1-abcdef',
+						'titre' => array( 'x' ),
+					),
+				)
+			),
+			'titre non textuel'
+		);
+		$refus(
+			$plan(
+				array(
+					array(
+						'ancre' => 'e1-abcdef',
+						'titre' => str_repeat( 'é', 201 ),
+					),
+				)
+			),
+			'titre trop long'
+		);
+		$refus(
+			$plan(
+				array(
+					array(
+						'ancre'  => 'e1-abcdef',
+						'numero' => '-3',
+					),
+				)
+			),
+			'numéro négatif'
+		);
+		$refus(
+			$plan(
+				array(
+					array(
+						'ancre'  => 'e1-abcdef',
+						'numero' => 'trois',
+					),
+				)
+			),
+			'numéro non numérique'
+		);
+		$refus( $plan( array( array( 'ancre' => 'e1-abcdef' ), array( 'ancre' => 'e1-abcdef' ) ) ), 'même repère deux fois' );
+		// Clés nature + numéro en double (rapprochement des chapitres).
+		$refus(
+			$plan(
+				array(
+					array( 'ancre' => $ancre( 1 ) ),
+					array( 'ancre' => $ancre( 2 ) ),
+					array(
+						'ancre'  => $ancre( 3 ),
+						'numero' => 2,
+					),
+				)
+			),
+			'chapitre 2 en double'
+		);
+		$refus(
+			$plan(
+				array(
+					array(
+						'ancre'  => $ancre( 1 ),
+						'nature' => 'interlude',
+						'numero' => 1,
+					),
+					array(
+						'ancre'  => $ancre( 2 ),
+						'nature' => 'interlude',
+						'numero' => '1',
+					),
+				)
+			),
+			'interlude 1 en double'
+		);
+		$ok = Service::plan(
+			$plan(
+				array(
+					array(
+						'ancre'  => $ancre( 1 ),
+						'nature' => 'bonus',
+					),
+					array(
+						'ancre'  => $ancre( 2 ),
+						'nature' => 'bonus',
+					),
+					array(
+						'ancre'  => $ancre( 3 ),
+						'nature' => 'prologue',
+					),
+				)
+			)
+		);
+		yume_assert_false( is_wp_error( $ok ), 'deux bonus (numérotés 1 et 2) acceptés' );
+
+		// HTML dans les titres : texte brut ; garder_avant booléen.
+		$ok = Service::plan(
+			wp_json_encode(
+				$plan(
+					array(
+						array(
+							'ancre'  => 'e1-abcdef',
+							'nature' => 'chapitre',
+							'titre'  => '<script>alert(1)</script><b>La Crête</b> <img src=x onerror=alert(1)>',
+							'numero' => '3,5',
+						),
+					),
+					array( 'garder_avant' => 'oui' )
+				)
+			)
+		);
+		yume_assert_same( 'La Crête', $ok['debuts'][0]['titre'] );
+		yume_assert_same( 3.5, $ok['debuts'][0]['numero'] );
+		yume_assert_same( false, $ok['garder_avant'] );
+
+		// Titre piégé appliqué à une conversion : jamais de balisage dans le titre ni le contenu.
+		$chemin = yume_tsimp_docx( array( 'word/document.xml' => yume_tsimp_document( yume_tsimp_p( 'Premier paragraphe.' ) . yume_tsimp_p( 'Second paragraphe.' ) ) ) );
+		try {
+			$analyse = Docx_Converter::convert_file( $chemin );
+			$debut   = $analyse->candidats[0]['ancre'];
+			$r       = Docx_Converter::convert_file(
+				$chemin,
+				array(
+					'plan' => array(
+						'debuts' => array(
+							array(
+								'ancre'  => $debut,
+								'nature' => 'chapitre',
+								'titre'  => '<img src=x onerror=alert(1)>Titre',
+							),
+						),
+					),
+				)
+			);
+			yume_assert_same( 'Titre', $r->chapters[0]['sous_titre'] );
+			yume_assert_not_contains( 'onerror', $r->chapters[0]['blocks'] );
+		} catch ( Throwable $e ) {
+			wp_delete_file( $chemin );
+			throw $e;
+		}
+
+		// REST : capacité yume_publier exigée, découpage invalide refusé avant tout traitement.
+		$fichier = static function () use ( $chemin ): array {
+			$tmp = wp_tempnam( 'yume-test' );
+			copy( $chemin, $tmp );
+			return array(
+				'name'     => 'tome.docx',
+				'type'     => 'application/octet-stream',
+				'tmp_name' => $tmp,
+				'error'    => UPLOAD_ERR_OK,
+				'size'     => filesize( $tmp ),
+			);
+		};
+		add_filter( 'yume_publication_fichier_local', '__return_true' );
+		try {
+			$valide = wp_json_encode( $plan( array( array( 'ancre' => $debut ) ) ) );
+			foreach ( array( 0, yume_factory_user( 'subscriber' ) ) as $user ) {
+				$source = $fichier();
+				$r      = yume_rest( 'POST', '/yume/v1/publications/analyse', array( 'plan' => $valide ), $user, array( 'source' => $source ) );
+				yume_assert_true( in_array( $r->get_status(), array( 401, 403 ), true ), 'sans yume_publier : refusé' );
+				wp_delete_file( $source['tmp_name'] );
+				$r = yume_rest(
+					'POST',
+					'/yume/v1/publications',
+					array(
+						'oeuvre_id' => 1,
+						'plan'      => $valide,
+					),
+					$user
+				);
+				yume_assert_true( in_array( $r->get_status(), array( 401, 403 ), true ), 'création sans yume_publier : refusée' );
+			}
+			$editeur = yume_factory_user( 'yume_editeur' );
+			$source  = $fichier();
+			$avant   = wp_count_posts( 'yume_tome' );
+			$r       = yume_rest(
+				'POST',
+				'/yume/v1/publications',
+				array(
+					'oeuvre_id' => yume_factory_post( array( 'post_type' => 'yume_oeuvre' ) ),
+					'numero'    => '3',
+					'plan'      => wp_json_encode(
+						$plan(
+							array(
+								array(
+									'ancre' => $debut,
+									'titre' => str_repeat( 'x', 250 ),
+								),
+							)
+						)
+					),
+				),
+				$editeur,
+				array( 'source' => $source )
+			);
+			yume_assert_same( 400, $r->get_status() );
+			yume_assert_same( 'rest_invalid_param', $r->get_data()['code'] );
+			yume_assert_contains( 'titre trop long', (string) $r->get_data()['data']['params']['plan'] );
+			yume_assert_equals( $avant, wp_count_posts( 'yume_tome' ), 'aucun tome créé' );
+			if ( is_file( $source['tmp_name'] ) ) {
+				wp_delete_file( $source['tmp_name'] );
+			}
+		} finally {
+			remove_filter( 'yume_publication_fichier_local', '__return_true' );
+			wp_delete_file( $chemin );
+		}
+	}
+);

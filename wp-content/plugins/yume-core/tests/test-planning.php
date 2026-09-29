@@ -2206,7 +2206,7 @@ yume_tp_test(
 		wp_set_current_user( $gerant );
 		$html = yume_render_block( 'yume/team-members' );
 		// Vues ajoutées par le filtre yume_vues_equipe (« Indicateurs »…), placées avant « Réglages ».
-		$ajoutees = array_column( \Yume\Core\Planning\vues_equipe_ajoutees(), 'libelle' );
+		$ajoutees = \Yume\Core\Planning\vues_equipe_ajoutees();
 		wp_set_current_user( 0 );
 		yume_assert_contains( 'class="yn-team yn-team--membres wp-block-yume-team-members" id="yn-team"', $html );
 		yume_assert_contains( '<h2 class="yn-team__bonjour">Membres et rôles</h2>', $html );
@@ -2216,12 +2216,15 @@ yume_tp_test(
 		yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
 		preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0], $liens, PREG_SET_ORDER );
 		$libelles = array_map( static fn( $l ) => html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), $liens );
-		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles' ), $ajoutees, array( 'Réglages' ) ), $libelles );
-		$equipe = esc_url( yume_url_page( 'equipe' ) );
+		$du_menu  = static fn( string $groupe ): array => array_column( array_filter( $ajoutees, static fn( $v ) => $groupe === $v['groupe'] ), 'libelle' );
+		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Publier un tome', 'Lecture à compléter' ), $du_menu( 'catalogue' ), array( 'Planning complet', 'Journal', 'Membres et rôles' ), $du_menu( 'equipe' ), $du_menu( 'site' ), array( 'Réglages' ) ), $libelles );
+		$equipe   = esc_url( yume_url_page( 'equipe' ) );
 		yume_assert_same( $equipe, $liens[0][1] );
 		yume_assert_same( esc_url( \Yume\Core\Planning\url_vue_equipe( 'taches' ) ), $liens[1][1] );
-		yume_assert_same( esc_url( get_permalink( $page ) ), $liens[7][1] );
-		yume_assert_same( ' aria-current="page"', $liens[7][2] );
+		$membres = array_search( 'Membres et rôles', $libelles, true );
+		yume_assert_same( esc_url( get_permalink( $page ) ), $liens[ $membres ][1] );
+		yume_assert_same( ' aria-current="page"', $liens[ $membres ][2] );
+		yume_assert_contains( '<details open><summary>Équipe</summary>', $m[0], 'menu « Équipe » ouvert' );
 		yume_assert_same( 1, substr_count( $m[0], 'aria-current' ) );
 
 		// Membres : chacun avec son rôle ; lecteur absent de la liste.

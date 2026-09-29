@@ -17,6 +17,8 @@
  *    (<link rel="stylesheet">, <style> ; Epub_Css) : classes génériques de Calibre, Sigil,
  *    InDesign (« calibre5 », « p1 »…), héritées des conteneurs (div, section…).
  * 5. Images JPG/PNG/WebP/GIF conservées (jeton), avec la couverture en tête de la galerie.
+ * 6. Chaque document de la spine commence une page (début de chapitre possible du découpage
+ *    manuel, option « plan »).
  *
  * Aucune fonction WordPress.
  *
@@ -211,7 +213,8 @@ final class Epub_Converter {
 	 * @param string              $path    Chemin du fichier.
 	 * @param array<string,mixed> $options typographie (bool, défaut true) ; volume_max (int,
 	 *                                     octets) : texte converti maximal (défaut
-	 *                                     Chapter_Builder::VOLUME_MAX).
+	 *                                     Chapter_Builder::VOLUME_MAX) ; plan (array) : découpage
+	 *                                     manuel (Chapter_Builder::normaliser_plan()).
 	 * @throws Import_Exception Fichier illisible ou qui n'est pas un EPUB.
 	 */
 	public static function convert_file( string $path, array $options = array() ): Result {
@@ -232,7 +235,7 @@ final class Epub_Converter {
 			$this->resultat->source = $this->zip->chemin();
 			$this->opf              = $this->localiser_opf();
 			$spine                  = $this->lire_opf( $this->opf );
-			$this->chapitres        = new Chapter_Builder( $this->resultat, (int) ( $this->options['volume_max'] ?? Chapter_Builder::VOLUME_MAX ) );
+			$this->chapitres        = new Chapter_Builder( $this->resultat, (int) ( $this->options['volume_max'] ?? Chapter_Builder::VOLUME_MAX ), is_array( $this->options['plan'] ?? null ) ? $this->options['plan'] : null );
 			$this->couverture();
 			$this->avec_h1 = $this->utilise_h1( $spine );
 			$corps_atteint = '' === $this->debut_corps;
@@ -630,6 +633,7 @@ final class Epub_Converter {
 		$this->fichier = $chemin;
 		$this->lire_feuilles( $doc, $chemin );
 		$this->heritage = array( $this->style_element( $corps ) );
+		$this->chapitres->indice( 'saut_page' );
 
 		// Livre sans <h1> : chaque entrée de la table des matières ouvre un chapitre.
 		if ( ! $this->avec_h1 && ! $this->liminaire ) {
@@ -639,7 +643,8 @@ final class Epub_Converter {
 				$titre   = '' !== $libelle ? $libelle : Texte::espaces( (string) ( $doc->getElementsByTagName( 'title' )->item( 0 )->textContent ?? '' ) );
 				$analyse = Texte::analyser_titre( $titre );
 				if ( 'inconnu' !== $analyse['motif'] || $this->chapitres->en_chapitre() || Texte::compter_mots( $texte ) >= Chapter_Builder::MOTS_LIMINAIRE ) {
-					$this->chapitres->ouvrir( $analyse, $titre );
+					// Libellé de la table des matières : absent du texte du chapitre.
+					$this->chapitres->ouvrir( $analyse, $titre, false );
 					$this->apres_titre = true;
 				}
 			}
@@ -1421,12 +1426,18 @@ final class Epub_Converter {
 
 		$total  = 0;
 		$italic = 0;
+		$gras   = 0;
 		foreach ( $items as $item ) {
 			if ( 'texte' === $item['type'] ) {
 				$n       = mb_strlen( trim( (string) $item['texte'] ), 'UTF-8' );
 				$total  += $n;
 				$italic += $item['i'] ? $n : 0;
+				$gras   += ! empty( $item['b'] ) ? $n : 0;
 			}
+		}
+		// Paragraphe entièrement en gras : début de chapitre possible (titre sans balise h1).
+		if ( $total > 0 && $gras >= $total ) {
+			$this->chapitres->indice( 'gras' );
 		}
 		$centre = $legende || (bool) preg_match( '/\b(center|centre|centered|centree|centr|ctr|text-center|aligncenter|align-center|has-text-align-center)\b/', $classes ) || (bool) preg_match( '/text-align:\s*center/', $style ) || ! empty( $this->forme_bloc( $el )['c'] );
 

@@ -71,10 +71,9 @@ function initiales( string $nom ): string {
  */
 function mini_couverture( int $post_id, string $texte, string $classe = '' ): string {
 	$image = function_exists( 'yume_get_cover_id' ) ? yume_get_cover_id( $post_id ) : 0;
-	$html  = $image ? wp_get_attachment_image(
+	$html  = $image ? yume_image_couverture(
 		$image,
 		'yume-couverture',
-		false,
 		array(
 			'alt'     => '',
 			'loading' => 'lazy',

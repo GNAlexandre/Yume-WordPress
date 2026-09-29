@@ -42,28 +42,31 @@ function contenu_fiche( int $post_id ): string {
 }
 
 /**
- * Bannière d'une œuvre en fond d'en-tête (décorative), ou chaîne vide.
+ * Fond d'en-tête (décoratif) : ambiance de couleurs tirée de la couverture, très floutée
+ * (bibliotheque.css), ou chaîne vide. La bannière des œuvres n'est plus affichée : c'était souvent
+ * un logo avec du texte, illisible et chargé derrière la fiche.
  *
- * @param int $oeuvre_id ID de l'œuvre.
+ * @param int $oeuvre_id     ID de l'œuvre.
+ * @param int $couverture_id Couverture à utiliser (celle d'un tome) ; 0 : celle de l'œuvre.
  */
-function banniere_oeuvre( int $oeuvre_id ): string {
-	$image_id = absint( get_post_meta( $oeuvre_id, 'yume_banniere_id', true ) );
+function banniere_oeuvre( int $oeuvre_id, int $couverture_id = 0 ): string {
+	$image_id = $couverture_id ? $couverture_id : yume_get_cover_id( $oeuvre_id );
 	if ( ! $image_id || ! wp_attachment_is_image( $image_id ) ) {
 		return '';
 	}
+	// Petite taille : l'image est floutée, sa définition ne se voit pas.
 	$image = (string) wp_get_attachment_image(
 		$image_id,
-		'full',
+		'medium',
 		false,
 		array(
 			'class'    => 'yn-fiche-banniere__image',
 			'alt'      => '',
 			'loading'  => 'eager',
 			'decoding' => 'async',
-			'sizes'    => '100vw',
 		)
 	);
-	return '' === $image ? '' : '<div class="yn-fiche-banniere" aria-hidden="true">' . $image . '</div>';
+	return '' === $image ? '' : '<div class="yn-fiche-banniere yn-fiche-banniere--ambiance" aria-hidden="true">' . $image . '</div>';
 }
 
 /**
@@ -521,16 +524,19 @@ function rendu_tome_list( array $attributs = array(), $bloc = null ): string {
 		}
 		$nombre  = count( $anciens );
 		$pluriel = mb_strtolower( $noms_anciens[1] );
-		$html   .= '<details class="yn-tome-list__anciens">';
-		$html   .= '<summary class="yn-tome-list__ligne yn-tome-list__resume">';
-		$html   .= '<span class="yn-tome-list__couverture">' . couverture( 0, array( 'texte' => $couv_groupe ) ) . '</span>';
-		$html   .= '<span class="yn-tome-list__infos"><span class="yn-tome-list__nom">' . esc_html( $titre_groupe ) . '</span>';
+		// Une fois ouverte, la ligne « Tomes 1 à 4 » disparaît (style.css) : les tomes précédents
+		// prennent sa place ; le script tomes-anciens.js y déplace le focus.
+		if ( wp_script_is( 'yume-tomes-anciens', 'registered' ) ) {
+			wp_enqueue_script( 'yume-tomes-anciens' );
+		}
+		$html .= '<details class="yn-tome-list__anciens">';
+		$html .= '<summary class="yn-tome-list__ligne yn-tome-list__resume">';
+		$html .= '<span class="yn-tome-list__couverture">' . couverture( 0, array( 'texte' => $couv_groupe ) ) . '</span>';
+		$html .= '<span class="yn-tome-list__infos"><span class="yn-tome-list__nom">' . esc_html( $titre_groupe ) . '</span>';
 		/* translators: 1 : nombre, 2 : « tomes ». */
 		$html .= '<span class="yn-tome-list__details yn-muted yn-tome-list__afficher">' . esc_html( sprintf( __( 'Afficher les %1$s %2$s précédents', 'yume-core' ), nombre_fr( $nombre ), $pluriel ) ) . '</span>';
-		/* translators: 1 : nombre, 2 : « tomes ». */
-		$html .= '<span class="yn-tome-list__details yn-muted yn-tome-list__masquer">' . esc_html( sprintf( __( 'Masquer les %1$s %2$s précédents', 'yume-core' ), nombre_fr( $nombre ), $pluriel ) ) . '</span></span>';
-		$html .= '<span class="yn-tome-list__date"></span>';
-		$html .= '<span class="yn-tome-list__actions"><span class="yn-btn yn-btn--sm" aria-hidden="true"><span class="yn-tome-list__afficher">' . esc_html__( 'Afficher', 'yume-core' ) . '</span><span class="yn-tome-list__masquer">' . esc_html__( 'Masquer', 'yume-core' ) . '</span></span></span>';
+		$html .= '</span><span class="yn-tome-list__date"></span>';
+		$html .= '<span class="yn-tome-list__actions"><span class="yn-btn yn-btn--sm" aria-hidden="true">' . esc_html__( 'Afficher', 'yume-core' ) . '</span></span>';
 		$html .= '</summary>';
 		$html .= '<ol class="yn-tome-list__liste">';
 		foreach ( $anciens as $tome ) {
@@ -752,7 +758,7 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
 	$presentation = contenu_fiche( $tome_id );
 
 	$html  = '<div ' . attributs_racine( 'yn-tome-header' ) . '>';
-	$html .= $oeuvre_id ? banniere_oeuvre( $oeuvre_id ) : '';
+	$html .= $oeuvre_id ? banniere_oeuvre( $oeuvre_id, yume_get_cover_id( $tome_id ) ) : '';
 	$html .= fil_ariane( $ariane, 'yn-tome-header__ariane' );
 	$html .= '<div class="yn-tome-header__couverture">' . $cover . '</div>';
 	$html .= '<div class="yn-tome-header__tete">';

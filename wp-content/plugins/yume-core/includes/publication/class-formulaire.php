@@ -3,7 +3,8 @@
  * Formulaire de publication (bloc yume/publish-form, maquette TeamPublier) :
  * - rendu serveur complet, utilisable sans JavaScript (envoi vers admin-post.php, nonce,
  *   messages de retour) ; le script du bloc ajoute le glisser-déposer, l'analyse immédiate
- *   du fichier déposé, la barre de progression et l'envoi via l'API REST ;
+ *   du fichier déposé, le découpage manuel en chapitres (envoyé avec le fichier, champ caché
+ *   « plan »), la barre de progression et l'envoi via l'API REST ;
  * - accès : visiteur → lien de connexion ; compte sans yume_publier → message clair ;
  * - menu d'administration Yume → « Publier un tome » menant à la page /equipe/publier/.
  *
@@ -150,6 +151,10 @@ final class Formulaire {
 			}
 		}
 		$champs['retirer_absents'] = ! empty( $_POST['retirer_absents'] );
+		// Découpage manuel (JSON du champ caché « plan ») : contrôlé strictement par Service::plan().
+		if ( isset( $_POST['plan'] ) && is_string( $_POST['plan'] ) && '' !== $_POST['plan'] ) {
+			$champs['plan'] = wp_unslash( $_POST['plan'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON validé par Service::plan().
+		}
 		// Case « Ajout au catalogue » : champ caché « 0 » suivi de la case « 1 » (la dernière
 		// valeur l'emporte) ; absente, la valeur par défaut dépend du tome.
 		if ( isset( $_POST['sans_annonce'] ) && is_scalar( $_POST['sans_annonce'] ) ) {
@@ -199,6 +204,8 @@ final class Formulaire {
 				wp_die( esc_html__( 'Votre compte n’a pas le droit de publier un tome.', 'yume-core' ), esc_html__( 'Accès refusé', 'yume-core' ), array( 'response' => 403 ) );
 			}
 			$champs = self::champs_post();
+			// Champs gardés pour réafficher le formulaire (le découpage suit le fichier, jamais gardé).
+			$saisis = array_diff_key( $champs, array( 'plan' => true ) );
 			if ( 'annuler_remplacement' === $etape ) {
 				$tome_id = absint( $champs['tome_id'] ?? 0 );
 				$annule  = $tome_id && 'yume_tome' === get_post_type( $tome_id ) && current_user_can( 'edit_post', $tome_id ) && Remplacement::annuler( $tome_id );
@@ -216,7 +223,7 @@ final class Formulaire {
 					array(
 						'type'    => 'erreur',
 						'message' => __( 'Indiquez la date et l’heure de sortie pour programmer la publication.', 'yume-core' ),
-						'champs'  => $champs,
+						'champs'  => $saisis,
 					)
 				);
 				wp_safe_redirect( self::adresse_retour( (int) ( $champs['tome_id'] ?? 0 ) ) );
@@ -228,7 +235,7 @@ final class Formulaire {
 					array(
 						'type'    => 'erreur',
 						'message' => $rapport->get_error_message(),
-						'champs'  => $champs,
+						'champs'  => $saisis,
 					)
 				);
 				wp_safe_redirect( self::adresse_retour( (int) ( $champs['tome_id'] ?? 0 ) ) );

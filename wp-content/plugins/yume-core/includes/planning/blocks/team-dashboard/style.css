@@ -87,6 +87,54 @@
 	color: var(--wp--preset--color--texte-fort);
 }
 
+/* Menus repliables de la navigation (Catalogue, Planning, Équipe, Site). */
+.yn-team__groupe summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	box-sizing: border-box;
+	min-height: 36px;
+	margin-top: 6px;
+	padding: 0 14px;
+	border-radius: var(--yn-radius);
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	list-style: none;
+	cursor: pointer;
+}
+
+.yn-team__groupe summary::-webkit-details-marker {
+	display: none;
+}
+
+.yn-team__groupe summary::after {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+	transform: rotate(-45deg);
+	transition: transform 0.15s ease;
+}
+
+.yn-team__groupe details[open] > summary::after {
+	transform: rotate(45deg);
+}
+
+.yn-team__groupe summary:hover {
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-team .yn-team__groupe ul {
+	margin-top: 2px;
+	padding-left: 10px;
+}
+
 .yn-team__nav .yn-chip {
 	min-height: 20px;
 	margin-left: auto;
@@ -403,7 +451,9 @@
 
 .yn-team__action {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: flex-end;
+	gap: 8px;
 }
 
 .yn-team__blocage {
@@ -865,6 +915,20 @@
 		gap: 6px;
 	}
 
+	/* Menus sur toute la largeur, leurs entrées en pastilles. */
+	.yn-team .yn-team__groupe {
+		flex-basis: 100%;
+	}
+
+	.yn-team__groupe summary {
+		margin-top: 0;
+		padding: 0 4px;
+	}
+
+	.yn-team .yn-team__groupe ul {
+		padding-left: 0;
+	}
+
 	.yn-team .yn-team__nav a {
 		min-height: 36px;
 		padding: 0 12px;
@@ -1299,4 +1363,237 @@
 		justify-content: center;
 		text-align: center;
 	}
+}
+
+/* Vue « Œuvres » : formulaire « Nouvelle œuvre » (oeuvres-equipe.php). */
+.yn-team__genres {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yn-team__cases {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 10px 16px;
+}
+
+.yn-team__champ input[type="file"] {
+	min-height: 0;
+	padding-block: 4px;
+}
+
+.yn-team__champ .yn-muted {
+	display: block;
+	margin-top: 4px;
+	font-size: 13px;
+}
+
+.yn-team__form-bouton {
+	display: contents;
+}
+
+.yn-team__champ textarea.yn-team__court {
+	min-height: 0;
+	height: auto;
+}
+
+/* Formulaire d'œuvre : fiche détaillée repliable, couverture actuelle, liens (oeuvres-equipe.php). */
+.yn-team__details {
+	display: block;
+}
+
+.yn-team__details > summary {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+	list-style: none;
+	cursor: pointer;
+}
+
+.yn-team__details > summary::-webkit-details-marker {
+	display: none;
+}
+
+.yn-team__details > summary::before {
+	content: "";
+	flex-shrink: 0;
+	width: 7px;
+	height: 7px;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+	transform: rotate(-45deg);
+	transition: transform 0.15s ease;
+}
+
+.yn-team__details[open] > summary::before {
+	transform: rotate(45deg);
+}
+
+.yn-team__details[open] > summary {
+	margin-bottom: 12px;
+}
+
+.yn-team__details > summary h2 {
+	margin: 0;
+	font-size: 20px;
+}
+
+.yn-team__details > :not(summary) + :not(summary) {
+	margin-top: 16px;
+}
+
+.yn-team__couverture-champ {
+	display: flex;
+	align-items: flex-end;
+	gap: 16px;
+}
+
+.yn-team__couverture-champ .yn-lecture__couverture {
+	flex-shrink: 0;
+	width: 64px;
+}
+
+.yn-team__liens {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+	gap: 8px 16px;
+}
+
+.yn-team__genres-carte {
+	padding: 16px 20px;
+}
+
+.yn-team .yn-team__genre-ajout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: end;
+	gap: 12px;
+	margin: 0 0 16px;
+}
+
+.yn-team .yn-team__genre-ajout > * {
+	margin: 0;
+}
+
+.yn-team .yn-team__genres-liste {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 8px 16px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team__genres-liste li {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 0;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-team__genres-liste .yn-muted {
+	white-space: nowrap;
+}
+
+/* Intitulés des groupes de champs (genres, jours de sortie, équipe) détachés de leur contenu. */
+.yn-team__genres > legend {
+	margin-bottom: 10px;
+	padding: 0;
+}
+
+/* Bouton natif du champ fichier aux couleurs du thème. */
+.yn-team input[type="file"]::file-selector-button {
+	min-height: 34px;
+	margin-right: 12px;
+	padding: 0 14px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius);
+	background: transparent;
+	color: var(--wp--preset--color--texte-fort);
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.yn-team input[type="file"]::file-selector-button:hover {
+	background: var(--wp--preset--color--selection);
+}
+
+@media (max-width: 599.98px) {
+	.yn-team__liens {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* Cadrage de la couverture (formulaire d'œuvre) : aperçu 2:3 comme les cartes, point choisi. */
+.yn-cadrage__corps {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 20px;
+}
+
+.yn-cadrage__cadre {
+	position: relative;
+	flex-shrink: 0;
+	width: 160px;
+	max-width: 100%;
+	aspect-ratio: 2 / 3;
+	overflow: hidden;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+	background: var(--wp--preset--color--bande);
+	cursor: crosshair;
+}
+
+.yn-cadrage__cadre img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	object-fit: cover;
+	object-position: var(--yn-cadrage-x, 50%) var(--yn-cadrage-y, 50%);
+}
+
+.yn-cadrage__point {
+	position: absolute;
+	top: var(--yn-cadrage-y, 50%);
+	left: var(--yn-cadrage-x, 50%);
+	width: 14px;
+	height: 14px;
+	border: 2px solid #fff;
+	border-radius: 50%;
+	box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55);
+	transform: translate(-50%, -50%);
+	pointer-events: none;
+}
+
+.yn-cadrage[data-yn-cadrage-vide] .yn-cadrage__cadre {
+	display: none;
+}
+
+.yn-cadrage__reglages {
+	display: flex;
+	flex: 1 1 260px;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.yn-cadrage__reglages p {
+	margin: 0;
+}
+
+.yn-team__champ input[type="range"] {
+	min-height: 0;
+	padding: 0;
 }

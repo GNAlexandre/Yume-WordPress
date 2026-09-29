@@ -61,11 +61,11 @@ function yume_tu_depot( $verificateur ): string {
  * Release GitHub fictive (même forme que la réponse de l'API REST v3).
  *
  * @param string   $depot    « propriétaire/dépôt ».
- * @param string   $tag      Tag (ex. v2.1.0).
+ * @param string   $tag      Tag (ex. v99.1.0).
  * @param string[] $archives Noms des archives attachées.
  * @return array
  */
-function yume_tu_release( string $depot, string $tag = 'v2.1.0', array $archives = array( 'yume-core.zip', 'yume.zip' ) ): array {
+function yume_tu_release( string $depot, string $tag = 'v99.1.0', array $archives = array( 'yume-core.zip', 'yume.zip' ) ): array {
 	$assets = array();
 	foreach ( array_values( $archives ) as $i => $nom ) {
 		$assets[] = array(
@@ -289,7 +289,7 @@ yume_test(
  */
 
 yume_test(
-	'release v2.1.0 simulée : mise à jour de yume-core détectée avec l’archive yume-core.zip',
+	'release v99.1.0 simulée : mise à jour de yume-core détectée avec l’archive yume-core.zip',
 	static function () {
 		$plugin  = yume_tu_verificateur( 'plugin' );
 		$depot   = yume_tu_depot( $plugin );
@@ -299,19 +299,19 @@ yume_test(
 		try {
 			$demande = $plugin->requestUpdate();
 			yume_assert_true( is_object( $demande ), 'requestUpdate() doit trouver la release' );
-			yume_assert_same( '2.1.0', $demande->version );
+			yume_assert_same( '99.1.0', $demande->version );
 
 			$plugin->checkForUpdates();
 			$maj = $plugin->getUpdate();
 			yume_assert_true( is_object( $maj ), 'mise à jour attendue' );
-			yume_assert_same( '2.1.0', $maj->version );
-			yume_assert_same( "https://github.com/{$depot}/releases/download/v2.1.0/yume-core.zip", $maj->download_url );
+			yume_assert_same( '99.1.0', $maj->version );
+			yume_assert_same( "https://github.com/{$depot}/releases/download/v99.1.0/yume-core.zip", $maj->download_url );
 
 			$transient = get_site_transient( 'update_plugins' );
 			yume_assert_true( is_object( $transient ) && isset( $transient->response['yume-core/yume-core.php'] ), 'mise à jour absente de update_plugins' );
 			$offre = $transient->response['yume-core/yume-core.php'];
-			yume_assert_same( '2.1.0', $offre->new_version );
-			yume_assert_same( "https://github.com/{$depot}/releases/download/v2.1.0/yume-core.zip", $offre->package );
+			yume_assert_same( '99.1.0', $offre->new_version );
+			yume_assert_same( "https://github.com/{$depot}/releases/download/v99.1.0/yume-core.zip", $offre->package );
 			yume_assert_same( 'yume-core/yume-core.php', $offre->plugin );
 
 			yume_assert_contains( "https://api.github.com/repos/{$depot}/releases/latest", implode( "\n", $journal ) );
@@ -333,7 +333,7 @@ yume_test(
 );
 
 yume_test(
-	'release v2.1.0 simulée : mise à jour du thème yume détectée avec l’archive yume.zip',
+	'release v99.1.0 simulée : mise à jour du thème yume détectée avec l’archive yume.zip',
 	static function () {
 		if ( ! wp_get_theme( 'yume' )->exists() ) {
 			yume_assert_same( null, verificateur( 'theme' ) );
@@ -348,13 +348,13 @@ yume_test(
 			$theme->checkForUpdates();
 			$maj = $theme->getUpdate();
 			yume_assert_true( is_object( $maj ), 'mise à jour du thème attendue' );
-			yume_assert_same( '2.1.0', $maj->version );
-			yume_assert_same( "https://github.com/{$depot}/releases/download/v2.1.0/yume.zip", $maj->download_url );
+			yume_assert_same( '99.1.0', $maj->version );
+			yume_assert_same( "https://github.com/{$depot}/releases/download/v99.1.0/yume.zip", $maj->download_url );
 
 			$transient = get_site_transient( 'update_themes' );
 			yume_assert_true( is_object( $transient ) && isset( $transient->response['yume'] ), 'mise à jour absente de update_themes' );
-			yume_assert_same( '2.1.0', $transient->response['yume']['new_version'] );
-			yume_assert_same( "https://github.com/{$depot}/releases/download/v2.1.0/yume.zip", $transient->response['yume']['package'] );
+			yume_assert_same( '99.1.0', $transient->response['yume']['new_version'] );
+			yume_assert_same( "https://github.com/{$depot}/releases/download/v99.1.0/yume.zip", $transient->response['yume']['package'] );
 		} finally {
 			yume_tu_retirer_http( $http );
 			yume_tu_reinitialiser();
@@ -368,7 +368,7 @@ yume_test(
 		$plugin  = yume_tu_verificateur( 'plugin' );
 		$depot   = yume_tu_depot( $plugin );
 		$journal = array();
-		$http    = yume_tu_simuler_github( yume_tu_release( $depot, 'v2.1.0', array( 'notes.txt' ) ), $journal );
+		$http    = yume_tu_simuler_github( yume_tu_release( $depot, 'v99.1.0', array( 'notes.txt' ) ), $journal );
 		yume_tu_reinitialiser();
 		try {
 			$plugin->checkForUpdates();
@@ -682,7 +682,7 @@ function yume_tu_simuler_telechargements( ?array $release, array $routes, array 
 }
 
 /**
- * Prépare une release v2.1.0 simulée avec ses archives et SHA256SUMS, et fait détecter la mise
+ * Prépare une release v99.1.0 simulée avec ses archives et SHA256SUMS, et fait détecter la mise
  * à jour par le vérificateur ($type). Renvoie le contexte du test.
  *
  * @param string $type       'plugin' ou 'theme'.
@@ -695,7 +695,7 @@ function yume_tu_release_signee( string $type, array $surcharges = array(), ?str
 	$verificateur = yume_tu_verificateur( $type );
 	$depot        = yume_tu_depot( $verificateur );
 	$archive      = 'theme' === $type ? 'yume.zip' : 'yume-core.zip';
-	$base         = "https://github.com/{$depot}/releases/download/v2.1.0/";
+	$base         = "https://github.com/{$depot}/releases/download/v99.1.0/";
 	$contenus     = array(
 		'yume-core.zip' => "PK\x03\x04 archive yume-core factice",
 		'yume.zip'      => "PK\x03\x04 archive yume factice",
@@ -740,7 +740,7 @@ function yume_tu_release_signee( string $type, array $surcharges = array(), ?str
 		}
 	}
 	$journal = array();
-	$http    = yume_tu_simuler_telechargements( yume_tu_release( $depot, 'v2.1.0', array( 'yume-core.zip', 'yume.zip', 'SHA256SUMS' ) ), $routes, $journal );
+	$http    = yume_tu_simuler_telechargements( yume_tu_release( $depot, 'v99.1.0', array( 'yume-core.zip', 'yume.zip', 'SHA256SUMS' ) ), $routes, $journal );
 	yume_tu_reinitialiser();
 	$verificateur->checkForUpdates();
 	$maj = $verificateur->getUpdate();
@@ -808,7 +808,7 @@ yume_test(
 				yume_assert_same( $ctx['contenu'], file_get_contents( $chemin ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 				wp_delete_file( $chemin );
 				$urls = implode( "\n", $ctx['journal'] );
-				yume_assert_contains( '/releases/download/v2.1.0/SHA256SUMS', $urls, 'SHA256SUMS de la même release' );
+				yume_assert_contains( '/releases/download/v99.1.0/SHA256SUMS', $urls, 'SHA256SUMS de la même release' );
 				yume_assert_contains( 'githubusercontent.com', $urls, 'redirection vers le stockage GitHub suivie' );
 
 				// Sans contexte (hook_extra vide) : reconnu par son URL, vérifié de même.
@@ -865,7 +865,7 @@ yume_test(
 	static function () {
 		$plugin = yume_tu_verificateur( 'plugin' );
 		$depot  = yume_tu_depot( $plugin );
-		$sommes = "https://github.com/{$depot}/releases/download/v2.1.0/SHA256SUMS";
+		$sommes = "https://github.com/{$depot}/releases/download/v99.1.0/SHA256SUMS";
 		$extra  = yume_tu_hook_extra( 'plugin' );
 
 		$ctx = yume_tu_release_signee( 'plugin', array( $sommes => null ) );
@@ -910,7 +910,7 @@ yume_test(
 		$ctx   = yume_tu_release_signee(
 			'plugin',
 			array(
-				'https://github.com/' . yume_tu_depot( yume_tu_verificateur( 'plugin' ) ) . '/releases/download/v2.1.0/yume-core.zip' => array(
+				'https://github.com/' . yume_tu_depot( yume_tu_verificateur( 'plugin' ) ) . '/releases/download/v99.1.0/yume-core.zip' => array(
 					'code'     => 302,
 					'corps'    => '',
 					'location' => 'https://evil.example/yume-core.zip',
@@ -925,12 +925,12 @@ yume_test(
 			yume_assert_not_contains( 'evil.example', implode( "\n", $ctx['journal'] ), 'l’hôte refusé n’est jamais contacté' );
 
 			// Paquet d'un autre dépôt, ou d'une autre release que la version proposée.
-			$autre = apply_filters( 'upgrader_pre_download', false, 'https://github.com/Pirate/Yume-WordPress/releases/download/v2.1.0/yume-core.zip', null, $extra );
+			$autre = apply_filters( 'upgrader_pre_download', false, 'https://github.com/Pirate/Yume-WordPress/releases/download/v99.1.0/yume-core.zip', null, $extra );
 			yume_assert_true( is_wp_error( $autre ) );
 			yume_assert_same( 'yume_maj_source_inconnue', $autre->get_error_code() );
 			$hors = apply_filters( 'upgrader_pre_download', false, 'https://evil.example/yume-core.zip', null, $extra );
 			yume_assert_same( 'yume_maj_source_inconnue', is_wp_error( $hors ) ? $hors->get_error_code() : $hors );
-			$vieux = apply_filters( 'upgrader_pre_download', false, str_replace( '/v2.1.0/', '/v2.0.9/', $ctx['paquet'] ), null, $extra );
+			$vieux = apply_filters( 'upgrader_pre_download', false, str_replace( '/v99.1.0/', '/v99.0.9/', $ctx['paquet'] ), null, $extra );
 			yume_assert_true( is_wp_error( $vieux ) );
 			yume_assert_same( 'yume_maj_version', $vieux->get_error_code() );
 			$theme = apply_filters( 'upgrader_pre_download', false, str_replace( 'yume-core.zip', 'yume.zip', $ctx['paquet'] ), null, $extra );
@@ -951,7 +951,7 @@ yume_test(
 	static function () {
 		$ctx     = yume_tu_release_signee( 'plugin' );
 		$depot   = $ctx['depot'];
-		$release = yume_tu_release( $depot, 'v2.1.0', array( 'yume-core.zip', 'yume.zip', 'SHA256SUMS' ) );
+		$release = yume_tu_release( $depot, 'v99.1.0', array( 'yume-core.zip', 'yume.zip', 'SHA256SUMS' ) );
 		yume_tu_retirer_http( $ctx['http'] );
 		$journal = array();
 		$api     = "https://api.github.com/repos/{$depot}/releases/assets/";

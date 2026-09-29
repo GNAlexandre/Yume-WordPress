@@ -54,7 +54,7 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- les liens **Publier un tome**, **Lecture à compléter** et **Tous les tomes** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
+- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Publier un tome, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; pour les gérants
   **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
@@ -62,6 +62,40 @@ Sous chaque tâche (et chaque tome de *Tomes en préparation*, la liste du plann
 écran : **Publier ce tome** (éditeurs : le formulaire de publication s'ouvre déjà rempli pour ce
 tome, inutile de ressaisir œuvre, nature et numéro), **Modifier dans l'administration**, **Voir la
 fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans le planning complet**.
+
+### Œuvres, nouvelle œuvre et genres (`/equipe/?vue=oeuvres`, éditeurs et gérants)
+
+Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut ou par titre. Pour
+chaque œuvre : **Voir** (publiée) ou **Publier** (brouillon), **Modifier**, **Ajouter un tome au
+planning** (le formulaire du tableau de bord s'ouvre avec l'œuvre déjà choisie) et **Publier un
+tome**.
+
+**Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » sous
+« Ajouter un tome au planning ») et **Modifier** utilisent le même formulaire : titre, type, statut
+de la traduction, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), genres
+(cases à cocher, ou « Ajouter des genres absents de la liste »), synopsis (une ligne vide sépare
+deux paragraphes ; `<strong>gras</strong>` et `<em>italique</em>` sont conservés) et couverture
+(JPG, PNG ou WebP). La partie repliable **Fiche détaillée** contient le statut et le nombre de tomes
+de la VO, la source de la traduction, les jours de sortie, l'équipe affichée et les liens externes.
+
+- **Créer en brouillon** : l'œuvre reste invisible du public ; on peut déjà lui ajouter des tomes au
+  planning, puis la publier d'un clic depuis la liste.
+- **Créer et publier** : la fiche est tout de suite visible dans la bibliothèque. Publier une œuvre
+  n'envoie aucune annonce (seuls les tomes sont annoncés).
+- **Modifier** ne change pas le statut (publiée ou brouillon). Le synopsis n'est réécrit que si
+  vous le modifiez : sinon sa mise en forme d'origine (listes, liens…) reste telle quelle. Pour une
+  mise en forme avancée, un lien mène à l'éditeur WordPress.
+- Un titre déjà pris par une autre œuvre (même en brouillon) est refusé, pour éviter les doublons.
+- **Cadrage de la couverture** : les cartes de la bibliothèque montrent la couverture au format
+  portrait (2:3). Si le personnage ou le titre est coupé, cliquez dans l'aperçu sur la partie à
+  garder visible, ou réglez les curseurs horizontal et vertical, puis enregistrez. « Recentrer »
+  revient au cadrage centré par défaut. Le réglage s'applique partout où cette couverture
+  s'affiche (bibliothèque, fiches, compte, reprise de lecture).
+
+**Genres** (en bas de la vue) : une trentaine de genres courants sont proposés d'office (Action,
+Aventure, Isekai, Romance, Slice of life…). Ajoutez-en (plusieurs à la fois, séparés par des
+virgules) ou supprimez-en ; un genre supprimé est retiré des œuvres qui l'avaient et n'est pas
+recréé aux mises à jour.
 
 ### Planning complet (`/equipe/?vue=planning`)
 
@@ -229,9 +263,11 @@ il suffit d'utiliser les bons styles :
 | Image JPG, PNG ou WebP dans le texte | Illustration pleine largeur |
 | Images placées avant le premier Titre 1 | Galerie d'illustrations du tome (pas un chapitre) |
 | Notes de bas de page | Appels de note et liste de notes en fin de chapitre |
+| Paragraphe seul « [chapitre] Titre », « [bonus] Titre », « [prologue] »… | Début de chapitre forcé (le marqueur n'est pas publié, voir 5.2 bis) |
 
-Les ornements Word au format EMF/WMF, les en-têtes, pieds de page et sauts de page sont ignorés (et
-signalés dans le rapport). Un EPUB est accepté en dépannage, mais le DOCX reste la référence.
+Les ornements Word au format EMF/WMF, les en-têtes et pieds de page sont ignorés (et signalés dans
+le rapport). Les sauts de page ne changent rien au texte, mais ils sont proposés comme débuts de
+chapitre possibles (5.2 bis). Un EPUB est accepté en dépannage, mais le DOCX reste la référence.
 
 ### 5.2 Remplir le formulaire
 
@@ -247,8 +283,46 @@ signalés dans le rapport). Un EPUB est accepté en dépannage, mais le DOCX res
    - les **avertissements** (par exemple un titre mal formé corrigé automatiquement, des images
      ignorées) ;
    - un bouton pour **prévisualiser** un chapitre.
-   Si le découpage est faux, corrigez les styles dans Word et déposez à nouveau le fichier.
+   Si le découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez les
+   styles dans Word et déposez à nouveau le fichier.
 5. **Crédits** : traduction, relecture, édition / couverture (affichés sur le tome et les chapitres).
+
+### 5.2 bis Délimiter les chapitres soi-même
+
+Quand la détection automatique se trompe (roman sans styles de titre, chapitres séparés par une
+illustration ou un saut de page, histoire bonus placée avant le premier chapitre et ignorée…),
+l'encadré **« Délimiter les chapitres moi-même »** apparaît sous les chapitres détectés, dès que le
+fichier est analysé :
+
+1. le tableau liste les **débuts de chapitre possibles** trouvés dans le fichier : titres,
+   illustrations, sauts de page, lignes courtes, centrées ou en gras, paragraphe qui suit un
+   séparateur, début du fichier. Les débuts retenus par la détection automatique sont déjà cochés ;
+   les lignes **surlignées** sont placées avant le premier début coché ;
+2. cochez **« Début de chapitre »** sur chaque ligne où un chapitre commence, choisissez sa
+   **nature** (chapitre, prologue, interlude, épilogue, postface, bonus, illustrations) et, si
+   besoin, son **titre** (sinon, le titre trouvé à cet endroit). Les chapitres sont numérotés à la
+   suite à partir du **premier numéro** indiqué ; plusieurs bonus deviennent « Bonus 1 », « Bonus 2 » ;
+3. raccourcis : **« Couper à chaque illustration »** (romans dont chaque chapitre commence par une
+   illustration), **« Couper à chaque saut de page »**, **« Revenir à la détection automatique »** ;
+4. **« Conserver le texte d'ouverture »** : le texte placé avant le premier début coché (préface,
+   histoire bonus…) rejoint le premier chapitre ; sinon il n'est pas publié, comme aujourd'hui.
+   Pour en faire un chapitre à part, cochez simplement sa première ligne ;
+5. le nombre de chapitres obtenus s'affiche en direct ; **« Vérifier ce découpage »** montre la liste
+   des chapitres et les avertissements sans rien enregistrer ;
+6. cochez **« Utiliser ce découpage »** (automatique dès que vous modifiez le tableau), puis
+   enregistrez, vérifiez ou publiez comme d'habitude : le découpage part **avec le fichier**.
+
+**Le fichier n'est pas conservé sur le site** : le découpage n'est pas enregistré non plus. Pour
+redécouper plus tard (ou remplacer la lecture en ligne, 5.4 bis), choisissez à nouveau le fichier et
+refaites le découpage. Si le fichier a changé depuis l'analyse, le rapport signale « Début de
+chapitre manuel introuvable ».
+
+**Sans JavaScript** (ou pour un découpage écrit une fois pour toutes dans le document) : ajoutez à
+chaque début de chapitre un paragraphe seul `[chapitre]` ou `[chapitre] Titre`, `[prologue]`,
+`[interlude] Titre`, `[bonus] Titre`, `[épilogue]` ou `[postface]` (majuscules et accents
+indifférents). Il force le début d'un chapitre de cette nature, avec ce titre, et n'est jamais
+publié. Une histoire bonus précédée de `[bonus]` n'est plus ignorée, même avant le premier
+chapitre.
 
 ### 5.3 Publier
 

@@ -10,6 +10,7 @@
  */
 
 use Yume\Core\Import\Blocks;
+use Yume\Core\Import\Chapter_Builder;
 use Yume\Core\Import\Docx_Converter;
 use Yume\Core\Import\Epub_Converter;
 use Yume\Core\Import\Import_Exception;
@@ -882,5 +883,637 @@ yume_test(
 			yume_assert_true( $c['nb_mots'] > 0, $c['titre'] . ' non vide' );
 			yume_timp_blocs_valides( $c['blocks'], 'grimgar ' . $c['titre'] );
 		}
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Découpage manuel : ancres, débuts possibles, découpage, marqueurs
+ * -----------------------------------------------------------------------------
+ */
+
+if ( ! function_exists( 'yume_timp_candidat' ) ) {
+	/**
+	 * Début de chapitre possible dont l'extrait commence par un texte.
+	 *
+	 * @param Result $r      Résultat.
+	 * @param string $debut  Début de l'extrait.
+	 * @return array<string,mixed>
+	 * @throws Yume_Test_Failure Candidat absent.
+	 */
+	function yume_timp_candidat( Result $r, string $debut ): array {
+		foreach ( $r->candidats as $c ) {
+			if ( str_starts_with( $c['extrait'], $debut ) ) {
+				return $c;
+			}
+		}
+		throw new Yume_Test_Failure( 'Début possible absent : ' . $debut );
+	}
+
+	/**
+	 * Découpage manuel : extrait => [nature, titre] (ou nature seule).
+	 *
+	 * @param Result                     $r      Analyse du fichier.
+	 * @param array<string,string|array> $debuts Débuts (dans l'ordre du document).
+	 * @param bool                       $garder Conserver le texte d'ouverture.
+	 * @return array<string,mixed>
+	 */
+	function yume_timp_plan( Result $r, array $debuts, bool $garder = false ): array {
+		$plan = array(
+			'debuts'       => array(),
+			'garder_avant' => $garder,
+		);
+		foreach ( $debuts as $extrait => $choix ) {
+			$choix            = (array) $choix;
+			$plan['debuts'][] = array(
+				'ancre'  => yume_timp_candidat( $r, (string) $extrait )['ancre'],
+				'nature' => (string) ( $choix[0] ?? 'chapitre' ),
+				'titre'  => (string) ( $choix[1] ?? '' ),
+			);
+		}
+		return $plan;
+	}
+
+	/**
+	 * DOCX temporaire avec images (word/media/a.png, b.png…).
+	 *
+	 * @param string   $corps  Contenu de w:body.
+	 * @param string[] $images Noms des images PNG.
+	 */
+	function yume_timp_docx_images( string $corps, array $images ): string {
+		yume_timp_outils_fixtures();
+		$medias = array();
+		foreach ( $images as $nom ) {
+			$medias[ $nom ] = yume_fx_image( 'png', 400, 300 );
+		}
+		$fichier = get_temp_dir() . 'yume-test-' . wp_generate_password( 8, false ) . '.docx';
+		yume_fx_docx( $fichier, $corps, yume_fx_styles_fr(), '', $medias );
+		return $fichier;
+	}
+}
+
+yume_test(
+	'découpage : ancres identiques d’une conversion à l’autre (DOCX et EPUB), avec ou sans découpage',
+	function () {
+		foreach ( array( 'regles.docx', 'livre-epub3.epub', 'livre-epub2.epub' ) as $nom ) {
+			$chemin = yume_timp_fixture( $nom );
+			$lire   = static fn( array $o = array() ) => str_ends_with( $nom, '.epub' ) ? Epub_Converter::convert_file( $chemin, $o ) : Docx_Converter::convert_file( $chemin, $o );
+			$a      = $lire();
+			$b      = $lire();
+			yume_assert_true( count( $a->candidats ) > 3, $nom . ' : débuts possibles relevés' );
+			yume_assert_same( array_column( $a->candidats, 'ancre' ), array_column( $b->candidats, 'ancre' ), $nom . ' : mêmes ancres' );
+			foreach ( $a->candidats as $c ) {
+				yume_assert_same( 1, preg_match( Chapter_Builder::MOTIF_ANCRE, $c['ancre'] ), $nom . ' : format de l’ancre ' . $c['ancre'] );
+				yume_assert_true( mb_strlen( $c['extrait'] ) <= 80, $nom . ' : extrait borné' );
+			}
+			// Débuts automatiques : un par chapitre produit, repris comme débuts manuels.
+			$auto = array_values( array_filter( $a->candidats, static fn( $c ) => $c['auto'] ) );
+			yume_assert_same( count( $a->chapters ), count( $auto ), $nom . ' : un début automatique par chapitre' );
+			$plan = array(
+				'debuts'       => array_map(
+					static fn( $c ) => array(
+						'ancre'  => $c['ancre'],
+						'nature' => $c['nature'],
+						'titre'  => $c['titre'],
+					),
+					$auto
+				),
+				'garder_avant' => false,
+			);
+			$c    = $lire( array( 'plan' => $plan ) );
+			yume_assert_same( array_column( $a->candidats, 'ancre' ), array_column( $c->candidats, 'ancre' ), $nom . ' : mêmes ancres avec un découpage' );
+			yume_assert_same( $a->stats['elements'], $c->stats['elements'], $nom . ' : mêmes éléments' );
+			yume_assert_same( count( $a->chapters ), count( $c->chapters ), $nom . ' : même nombre de chapitres' );
+			yume_assert_same( array_column( $a->chapters, 'nature' ), array_column( $c->chapters, 'nature' ), $nom . ' : mêmes natures' );
+			yume_assert_not_contains( 'introuvable', implode( "\n", $c->warnings ), $nom );
+			yume_assert_true( $c->stats['decoupage_manuel'] );
+			$rapport = $a->rapport();
+			yume_assert_same( $a->candidats, $rapport['candidats'] );
+			yume_assert_same( array( 'images', 'ouvertures', 'sauts' ), array_keys( $rapport['decoupages'] ) );
+		}
+	}
+);
+
+yume_test(
+	'découpage : début manuel au premier élément (préface et bonus conservés), titres détectés en intertitres',
+	function () {
+		yume_timp_outils_fixtures();
+		$fichier = yume_timp_docx(
+			yume_fx_t( 'Préface du traducteur' )
+			. yume_fx_t( 'Merci de lire ce tome, voici quelques mots avant de commencer.' )
+			. yume_fx_t( 'Histoire bonus : la veille' )
+			. yume_fx_t( str_repeat( 'Une petite histoire offerte avant le premier chapitre. ', 5 ) )
+			. yume_fx_t( 'Chapitre 1 : Le départ', array( 'style' => 'Titre1' ) )
+			. yume_fx_t( 'Texte du premier chapitre.' )
+			. yume_fx_t( 'Chapitre 2', array( 'style' => 'Titre1' ) )
+			. yume_fx_t( 'Texte du deuxième chapitre.' )
+		);
+		try {
+			$auto = Docx_Converter::convert_file( $fichier );
+			yume_assert_same( 2, count( $auto->chapters ) );
+			yume_assert_contains( '4 paragraphes placés avant le premier chapitre', implode( "\n", $auto->warnings ), 'sans découpage, texte d’ouverture ignoré' );
+			$debut = yume_timp_candidat( $auto, 'Préface' );
+			yume_assert_true( in_array( 'debut', $debut['raisons'], true ) && $debut['avant'] && ! $debut['auto'] );
+			yume_assert_true( yume_timp_candidat( $auto, 'Chapitre 1' )['auto'] );
+			yume_assert_same( array( 'chapitre', 'Le départ' ), array( yume_timp_candidat( $auto, 'Chapitre 1' )['nature'], yume_timp_candidat( $auto, 'Chapitre 1' )['titre'] ) );
+
+			// Préface (prologue), bonus, puis un seul chapitre : le titre « Chapitre 2 » devient un intertitre.
+			$plan = yume_timp_plan(
+				$auto,
+				array(
+					'Préface'         => array( 'prologue', 'Préface du traducteur' ),
+					'Histoire bonus'  => array( 'bonus', 'La veille' ),
+					'Chapitre 1 : Le' => array( 'chapitre', '' ),
+				)
+			);
+			$r    = Docx_Converter::convert_file( $fichier, array( 'plan' => $plan ) );
+			yume_assert_same(
+				array(
+					array( 'prologue', 0.0, 'Prologue', 'Préface du traducteur' ),
+					array( 'bonus', null, 'Bonus', 'La veille' ),
+					array( 'chapitre', 1.0, 'Chapitre 1', 'Le départ' ),
+				),
+				array_map( static fn( $c ) => array( $c['nature'], $c['numero'], $c['titre'], $c['sous_titre'] ), $r->chapters )
+			);
+			// Ligne identique au titre choisi : titre, non répétée ; texte gardé.
+			yume_assert_not_contains( 'Préface du traducteur', $r->chapters[0]['blocks'] );
+			yume_assert_contains( 'Merci de lire ce tome', $r->chapters[0]['blocks'] );
+			yume_assert_contains( 'Une petite histoire offerte', $r->chapters[1]['blocks'] );
+			// « Histoire bonus : la veille » reconnu comme titre (bonus) : non répété.
+			yume_assert_not_contains( 'Histoire bonus', $r->chapters[1]['blocks'] );
+			yume_assert_not_contains( 'Chapitre 1', $r->chapters[2]['blocks'] );
+			yume_assert_contains( '<h2 class="wp-block-heading">Chapitre 2</h2>', $r->chapters[2]['blocks'] );
+			yume_assert_contains( 'Texte du deuxième chapitre.', $r->chapters[2]['blocks'] );
+			yume_assert_not_contains( 'placé avant le premier chapitre', implode( "\n", $r->warnings ) );
+			foreach ( $r->chapters as $c ) {
+				yume_timp_blocs_valides( $c['blocks'], 'plan ' . $c['titre'] );
+			}
+
+			// Texte d'ouverture conservé : il rejoint le premier début manuel.
+			$plan = yume_timp_plan( $auto, array( 'Chapitre 1 : Le' => array( 'chapitre', 'Mon titre' ) ), true );
+			$r    = Docx_Converter::convert_file( $fichier, array( 'plan' => $plan ) );
+			yume_assert_same( 1, count( $r->chapters ) );
+			yume_assert_same( array( 'Chapitre 1', 'Mon titre' ), array( $r->chapters[0]['titre'], $r->chapters[0]['sous_titre'] ) );
+			yume_assert_contains( 'Préface du traducteur', $r->chapters[0]['blocks'] );
+			yume_assert_contains( 'Une petite histoire offerte', $r->chapters[0]['blocks'] );
+			yume_assert_contains( 'Texte du deuxième chapitre.', $r->chapters[0]['blocks'] );
+			// Titre détecté sur le début manuel, un autre titre saisi : pas d'intertitre « Chapitre 1 ».
+			yume_assert_not_contains( '>Chapitre 1', $r->chapters[0]['blocks'] );
+
+			// Sans conserver : le texte d'ouverture est ignoré (et signalé), comme sans découpage.
+			$plan = yume_timp_plan( $auto, array( 'Chapitre 1 : Le' => 'chapitre' ) );
+			$r    = Docx_Converter::convert_file( $fichier, array( 'plan' => $plan ) );
+			yume_assert_same( 'Le départ', $r->chapters[0]['sous_titre'], 'titre détecté par défaut' );
+			yume_assert_contains( '4 paragraphes placés avant le premier chapitre', implode( "\n", $r->warnings ) );
+		} finally {
+			wp_delete_file( $fichier );
+		}
+	}
+);
+
+yume_test(
+	'découpage : chapitres délimités par les illustrations (découpage rapide), natures spéciales et numérotation',
+	function () {
+		yume_timp_outils_fixtures();
+		$corps = yume_fx_t( 'Mon roman illustré' );
+		foreach ( array( 'a.png', 'b.png', 'c.png', 'd.png' ) as $i => $nom ) {
+			$corps .= yume_fx_p( yume_fx_dessin( yume_fx_rid( $nom ), 'Illustration ' . ( $i + 1 ) ) );
+			if ( 1 === $i ) {
+				// Deux illustrations consécutives : un seul début.
+				continue;
+			}
+			$corps .= yume_fx_t( 'Texte de la partie ' . ( $i + 1 ) . '.' );
+		}
+		$fichier = yume_timp_docx_images( $corps, array( 'a.png', 'b.png', 'c.png', 'd.png' ) );
+		try {
+			$auto = Docx_Converter::convert_file( $fichier );
+			yume_assert_same( 1, count( $auto->chapters ), 'sans titre : un seul chapitre' );
+			$images = $auto->decoupages['images'];
+			yume_assert_same( 3, count( $images ), 'une coupure par suite d’illustrations' );
+			$plan = array(
+				'debuts'       => array_map(
+					static fn( $a ) => array(
+						'ancre'  => $a,
+						'nature' => 'chapitre',
+						'titre'  => '',
+					),
+					$images
+				),
+				'garder_avant' => false,
+			);
+			$r    = Docx_Converter::convert_file( $fichier, array( 'plan' => $plan ) );
+			yume_assert_same( array( 'Chapitre 1', 'Chapitre 2', 'Chapitre 3' ), array_column( $r->chapters, 'titre' ) );
+			yume_assert_same( array( array( 'a' ), array( 'b', 'c' ), array( 'd' ) ), array_column( $r->chapters, 'images' ) );
+			yume_assert_contains( 'Texte de la partie 1', $r->chapters[0]['blocks'] );
+			yume_assert_contains( 'Texte de la partie 3', $r->chapters[1]['blocks'] );
+			yume_assert_same( array(), $r->front_images );
+			yume_assert_contains( '1 paragraphe placé avant le premier chapitre', implode( "\n", $r->warnings ) );
+
+			// Numéros saisis et natures spéciales : Chapitre 12, Interlude, Chapitre 13, deux bonus.
+			$plan['debuts'][0]['numero'] = 12;
+			$plan['debuts'][1]['nature'] = 'interlude';
+			$plan['debuts'][1]['titre']  = '<b>Pause</b>';
+			$plan['debuts'][]            = array(
+				'ancre'  => yume_timp_candidat( $auto, 'Texte de la partie 4' )['ancre'],
+				'nature' => 'bonus',
+				'titre'  => '',
+			);
+			array_splice(
+				$plan['debuts'],
+				2,
+				0,
+				array(
+					array(
+						'ancre'  => yume_timp_candidat( $auto, 'Texte de la partie 3' )['ancre'],
+						'nature' => 'bonus',
+						'titre'  => 'Bonus',
+					),
+				)
+			);
+			$r = Docx_Converter::convert_file( $fichier, array( 'plan' => $plan ) );
+			yume_assert_same(
+				array(
+					array( 'chapitre', 12.0, 'Chapitre 12', '' ),
+					array( 'interlude', null, 'Interlude', 'Pause' ),
+					array( 'bonus', 1.0, 'Bonus 1', '' ),
+					array( 'chapitre', 13.0, 'Chapitre 13', '' ),
+					array( 'bonus', 2.0, 'Bonus 2', '' ),
+				),
+				array_map( static fn( $c ) => array( $c['nature'], $c['numero'], $c['titre'], $c['sous_titre'] ), $r->chapters )
+			);
+			yume_assert_same(
+				array(
+					array(
+						'numero' => 3.0,
+						'titre'  => 'Chapitre 3',
+					),
+					array(
+						'numero' => 0.0,
+						'titre'  => 'Prologue',
+					),
+					array(
+						'numero' => 4.0,
+						'titre'  => 'Chapitre 4',
+					),
+				),
+				Chapter_Builder::numeroter(
+					array(
+						array(
+							'nature' => 'chapitre',
+							'numero' => 3.0,
+						),
+						array(
+							'nature' => 'prologue',
+							'numero' => null,
+						),
+						array(
+							'nature' => 'chapitre',
+							'numero' => null,
+						),
+					)
+				)
+			);
+		} finally {
+			wp_delete_file( $fichier );
+		}
+	}
+);
+
+yume_test(
+	'découpage : début manuel introuvable ou ne correspondant plus au texte signalé',
+	function () {
+		$auto  = yume_timp_conversion( 'regles.docx' );
+		$vrai  = yume_timp_candidat( $auto, 'Chapitre 1' )['ancre'];
+		$rang  = (int) substr( $vrai, 1 );
+		$faux  = 'e' . $rang . '-000000';
+		$plan  = array(
+			'debuts' => array(
+				array(
+					'ancre'  => $vrai,
+					'nature' => 'chapitre',
+					'titre'  => '',
+				),
+				array(
+					'ancre'  => $faux,
+					'nature' => 'chapitre',
+					'titre'  => '',
+				),
+				array(
+					'ancre'  => 'e99999-abcdef',
+					'nature' => 'chapitre',
+					'titre'  => '',
+				),
+			),
+		);
+		$r     = Docx_Converter::convert_file( yume_timp_fixture( 'regles.docx' ), array( 'plan' => $plan ) );
+		$avert = implode( "\n", $r->warnings );
+		yume_assert_contains( 'Début de chapitre manuel introuvable : ' . $faux, $avert );
+		yume_assert_contains( 'Début de chapitre manuel introuvable : e99999-abcdef', $avert );
+		yume_assert_not_contains( 'introuvable : ' . $vrai, $avert );
+		yume_assert_same( 1, count( $r->chapters ), 'un seul début trouvé' );
+		// Entrées invalides ignorées par le convertisseur (contrôle strict à la réception).
+		yume_assert_same(
+			null,
+			Chapter_Builder::normaliser_plan(
+				array(
+					'debuts' => array(
+						array(
+							'ancre'  => '<b>',
+							'nature' => 'chapitre',
+						),
+						array(
+							'ancre'  => 'e1-abcdef',
+							'nature' => 'inconnue',
+						),
+					),
+				)
+			)
+		);
+		yume_assert_same( null, Chapter_Builder::normaliser_plan( 'e1-abcdef' ) );
+	}
+);
+
+yume_test(
+	'découpage : notes de bas de page dans les chapitres manuels (numérotées dans leur chapitre)',
+	function () {
+		$auto = yume_timp_conversion( 'regles.docx' );
+		// Coupure sur le paragraphe qui porte les deux appels de note.
+		$plan = yume_timp_plan(
+			$auto,
+			array(
+				'Chapitre 1'        => 'chapitre',
+				'Le mot yume et le' => array( 'chapitre', 'Les notes' ),
+			)
+		);
+		$r    = Docx_Converter::convert_file( yume_timp_fixture( 'regles.docx' ), array( 'plan' => $plan ) );
+		yume_assert_same( 2, count( $r->chapters ) );
+		yume_assert_same( 0, $r->chapters[0]['stats']['notes'] );
+		yume_assert_not_contains( 'yn-notes', $r->chapters[0]['blocks'] );
+		$c = $r->chapters[1];
+		yume_assert_same( 2, $c['stats']['notes'] );
+		yume_assert_true( str_starts_with( $c['blocks'], '<!-- wp:paragraph -->' . "\n" . '<p>Le mot yume<sup class="yn-note"><a href="#yn-note-1" id="yn-ref-1">1</a></sup> et le mot kizuna<sup class="yn-note"><a href="#yn-note-2" id="yn-ref-2">2</a></sup>.</p>' ), 'appels numérotés dans le nouveau chapitre' );
+		yume_assert_contains( '<li id="yn-note-2">Le lien, en <em>japonais</em>.', $c['blocks'] );
+		yume_assert_not_contains( 'data-yn-attente', $c['blocks'] );
+
+		// Constructeur seul : note avant le premier chapitre gardée avec le texte d'ouverture.
+		$resultat = new Result();
+		$b        = new Chapter_Builder(
+			$resultat,
+			Chapter_Builder::VOLUME_MAX,
+			array(
+				'debuts'       => array( 'e2-' . substr( hash( 'crc32b', 'deuxième.' ), 0, 6 ) => array( 'nature' => 'chapitre' ) ),
+				'garder_avant' => true,
+			)
+		);
+		$b->paragraphe( 'Premier' . $b->note( 'Note A' ) . '.' );
+		$b->paragraphe( 'Deuxième' . $b->note( 'Note B' ) . '.' );
+		$b->terminer();
+		yume_assert_same( 1, count( $resultat->chapters ) );
+		yume_assert_same( 2, $resultat->chapters[0]['stats']['notes'] );
+		yume_assert_contains( '<li id="yn-note-2">Note B', $resultat->chapters[0]['blocks'] );
+	}
+);
+
+yume_test(
+	'découpage : marqueurs [chapitre], [bonus], [prologue]… dans le document (sans JavaScript)',
+	function () {
+		yume_assert_same(
+			array(
+				'nature' => 'epilogue',
+				'titre'  => 'La fin',
+			),
+			Texte::marqueur( '[ÉPILOGUE] La fin' )
+		);
+		yume_assert_same(
+			array(
+				'nature' => 'chapitre',
+				'titre'  => '',
+			),
+			Texte::marqueur( ' [Chapitre] ' )
+		);
+		yume_assert_same(
+			array(
+				'nature' => 'bonus',
+				'titre'  => 'Le festival',
+			),
+			Texte::marqueur( '[bonus] : Le festival' )
+		);
+		yume_assert_same( null, Texte::marqueur( '[note du traducteur] rien' ) );
+		yume_assert_same( null, Texte::marqueur( 'Il dit [chapitre] au milieu.' ) );
+		yume_timp_outils_fixtures();
+		$fichier = yume_timp_docx(
+			yume_fx_t( 'Page de titre' )
+			. yume_fx_t( '[bonus] Le festival' )
+			. yume_fx_t( 'Une histoire bonus placée avant le premier chapitre.' )
+			. yume_fx_t( '[Prologue]' )
+			. yume_fx_t( 'Texte du prologue.' )
+			. yume_fx_t( 'Chapitre 1', array( 'style' => 'Titre1' ) )
+			. yume_fx_t( 'Texte du chapitre un.' )
+			. yume_fx_t( '[chapitre] Sans titre de style' )
+			. yume_fx_t( 'Texte du chapitre deux.' )
+			. yume_fx_t( '[interlude]' )
+			. yume_fx_t( 'Chapitre 3 : Le retour', array( 'style' => 'Titre1' ) )
+			. yume_fx_t( 'Texte de l’interlude.' )
+			. yume_fx_t( '[épilogue] La fin' )
+			. yume_fx_t( 'Texte de l’épilogue.' )
+		);
+		try {
+			$r = Docx_Converter::convert_file( $fichier );
+			yume_assert_same(
+				array(
+					array( 'bonus', null, 'Bonus', 'Le festival' ),
+					array( 'prologue', 0.0, 'Prologue', '' ),
+					array( 'chapitre', 1.0, 'Chapitre 1', '' ),
+					array( 'chapitre', 2.0, 'Chapitre 2', 'Sans titre de style' ),
+					array( 'interlude', null, 'Interlude', 'Le retour' ),
+					array( 'epilogue', null, 'Épilogue', 'La fin' ),
+				),
+				array_map( static fn( $c ) => array( $c['nature'], $c['numero'], $c['titre'], $c['sous_titre'] ), $r->chapters )
+			);
+			yume_assert_contains( 'Une histoire bonus placée avant le premier chapitre.', $r->chapters[0]['blocks'], 'bonus jamais ignoré' );
+			foreach ( $r->chapters as $c ) {
+				yume_assert_not_contains( '[', $c['blocks'], 'marqueur non publié' );
+			}
+			$m = yume_timp_candidat( $r, '[bonus]' );
+			yume_assert_same( array( 'marqueur', true, 'bonus', 'Le festival' ), array( $m['type'], $m['auto'], $m['nature'], $m['titre'] ) );
+			yume_assert_contains( '1 paragraphe placé avant le premier chapitre', implode( "\n", $r->warnings ) );
+
+			// Avec un découpage, seuls ses débuts comptent ; les marqueurs ne sont jamais publiés.
+			$plan = yume_timp_plan( $r, array( 'Chapitre 1' => 'chapitre' ) );
+			$p    = Docx_Converter::convert_file( $fichier, array( 'plan' => $plan ) );
+			yume_assert_same( 1, count( $p->chapters ) );
+			yume_assert_not_contains( '[', $p->chapters[0]['blocks'] );
+			yume_assert_contains( 'Texte de l’épilogue.', $p->chapters[0]['blocks'] );
+		} finally {
+			wp_delete_file( $fichier );
+		}
+		// EPUB : marqueur dans un paragraphe.
+		$epub = yume_timp_epub(
+			array(
+				'a.xhtml' => array( '', '<p>[bonus] Hors série</p><p>Texte bonus.</p>' ),
+				'b.xhtml' => array( '', '<h1>Chapitre 1</h1><p>Texte un.</p>' ),
+			)
+		);
+		try {
+			$r = Epub_Converter::convert_file( $epub );
+			yume_assert_same( array( 'Bonus', 'Chapitre 1' ), array_column( $r->chapters, 'titre' ) );
+			yume_assert_same( 'Hors série', $r->chapters[0]['sous_titre'] );
+		} finally {
+			wp_delete_file( $epub );
+		}
+	}
+);
+
+yume_test(
+	'découpage : débuts possibles (sauts de page, gras, centré, séparateur) et plafond',
+	function () {
+		yume_timp_outils_fixtures();
+		$fichier = yume_timp_docx(
+			yume_fx_t( 'Ouverture du livre, un paragraphe comme un autre, assez long pour ne pas être une ligne courte du tout.' )
+			. yume_fx_p( '<w:r><w:br w:type="page"/></w:r>' )
+			. yume_fx_t( 'Après le saut de page, un long paragraphe qui ne ressemble pas du tout à un titre de chapitre.' )
+			. yume_fx_p( yume_fx_r( 'Un titre en gras', array( 'b' => true ) ) )
+			. yume_fx_t( 'Un titre centré', array( 'jc' => 'center' ) )
+			. yume_fx_t( '* * *' )
+			. yume_fx_t( 'Après le séparateur, encore un long paragraphe qui ne ressemble pas à un titre.' )
+			. yume_fx_p( yume_fx_r( 'Texte avant le saut.' ) . '<w:r><w:br w:type="page"/></w:r>' )
+			. yume_fx_t( 'Page suivante, un long paragraphe encore une fois sans rien de particulier ici.' )
+			. yume_fx_t( '— Une réplique courte.' )
+		);
+		try {
+			$r = Docx_Converter::convert_file( $fichier );
+			yume_assert_same( array( 'debut' ), yume_timp_candidat( $r, 'Ouverture' )['raisons'] );
+			yume_assert_same( array( 'saut_page' ), yume_timp_candidat( $r, 'Après le saut de page' )['raisons'] );
+			yume_assert_same( array( 'gras', 'ligne_courte' ), yume_timp_candidat( $r, 'Un titre en gras' )['raisons'] );
+			yume_assert_same( 'Un titre en gras', yume_timp_candidat( $r, 'Un titre en gras' )['titre'], 'titre proposé' );
+			yume_assert_same( array( 'centre', 'ligne_courte' ), yume_timp_candidat( $r, 'Un titre centré' )['raisons'] );
+			yume_assert_same( array( 'separateur' ), yume_timp_candidat( $r, 'Après le séparateur' )['raisons'] );
+			yume_assert_same( array( 'saut_page' ), yume_timp_candidat( $r, 'Page suivante' )['raisons'], 'saut après le texte : paragraphe suivant' );
+			yume_assert_same( 2, count( $r->decoupages['sauts'] ) );
+			foreach ( $r->candidats as $c ) {
+				yume_assert_false( str_contains( $c['extrait'], 'réplique' ), 'réplique : pas une ligne courte' );
+			}
+			// Découpage « à chaque saut de page » avec le texte d'ouverture conservé.
+			$plan = array(
+				'debuts'       => array_map(
+					static fn( $a ) => array(
+						'ancre'  => $a,
+						'nature' => 'chapitre',
+					),
+					$r->decoupages['sauts']
+				),
+				'garder_avant' => true,
+			);
+			$p    = Docx_Converter::convert_file( $fichier, array( 'plan' => $plan ) );
+			yume_assert_same( 2, count( $p->chapters ) );
+			yume_assert_contains( 'Ouverture du livre', $p->chapters[0]['blocks'] );
+			yume_assert_contains( 'Page suivante', $p->chapters[1]['blocks'] );
+		} finally {
+			wp_delete_file( $fichier );
+		}
+
+		// Plafond : au plus Result::CANDIDATS_MAX débuts possibles.
+		$resultat = new Result();
+		$b        = new Chapter_Builder( $resultat );
+		for ( $i = 0; $i < Result::CANDIDATS_MAX + 50; $i++ ) {
+			$b->paragraphe( 'Ligne ' . $i );
+		}
+		$b->terminer();
+		yume_assert_same( Result::CANDIDATS_MAX, count( $resultat->candidats ) );
+		yume_assert_true( $resultat->stats['candidats_tronques'] );
+		yume_assert_same( Result::CANDIDATS_MAX + 50, $resultat->stats['elements'] );
+	}
+);
+
+yume_test(
+	'DOCX : étiquette de chapitre (« Prologue », « 1 », « Bonus ») centrée ou en gras juste avant un Titre 1 (Survival in Another World)',
+	function () {
+		yume_timp_outils_fixtures();
+		$texte  = static fn( string $mot, int $n ): string => str_repeat( yume_fx_t( $mot . ' lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod tempor.' ), $n );
+		$corps  = yume_fx_t( 'Prologue', array( 'jc' => 'center' ) ) . yume_fx_t( 'Le Début soudain de ma vie de survie', array( 'style' => 'Titre1' ) ) . $texte( 'Prologue', 40 );
+		$corps .= yume_fx_p( yume_fx_r( '1', array( 'b' => true ) ) ) . yume_fx_t( 'Le Début soudain : Jours 1 et 2', array( 'style' => 'Titre1' ) ) . $texte( 'Un', 40 );
+		$corps .= yume_fx_t( '3', array( 'jc' => 'center' ) ) . $texte( 'Suite', 2 );
+		$corps .= yume_fx_t( 'Bonus', array( 'jc' => 'center' ) ) . yume_fx_t( '', array( 'jc' => 'center' ) ) . yume_fx_t( 'L’Histoire d’Ira', array( 'style' => 'Titre1' ) ) . $texte( 'Ira', 5 );
+		$corps .= yume_fx_t( 'Postface', array( 'style' => 'Titre1' ) ) . $texte( 'Fin', 3 );
+		$docx   = yume_timp_docx( $corps );
+		try {
+			$r = Docx_Converter::convert_file( $docx );
+		} finally {
+			wp_delete_file( $docx );
+		}
+		$resume = array_map( static fn( $c ) => array( $c['nature'], $c['numero'], $c['titre'], $c['sous_titre'] ), $r->chapters );
+		yume_assert_same(
+			array(
+				array( 'prologue', 0.0, 'Prologue', 'Le Début soudain de ma vie de survie' ),
+				array( 'chapitre', 1.0, 'Chapitre 1', 'Le Début soudain : Jours 1 et 2' ),
+				array( 'bonus', null, 'Bonus', 'L’Histoire d’Ira' ),
+				array( 'postface', null, 'Postface', '' ),
+			),
+			$resume
+		);
+		yume_assert_same( array(), preg_grep( '/sans numéro|liminaire/', $r->warnings ), implode( ' | ', $r->warnings ) );
+		yume_assert_not_contains( '<p class="has-text-align-center">Prologue</p>', $r->chapters[0]['blocks'], 'étiquette absorbée par le titre' );
+		yume_assert_contains( '>3</p>', $r->chapters[1]['blocks'], 'étiquette sans titre après elle : paragraphe conservé' );
+		yume_assert_contains( 'Ira lorem', $r->chapters[2]['blocks'] );
+	}
+);
+
+yume_test(
+	'Pages liminaires : une section courte placée après un chapitre gardé (histoire bonus sans numéro) est toujours publiée',
+	function () {
+		yume_timp_outils_fixtures();
+		$long  = str_repeat( yume_fx_t( 'Texte du long chapitre lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore.' ), 40 );
+		$corps = yume_fx_t( 'Crédits', array( 'style' => 'Titre1' ) ) . yume_fx_t( 'Traduction : équipe.' )
+			. yume_fx_t( 'La Crête', array( 'style' => 'Titre1' ) ) . $long
+			. yume_fx_t( 'Une petite histoire', array( 'style' => 'Titre1' ) ) . yume_fx_t( 'Quelques lignes bonus.' )
+			. yume_fx_t( 'Postface', array( 'style' => 'Titre1' ) ) . yume_fx_t( 'Merci.' );
+		$docx  = yume_timp_docx( $corps );
+		try {
+			$r = Docx_Converter::convert_file( $docx );
+		} finally {
+			wp_delete_file( $docx );
+		}
+		yume_assert_same( array( 'La Crête', 'Une petite histoire', '' ), array_map( static fn( $c ) => (string) $c['sous_titre'], $r->chapters ) );
+		yume_assert_same( 1, count( preg_grep( '/« Crédits » placée avant le premier chapitre/', $r->warnings ) ), 'la page de crédits reste liminaire' );
+	}
+);
+
+yume_test(
+	'Découpage manuel : ornements (petites images) jamais proposés ; « ouvertures illustrées » = première image de chaque suite de plusieurs illustrations (SukaMoka)',
+	function () {
+		$r = new Result();
+		foreach ( array( 'couverture', 'ouv1a', 'ouv1b', 'seule', 'ouv2a', 'ouv2b', 'ouv2c' ) as $cle ) {
+			$r->images[ $cle ] = array(
+				'nom'     => $cle,
+				'largeur' => 1200,
+				'hauteur' => 1800,
+			);
+		}
+		$r->images['fleuron'] = array(
+			'nom'     => 'fleuron',
+			'largeur' => 26,
+			'hauteur' => 49,
+		);
+		$b                    = new Chapter_Builder( $r );
+		$b->image( 'couverture' );
+		$b->paragraphe( 'Prologue sans titre.' );
+		$b->image( 'ouv1a' );
+		$b->image( 'fleuron' );
+		$b->image( 'ouv1b' );
+		$b->paragraphe( 'Premier chapitre.' );
+		$b->image( 'fleuron' );
+		$b->paragraphe( 'Suite.' );
+		$b->image( 'seule' );
+		$b->paragraphe( 'Encore.' );
+		$b->image( 'ouv2a' );
+		$b->image( 'ouv2b' );
+		$b->image( 'ouv2c' );
+		$b->paragraphe( 'Deuxième chapitre.' );
+		$b->terminer();
+		$images = array_values( array_filter( $r->candidats, static fn( $c ) => 'image' === $c['type'] ) );
+		yume_assert_same( 7, count( $images ), 'fleurons exclus' );
+		yume_assert_same( array(), preg_grep( '/fleuron/', array_column( $r->candidats, 'extrait' ) ) );
+		$par_ancre = array_column( $r->candidats, 'extrait', 'ancre' );
+		yume_assert_same( array( 'Illustration : ouv1a', 'Illustration : ouv2a' ), array_map( static fn( $a ) => $par_ancre[ $a ], $r->decoupages['ouvertures'] ), 'le fleuron n’interrompt pas la suite ; image seule et couverture exclues' );
 	}
 );

@@ -547,6 +547,191 @@
 	align-items: center;
 }
 
+/* Débuts de chapitre possibles, aide sur les marqueurs de document. */
+.yn-publish__marqueurs {
+	margin: 0;
+}
+
+/* Découpage manuel (« Délimiter les chapitres moi-même »), rempli par le script du bloc. */
+.yn-publish__decoupage {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+	margin: 0;
+	padding: 20px 24px;
+}
+
+.yn-publish__decoupage[hidden] {
+	display: none;
+}
+
+.yn-publish__decoupage legend {
+	float: left;
+	width: 100%;
+	margin-bottom: 2px;
+	padding: 0;
+}
+
+.yn-publish__decoupage > p {
+	margin: 0;
+}
+
+.yn-publish__decoupage-outils,
+.yn-publish__decoupage-reglages {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px 18px;
+	align-items: center;
+}
+
+.yn-publish__decoupage-outils {
+	gap: 8px;
+}
+
+.yn-publish__decoupage-premier {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.yn-publish__decoupage-premier input {
+	width: 90px;
+}
+
+.yn-publish__decoupage-compte {
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.yn-publish__decoupage-table {
+	max-height: 480px;
+	overflow: auto;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius, 6px);
+}
+
+.yn-publish__decoupage-table:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+/* Chaque ligne est une grille : l'extrait du fichier occupe toute la largeur au-dessus des réglages. */
+.yn-publish__decoupage-table :where(table, thead, tbody) {
+	display: block;
+	width: 100%;
+}
+
+.yn-publish__decoupage-table table {
+	min-width: 520px;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+.yn-publish__decoupage-table thead {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-publish__decoupage-table tr {
+	display: grid;
+	grid-template-columns: minmax(150px, 12em) minmax(8.5em, 11em) minmax(10em, 1fr);
+	gap: 6px 12px;
+	padding: 8px 10px;
+}
+
+.yn-publish__decoupage-table tbody tr {
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-publish__decoupage-table :where(th, td) {
+	padding: 0;
+}
+
+.yn-publish__decoupage-table th {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+	text-align: left;
+}
+
+.yn-publish__decoupage-table th:last-child {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.yn-publish__decoupage-table td {
+	vertical-align: top;
+}
+
+.yn-publish__decoupage-table tr[hidden] {
+	display: none;
+}
+
+.yn-publish__decoupage-table :where(select, input[type="text"]) {
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+}
+
+.yn-publish__decoupage-table select {
+	min-width: 8.5em;
+}
+
+.yn-publish__decoupage-table input[type="text"] {
+	min-width: 10em;
+}
+
+.yn-publish__decoupage-table :where(select, input[type="text"]):disabled {
+	opacity: 0.55;
+}
+
+.yn-publish__decoupage-debut label {
+	margin-left: 6px;
+	font-weight: 600;
+}
+
+.yn-publish__decoupage-raisons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.yn-publish__decoupage-raisons .yn-chip {
+	height: auto;
+	font-size: 12px;
+}
+
+.yn-publish__decoupage-extrait {
+	grid-column: 1 / -1;
+	order: -1;
+	overflow-wrap: break-word;
+}
+
+/* Début coché ; texte placé avant le premier début coché (non publié sauf texte d'ouverture conservé). */
+.yn-publish__decoupage-ligne.is-coche {
+	box-shadow: inset 3px 0 0 var(--wp--preset--color--accent);
+}
+
+.yn-publish__decoupage-ligne.is-avant {
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-publish__decoupage-avant {
+	font-weight: 600;
+}
+
+.yn-publish__decoupage-avant[hidden] {
+	display: none;
+}
+
 /* Colonne latérale. */
 .yn-publish__recap,
 .yn-publish__credits {

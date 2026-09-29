@@ -97,7 +97,7 @@ function couverture( int $image_id, array $options = array() ): string {
 		if ( $o['priorite'] ) {
 			$attrs['fetchpriority'] = 'high';
 		}
-		$img = (string) wp_get_attachment_image( $image_id, $taille, false, $attrs );
+		$img = yume_image_couverture( $image_id, $taille, $attrs );
 	}
 	$contenu = (string) $o['badge'];
 	if ( '' !== $img ) {

@@ -391,10 +391,9 @@ function contenu_resume( string $layout, array $donnees ): string {
 		return '<div class="yn-resume__texte"><p class="yn-label">' . esc_html__( 'Reprendre la lecture', 'yume-core' ) . '</p>'
 			. '<p class="yn-resume__titre" data-yn-resume-titre>' . esc_html( $donnees['titre'] ) . '</p></div>' . $bouton;
 	}
-	$couverture = $donnees['couverture'] ? wp_get_attachment_image(
+	$couverture = $donnees['couverture'] ? yume_image_couverture(
 		(int) $donnees['couverture'],
 		'yume-couverture',
-		false,
 		array(
 			'alt'     => '',
 			'loading' => 'lazy',
