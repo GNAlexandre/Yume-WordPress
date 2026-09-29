@@ -1,0 +1,1219 @@
+/**
+ * WordEnd — Chtholly contre les Timeres (easter egg de Yume Novel).
+ *
+ * Chargé à la demande par declencheur.js. Expose window.ynWordEndJeu :
+ * { ouvrir( config ), fermer(), estOuvert() }.
+ *
+ * - Modale <dialog> (showModal : le reste de la page est inerte ; Échap ferme, le focus revient
+ *   à l'élément d'origine). Événement document « yn:wordend » (detail.etat = ouvert|ferme).
+ * - Écran logique 480 × 270 dessiné en 2× (planche de Chtholly à l'échelle 1:1), pas fixe
+ *   de 1/60 s, pause quand l'onglet est masqué ou la fenêtre perd le focus.
+ * - Chtholly : repos, marche, course (Maj), coup d'épée (J/X), charge magique (K/C maintenu
+ *   puis relâché : onde qui traverse les Timeres), dégâts (invincibilité), mort.
+ * - Timeres provisoires dessinés en code (rampant, sauteur, volant), par vagues croissantes.
+ * - Meilleur score dans localStorage['yn.wordend'] (try/catch).
+ * - Mouvement réduit (prefers-reduced-motion ou html[data-yn-animations="reduites"]) : ni
+ *   secousse ni clignotement, moins de particules.
+ *
+ * ES2019, sans dépendance.
+ */
+( function () {
+	'use strict';
+
+	/* ------------------------------------------------------------------ */
+	/* Constantes                                                          */
+	/* ------------------------------------------------------------------ */
+
+	var LARGEUR = 480;
+	var HAUTEUR = 270;
+	var DENSITE = 2; // Pixels de canvas par pixel logique (planche dessinée pour 2×).
+	var DT = 1 / 60;
+	var SOL_Y = 238;
+	var BORD = 18;
+	var CLE_STOCKAGE = 'yn.wordend';
+
+	var VITESSE_MARCHE = 72;
+	var VITESSE_COURSE = 138;
+	var PV_MAX = 5;
+	var INVINCIBILITE = 1.2;
+	var DUREE_DEGATS = 0.35;
+	var RECUL = 150;
+	var CHARGE_MIN = 0.55;
+	var DUREE_ONDE = 0.42;
+	var RECHARGE_ONDE = 1.2;
+	var DUREE_MORT = 2.2;
+
+	var TYPES = {
+		rampant: { l: 34, h: 20, pv: 2, vitesse: 38, points: 10 },
+		sauteur: { l: 24, h: 24, pv: 1, vitesse: 52, points: 15 },
+		volant: { l: 30, h: 18, pv: 1, vitesse: 66, points: 20 },
+	};
+
+	var TOUCHES = {
+		ArrowLeft: 'gauche',
+		KeyA: 'gauche', // Q en AZERTY (touche physique).
+		ArrowRight: 'droite',
+		KeyD: 'droite',
+		ShiftLeft: 'courir',
+		ShiftRight: 'courir',
+		KeyJ: 'epee',
+		KeyX: 'epee',
+		KeyK: 'charge',
+		KeyC: 'charge',
+	};
+
+	/* ------------------------------------------------------------------ */
+	/* État                                                                */
+	/* ------------------------------------------------------------------ */
+
+	var config = null;
+	var dialogue = null;
+	var ecran = null;
+	var ctx = null;
+	var annonce = null;
+	var boutonJouer = null;
+	var boutonPause = null;
+	var focusAvant = null;
+	var ouvert = false;
+	var planche = null;
+	var meta = null;
+	var ressources = null;
+	var palette = {};
+	var police = 'sans-serif';
+	var requete = 0;
+	var dernierTemps = 0;
+	var accumulateur = 0;
+	var temps = 0;
+	var mouvementReduit = false;
+
+	var clavier = {};
+	var tactile = {};
+	var courirTactile = false;
+	var appuiEpee = false;
+
+	var etat = 'chargement'; // chargement | titre | jeu | pause | fin | erreur
+	var joueur = null;
+	var timeres = [];
+	var ondes = [];
+	var particules = [];
+	var vague = null;
+	var score = 0;
+	var meilleur = 0;
+	var secousse = 0;
+	var prochainId = 1;
+	var decor = null;
+
+	/* ------------------------------------------------------------------ */
+	/* Outils                                                              */
+	/* ------------------------------------------------------------------ */
+
+	function hasard( min, max ) {
+		return min + Math.random() * ( max - min );
+	}
+
+	function chevauche( a, b ) {
+		return a.x < b.x + b.l && a.x + a.l > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+	}
+
+	function annoncer( texte ) {
+		if ( annonce ) {
+			annonce.textContent = '';
+			window.setTimeout( function () {
+				annonce.textContent = texte;
+			}, 50 );
+		}
+	}
+
+	function lireStockage() {
+		try {
+			var donnees = JSON.parse( window.localStorage.getItem( CLE_STOCKAGE ) || 'null' );
+			if ( donnees && typeof donnees === 'object' ) {
+				return {
+					meilleur: Math.max( 0, parseInt( donnees.meilleur, 10 ) || 0 ),
+					parties: Math.max( 0, parseInt( donnees.parties, 10 ) || 0 ),
+				};
+			}
+		} catch ( e ) {}
+		return { meilleur: 0, parties: 0 };
+	}
+
+	function ecrireStockage( meilleurScore ) {
+		var donnees = lireStockage();
+		try {
+			window.localStorage.setItem(
+				CLE_STOCKAGE,
+				JSON.stringify( {
+					meilleur: Math.max( donnees.meilleur, meilleurScore ),
+					parties: donnees.parties + 1,
+					maj: new Date().toISOString().slice( 0, 10 ),
+				} )
+			);
+		} catch ( e ) {}
+	}
+
+	function lirePalette() {
+		var style = window.getComputedStyle( document.documentElement );
+		function jeton( nom, secours ) {
+			var valeur = style.getPropertyValue( '--wp--preset--color--' + nom ).trim();
+			return valeur || secours;
+		}
+		palette = {
+			fond: jeton( 'fond', '#1b1231' ),
+			bande: jeton( 'bande', '#241740' ),
+			carte: jeton( 'carte', '#2d1f4f' ),
+			filet: jeton( 'filet', '#4a3b6e' ),
+			texteFort: jeton( 'texte-fort', '#fff8fb' ),
+			texte: jeton( 'texte', '#ebe3f2' ),
+			texteFaible: jeton( 'texte-faible', '#b7a9cc' ),
+			accent: jeton( 'accent', '#f3a6c8' ),
+			accent2: jeton( 'accent-2', '#f7c59f' ),
+			erreur: jeton( 'erreur', '#ff8f7e' ),
+		};
+		var titres = style.getPropertyValue( '--wp--preset--font-family--titres' ).trim();
+		police = titres || window.getComputedStyle( document.body ).fontFamily || 'sans-serif';
+		mouvementReduit = document.documentElement.getAttribute( 'data-yn-animations' ) === 'reduites' ||
+			!! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
+		decor = null;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Ressources                                                          */
+	/* ------------------------------------------------------------------ */
+
+	function chargerRessources() {
+		if ( ressources ) {
+			return ressources;
+		}
+		var image = new Promise( function ( resoudre, rejeter ) {
+			var img = new Image();
+			img.onload = function () {
+				resoudre( img );
+			};
+			img.onerror = function () {
+				rejeter( new Error( 'planche introuvable' ) );
+			};
+			img.src = config.planche;
+		} );
+		var donnees = window.fetch( config.meta, { credentials: 'same-origin' } ).then( function ( reponse ) {
+			if ( ! reponse.ok ) {
+				throw new Error( 'métadonnées introuvables' );
+			}
+			return reponse.json();
+		} );
+		ressources = Promise.all( [ image, donnees ] ).then(
+			function ( resultats ) {
+				planche = resultats[ 0 ];
+				meta = resultats[ 1 ];
+			},
+			function ( erreur ) {
+				ressources = null;
+				throw erreur;
+			}
+		);
+		return ressources;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Modale                                                              */
+	/* ------------------------------------------------------------------ */
+
+	function element( balise, attributs, texte ) {
+		var el = document.createElement( balise );
+		Object.keys( attributs || {} ).forEach( function ( nom ) {
+			el.setAttribute( nom, attributs[ nom ] );
+		} );
+		if ( texte ) {
+			el.textContent = texte;
+		}
+		return el;
+	}
+
+	function construire() {
+		dialogue = element( 'dialog', { class: 'yn-wordend', 'aria-labelledby': 'yn-wordend-titre', 'aria-describedby': 'yn-wordend-aide' } );
+		var cadre = element( 'div', { class: 'yn-wordend__cadre' } );
+
+		var entete = element( 'div', { class: 'yn-wordend__entete' } );
+		entete.appendChild( element( 'h2', { id: 'yn-wordend-titre', class: 'yn-wordend__titre' }, 'WordEnd — Chtholly contre les Timeres' ) );
+		var fermerBouton = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm yn-wordend__fermer', 'aria-label': 'Fermer le jeu (Échap)' }, '×' );
+		fermerBouton.addEventListener( 'click', fermer );
+		entete.appendChild( fermerBouton );
+		cadre.appendChild( entete );
+
+		ecran = element( 'canvas', {
+			class: 'yn-wordend__ecran',
+			width: String( LARGEUR * DENSITE ),
+			height: String( HAUTEUR * DENSITE ),
+			tabindex: '0',
+			role: 'img',
+			'aria-label': 'Zone de jeu : Chtholly et son épée Seniolis face aux Timeres',
+		} );
+		ecran.textContent = 'Votre navigateur ne peut pas afficher le jeu.';
+		cadre.appendChild( ecran );
+
+		var barre = element( 'div', { class: 'yn-wordend__barre' } );
+		boutonJouer = element( 'button', { type: 'button', class: 'yn-btn yn-btn--primary yn-btn--sm' }, 'Jouer' );
+		boutonJouer.addEventListener( 'click', function () {
+			demarrer();
+			ecran.focus();
+		} );
+		boutonPause = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm', 'aria-pressed': 'false' }, 'Pause' );
+		boutonPause.addEventListener( 'click', function () {
+			basculerPause();
+		} );
+		barre.appendChild( boutonJouer );
+		barre.appendChild( boutonPause );
+		cadre.appendChild( barre );
+
+		cadre.appendChild( construireManettes() );
+
+		cadre.appendChild(
+			element(
+				'p',
+				{ id: 'yn-wordend-aide', class: 'yn-wordend__aide' },
+				'Flèches ou Q/D : marcher · Maj : courir · J ou X : coup d’épée · K ou C maintenu puis relâché : charge magique · P : pause · Échap : fermer'
+			)
+		);
+		annonce = element( 'p', { class: 'yn-visually-hidden', role: 'status', 'aria-live': 'polite' } );
+		cadre.appendChild( annonce );
+
+		dialogue.appendChild( cadre );
+		dialogue.addEventListener( 'cancel', function ( e ) {
+			e.preventDefault();
+			fermer();
+		} );
+		dialogue.addEventListener( 'close', function () {
+			if ( ouvert ) {
+				fermer();
+			}
+		} );
+		dialogue.addEventListener( 'keydown', surTouche );
+		dialogue.addEventListener( 'keyup', surToucheRelachee );
+		document.body.appendChild( dialogue );
+
+		ctx = ecran.getContext( '2d' );
+	}
+
+	function construireManettes() {
+		var manettes = element( 'div', { class: 'yn-wordend__manettes', role: 'group', 'aria-label': 'Commandes tactiles' } );
+		var commandes = [
+			{ nom: 'gauche', texte: '◀', libelle: 'Aller à gauche' },
+			{ nom: 'droite', texte: '▶', libelle: 'Aller à droite' },
+			{ nom: 'courir', texte: 'Courir', libelle: 'Courir', bascule: true },
+			{ nom: 'epee', texte: 'Épée', libelle: 'Coup d’épée' },
+			{ nom: 'charge', texte: 'Charge', libelle: 'Charge magique (maintenir puis relâcher)' },
+		];
+		commandes.forEach( function ( commande ) {
+			var attributs = { type: 'button', class: 'yn-btn yn-wordend__manette', 'aria-label': commande.libelle };
+			if ( commande.bascule ) {
+				attributs[ 'aria-pressed' ] = 'false';
+			}
+			var bouton = element( 'button', attributs, commande.texte );
+			if ( commande.bascule ) {
+				bouton.addEventListener( 'click', function () {
+					courirTactile = ! courirTactile;
+					bouton.setAttribute( 'aria-pressed', courirTactile ? 'true' : 'false' );
+				} );
+			} else {
+				var relacher = function () {
+					tactile[ commande.nom ] = false;
+				};
+				bouton.addEventListener( 'pointerdown', function ( e ) {
+					e.preventDefault();
+					if ( bouton.setPointerCapture ) {
+						try {
+							bouton.setPointerCapture( e.pointerId );
+						} catch ( err ) {}
+					}
+					tactile[ commande.nom ] = true;
+					if ( commande.nom === 'epee' ) {
+						appuiEpee = true;
+					}
+					if ( etat === 'titre' || etat === 'fin' ) {
+						demarrer();
+					}
+				} );
+				bouton.addEventListener( 'pointerup', relacher );
+				bouton.addEventListener( 'pointercancel', relacher );
+				bouton.addEventListener( 'lostpointercapture', relacher );
+				bouton.addEventListener( 'contextmenu', function ( e ) {
+					e.preventDefault();
+				} );
+				// Clavier sur le bouton (Entrée / Espace) : action ponctuelle.
+				bouton.addEventListener( 'click', function ( e ) {
+					if ( e.detail === 0 && commande.nom === 'epee' ) {
+						appuiEpee = true;
+					}
+				} );
+			}
+			manettes.appendChild( bouton );
+		} );
+		return manettes;
+	}
+
+	function ouvrir( configuration ) {
+		config = configuration || config;
+		if ( ! config ) {
+			return;
+		}
+		if ( ! dialogue ) {
+			construire();
+		}
+		if ( ouvert ) {
+			return;
+		}
+		ouvert = true;
+		focusAvant = document.activeElement;
+		lirePalette();
+		meilleur = lireStockage().meilleur;
+		document.documentElement.classList.add( 'yn-wordend-ouvert' );
+		if ( typeof dialogue.showModal === 'function' ) {
+			dialogue.showModal();
+		} else {
+			dialogue.setAttribute( 'open', '' );
+		}
+		ecran.focus();
+		document.addEventListener( 'visibilitychange', surVisibilite );
+		window.addEventListener( 'blur', surPerteFocus );
+		document.addEventListener( 'yn:theme', lirePalette );
+		document.dispatchEvent( new CustomEvent( 'yn:wordend', { detail: { etat: 'ouvert' } } ) );
+
+		etat = 'chargement';
+		mettreAJourBoutons();
+		chargerRessources().then(
+			function () {
+				if ( etat === 'chargement' ) {
+					etat = 'titre';
+					preparerPartie();
+					mettreAJourBoutons();
+					annoncer( 'WordEnd est prêt. Appuyez sur Entrée ou sur Jouer pour commencer.' );
+				}
+			},
+			function () {
+				etat = 'erreur';
+				mettreAJourBoutons();
+				annoncer( 'Le jeu n’a pas pu être chargé.' );
+			}
+		);
+		dernierTemps = 0;
+		requete = window.requestAnimationFrame( boucle );
+	}
+
+	function fermer() {
+		if ( ! ouvert ) {
+			return;
+		}
+		ouvert = false;
+		window.cancelAnimationFrame( requete );
+		if ( etat === 'jeu' ) {
+			etat = 'pause';
+		}
+		clavier = {};
+		tactile = {};
+		document.removeEventListener( 'visibilitychange', surVisibilite );
+		window.removeEventListener( 'blur', surPerteFocus );
+		document.removeEventListener( 'yn:theme', lirePalette );
+		if ( dialogue.open ) {
+			if ( typeof dialogue.close === 'function' ) {
+				dialogue.close();
+			} else {
+				dialogue.removeAttribute( 'open' );
+			}
+		}
+		document.documentElement.classList.remove( 'yn-wordend-ouvert' );
+		if ( focusAvant && typeof focusAvant.focus === 'function' && document.contains( focusAvant ) ) {
+			focusAvant.focus();
+		}
+		focusAvant = null;
+		document.dispatchEvent( new CustomEvent( 'yn:wordend', { detail: { etat: 'ferme' } } ) );
+	}
+
+	function mettreAJourBoutons() {
+		if ( ! boutonJouer ) {
+			return;
+		}
+		boutonJouer.textContent = etat === 'fin' || etat === 'jeu' || etat === 'pause' ? 'Rejouer' : 'Jouer';
+		boutonJouer.disabled = etat === 'chargement' || etat === 'erreur';
+		boutonPause.disabled = etat !== 'jeu' && etat !== 'pause';
+		boutonPause.setAttribute( 'aria-pressed', etat === 'pause' ? 'true' : 'false' );
+		boutonPause.textContent = etat === 'pause' ? 'Reprendre' : 'Pause';
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Entrées                                                             */
+	/* ------------------------------------------------------------------ */
+
+	function surTouche( e ) {
+		if ( e.key === 'Escape' ) {
+			e.preventDefault();
+			fermer();
+			return;
+		}
+		if ( e.key === 'Tab' || e.altKey || e.ctrlKey || e.metaKey ) {
+			return;
+		}
+		var surBouton = e.target && e.target.tagName === 'BUTTON';
+		if ( surBouton && ( e.key === 'Enter' || e.key === ' ' ) ) {
+			return; // Laisse le bouton agir.
+		}
+		// Les raccourcis de la page (lecteur, thème) ne voient pas les touches du jeu.
+		e.stopPropagation();
+
+		var action = TOUCHES[ e.code ];
+		if ( e.code === 'KeyP' ) {
+			e.preventDefault();
+			if ( ! e.repeat ) {
+				basculerPause();
+			}
+			return;
+		}
+		if ( e.key === 'Enter' || e.key === ' ' ) {
+			e.preventDefault();
+			if ( etat === 'titre' || etat === 'fin' ) {
+				demarrer();
+			} else if ( etat === 'pause' ) {
+				basculerPause();
+			}
+			return;
+		}
+		if ( action ) {
+			e.preventDefault();
+			if ( action === 'epee' && ! e.repeat ) {
+				appuiEpee = true;
+				if ( etat === 'titre' ) {
+					demarrer();
+				}
+			}
+			clavier[ action ] = true;
+		}
+	}
+
+	function surToucheRelachee( e ) {
+		var action = TOUCHES[ e.code ];
+		if ( action ) {
+			clavier[ action ] = false;
+		}
+	}
+
+	function commande( nom ) {
+		return !! ( clavier[ nom ] || tactile[ nom ] );
+	}
+
+	function surVisibilite() {
+		if ( document.hidden && etat === 'jeu' ) {
+			basculerPause();
+		}
+	}
+
+	function surPerteFocus() {
+		clavier = {};
+		if ( etat === 'jeu' ) {
+			basculerPause();
+		}
+	}
+
+	function basculerPause() {
+		if ( etat === 'jeu' ) {
+			etat = 'pause';
+			clavier = {};
+			annoncer( 'Pause.' );
+		} else if ( etat === 'pause' ) {
+			etat = 'jeu';
+			annoncer( 'Reprise.' );
+		}
+		mettreAJourBoutons();
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Partie                                                              */
+	/* ------------------------------------------------------------------ */
+
+	function preparerPartie() {
+		joueur = {
+			x: LARGEUR / 2,
+			y: SOL_Y,
+			vx: 0,
+			dir: 1,
+			etat: 'repos',
+			t: 0,
+			pv: PV_MAX,
+			invincible: 0,
+			recharge: 0,
+			touches: [],
+		};
+		timeres = [];
+		ondes = [];
+		particules = [];
+		score = 0;
+		secousse = 0;
+		vague = { numero: 0, aFaire: 0, minuterie: 1.2, banniere: 0, pause: true };
+	}
+
+	function demarrer() {
+		if ( etat === 'chargement' || etat === 'erreur' ) {
+			return;
+		}
+		preparerPartie();
+		etat = 'jeu';
+		appuiEpee = false;
+		mettreAJourBoutons();
+		annoncer( 'Partie commencée. Défendez l’île contre les Timeres !' );
+	}
+
+	function terminer() {
+		etat = 'fin';
+		var record = score > meilleur;
+		meilleur = Math.max( meilleur, score );
+		ecrireStockage( score );
+		mettreAJourBoutons();
+		annoncer( 'Fin de partie. Score : ' + score + ( record ? '. Nouveau record !' : '. Meilleur score : ' + meilleur + '.' ) + ' Appuyez sur Entrée pour rejouer.' );
+	}
+
+	function nouvelleVague() {
+		vague.numero++;
+		vague.aFaire = 3 + 2 * vague.numero;
+		vague.minuterie = 0.8;
+		vague.banniere = 2;
+		vague.pause = false;
+		annoncer( 'Vague ' + vague.numero + ' : ' + vague.aFaire + ' Timeres.' );
+	}
+
+	function faireApparaitre() {
+		var n = vague.numero;
+		var choix = [ 'rampant', 'rampant', 'sauteur' ];
+		if ( n >= 2 ) {
+			choix.push( 'sauteur' );
+		}
+		if ( n >= 3 ) {
+			choix.push( 'volant', 'volant' );
+		}
+		var type = choix[ Math.floor( Math.random() * choix.length ) ];
+		var modele = TYPES[ type ];
+		var gauche = Math.random() < 0.5;
+		var t = {
+			id: prochainId++,
+			type: type,
+			x: gauche ? -modele.l - 4 : LARGEUR + 4,
+			y: type === 'volant' ? hasard( 140, 175 ) : SOL_Y - modele.h,
+			l: modele.l,
+			h: modele.h,
+			vx: 0,
+			vy: 0,
+			pv: modele.pv + ( n >= 5 && type === 'rampant' ? 1 : 0 ),
+			vitesse: modele.vitesse * ( 1 + Math.min( 0.6, n * 0.05 ) ),
+			points: modele.points,
+			flash: 0,
+			recul: 0,
+			saut: hasard( 0.6, 1.4 ),
+			base: 0,
+			graine: Math.random() * 10,
+			t: 0,
+		};
+		t.base = t.y;
+		timeres.push( t );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Mise à jour                                                         */
+	/* ------------------------------------------------------------------ */
+
+	function animation( nom ) {
+		return meta.animations[ nom ];
+	}
+
+	function imageCourante( nom, t ) {
+		var anim = animation( nom );
+		var n = anim.images.length;
+		var i = Math.floor( t * anim.ips );
+		return anim.boucle ? i % n : Math.min( n - 1, i );
+	}
+
+	function boiteJoueur() {
+		return { x: joueur.x - 10, y: joueur.y - 58, l: 20, h: 56 };
+	}
+
+	function boiteEpee() {
+		return joueur.dir > 0 ?
+			{ x: joueur.x + 4, y: joueur.y - 62, l: 60, h: 58 } :
+			{ x: joueur.x - 64, y: joueur.y - 62, l: 60, h: 58 };
+	}
+
+	function changerEtat( nouvel ) {
+		joueur.etat = nouvel;
+		joueur.t = 0;
+	}
+
+	function mettreAJourJoueur( dt ) {
+		var j = joueur;
+		j.t += dt;
+		j.invincible = Math.max( 0, j.invincible - dt );
+		j.recharge = Math.max( 0, j.recharge - dt );
+		var libre = j.etat === 'repos' || j.etat === 'marche' || j.etat === 'course';
+
+		if ( j.etat === 'mort' ) {
+			j.vx *= 0.9;
+			if ( j.t >= DUREE_MORT ) {
+				terminer();
+			}
+		} else if ( j.etat === 'degats' ) {
+			j.vx *= 0.88;
+			if ( j.t >= DUREE_DEGATS ) {
+				changerEtat( 'repos' );
+			}
+		} else if ( j.etat === 'attaque' ) {
+			j.vx = 0;
+			var i = imageCourante( 'attaque', j.t );
+			if ( animation( 'attaque' ).coup.indexOf( i ) !== -1 ) {
+				frapper( boiteEpee(), 1, j.touches );
+			}
+			if ( j.t >= animation( 'attaque' ).images.length / animation( 'attaque' ).ips ) {
+				changerEtat( 'repos' );
+			}
+		} else if ( j.etat === 'concentration' ) {
+			j.vx = 0;
+			if ( ! commande( 'charge' ) ) {
+				if ( j.t >= CHARGE_MIN ) {
+					changerEtat( 'onde' );
+					lancerOnde();
+				} else {
+					changerEtat( 'repos' );
+				}
+			} else if ( j.t >= CHARGE_MIN && ! mouvementReduit && Math.random() < 0.5 ) {
+				particule( j.x + j.dir * hasard( 10, 40 ), j.y - hasard( 30, 60 ), hasard( -20, 20 ), hasard( -40, -10 ), 0.4, '#bfe6ff', 2 );
+			}
+		} else if ( j.etat === 'onde' ) {
+			j.vx = 0;
+			if ( j.t >= DUREE_ONDE ) {
+				changerEtat( 'repos' );
+			}
+		}
+
+		if ( libre ) {
+			if ( appuiEpee ) {
+				j.touches = [];
+				changerEtat( 'attaque' );
+			} else if ( commande( 'charge' ) && j.recharge <= 0 ) {
+				changerEtat( 'concentration' );
+			} else {
+				var sens = ( commande( 'droite' ) ? 1 : 0 ) - ( commande( 'gauche' ) ? 1 : 0 );
+				var court = commande( 'courir' ) || courirTactile;
+				if ( sens !== 0 ) {
+					j.dir = sens;
+					j.vx = sens * ( court ? VITESSE_COURSE : VITESSE_MARCHE );
+					var voulu = court ? 'course' : 'marche';
+					if ( j.etat !== voulu ) {
+						changerEtat( voulu );
+					}
+				} else {
+					j.vx = 0;
+					if ( j.etat !== 'repos' ) {
+						changerEtat( 'repos' );
+					}
+				}
+			}
+		}
+		appuiEpee = false;
+
+		j.x = Math.max( BORD, Math.min( LARGEUR - BORD, j.x + j.vx * dt ) );
+	}
+
+	function lancerOnde() {
+		var j = joueur;
+		j.recharge = RECHARGE_ONDE;
+		ondes.push( { x: j.x + j.dir * 40, y: j.y - 34, dir: j.dir, vie: 1.1, t: 0, touches: [] } );
+		secouer( 0.12 );
+	}
+
+	function frapper( boite, degats, dejaTouches ) {
+		timeres.forEach( function ( t ) {
+			if ( t.pv > 0 && dejaTouches.indexOf( t.id ) === -1 && chevauche( boite, t ) ) {
+				dejaTouches.push( t.id );
+				blesserTimere( t, degats, boite.x + boite.l / 2 < t.x + t.l / 2 ? 1 : -1 );
+			}
+		} );
+	}
+
+	function blesserTimere( t, degats, sens ) {
+		t.pv -= degats;
+		t.flash = 0.1;
+		t.recul = sens * 160;
+		var n = mouvementReduit ? 2 : 6;
+		for ( var i = 0; i < n; i++ ) {
+			particule( t.x + t.l / 2, t.y + t.h / 2, sens * hasard( 20, 120 ), hasard( -120, -20 ), 0.4, '#bfe6ff', 2 );
+		}
+		if ( t.pv <= 0 ) {
+			score += t.points;
+			var m = mouvementReduit ? 4 : 14;
+			for ( var k = 0; k < m; k++ ) {
+				particule( t.x + hasard( 0, t.l ), t.y + hasard( 0, t.h ), hasard( -60, 60 ), hasard( -110, -10 ), hasard( 0.4, 0.9 ), k % 3 ? '#140a24' : palette.accent, hasard( 2, 4 ) );
+			}
+		}
+	}
+
+	function mettreAJourTimeres( dt ) {
+		var j = joueur;
+		var cible = boiteJoueur();
+		timeres.forEach( function ( t ) {
+			t.t += dt;
+			t.flash = Math.max( 0, t.flash - dt );
+			var centre = t.x + t.l / 2;
+			var sens = j.x > centre ? 1 : -1;
+			if ( j.etat === 'mort' ) {
+				sens = centre < LARGEUR / 2 ? -1 : 1; // Ils repartent.
+			}
+			t.recul *= 0.86;
+			if ( t.type === 'rampant' ) {
+				t.vx = sens * t.vitesse * ( 0.75 + 0.25 * Math.sin( t.t * 5 + t.graine ) );
+			} else if ( t.type === 'sauteur' ) {
+				var auSol = t.y >= SOL_Y - t.h;
+				if ( auSol ) {
+					t.y = SOL_Y - t.h;
+					t.vy = 0;
+					t.vx = sens * t.vitesse * 0.4;
+					t.saut -= dt;
+					if ( t.saut <= 0 ) {
+						t.vy = -250;
+						t.vx = sens * t.vitesse * 1.6;
+						t.saut = hasard( 1, 1.6 );
+					}
+				}
+				t.vy += 620 * dt;
+				t.y = Math.min( SOL_Y - t.h, t.y + t.vy * dt );
+			} else if ( t.type === 'volant' ) {
+				t.vx = sens * t.vitesse;
+				var proche = Math.abs( j.x - centre ) < 90;
+				var visee = proche ? SOL_Y - 52 : t.base + Math.sin( t.t * 3 + t.graine ) * 22;
+				t.y += ( visee - t.y ) * Math.min( 1, dt * ( proche ? 2.4 : 4 ) );
+			}
+			t.x += ( t.vx + t.recul ) * dt;
+			if ( t.pv > 0 && j.etat !== 'mort' && j.invincible <= 0 && chevauche( cible, t ) ) {
+				blesserJoueur( centre < j.x ? 1 : -1 );
+			}
+		} );
+		timeres = timeres.filter( function ( t ) {
+			return t.pv > 0 && t.x > -120 && t.x < LARGEUR + 120;
+		} );
+	}
+
+	function blesserJoueur( sens ) {
+		var j = joueur;
+		j.pv--;
+		j.invincible = INVINCIBILITE;
+		j.vx = sens * RECUL;
+		secouer( 0.25 );
+		if ( j.pv <= 0 ) {
+			changerEtat( 'mort' );
+			annoncer( 'Chtholly est à terre.' );
+			var n = mouvementReduit ? 6 : 24;
+			for ( var i = 0; i < n; i++ ) {
+				particule( j.x + hasard( -30, 30 ), j.y - hasard( 0, 50 ), hasard( -30, 30 ), hasard( -50, -10 ), hasard( 1.2, 2.2 ), i % 2 ? palette.accent : '#8fd0ff', 3, true );
+			}
+		} else {
+			changerEtat( 'degats' );
+		}
+	}
+
+	function mettreAJourOndes( dt ) {
+		ondes.forEach( function ( o ) {
+			o.t += dt;
+			o.vie -= dt;
+			o.x += o.dir * 250 * dt;
+			frapper( { x: o.x - 14, y: o.y - 26, l: 28, h: 52 }, 3, o.touches );
+			if ( ! mouvementReduit && Math.random() < 0.6 ) {
+				particule( o.x - o.dir * 10, o.y + hasard( -20, 20 ), -o.dir * hasard( 10, 40 ), hasard( -20, 20 ), 0.35, '#d8f1ff', 2 );
+			}
+		} );
+		ondes = ondes.filter( function ( o ) {
+			return o.vie > 0 && o.x > -40 && o.x < LARGEUR + 40;
+		} );
+	}
+
+	function particule( x, y, vx, vy, vie, couleur, taille, flotte ) {
+		if ( particules.length > 300 ) {
+			return;
+		}
+		particules.push( { x: x, y: y, vx: vx, vy: vy, vie: vie, max: vie, couleur: couleur, taille: taille, flotte: !! flotte } );
+	}
+
+	function mettreAJourParticules( dt ) {
+		particules.forEach( function ( p ) {
+			p.vie -= dt;
+			p.x += p.vx * dt;
+			p.y += p.vy * dt;
+			p.vy += ( p.flotte ? 8 : 260 ) * dt;
+		} );
+		particules = particules.filter( function ( p ) {
+			return p.vie > 0;
+		} );
+	}
+
+	function mettreAJourVague( dt ) {
+		vague.banniere = Math.max( 0, vague.banniere - dt );
+		if ( joueur.etat === 'mort' ) {
+			return;
+		}
+		vague.minuterie -= dt;
+		if ( vague.pause ) {
+			if ( vague.minuterie <= 0 ) {
+				nouvelleVague();
+			}
+			return;
+		}
+		if ( vague.aFaire > 0 && vague.minuterie <= 0 ) {
+			faireApparaitre();
+			vague.aFaire--;
+			vague.minuterie = Math.max( 0.5, 2.2 - 0.15 * vague.numero ) * hasard( 0.7, 1.2 );
+		}
+		if ( vague.aFaire === 0 && timeres.length === 0 ) {
+			score += 50 * vague.numero;
+			vague.pause = true;
+			vague.minuterie = 1.8;
+			if ( joueur.pv < PV_MAX && vague.numero % 2 === 0 ) {
+				joueur.pv++;
+			}
+		}
+	}
+
+	function secouer( duree ) {
+		if ( ! mouvementReduit ) {
+			secousse = Math.max( secousse, duree );
+		}
+	}
+
+	function mettreAJour( dt ) {
+		temps += dt;
+		if ( etat === 'jeu' ) {
+			mettreAJourJoueur( dt );
+			mettreAJourTimeres( dt );
+			mettreAJourOndes( dt );
+			mettreAJourVague( dt );
+			secousse = Math.max( 0, secousse - dt );
+		}
+		if ( etat === 'jeu' || etat === 'fin' || etat === 'titre' ) {
+			mettreAJourParticules( dt );
+		}
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Rendu                                                               */
+	/* ------------------------------------------------------------------ */
+
+	function preparerDecor() {
+		var iles = [];
+		for ( var i = 0; i < 5; i++ ) {
+			iles.push( { x: 40 + i * 100 + hasard( -20, 20 ), y: hasard( 60, 130 ), l: hasard( 40, 90 ), vitesse: hasard( 1, 4 ) } );
+		}
+		var etoiles = [];
+		for ( var k = 0; k < 40; k++ ) {
+			etoiles.push( { x: hasard( 0, LARGEUR ), y: hasard( 0, 150 ), r: hasard( 0.4, 1.2 ), p: hasard( 0, 6 ) } );
+		}
+		decor = { iles: iles, etoiles: etoiles };
+	}
+
+	function dessinerDecor() {
+		if ( ! decor ) {
+			preparerDecor();
+		}
+		var ciel = ctx.createLinearGradient( 0, 0, 0, SOL_Y );
+		ciel.addColorStop( 0, palette.fond );
+		ciel.addColorStop( 1, palette.bande );
+		ctx.fillStyle = ciel;
+		ctx.fillRect( 0, 0, LARGEUR, HAUTEUR );
+
+		ctx.fillStyle = palette.texteFaible;
+		decor.etoiles.forEach( function ( e ) {
+			ctx.globalAlpha = mouvementReduit ? 0.5 : 0.3 + 0.3 * Math.sin( temps * 1.5 + e.p );
+			ctx.beginPath();
+			ctx.arc( e.x, e.y, e.r, 0, Math.PI * 2 );
+			ctx.fill();
+		} );
+		ctx.globalAlpha = 0.18;
+		ctx.fillStyle = palette.accent2;
+		ctx.beginPath();
+		ctx.arc( 400, 56, 26, 0, Math.PI * 2 );
+		ctx.fill();
+
+		// Îles flottantes de Regul Aire, au loin.
+		ctx.globalAlpha = 0.55;
+		ctx.fillStyle = palette.carte;
+		decor.iles.forEach( function ( ile ) {
+			var y = ile.y + ( mouvementReduit ? 0 : Math.sin( temps * 0.5 + ile.vitesse ) * 2 );
+			ctx.beginPath();
+			ctx.moveTo( ile.x - ile.l / 2, y );
+			ctx.lineTo( ile.x + ile.l / 2, y );
+			ctx.lineTo( ile.x + ile.l / 6, y + ile.l * 0.45 );
+			ctx.lineTo( ile.x - ile.l / 8, y + ile.l * 0.3 );
+			ctx.closePath();
+			ctx.fill();
+			ctx.fillRect( ile.x - ile.l / 2, y - 3, ile.l, 3 );
+		} );
+		ctx.globalAlpha = 1;
+
+		// Sol.
+		ctx.fillStyle = palette.carte;
+		ctx.fillRect( 0, SOL_Y, LARGEUR, HAUTEUR - SOL_Y );
+		ctx.fillStyle = palette.filet;
+		ctx.fillRect( 0, SOL_Y, LARGEUR, 2 );
+		ctx.fillStyle = palette.accent;
+		ctx.globalAlpha = 0.35;
+		for ( var x = 6; x < LARGEUR; x += 23 ) {
+			ctx.fillRect( x, SOL_Y + 6 + ( x % 3 ) * 5, 3, 2 );
+		}
+		ctx.globalAlpha = 1;
+	}
+
+	function dessinerSprite( nom, i, x, y, dir ) {
+		var cadre = animation( nom ).images[ i ];
+		var echelle = meta.echelle || DENSITE;
+		ctx.save();
+		ctx.translate( Math.round( x * DENSITE ) / DENSITE, Math.round( y * DENSITE ) / DENSITE );
+		if ( dir < 0 ) {
+			ctx.scale( -1, 1 );
+		}
+		ctx.drawImage( planche, cadre[ 0 ], cadre[ 1 ], cadre[ 2 ], cadre[ 3 ], -cadre[ 4 ] / echelle, -cadre[ 5 ] / echelle, cadre[ 2 ] / echelle, cadre[ 3 ] / echelle );
+		ctx.restore();
+	}
+
+	function dessinerJoueur() {
+		var j = joueur;
+		var nom = j.etat;
+		var i = 0;
+		if ( nom === 'concentration' ) {
+			nom = 'charge';
+			if ( j.t < 0.2 ) {
+				i = 0;
+			} else if ( j.t < CHARGE_MIN ) {
+				i = 1;
+			} else {
+				i = mouvementReduit || Math.floor( j.t * 8 ) % 2 ? 2 : 1;
+			}
+		} else if ( nom === 'onde' ) {
+			nom = 'charge';
+			i = 3;
+		} else {
+			i = imageCourante( nom, j.t );
+		}
+		// Ombre au sol.
+		ctx.fillStyle = 'rgba(0,0,0,0.25)';
+		ctx.beginPath();
+		ctx.ellipse( j.x, SOL_Y + 1, nom === 'mort' ? 34 : 18, 4, 0, 0, Math.PI * 2 );
+		ctx.fill();
+
+		if ( j.invincible > 0 && nom !== 'mort' ) {
+			ctx.globalAlpha = mouvementReduit ? 0.6 : ( Math.floor( j.invincible * 12 ) % 2 ? 0.35 : 1 );
+		}
+		dessinerSprite( nom, i, j.x, j.y, j.dir );
+		ctx.globalAlpha = 1;
+
+		if ( j.etat === 'concentration' ) {
+			var part = Math.min( 1, j.t / CHARGE_MIN );
+			ctx.fillStyle = palette.filet;
+			ctx.fillRect( j.x - 16, j.y - 82, 32, 4 );
+			ctx.fillStyle = part >= 1 ? '#8fd0ff' : palette.texteFaible;
+			ctx.fillRect( j.x - 16, j.y - 82, 32 * part, 4 );
+		}
+	}
+
+	function dessinerTimere( t ) {
+		var cx = t.x + t.l / 2;
+		var cy = t.y + t.h / 2;
+		var ondule = mouvementReduit ? 0 : Math.sin( temps * 6 + t.graine );
+		ctx.fillStyle = 'rgba(0,0,0,0.22)';
+		ctx.beginPath();
+		ctx.ellipse( cx, SOL_Y + 1, t.l / 2, 3, 0, 0, Math.PI * 2 );
+		ctx.fill();
+
+		ctx.fillStyle = t.flash > 0 ? '#ffffff' : '#140a24';
+		ctx.strokeStyle = t.flash > 0 ? '#ffffff' : '#5b3f8c';
+		ctx.lineWidth = 1.5;
+		ctx.beginPath();
+		if ( t.type === 'rampant' ) {
+			// Masse rampante avec des épines.
+			ctx.moveTo( t.x, t.y + t.h );
+			for ( var k = 0; k <= 6; k++ ) {
+				var px = t.x + ( k / 6 ) * t.l;
+				var py = t.y + ( k % 2 ? 0 : 6 ) + ondule * ( k % 2 ? 2 : 1 );
+				ctx.lineTo( px, py );
+			}
+			ctx.lineTo( t.x + t.l, t.y + t.h );
+			ctx.closePath();
+		} else if ( t.type === 'sauteur' ) {
+			ctx.ellipse( cx, cy + ondule, t.l / 2, t.h / 2 - ondule, 0, 0, Math.PI * 2 );
+		} else {
+			// Volant : corps et ailes membraneuses.
+			var aile = mouvementReduit ? 4 : Math.sin( temps * 14 + t.graine ) * 8;
+			ctx.moveTo( t.x, cy - aile );
+			ctx.lineTo( cx - 5, cy - 2 );
+			ctx.lineTo( cx, cy - 7 );
+			ctx.lineTo( cx + 5, cy - 2 );
+			ctx.lineTo( t.x + t.l, cy - aile );
+			ctx.lineTo( cx + 6, cy + 6 );
+			ctx.lineTo( cx - 6, cy + 6 );
+			ctx.closePath();
+		}
+		ctx.fill();
+		ctx.stroke();
+
+		// Yeux.
+		var regard = joueur.x > cx ? 1.5 : -1.5;
+		ctx.fillStyle = '#ff5a7a';
+		ctx.fillRect( cx - 5 + regard, cy - 3, 3, 3 );
+		ctx.fillRect( cx + 2 + regard, cy - 3, 3, 3 );
+	}
+
+	function dessinerOnde( o ) {
+		var alpha = Math.min( 1, o.vie * 3 );
+		ctx.save();
+		ctx.translate( o.x, o.y );
+		ctx.scale( o.dir, 1 );
+		ctx.globalAlpha = alpha;
+		for ( var k = 0; k < 3; k++ ) {
+			ctx.strokeStyle = k === 0 ? '#e8f7ff' : ( k === 1 ? '#9fdcff' : '#5aa9e6' );
+			ctx.lineWidth = 5 - k * 1.5;
+			ctx.beginPath();
+			ctx.arc( -10 - k * 6, 0, 26 - k * 2, -1.1, 1.1 );
+			ctx.stroke();
+		}
+		ctx.restore();
+		ctx.globalAlpha = 1;
+	}
+
+	function dessinerParticules() {
+		particules.forEach( function ( p ) {
+			ctx.globalAlpha = Math.max( 0, p.vie / p.max );
+			ctx.fillStyle = p.couleur;
+			ctx.fillRect( p.x - p.taille / 2, p.y - p.taille / 2, p.taille, p.taille );
+		} );
+		ctx.globalAlpha = 1;
+	}
+
+	function texte( contenu, x, y, taille, alignement, couleur, graisse ) {
+		ctx.font = ( graisse || 700 ) + ' ' + taille + 'px ' + police;
+		ctx.textAlign = alignement || 'left';
+		ctx.textBaseline = 'middle';
+		ctx.lineJoin = 'round';
+		ctx.lineWidth = 3;
+		ctx.strokeStyle = palette.fond;
+		ctx.strokeText( contenu, x, y );
+		ctx.fillStyle = couleur || palette.texteFort;
+		ctx.fillText( contenu, x, y );
+	}
+
+	function coeur( x, y, plein ) {
+		ctx.fillStyle = plein ? palette.accent : palette.filet;
+		ctx.beginPath();
+		ctx.moveTo( x, y + 3 );
+		ctx.bezierCurveTo( x, y, x - 5, y - 1, x - 5, y + 2 );
+		ctx.bezierCurveTo( x - 5, y + 5, x - 1, y + 7, x, y + 9 );
+		ctx.bezierCurveTo( x + 1, y + 7, x + 5, y + 5, x + 5, y + 2 );
+		ctx.bezierCurveTo( x + 5, y - 1, x, y, x, y + 3 );
+		ctx.fill();
+	}
+
+	function dessinerInterface() {
+		for ( var i = 0; i < PV_MAX; i++ ) {
+			coeur( 16 + i * 13, 10, i < joueur.pv );
+		}
+		texte( 'Score ' + score, LARGEUR / 2, 15, 12, 'center' );
+		texte( 'Record ' + Math.max( meilleur, score ), LARGEUR - 10, 15, 11, 'right', palette.texteFaible );
+		if ( vague.numero > 0 ) {
+			texte( 'Vague ' + vague.numero, LARGEUR - 10, 30, 11, 'right', palette.texteFaible );
+		}
+		if ( joueur.recharge > 0 ) {
+			ctx.fillStyle = palette.filet;
+			ctx.fillRect( 16, 26, 60, 3 );
+			ctx.fillStyle = '#8fd0ff';
+			ctx.fillRect( 16, 26, 60 * ( 1 - joueur.recharge / RECHARGE_ONDE ), 3 );
+		}
+		if ( vague.banniere > 0 && etat === 'jeu' ) {
+			var decalage = mouvementReduit ? 0 : Math.max( 0, vague.banniere - 1.7 ) * 200;
+			ctx.globalAlpha = Math.min( 1, vague.banniere * 2 );
+			texte( 'Vague ' + vague.numero, LARGEUR / 2 - decalage, 96, 26, 'center', palette.accent, 800 );
+			ctx.globalAlpha = 1;
+		}
+	}
+
+	function voile() {
+		ctx.globalAlpha = 0.72;
+		ctx.fillStyle = palette.fond;
+		ctx.fillRect( 0, 0, LARGEUR, HAUTEUR );
+		ctx.globalAlpha = 1;
+	}
+
+	function dessinerSurcouche() {
+		if ( etat === 'titre' ) {
+			voile();
+			texte( 'WordEnd', LARGEUR / 2, 62, 34, 'center', palette.accent, 800 );
+			texte( 'Chtholly contre les Timeres', LARGEUR / 2, 94, 15, 'center' );
+			dessinerSprite( 'repos', imageCourante( 'repos', temps ), LARGEUR / 2 - 20, 196, 1 );
+			texte( 'Entrée ou « Jouer » pour commencer', LARGEUR / 2, 222, 12, 'center' );
+			texte( 'Record : ' + meilleur, LARGEUR / 2, 244, 11, 'center', palette.texteFaible );
+		} else if ( etat === 'pause' ) {
+			voile();
+			texte( 'Pause', LARGEUR / 2, HAUTEUR / 2 - 10, 28, 'center', palette.accent, 800 );
+			texte( 'P ou Entrée pour reprendre', LARGEUR / 2, HAUTEUR / 2 + 18, 12, 'center' );
+		} else if ( etat === 'fin' ) {
+			voile();
+			texte( 'Fin de partie', LARGEUR / 2, 86, 28, 'center', palette.accent, 800 );
+			texte( 'Score : ' + score, LARGEUR / 2, 122, 16, 'center' );
+			texte( score >= meilleur && score > 0 ? 'Nouveau record !' : 'Record : ' + meilleur, LARGEUR / 2, 146, 12, 'center', palette.accent2 );
+			texte( 'Entrée ou « Rejouer » pour recommencer', LARGEUR / 2, 184, 12, 'center' );
+		} else if ( etat === 'chargement' ) {
+			texte( 'Chargement…', LARGEUR / 2, HAUTEUR / 2, 14, 'center' );
+		} else if ( etat === 'erreur' ) {
+			texte( 'Le jeu n’a pas pu être chargé.', LARGEUR / 2, HAUTEUR / 2, 14, 'center', palette.erreur );
+		}
+	}
+
+	function dessiner() {
+		ctx.setTransform( DENSITE, 0, 0, DENSITE, 0, 0 );
+		ctx.imageSmoothingEnabled = true;
+		if ( secousse > 0 ) {
+			ctx.translate( hasard( -2, 2 ), hasard( -2, 2 ) );
+		}
+		dessinerDecor();
+		if ( planche && meta && joueur ) {
+			timeres.forEach( dessinerTimere );
+			if ( etat !== 'titre' ) {
+				dessinerJoueur();
+			}
+			ondes.forEach( dessinerOnde );
+			dessinerParticules();
+			if ( etat !== 'titre' ) {
+				dessinerInterface();
+			}
+		}
+		dessinerSurcouche();
+	}
+
+	function boucle( maintenant ) {
+		if ( ! ouvert ) {
+			return;
+		}
+		if ( ! dernierTemps ) {
+			dernierTemps = maintenant;
+		}
+		accumulateur += Math.min( 0.25, ( maintenant - dernierTemps ) / 1000 );
+		dernierTemps = maintenant;
+		var pas = 0;
+		while ( accumulateur >= DT && pas < 5 ) {
+			if ( planche && meta && joueur ) {
+				mettreAJour( DT );
+			}
+			accumulateur -= DT;
+			pas++;
+		}
+		if ( pas === 5 ) {
+			accumulateur = 0;
+		}
+		dessiner();
+		requete = window.requestAnimationFrame( boucle );
+	}
+
+	window.ynWordEndJeu = {
+		ouvrir: ouvrir,
+		fermer: fermer,
+		estOuvert: function () {
+			return ouvert;
+		},
+	};
+}() );

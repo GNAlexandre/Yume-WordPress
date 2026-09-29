@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1-dev.1 — 2026-09-29
+
+- Easter egg WordEnd : mini-jeu caché (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) où Chtholly repousse des vagues de Timeres provisoires ; planche de sprites découpée depuis la planche Gemini (tools/wordend).
+
 ## 2.0.0 — 2026-09-29
 
 - Yume Novel 2.0.0 : nouveau site (thème Yume, extension Yume Core), migration de l'ancien site, espace équipe, planning, lecture en ligne, glossaires, comptes lecteurs.
