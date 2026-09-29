@@ -22,9 +22,20 @@ voir tous les menus.
 
 ## 2. Se connecter
 
-- Cliquer sur **Connexion** en haut à droite du site (page `/connexion/`), saisir son identifiant ou
-  son e-mail et son mot de passe. « Mot de passe oublié ? » envoie un lien de réinitialisation par
-  e-mail.
+- **Lecteurs et équipe** (traducteurs, relecteurs, graphistes, éditeurs, gérants) : cliquer sur
+  **Connexion** en haut à droite du site (page `/connexion/`), saisir son pseudo ou son e-mail et
+  son mot de passe ; cocher « Se souvenir de moi » sur un appareil personnel. On arrive sur la page
+  d'où l'on venait (ou sur **Mon compte**, ou l'espace équipe pour un traducteur, un relecteur ou
+  un graphiste). En cas d'erreur, le message « Identifiant ou mot de passe incorrect. » s'affiche
+  au-dessus du formulaire, l'identifiant reste rempli : on corrige et on recommence, sans passer
+  par une page WordPress. Après 5 erreurs en 15 minutes (même compte ou même connexion), le
+  formulaire est bloqué 15 minutes (« Trop de tentatives, réessayez dans N minutes. ») : attendre,
+  ou utiliser « Mot de passe oublié ? », qui envoie un lien de réinitialisation par e-mail.
+- **Administrateurs** : ils se connectent par la **page de connexion WordPress** (connexion
+  WordPress.com et validation en deux étapes), via le petit lien **Connexion administrateur** sous
+  le formulaire de `/connexion/`. Le formulaire de `/connexion/` refuse un compte administrateur,
+  même avec le bon mot de passe, et affiche ce lien. La page WordPress sert aussi aux personnes
+  invitées par l'administrateur à créer leur compte.
 - Une fois connecté, le menu du compte affiche **Mon compte** et, pour les membres de l'équipe,
   **Espace équipe** (page `/equipe/`). **Se déconnecter** est à côté, dans le menu du site.
 - Traducteurs, relecteurs et graphistes travaillent uniquement dans l'espace équipe : s'ils ouvrent
@@ -313,22 +324,44 @@ refait) :
    ou **Lecture en ligne : ajouter le DOCX/EPUB** (il n'en a aucun). **Voir** ouvre la fiche publique,
    **Modifier** l'administration.
 3. Le formulaire de publication s'ouvre déjà rempli. En haut, l'encadré **« Remplacer la lecture en
-   ligne (N chapitres actuels) »** rappelle ce qui va se passer. Déposez le nouveau DOCX ou EPUB,
-   vérifiez les chapitres détectés, laissez cochée la case **« Ajout au catalogue »**, puis
-   **Publier maintenant**.
+   ligne (N chapitres actuels) »** rappelle ce qui va se passer. **Rien ne change pour les lecteurs
+   tant que vous n'avez pas cliqué sur « Remplacer la lecture en ligne maintenant ».**
+4. Déposez le nouveau DOCX ou EPUB, puis cliquez sur **Vérifier (sans rien changer en ligne)** (dans
+   l'encadré). Le fichier est découpé en une **version en attente**, visible de l'équipe seulement :
+   le message indique le bilan (« 13 chapitres prêts (3 modifiés, 10 nouveaux) ; 1 chapitre en ligne
+   absent du fichier, laissé en ligne ») et l'encadré liste chaque chapitre (**Nouveau**, **Modifié**
+   ou **Inchangé**) avec son lien **Aperçu** (la nouvelle version, jamais montrée aux lecteurs ni aux
+   moteurs de recherche) et **Version en ligne** pour comparer. **Enregistrer en brouillon** et
+   **Prévisualiser le chapitre 1** font de même : ils ne touchent jamais aux chapitres en ligne.
+5. Si tout est bon, laissez cochée la case **« Ajout au catalogue »** et cliquez sur **Remplacer la
+   lecture en ligne maintenant** (ou **Publier maintenant**, qui fait la même chose). Sinon, corrigez
+   le fichier et vérifiez-le à nouveau (la nouvelle vérification remplace la précédente), ou cliquez
+   sur **Annuler le remplacement** : la version en attente et ses images sont supprimées, rien n'a
+   changé en ligne.
 
-Ce qui se passe :
+Ce qui se passe au remplacement :
 
-- chaque chapitre est **remplacé en place, par numéro** : même adresse, mêmes commentaires, aucun
-  doublon ; les chapitres nouveaux du fichier sont ajoutés (datés de la sortie du tome) ;
-- un chapitre **absent du nouveau fichier** est signalé dans le message ; il reste en ligne, sauf si
-  vous avez coché **« Mettre en brouillon les chapitres absents »** ;
+- chaque chapitre est **remplacé en place, par numéro** : même adresse, mêmes commentaires, même
+  date, aucun doublon ; les chapitres nouveaux du fichier sont ajoutés (datés de la sortie du tome) ;
+- un chapitre **absent du nouveau fichier** est signalé dès la vérification ; il reste en ligne, sauf
+  si vous avez coché **« Mettre en brouillon les chapitres absents »** (il est alors mis en brouillon
+  au moment du remplacement) ;
 - **aucune annonce** : ni article, ni Discord, ni e-mail, ni notification aux lecteurs, et la **date
-  de sortie du tome ne change pas**. Le message final l'indique : « lecture en ligne remplacée
-  (N chapitres en ligne) ».
+  de sortie du tome ne change pas**. Le message final l'indique : « *Titre du tome* : lecture en
+  ligne remplacée (N chapitres en ligne ; M nouveaux), sans annonce : ni article, ni Discord, ni
+  e-mail. La date de sortie du tome ne change pas. »
 
-Attention : dès l'envoi du fichier (même avec **Enregistrer en brouillon**), les chapitres déjà en
-ligne sont remplacés. Vérifiez l'aperçu des chapitres détectés avant d'envoyer.
+À savoir :
+
+- **un seul remplacement peut attendre par tome** : si un autre membre en a déjà préparé un, votre
+  vérification est refusée avec son nom et sa date ; appliquez-le ou annulez-le d'abord (les boutons
+  sont dans l'encadré) ;
+- une version en attente **ni appliquée ni annulée est supprimée au bout de 7 jours**, avec ses
+  images ;
+- les champs du tome lui-même (titre, liens PDF / EPUB, crédits, couverture téléversée) sont
+  enregistrés dès l'envoi, comme avant ; seule la lecture en ligne attend le remplacement ;
+- un tome **en brouillon ou programmé** n'a pas de version en attente : ses chapitres sont mis à jour
+  directement (ils ne sont pas encore visibles des lecteurs).
 
 ### 5.5 Actualités d'une œuvre (onglet « Actualités » de la fiche)
 

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1-dev.8 — 2026-09-29
+
+- Remplacement de la lecture en ligne en deux temps : vérifier (versions en attente, aperçus réservés à l'équipe, rien ne change en ligne), puis remplacer ou annuler ; nettoyage après 7 jours.
+
 ## 2.0.1-dev.7 — 2026-09-29
 
 - Connexion en façade : /connexion/ ne passe plus par wp-login.php (erreurs affichées sur la page, limitation propre, administrateurs renvoyés vers la connexion WordPress).

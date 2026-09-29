@@ -230,6 +230,16 @@ sur le calcul quand la méta est absente, tome migré).
 `yume_credits` (object{traduction,relecture,edition}) · `yume_nb_mots` (integer) ·
 `yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}) — `format` ∈ `docx`, `epub`, `migration`.
 
+Statut de chapitre interne `yume_remplacement` (module publication, `Remplacement::STATUT`, libellé
+« Version en attente ») : version en attente d'un remplacement de lecture en ligne (§8). Non public,
+`protected` (aperçu réservé à qui peut modifier le chapitre, 404 sinon), `exclude_from_search`, absent
+des listes de l'administration ; hors de `statuts_actifs()`, donc de `yume_get_chapitres()`, des
+sommaires, compteurs, recherches et adresses du tome. Méta internes d'une version :
+`_yume_remplacement_de` (integer : chapitre en ligne remplacé, 0 = chapitre nouveau),
+`_yume_remplacement_action` (`cree` | `maj` | `inchange`), `_yume_remplacement_medias` (array<integer> :
+images utilisées). Méta interne du tome : `_yume_remplacement` (`{par, cree (horodatage), fichier,
+resume, medias (images versées pour la préparation), galerie, couverture, retirer_absents, absents}`).
+
 Les clés `yume_*` sont protégées (absentes de la boîte « Champs personnalisés »). Les caches
 (`yume_note_moyenne`, `yume_nb_notes`, `yume_nb_favoris`, `yume_derniere_sortie`, `yume_nb_chapitres`)
 sont en lecture seule via `/wp/v2` : les modules les écrivent avec `update_post_meta`.
@@ -406,6 +416,37 @@ sur `admin_menu` priorité ≥ 20.
   signées de Jetpack (`requete_jetpack()`, filtre `yume_requete_jetpack`).
 - **Comptes** : inscription et « mot de passe oublié » limités en débit, réponse identique que le
   compte existe ou non ; changement d'adresse : avis à l'ancienne adresse et sessions fermées.
+- **Connexion en façade sans wp-login.php** (`includes/social/connexion.php`) : le formulaire du
+  bloc `yume/account` (page `connexion`, sinon `compte`) poste vers `admin-post.php`, action
+  `yume_connexion` (`admin_post_nopriv_` et `admin_post_`), nonce `yume_connexion` (champ
+  `_yn_nonce`), champs `yn_identifiant` (pseudo ou e-mail, `autocomplete="username"`),
+  `yn_mot_de_passe` (`current-password`), `yn_se_souvenir`, `yn_origine` (page du formulaire) et
+  `redirect_to` (`wp_validate_redirect()`, même site ; défaut : filtre `login_redirect`, donc
+  `redirection_connexion()` : Mon compte pour un lecteur, espace équipe pour un traducteur…).
+  `traiter_connexion()` : `wp_authenticate()` (chaîne `authenticate` complète : Jetpack Protect et
+  les autres protections s'appliquent, `wp_login_failed` en cas d'échec), puis, comme
+  `wp_signon()`, `wp_set_auth_cookie()` (filtre `secure_signon_cookie`), `wp_set_current_user()` et
+  action `wp_login`. **Administrateurs** (`manage_options`, super-administrateur en multisite ;
+  filtre `yume_connexion_reservee_wordpress( bool, WP_User )`) : refusés même avec le bon mot de
+  passe, vérifiés après `wp_authenticate()` et avant toute session → message « Les administrateurs
+  se connectent par la page de connexion WordPress » + lien `url_connexion_administrateur()`
+  (`wp_login_url()`, WordPress.com / Jetpack SSO et sa validation en deux étapes) ; mauvais mot de
+  passe d'un administrateur : message générique (le statut n'est pas révélé). Échec : retour sur la
+  page du formulaire (jamais wp-login.php ni l'administration) avec `yn-msg=connexion-echec`
+  (« Identifiant ou mot de passe incorrect. »), `yn-identifiant` pré-rempli (jamais le mot de passe)
+  et ancre `#yn-connexion-message` ; message `role="alert"` `data-yn-focus` focalisé par
+  `blocks/account/view.js`. **Limitation propre** (Jetpack Protect ne voit plus ces tentatives
+  sur wp-login.php) : échecs comptés par adresse IP et par compte (compte existant par son ID,
+  sinon la saisie), clés `yume_cnx_{hmac}` (transients, HMAC `wp_salt( 'nonce' )`) ; au 5e échec en
+  15 min, blocage 15 min (`yn-msg=connexion-bloquee&yn-minutes=N` : « Trop de tentatives, réessayez
+  dans N minutes. », `wp_login_failed` déclenchée aussi pendant le blocage) ; compteurs effacés au
+  succès ; seuils : filtre `yume_connexion_limites` (`tentatives`, `periode`, `blocage` en
+  secondes). **Liens** : filtre `login_url` (priorité 99, `filtre_url_connexion()`) → page de
+  connexion en façade (+ `redirect_to`) partout sauf dans l'administration (`auth_redirect()`),
+  sur wp-login.php (hors `action=rp|resetpass`) et sans page Yume ; `admin-post.php` et
+  `admin-ajax.php` sont redirigés vers la façade. L'ancien retour en façade après un échec sur
+  wp-login.php (`yn_origine` + `wp_login_failed`) est retiré ; inscription et mot de passe oublié
+  restent en admin-post (`yume_inscription`, `yume_oubli`, erreurs toujours en façade).
 - **Intégrité des mises à jour** : `upgrader_pre_download` (priorité 999) télécharge le paquet
   depuis un hôte autorisé (github.com, objects/release-assets.githubusercontent.com,
   api.github.com), compare son SHA-256 au fichier `SHA256SUMS` de la release et refuse sinon
@@ -525,13 +566,42 @@ champ `lecture_ajoutee` (`{chapitres, programme}`, jamais public). Défaut (form
 service seul vaut faux par défaut.
 
 **Remplacement de la lecture en ligne** d'un tome paru qui a déjà des chapitres publiés (vue équipe
-`?vue=tomes` → formulaire `?tome=ID`) : même chemin, `preparer()` met à jour les chapitres en place
-par nature + numéro (mêmes ID, adresses, dates et commentaires ; nouveaux chapitres en brouillon ;
-absents renvoyés dans `disparus` et en avertissement, mis en brouillon + `_yume_retire` seulement avec
-`retirer_absents`), puis l'ajout au catalogue ne publie que les nouveaux chapitres (date du tome) ;
-la date du tome n'est jamais modifiée (tome déjà `publish`). Le résultat de `publier()` en mode
-catalogue porte alors `remplacement` = true et `en_ligne` (chapitres publiés après l'opération) ;
-message « lecture en ligne remplacée (N chapitres en ligne ; M nouveaux), sans annonce ».
+`?vue=tomes` → formulaire `?tome=ID`), **en deux temps** (`includes/publication/class-remplacement.php`) :
+
+1. **Préparation, rien ne change en ligne** : pour un tome `publish` qui a au moins un chapitre
+   publié (`Remplacement::mode()`), `preparer()` avec un fichier (boutons « Vérifier (sans rien
+   changer en ligne) » = étape `verifier`, « Enregistrer en brouillon », « Prévisualiser ») crée une
+   **version en attente** par chapitre du fichier (statut `yume_remplacement`, §4), rapprochée du
+   chapitre existant par nature + numéro (`_yume_remplacement_de`). Aucun chapitre, aucune galerie
+   ni couverture du tome n'est modifié ; les images nouvelles sont versées sans rattachement et
+   suivies (`_yume_remplacement.medias`) ; les absents sont seulement signalés. Rapport :
+   `remplacement` = `Remplacement::etat()` (`texte`, `bilan`, `message`, `chapitres[{id, libelle,
+   titre, action, etat, remplace, apercu, lien}]`, `remplaces`, `nouveaux`, `inchanges`, `absents`,
+   `retirer_absents`, `auteur`, `le`, `expire_le`) ; lignes de `chapitres` = versions en attente
+   (`statut` `yume_remplacement`, `apercu` = lien d'aperçu, `edition` vide). Aperçu : `noindex,
+   nofollow` (`wp_robots`) et `nocache_headers()`. Une nouvelle préparation du même membre remplace
+   la précédente (images de même empreinte réutilisées, celles que plus rien n'utilise supprimées).
+2. **Application** : `publier()` (« Remplacer la lecture en ligne maintenant » = étape `remplacer`,
+   ou « Publier maintenant ») appelle d'abord `Remplacement::appliquer()` : chaque version est
+   recopiée **en place** dans son chapitre (titre, contenu, ordre, méta ; mêmes ID, adresses, dates
+   et commentaires ; rien n'est réécrit si le contenu est identique) puis supprimée ; une version
+   sans chapitre devient un chapitre brouillon du tome, publié ensuite (date du tome en mode
+   catalogue) ; absents mis en brouillon + `_yume_retire` seulement avec `retirer_absents` ; images
+   rattachées à leur chapitre, galerie et couverture de l'EPUB posées, `_yume_publication.fichier`
+   mis à jour. Résultat de `publier()` : `remplacement_applique` (`{remplaces, inchanges, nouveaux,
+   retires}` ou null) ; en mode catalogue `remplacement` = true et `en_ligne` ; message « lecture en
+   ligne remplacée (N chapitres en ligne ; M nouveaux), sans annonce : ni article, ni Discord, ni
+   e-mail. La date de sortie du tome ne change pas. » La date du tome n'est jamais modifiée.
+3. **Annulation** (`Remplacement::annuler()`, étape `annuler_remplacement` ou
+   `DELETE /publications/{id}/remplacement`) : versions et images nouvelles supprimées, rien ne change.
+
+Un seul remplacement en attente par tome : `preparer()` d'un autre membre renvoie 409
+`yume_remplacement_en_attente` (il peut appliquer ou annuler celui qui attend). Préparation
+abandonnée supprimée après `yume_publication_remplacement_duree` (filtre, 7 jours) : tâche cron
+unique `yume_publication_nettoyer_remplacement` (argument : tome), et au prochain envoi, affichage du
+formulaire ou `publier()` (une préparation expirée n'est jamais appliquée). Tome brouillon, programmé
+ou publié sans chapitre en ligne : pas de préparation séparée, `preparer()` crée ou met à jour les
+chapitres directement (comportement inchangé).
 
 `yume_glossaire_importe( int $oeuvre_id, int $version_id )` (module glossaire) : un glossaire vient
 d'être importé (nouvelle version en ligne) ; pas émis pour une simulation ni un envoi « inchangé ».
@@ -587,14 +657,14 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/calendrier` | planning | — | `.yn-calendrier` | Calendrier mensuel des sorties (`evenements_calendrier()` : `yume_get_planning()` public, tomes parus depuis 365 jours compris ; filtre `yume_planning_evenements`) : `?mois=AAAA-MM` (sinon mois courant, Paris), liens mois précédent/suivant (`rel=prev/next`, sans JS), `<table>` avec `caption` et en-têtes de jours (`abbr`), aujourd’hui `aria-current="date"` ; nature d’une sortie par icône + texte masqué + bordure (`--programme` ◷ fond plein, `--prevu` ◌ pointillés, `--sorti` ✓) ; sous 600 px, liste des jours ayant des sorties (`.yn-calendrier__liste`) à la place de la grille ; légende, liens d’abonnement ICS (webcal) et de téléchargement. Respecte les filtres GET `type`, `etat`, `oeuvre` du planning |
 | `yume/oeuvre-planning` | planning | — | `.yn-oeuvre-planning` | Carte « Planning de l'œuvre » (tome en cours, étapes, état) |
 | `yume/team-dashboard` | planning | — | `.yn-team` | Espace équipe (connexion requise, capacité `yume_voir_equipe`) : Mes tâches, retards, rappels, journal. Vues de la même page : `?vue=planning` (planning complet modifiable : tous les tomes, filtres œuvre / état / statut / responsable, tri `tri=retard` « En retard d’abord » (retards du plus ancien au plus récent, puis bloqués, puis l'ordre du planning), « Retirer du planning » en admin-post `yume_planning_retrait`, « Mettre en pause » / « Reprendre » (`yume_maj_planning_tous`) en admin-post `yume_planning_pause` (nonce `yume_planning_pause_{id}`, champ `pause` 1/0), lien « Exporter en CSV » → `admin-post.php?action=yume_planning_export&_wpnonce=…` + filtres courants (nonce `yume_planning_export`, capacité `yume_voir_equipe` ; `text/csv; charset=utf-8` en pièce jointe `planning-yume-AAAA-MM-JJ.csv`, BOM UTF-8, séparateur `;`, colonnes Œuvre, Tome, Étape, Statut, Responsables, Date cible, Date programmée, Dernière mise à jour (Paris), Retard ; cellules commençant par `= + - @`, tabulation ou retour chariot préfixées de `'` ; `lignes_vue_planning()` / `csv_planning()`)) `?vue=journal` (journal complet paginé, filtres œuvre / tome) `?vue=lecture` (« Lecture à compléter », capacité `yume_publier` : tomes publiés sans aucun chapitre publié, groupés par œuvre, progression « X tomes sur Y ont la lecture en ligne », filtre `oeuvre`, bouton « Ajouter le DOCX » → `yume_url_page( 'publier' )?tome=ID` ; voir `includes/planning/lecture-a-completer.php`), `?vue=tomes` (« Tous les tomes », capacité `yume_publier`, entrée de navigation juste après « Lecture à compléter » : tous les tomes vivants — publiés, programmés, brouillons — groupés par œuvre, filtres GET `oeuvre`, `statut` (`publie`, `programme`, `brouillon`) et `recherche` (titre du tome, `search_columns` = `post_title`), pagination `pg` (60 tomes par page) ; par tome : couverture, statut et date, chapitres en ligne, actions « Voir » (publié), « Lecture en ligne : ajouter le DOCX/EPUB » (aucun chapitre en ligne) ou « Remplacer la lecture en ligne » → `yume_url_page( 'publier' )?tome=ID`, « Modifier » (`edit_post`) ; la section du tableau de bord `#yn-tous-les-tomes` s'intitule désormais « Tomes en préparation » (planning à venir seulement) ; voir `includes/planning/tomes-equipe.php`), `?vue=taches` (« Mes tâches », capacité `yume_voir_equipe`, cible de l'entrée « Mes tâches » de `navigation_equipe()` sur toutes les pages — pastille des retards conservée — et du bouton des rappels de retard envoyés au responsable (`?vue=taches#yn-tache-{id}` ; le signalement « tome bloqué sans responsable » aux gérants mène à `#yn-tome-{id}` du tableau de bord) : `taches()` du membre connecté, en retard d'abord, cartes `carte_tache()` (formulaire admin-post `yume_planning_maj` + nonce, retour sur la vue via `_wp_http_referer`, message dans la carte ou en tête `#yn-taches-retour` si la tâche n'est plus la sienne), état vide explicite ; voir `includes/planning/mes-taches.php`) et `?vue=kpi` (« Indicateurs », capacité `yume_reglages` — gérants et administrateurs, `yume_maj_planning_tous` étant aussi donnée aux éditeurs — : sorties par mois sur 12 mois (graphique en barres CSS `role="img"` + tableau), délai moyen par étape tiré du journal (lignes `creation`/`etape`), charge par membre, retards en cours, lecteurs actifs (table `progression`), favoris et lecteurs par œuvre (tables `favoris`, `progression`), e-mails envoyés/abandonnés/en attente (table `notifications`, 30 jours conservés) ; filtre `periode` = 30, 90 ou 365 jours ; agrégats seulement, transient `yume_kpi_{jours}` de 5 min effacé sur `yume_planning_mis_a_jour` ; style `yume-kpi` (`includes/planning/assets/kpi.css`) ; voir `includes/planning/kpi.php`), `?vue=sante` (« Santé du site », capacité `yume_reglages`, dernière vue ajoutée — filtre à la priorité 100 —, donc juste avant « Réglages » ; rendu seul dans `includes/planning/sante-equipe.php`, données de `includes/core/admin/sante.php` : tâches planifiées, e-mails, webhooks Discord et bouton « Envoyer un test », version, prérequis de mise en production pour `manage_options` ; tableaux empilés en fiches sous 700 px (`data-libelle`) ; dates en français forcé par `format_fr()` (jeton `G` ajouté) ; style `yume-sante` (`includes/planning/assets/sante.css`, dépend de `yume-kpi`)) et `?vue=reglages` (capacité `yume_reglages` : tous les champs de `sections_reglages()` / `champs_reglages()` visibles pour l'utilisateur — mêmes règles `capability` / `verrouille` que Yume → Réglages —, enregistrés en admin-post `yume_reglages_equipe` avec nonce puis `update_option()`, donc `assainir_reglages()` ; images par ID ou adresse, sans `wp.media` ; voir `includes/planning/reglages-equipe.php`). Autres vues : filtre `yume_vues_equipe` (clé => `libelle`, `capacite`, `rendu` callable qui rend toute la vue, navigation `navigation_equipe( <clé> )` comprise), entrée de navigation avant « Réglages », vue ignorée sans la capacité. Vue ajoutée par social : `?vue=commentaires` (« Commentaires (N) », capacité `moderate_comments`, entrée présente seulement s'il y a des commentaires à modérer ou sur la vue elle-même ; `includes/social/moderation.php`) : commentaires publiés signalés (les plus signalés d'abord, motifs et comptes) puis en attente, 50 par liste ; actions Approuver / Ignorer les signalements / Indésirable / Corbeille en admin-post `yume_moderation` (champs `commentaire`, `op` = `approuver`, `ignorer`, `indesirable`, `corbeille` ; nonce `yume_moderation_{id}` ; `moderate_comments` + `edit_comment`, sinon boutons absents et message) |
-| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`), case « Ajout au catalogue » (`sans_annonce` : champ caché `0` + case `1`, cochée d'office pour un tome publié ; récapitulatif sans « Article d'annonce » ni « Notifications » quand elle est cochée), note « remplacés en place » quand le tome a déjà des chapitres ; tome publié (`?tome=ID`) qui a des chapitres en ligne : encadré « Remplacer la lecture en ligne (N chapitres actuels) » (`data-yn-mode-remplacement`) qui détaille le remplacement en place, les chapitres absents et l'absence d'annonce |
+| `yume/publish-form` | publication | — | `.yn-publish` | Formulaire de publication (capacité `yume_publier`) : menu de l'espace équipe (`navigation_equipe()`), liste « Tome du planning » (champ `tome_planning` : tome existant ciblé, œuvre / nature / numéro préremplis), confirmation d'un tome vide (`confirmer_vide`), case « Ajout au catalogue » (`sans_annonce` : champ caché `0` + case `1`, cochée d'office pour un tome publié ; récapitulatif sans « Article d'annonce » ni « Notifications » quand elle est cochée), note « remplacés en place » quand le tome a déjà des chapitres ; tome publié (`?tome=ID`) qui a des chapitres en ligne : encadré « Remplacer la lecture en ligne (N chapitres actuels) » (`data-yn-mode-remplacement`) qui détaille le remplacement en deux temps, en place, les chapitres absents et l'absence d'annonce, avec le bouton « Vérifier (sans rien changer en ligne) » (étape `verifier`, attribut `form="yn-publish-formulaire"`) et, quand une version attend (`data-yn-attente`), son bilan, l'aperçu de chaque chapitre et les boutons « Remplacer la lecture en ligne maintenant » (`remplacer`) et « Annuler le remplacement » (`annuler_remplacement`), avec ou sans JavaScript |
 | `yume/team-members` | planning | — | `.yn-team` | Espace équipe, « Membres et rôles » (capacité `yume_gerer_equipe`) : membres et rôle, changer le rôle, ajouter un compte existant, retirer de l'équipe (envoi à `admin-post.php`, action `yume_equipe_membres`, nonce) ; avertissement sur un membre responsable de tomes en cours, lien « Modifier dans l'administration » (administrateur) pour les comptes non modifiables ici |
 | `yume/partenaires` | bibliothèque | `title` (string, « Nos partenaires »), `variante` (`cartes` \| `en-ligne`, `cartes`) | `.yn-partenaires`, `.yn-partenaires-en-ligne` | Section de l'accueil : logo (initiales à défaut), nom, description, lien en nouvel onglet ; variante `en-ligne` : paragraphe « Partenaires : A · B » (rien sans partenaire), rendu aussi par `partenaires_en_ligne()` dans la mention du pied de page du thème (paragraphe `yn-copyright`) ; réglage `partenaires` (§6) |
 | `yume/recherche` | bibliothèque | `perPage` (20 : un seul groupe affiché), `apercu` (5 : par groupe quand tous sont affichés), `showFilters` (true) | `.yn-search` | Page de résultats de `/?s=` (modèle `search.html` du thème, à la place de la boucle de requête ; AMEL-04, `includes/library/recherche.php` + `recherche-rendu.php`). Groupes `oeuvres` (titre, `yume_titres_alt`, `yume_auteur`, `yume_illustrateur`, `yume_editeur_vo`), `tomes` (titre ; publiés, œuvre publiée), `actualites` (articles publiés sans mot de passe : titre, extrait, texte ; préfiltre SQL limité à 300, filtre `yume_recherche_actualites_max`) et, si `recherche_chapitres` est actif, `chapitres` (texte et titre des chapitres publiés d'un tome et d'une œuvre publiés, œuvre ni `licenciee` ni statut du filtre `yume_recherche_statuts_exclus_chapitres` ; terme ≥ 3 caractères ; 60 chapitres lus au plus, les plus récents, filtre `yume_recherche_chapitres_max`, compteur « N+ » au-delà ; extrait de 200 caractères autour de la première occurrence, lien `#yn-p-N` vers le bloc de premier niveau). GET : `s`, `contenu` (un groupe), `statut` (liste de slugs, groupes de la bibliothèque), `genre`, `tri` (`pertinence` par défaut, `recent`, `az`), `pg_{groupe}` (pagination propre à chaque groupe, ancre `#yn-search-{groupe}`) ; compteurs par groupe ; tout mot doit figurer (ET) ; comparaison sur texte « plié » (`plier()` : minuscules, sans accents ni ligatures, apostrophe typographique) identique sur SQLite et MariaDB : SQL ne fait qu'un préfiltre `LIKE` large (lettres accentuables en `_` sauf collation `*_ci` MySQL, `œ`/`æ` et `< > & "` en `%`, filtre `yume_recherche_like_insensible`), PHP décide. Surlignage `<mark class="yn-search__marque">` dans un texte toujours échappé (le terme n'est jamais débarrassé de ses balises, il est échappé). Aucun résultat : œuvres au titre proche (distance d'édition) et lien Bibliothèque. Index (œuvres, tomes) dans le cache de la bibliothèque (`en_cache( 'recherche' )`, renouvelé aussi au changement des métas ci-dessus et de `_thumbnail_id`) |
 | `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture, repère `<header aria-label="Barre de lecture">` (les gabarits de lecture n'ont pas d'en-tête du site) : progression, sommaire, marque-page, thème, panneau Paramètres. Page Illustrations : même barre (retour et Sommaire vers le tome, réglages, thème, compte) sans marque-page, configuration `chapitre: 0` (aucun suivi, position jamais écrite), `next` = chapitre 1 |
 | `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte ; membre connecté : menu « Ajouter à une liste » (`details[data-yn-menu="listes"]`, inséré par `render.php` via `inserer_menu_listes()`, `listes.php`) : une case par liste (PUT/DELETE REST à chaque case), création rapide (POST puis PUT), sans JavaScript formulaire `admin-post.php?action=yume_listes_oeuvre` (nonce `yume_social_{oeuvre}`, messages `?yn-lmsg=`) |
 | `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
-| `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) |
+| `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) ; visiteur : connexion en façade (`#yn-connexion`, admin-post `yume_connexion`, §6 ter), petit lien « Connexion administrateur » (wp-login.php), mot de passe oublié, inscription |
 | `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion » (la page connexion propose aussi l'inscription) ou « Mon compte » (+ « Espace équipe » si capacité) et « Se déconnecter » ; placé dans `core/navigation`. Membre connecté : cloche des notifications en tête (`.yn-cloche`, `inserer_cloche()`, `notifications-lecteur.php`) — pastille du nombre de non lues (rendu serveur), bouton `aria-expanded`/`aria-controls` qui ouvre le panneau `#yn-cloche-panneau` (8 dernières, « Tout marquer comme lu », lien `compte#yn-notifications`), lien simple sans JavaScript ; script `yume-cloche` (`blocks/auth-links/view.js`) chargé pour les membres seulement : rafraîchi à l'ouverture et toutes les 5 min si l'onglet est visible ; aucun script ni requête pour un visiteur |
 | `yume/liste-publique` | lecteurs | — | `.yn-liste-publique` | Page d'une liste de lecture (`/listes/{id}-{slug}/`, gabarit injecté par `listes.php`, hors inserteur) : « Liste de lecture », titre en `<h1>`, « par {nom affiché} » (jamais l'identifiant de connexion), nombre d'œuvres, date de mise à jour, description, grille de couvertures des œuvres publiées ; propriétaire : état Publique/Privée et lien « Gérer mes listes » |
 | `yume/recrutement` | planning | — | `.yn-recrutement` | Page « Rejoindre l'équipe » : introduction (`recrutement_intro`), `h2` « Postes ouverts » + cartes `.yn-recrutement__poste` (`h3`, description, pastille « Recrutement ouvert ») ou « Aucun poste ouvert pour le moment », carte « Postuler » : consigne, bouton « Postuler sur le Discord » (`discord_invite`, nouvel onglet) et « Télécharger le test de traduction » si `recrutement_test_url`. **Aucun formulaire** : le site ne recueille aucune candidature |
@@ -646,7 +716,7 @@ lien « Contact » de l'en-tête (classe `yn-lien-discord`) ouvre l'invitation D
 | `publier` | `equipe/publier` (page enfant) | `yume/publish-form` |
 | `membres` | `equipe/membres` (page enfant) | `yume/team-members` |
 | `compte` | `compte` | `yume/account` |
-| `connexion` | `connexion` | formulaire de connexion/inscription rendu par `yume/account` quand déconnecté |
+| `connexion` | `connexion` | formulaire de connexion (admin-post `yume_connexion`, §6 ter) et d'inscription rendu par `yume/account` quand déconnecté ; cible de `wp_login_url()` hors administration |
 | `actualites` | `actualites` | page des articles (`page_for_posts`) |
 | `mentions-legales` | `mentions-legales` | texte de base à compléter par l'équipe |
 | `rejoindre` | `rejoindre-l-equipe` | `yume/recrutement` (lien « Rejoindre l'équipe » du sous-menu « Yume Novel » de l'en-tête, classe `yn-lien-rejoindre` ; `yume_url_page( 'rejoindre' )` → `/rejoindre-l-equipe/` sans page enregistrée) |
@@ -672,8 +742,9 @@ sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sa
 | `DELETE /tomes/(?P<id>\d+)/planning` | planning | `yume_maj_planning_tous` — retire le tome du planning (`retirer_tome()`, §7) |
 | `GET /planning/journal` | planning | public (sans notes d'équipe) |
 | `POST /publications/analyse` | publication | `yume_publier` — multipart `source` (DOCX/EPUB) → rapport sans rien créer |
-| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) ; `sans_annonce` (booléen) : aucun article d'annonce préparé ; réponse `sans_annonce` (valeur retenue) |
-| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` ; `sans_annonce` (booléen) : ajout au catalogue sans annonce (§8) ; **absent : vrai si le tome est déjà publié (`publish`), faux sinon** (même règle pour `POST /publications`) ; réponse `sans_annonce` ; en mode catalogue sur un tome qui avait déjà des chapitres en ligne : `remplacement` (true) et `en_ligne` (chapitres publiés) |
+| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) ; `sans_annonce` (booléen) : aucun article d'annonce préparé ; réponse `sans_annonce` (valeur retenue) ; tome paru avec lecture en ligne : versions en attente, rien ne change en ligne, réponse `remplacement` (§8), 409 `yume_remplacement_en_attente` si un autre membre en a déjà un |
+| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` ; `sans_annonce` (booléen) : ajout au catalogue sans annonce (§8) ; **absent : vrai si le tome est déjà publié (`publish`), faux sinon** (même règle pour `POST /publications`) ; réponse `sans_annonce` ; en mode catalogue sur un tome qui avait déjà des chapitres en ligne : `remplacement` (true) et `en_ligne` (chapitres publiés) ; applique d'abord un remplacement de lecture en ligne en attente (§8), réponse `remplacement_applique` |
+| `DELETE /publications/(?P<id>\d+)/remplacement` | publication | `yume_publier` + droit de modifier le tome — annule le remplacement de lecture en ligne en attente (versions et images supprimées, rien ne change en ligne) → `{annule, message}` ; 404 `yume_remplacement_absent` s'il n'y en a pas |
 | `GET /moi` | lecteurs | connecté |
 | `GET, PUT /moi/reglages` | lecture | connecté |
 | `GET, PUT /moi/progression` | lecture | connecté |

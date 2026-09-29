@@ -14,7 +14,11 @@
  * - tome sans chapitre ni lien PDF/EPUB : confirmation explicite avant de publier ;
  * - case « Ajout au catalogue » (sans annonce) : cochée d'office pour un tome déjà publié
  *   (tant qu'elle n'a pas été touchée), récapitulatif et messages adaptés, valeur envoyée
- *   explicitement à la publication.
+ *   explicitement à la publication ;
+ * - tome paru avec sa lecture en ligne : « Vérifier (sans rien changer en ligne) » prépare une
+ *   version en attente (rapport et aperçus affichés dans l'encadré), « Remplacer la lecture en
+ *   ligne maintenant » l'applique (POST …/publier), « Annuler le remplacement » la supprime
+ *   (DELETE /yume/v1/publications/{id}/remplacement).
  *
  * JavaScript ES2019 sans dépendance ; nonce wp_rest envoyé en X-WP-Nonce.
  */
@@ -58,10 +62,10 @@
 	/**
 	 * Requête multipart (XMLHttpRequest pour suivre la progression de l'envoi).
 	 */
-	function requete( url, donnees, nonce, surProgression ) {
+	function requete( url, donnees, nonce, surProgression, methode ) {
 		return new Promise( function ( resoudre, rejeter ) {
 			var xhr = new XMLHttpRequest();
-			xhr.open( 'POST', url );
+			xhr.open( methode || 'POST', url );
 			xhr.setRequestHeader( 'X-WP-Nonce', nonce );
 			xhr.setRequestHeader( 'Accept', 'application/json' );
 			xhr.responseType = 'text';
@@ -128,7 +132,11 @@
 		var nomCouverture = racine.querySelector( '[data-yn-nom-couverture]' );
 		var recapTome = racine.querySelector( '[data-yn-recap-tome]' );
 		var recapChapitres = racine.querySelector( '[data-yn-recap-chapitres]' );
-		var boutons = form.querySelectorAll( 'button[type="submit"]' );
+		// Boutons du formulaire, y compris ceux de l'encadré de remplacement (attribut form).
+		var boutons = racine.querySelectorAll( 'button[type="submit"]' );
+		var attente = racine.querySelector( '[data-yn-attente]' );
+		var attenteTexte = racine.querySelector( '[data-yn-attente-texte]' );
+		var attenteListe = racine.querySelector( '[data-yn-attente-liste]' );
 		var planning = form.querySelector( '[data-yn-planning]' );
 		var planningOrigine = planning ? planning.cloneNode( true ) : null;
 		var confirmerVide = form.querySelector( '[data-yn-confirmer-vide]' );
@@ -257,6 +265,43 @@
 			}
 		}
 
+		function enAttente() {
+			return !! ( attente && ! attente.hidden );
+		}
+
+		/**
+		 * Version en attente d'un remplacement de lecture en ligne (état renvoyé par le serveur,
+		 * textes compris) : bilan, aperçu de chaque chapitre, boutons Remplacer / Annuler.
+		 */
+		function afficherAttente( etatAttente ) {
+			if ( ! attente ) {
+				return;
+			}
+			if ( ! etatAttente ) {
+				attente.hidden = true;
+				return;
+			}
+			attenteTexte.textContent = etatAttente.texte;
+			attenteListe.textContent = '';
+			( etatAttente.chapitres || [] ).forEach( function ( c ) {
+				var li = el( 'li' );
+				li.appendChild( el( 'span', 'yn-chip yn-chip--' + ( c.action === 'inchange' ? 'info' : ( c.action === 'cree' ? 'ok' : 'warn' ) ), c.etat ) );
+				li.appendChild( el( 'span', 'yn-publish__attente-titre', c.titre ) );
+				[ [ c.apercu, 'Aperçu' ], [ c.lien, 'Version en ligne' ] ].forEach( function ( l ) {
+					if ( ! l[ 0 ] ) {
+						return;
+					}
+					var a = lien( l[ 0 ], l[ 1 ] );
+					a.target = '_blank';
+					a.rel = 'noopener';
+					a.appendChild( el( 'span', 'yn-visually-hidden', ' — ' + c.titre ) );
+					li.appendChild( a );
+				} );
+				attenteListe.appendChild( li );
+			} );
+			attente.hidden = false;
+		}
+
 		function modeCatalogue() {
 			return !! ( sansAnnonce && sansAnnonce.checked );
 		}
@@ -383,7 +428,7 @@
 			resultat.textContent = '';
 			var titre = sortie
 				? ( sortie.statut === 'publish' ? 'Publié !' : 'Sortie programmée' )
-				: 'Brouillon enregistré';
+				: ( rapport && rapport.remplacement ? 'Version en attente (rien n’a changé en ligne)' : 'Brouillon enregistré' );
 			resultat.appendChild( el( 'span', 'yn-label', titre ) );
 			var ul = el( 'ul' );
 			var tomeInfo = sortie ? sortie.tome : rapport.tome;
@@ -393,7 +438,7 @@
 			if ( rapport && rapport.chapitres && rapport.chapitres.length ) {
 				var c = rapport.chapitres[ 0 ];
 				li = el( 'li' );
-				li.appendChild( lien( sortie && sortie.statut === 'publish' ? c.lien : c.apercu, 'Lire « ' + c.titre + ' »' ) );
+				li.appendChild( lien( sortie && sortie.statut === 'publish' ? ( c.lien || tomeInfo.lien ) : c.apercu, 'Lire « ' + c.titre + ' »' ) );
 				ul.appendChild( li );
 			}
 			var article = sortie && sortie.article ? sortie.article : ( rapport ? rapport.article : null );
@@ -502,10 +547,27 @@
 				date.focus();
 				return;
 			}
-			if ( etape === 'publier' && ! window.confirm(
-				modeCatalogue()
-					? 'Mettre la lecture en ligne maintenant ? Ajout au catalogue : aucune annonce (ni article, ni Discord, ni e-mail).'
-					: 'Publier maintenant ? Les chapitres seront en ligne et les lecteurs qui suivent l’œuvre seront prévenus.'
+			if ( etape === 'annuler_remplacement' ) {
+				annulerRemplacement();
+				return;
+			}
+			var aVerifier = !! ( sourceAEnvoyer && source.files && source.files.length );
+			if ( etape === 'verifier' && ! aVerifier ) {
+				annoncer( 'Déposez le nouveau DOCX ou EPUB du tome, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'erreur' );
+				source.focus();
+				return;
+			}
+			if ( etape === 'remplacer' && ! enAttente() && ! aVerifier ) {
+				annoncer( 'Aucun remplacement n’est en attente : déposez le nouveau DOCX ou EPUB, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'erreur' );
+				return;
+			}
+			var remplace = etape === 'remplacer' || ( etape === 'publier' && ( enAttente() || ( aVerifier && !! racine.querySelector( '[data-yn-mode-remplacement]' ) ) ) );
+			if ( ( etape === 'publier' || etape === 'remplacer' ) && ! window.confirm(
+				remplace
+					? 'Remplacer maintenant la lecture en ligne par la nouvelle version ? Les lecteurs verront aussitôt les chapitres remplacés (mêmes adresses, commentaires conservés).' + ( modeCatalogue() ? ' Ajout au catalogue : aucune annonce (ni article, ni Discord, ni e-mail).' : '' )
+					: ( modeCatalogue()
+						? 'Mettre la lecture en ligne maintenant ? Ajout au catalogue : aucune annonce (ni article, ni Discord, ni e-mail).'
+						: 'Publier maintenant ? Les chapitres seront en ligne et les lecteurs qui suivent l’œuvre seront prévenus.' )
 			) ) {
 				return;
 			}
@@ -541,11 +603,20 @@
 						return { numero: c.numero, nature: c.nature, titre: c.libelle, sous_titre: c.sous_titre, nb_mots: c.nb_mots };
 					} ) );
 				}
+				afficherAttente( rapport.remplacement );
 				if ( etat ) {
-					etat.textContent = 'Brouillon enregistré à ' + new Date().toLocaleTimeString( 'fr-FR', { hour: '2-digit', minute: '2-digit' } );
+					etat.textContent = rapport.remplacement
+						? 'Version en attente : rien n’a changé en ligne'
+						: 'Brouillon enregistré à ' + new Date().toLocaleTimeString( 'fr-FR', { hour: '2-digit', minute: '2-digit' } );
+				}
+				if ( etape === 'remplacer' && ! rapport.remplacement ) {
+					annoncer( 'Aucun remplacement n’est en attente : déposez le nouveau DOCX ou EPUB, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'erreur' );
+					return null;
 				}
 				if ( etape === 'apercu' ) {
-					var cible = rapport.chapitres && rapport.chapitres.length ? rapport.chapitres[ 0 ].apercu : rapport.tome.apercu;
+					// Remplacement en attente : aperçu de la nouvelle version, jamais du chapitre en ligne.
+					var versions = rapport.remplacement ? rapport.remplacement.chapitres : null;
+					var cible = versions && versions.length ? versions[ 0 ].apercu : ( rapport.chapitres && rapport.chapitres.length ? rapport.chapitres[ 0 ].apercu : rapport.tome.apercu );
 					if ( fenetre ) {
 						fenetre.location.href = cible;
 					} else {
@@ -555,10 +626,10 @@
 					afficherResultat( rapport, null );
 					return null;
 				}
-				if ( etape === 'publier' || etape === 'programmer' ) {
+				if ( etape === 'publier' || etape === 'programmer' || etape === 'remplacer' ) {
 					var sortir = function ( confirme ) {
 						var sortieDonnees = new FormData();
-						sortieDonnees.append( 'quand', etape === 'publier' ? 'maintenant' : date.value );
+						sortieDonnees.append( 'quand', etape === 'programmer' ? date.value : 'maintenant' );
 						// Toujours explicite : sans ce champ, l'API choisit selon le statut du tome.
 						sortieDonnees.append( 'sans_annonce', rapport.sans_annonce ? '1' : '0' );
 						if ( confirme ) {
@@ -573,6 +644,13 @@
 						} );
 					};
 					return sortir( !! ( confirmerVide && confirmerVide.checked ) ).then( function ( sortie ) {
+						if ( sortie.remplacement_applique ) {
+							afficherAttente( null );
+							var titreRemplacement = racine.querySelector( '#yn-publish-remplacer-titre' );
+							if ( titreRemplacement && sortie.en_ligne ) {
+								titreRemplacement.textContent = 'Remplacer la lecture en ligne (' + sortie.en_ligne + ( sortie.en_ligne > 1 ? ' chapitres actuels)' : ' chapitre actuel)' );
+							}
+						}
 						var dateSortie = new Date( sortie.date ).toLocaleString( 'fr-FR', { dateStyle: 'full', timeStyle: 'short' } );
 						var texteSortie;
 						if ( sortie.sans_annonce && sortie.remplacement ) {
@@ -603,6 +681,18 @@
 						afficherResultat( rapportCourant, sortie );
 					} );
 				}
+				if ( rapport.remplacement && ( etape === 'verifier' || rapport.import ) ) {
+					annoncer( rapport.remplacement.message, 'succes' );
+					afficherResultat( rapport, null );
+					if ( attente && attente.scrollIntoView ) {
+						attente.scrollIntoView( { block: 'nearest' } );
+					}
+					return null;
+				}
+				if ( etape === 'verifier' ) {
+					annoncer( 'Déposez le nouveau DOCX ou EPUB du tome, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'erreur' );
+					return null;
+				}
 				annoncer( 'Brouillon enregistré : ' + rapport.tome.titre + ', ' + rapport.chapitres.length + ( rapport.chapitres.length > 1 ? ' chapitres.' : ' chapitre.' ), 'succes' );
 				afficherResultat( rapport, null );
 				return null;
@@ -614,6 +704,29 @@
 			} ).finally( function () {
 				occupe( false );
 				progres( null );
+			} );
+		}
+
+		/**
+		 * « Annuler le remplacement » : versions en attente et images supprimées, rien ne change
+		 * en ligne.
+		 */
+		function annulerRemplacement() {
+			if ( ! tome.value || ! window.confirm( 'Annuler le remplacement ? La version en attente et ses images seront supprimées ; la lecture en ligne ne change pas.' ) ) {
+				return;
+			}
+			occupe( true );
+			requete( rest + 'publications/' + tome.value + '/remplacement', null, nonce, null, 'DELETE' ).then( function ( reponse ) {
+				afficherAttente( null );
+				resultat.hidden = true;
+				if ( etat ) {
+					etat.textContent = 'Tome publié';
+				}
+				annoncer( reponse.message, 'succes' );
+			} ).catch( function ( erreur ) {
+				annoncer( erreur.message, 'erreur' );
+			} ).finally( function () {
+				occupe( false );
 			} );
 		}
 
@@ -712,7 +825,7 @@
 			} );
 			majModeAnnonce();
 		}
-		form.addEventListener( 'click', function ( e ) {
+		racine.addEventListener( 'click', function ( e ) {
 			var bouton = e.target.closest ? e.target.closest( 'button[type="submit"]' ) : null;
 			if ( bouton ) {
 				declencheur = bouton;

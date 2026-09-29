@@ -252,7 +252,7 @@ function rendu_vue_tomes(): string {
 	$donnees   = tomes_equipe( $filtres, max( 1, get_entier( 'pg' ) ) );
 
 	$html .= tete_vue( __( 'Tous les tomes', 'yume-core' ), '<a class="yn-btn" href="' . esc_url( yume_url_page( 'publier' ) ) . '">' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a>' );
-	$html .= '<p class="yn-muted">' . esc_html__( 'Tous les tomes du catalogue, publiés compris. « Remplacer la lecture en ligne » ouvre le formulaire de publication prérempli : déposez le nouveau DOCX ou EPUB, les chapitres sont mis à jour en place (mêmes adresses, commentaires conservés), sans nouvelle annonce pour un tome déjà paru (ni article, ni Discord, ni e-mail) et sans changer sa date de sortie.', 'yume-core' ) . '</p>';
+	$html .= '<p class="yn-muted">' . esc_html__( 'Tous les tomes du catalogue, publiés compris. « Remplacer la lecture en ligne » ouvre le formulaire de publication prérempli : déposez le nouveau DOCX ou EPUB et vérifiez-le (rien ne change en ligne), puis remplacez : les chapitres sont mis à jour en place (mêmes adresses, commentaires conservés), sans nouvelle annonce pour un tome déjà paru (ni article, ni Discord, ni e-mail) et sans changer sa date de sortie.', 'yume-core' ) . '</p>';
 
 	// Filtres (GET, sans JavaScript).
 	$choix = choix_oeuvres( __( 'Toutes', 'yume-core' ) );

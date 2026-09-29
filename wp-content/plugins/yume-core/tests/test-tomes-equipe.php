@@ -6,7 +6,10 @@
  * (tableau de bord, formulaire de publication), section « Tomes en préparation » du tableau de
  * bord ; remplacement de la lecture en ligne d'un tome déjà paru par le formulaire de
  * publication (?tome=ID) : chapitres mis à jour sans doublon, chapitres disparus signalés, sans
- * nouvelle annonce ni changement de la date de sortie.
+ * nouvelle annonce ni changement de la date de sortie ; remplacement en deux temps (version en
+ * attente : brouillon, « Vérifier » et aperçu ne changent rien en ligne, aperçu réservé à l'équipe ;
+ * « Remplacer » appliqué en place ; annulation sans image orpheline ; un seul remplacement en
+ * attente par tome ; nettoyage après 7 jours ; tomes non publiés mis à jour directement).
  *
  * Lancement : tools/localenv/test.sh tomes-equipe
  *
@@ -15,6 +18,7 @@
 
 use Yume\Core\Publication\Annonce;
 use Yume\Core\Publication\Formulaire;
+use Yume\Core\Publication\Remplacement;
 use Yume\Core\Publication\Service;
 
 use function Yume\Core\Planning\navigation_equipe;
@@ -295,7 +299,7 @@ function yume_tte_compter( callable $corps ): stdClass {
  *
  * @param stdClass            $ctx     Contexte.
  * @param array<string,mixed> $post    Champs du formulaire.
- * @param string              $fixture Fichier source.
+ * @param string              $fixture Fichier source ('' : aucun fichier).
  * @return array<string,mixed>
  */
 function yume_tte_formulaire( stdClass $ctx, array $post, string $fixture ): array {
@@ -311,11 +315,12 @@ function yume_tte_formulaire( stdClass $ctx, array $post, string $fixture ): arr
 		),
 		$post
 	);
-	$_FILES = array( 'source' => yume_tte_fichier( $ctx, $fixture ) );
+	$_FILES = '' !== $fixture ? array( 'source' => yume_tte_fichier( $ctx, $fixture ) ) : array();
 	try {
 		Formulaire::traiter();
 	} catch ( RuntimeException $e ) {
 		yume_assert_contains( 'redirection:', $e->getMessage() );
+		$GLOBALS['yume_tte_redirection'] = substr( $e->getMessage(), strlen( 'redirection:' ) );
 	} finally {
 		remove_filter( 'wp_redirect', $redirige, 1 );
 		$_POST  = array();
@@ -723,5 +728,431 @@ yume_tte_test(
 		yume_assert_same( 0, Annonce::existant( $tome ), 'aucun article d’annonce' );
 		yume_assert_same( $avant, $sorties(), 'aucun nouvel article' );
 		yume_assert_same( 'https://www.clictune.com/pdf10', get_post_meta( $tome, 'yume_lien_pdf', true ), 'lien PDF conservé' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Remplacement en deux temps : version en attente (rien ne change en ligne), puis remplacement
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Tome paru (daté d'il y a un mois) dont la lecture en ligne vient de styles-variantes.docx
+ * (chapitres 1 à 4, sans image), mis en ligne sans annonce.
+ *
+ * @param stdClass $ctx    Contexte.
+ * @param int      $oeuvre Œuvre.
+ * @return array{0:int,1:array<string,string>} Tome, champs du formulaire.
+ */
+function yume_tte_tome_en_ligne( stdClass $ctx, int $oeuvre ): array {
+	$tome   = yume_tte_tome( $oeuvre, 10 );
+	$champs = array(
+		'oeuvre_id'     => (string) $oeuvre,
+		'tome_planning' => (string) $tome,
+		'tome_id'       => (string) $tome,
+		'numero'        => '10',
+	);
+	$r      = yume_tte_formulaire( $ctx, $champs, 'styles-variantes.docx' );
+	yume_assert_contains( 'lecture en ligne ajoutée (4 chapitres)', (string) ( $r['message'] ?? '' ) );
+	yume_assert_true( Remplacement::mode( $tome ), 'tome en mode remplacement' );
+	return array( $tome, $champs );
+}
+
+/**
+ * Photographie des chapitres du tome (tous statuts actifs) : contenu, statut, dates, adresse.
+ *
+ * @param int $tome Tome.
+ * @return array<int,array<string,mixed>>
+ */
+function yume_tte_photo( int $tome ): array {
+	$photo = array();
+	foreach ( yume_get_chapitres( $tome, array( 'status' => 'any' ) ) as $c ) {
+		clean_post_cache( $c->ID );
+		$c                     = get_post( $c->ID );
+		$photo[ (int) $c->ID ] = array( $c->post_title, $c->post_content, $c->post_status, $c->post_modified_gmt, $c->post_date_gmt, $c->post_name, (int) $c->menu_order, get_post_meta( $c->ID, 'yume_nb_mots', true ) );
+	}
+	return $photo;
+}
+
+yume_tte_test(
+	'remplacement : brouillon, vérifier et aperçu ne modifient jamais les chapitres en ligne (contenu, statut, date de modification) ; aperçu réservé à l’équipe, noindex',
+	function ( $ctx ) {
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$oeuvre                = yume_tte_oeuvre( 'Grimgar de test' );
+		list( $tome, $champs ) = yume_tte_tome_en_ligne( $ctx, $oeuvre );
+		$avant                 = yume_tte_photo( $tome );
+		yume_assert_same( 4, count( $avant ) );
+		$fichier_avant = get_post_meta( $tome, Service::META, true )['fichier']['nom'] ?? '';
+		$galerie_avant = get_post_meta( $tome, 'yume_illustrations', true );
+
+		// 1. Service (API, « Enregistrer en brouillon ») : version en attente.
+		$n = yume_tte_compter(
+			function () use ( $ctx, $oeuvre, &$rapport ) {
+				$rapport = Service::preparer(
+					array(
+						'oeuvre_id' => $oeuvre,
+						'nature'    => 'tome',
+						'numero'    => '10',
+					),
+					array( 'source' => yume_tte_fichier( $ctx, 'regles.docx' ) )
+				);
+			}
+		);
+		yume_assert_false( is_wp_error( $rapport ), is_wp_error( $rapport ) ? $rapport->get_error_message() : '' );
+		yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->alertes, $n->discord, $n->articles ), 'aucune annonce' );
+		yume_assert_same( $avant, yume_tte_photo( $tome ), 'chapitres en ligne inchangés (brouillon)' );
+		yume_assert_true( is_array( $rapport['remplacement'] ), 'remplacement en attente' );
+		yume_assert_same( 13, count( $rapport['remplacement']['chapitres'] ) );
+		yume_assert_same( 3, $rapport['remplacement']['remplaces'] + $rapport['remplacement']['inchanges'], 'chapitres 1 à 3 : versions des chapitres en ligne' );
+		yume_assert_same( 10, $rapport['remplacement']['nouveaux'] );
+		yume_assert_same( 1, $rapport['remplacement']['absents'] );
+		yume_assert_same( 13, count( Remplacement::versions( $tome ) ) );
+		yume_assert_same( Remplacement::STATUT, $rapport['chapitres'][0]['statut'] );
+		yume_assert_same( '', $rapport['chapitres'][0]['edition'], 'version en attente : pas de lien vers l’éditeur' );
+		yume_assert_same( array_keys( $avant ), wp_list_pluck( yume_get_chapitres( $tome, array( 'status' => 'any' ) ), 'ID' ), 'versions hors des listes du tome' );
+		yume_assert_same( 4, count( yume_get_chapitres( $tome ) ), 'chapitres en ligne : toujours 4' );
+		yume_assert_same( $fichier_avant, get_post_meta( $tome, Service::META, true )['fichier']['nom'] ?? '', 'fichier en place inchangé' );
+		yume_assert_same( $galerie_avant, get_post_meta( $tome, 'yume_illustrations', true ), 'galerie du tome inchangée' );
+		foreach ( Remplacement::versions( $tome ) as $v ) {
+			foreach ( (array) get_post_meta( $v->ID, Remplacement::META_MEDIAS, true ) as $media ) {
+				yume_assert_same( 0, (int) wp_get_post_parent_id( (int) $media ), 'image en attente sans rattachement' );
+			}
+		}
+
+		// 2. Formulaire sans JavaScript : « Vérifier » (même fichier), puis « Prévisualiser ».
+		$r = yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'regles.docx' );
+		yume_assert_same( 'succes', $r['type'] ?? '', $r['message'] ?? '' );
+		yume_assert_contains( 'Vérification terminée, rien n’a changé en ligne : 13 chapitres prêts (3 modifiés, 10 nouveaux) ; 1 chapitre en ligne absent du fichier, laissé en ligne.', $r['message'] );
+		yume_assert_contains( 'Remplacer la lecture en ligne maintenant', $r['message'] );
+		yume_assert_same( $avant, yume_tte_photo( $tome ), 'chapitres en ligne inchangés (vérifier)' );
+		yume_assert_same( 13, count( Remplacement::versions( $tome ) ), 'une seule préparation (la précédente est remplacée)' );
+
+		$GLOBALS['yume_tte_redirection'] = '';
+		yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'apercu' ) ), 'regles.docx' );
+		$versions = Remplacement::versions( $tome );
+		yume_assert_same( get_preview_post_link( $versions[0] ), $GLOBALS['yume_tte_redirection'], 'aperçu de la version en attente' );
+		yume_assert_same( $avant, yume_tte_photo( $tome ), 'chapitres en ligne inchangés (aperçu)' );
+
+		// 3. Accès à l'aperçu : équipe seulement (404 pour un visiteur ou un lecteur).
+		$requete = static function ( int $user ) use ( $versions ): WP_Query {
+			wp_set_current_user( $user );
+			return new WP_Query(
+				array(
+					'post_type' => 'yume_chapitre',
+					'p'         => (int) $versions[0]->ID,
+				)
+			);
+		};
+		yume_assert_same( 0, $requete( 0 )->post_count, 'visiteur : 404' );
+		yume_assert_same( 0, $requete( yume_tte_membre( 'subscriber' ) )->post_count, 'lecteur : 404' );
+		$q = $requete( $editeur );
+		yume_assert_same( 1, $q->post_count, 'équipe : aperçu' );
+		yume_assert_true( $q->is_preview(), 'aperçu' );
+		yume_assert_same(
+			array(),
+			get_posts(
+				array(
+					'post_type'        => 'yume_chapitre',
+					'post_status'      => 'any',
+					'p'                => (int) $versions[0]->ID,
+					'suppress_filters' => true,
+				)
+			),
+			'hors des requêtes « any »'
+		);
+		$sauve                   = array( $GLOBALS['wp_query'], $GLOBALS['wp_the_query'] );
+		$GLOBALS['wp_query']     = $q;
+		$GLOBALS['wp_the_query'] = $q;
+		try {
+			$robots = Remplacement::robots( array( 'max-image-preview' => 'large' ) );
+		} finally {
+			list( $GLOBALS['wp_query'], $GLOBALS['wp_the_query'] ) = $sauve;
+		}
+		yume_assert_true( ! empty( $robots['noindex'] ) && ! empty( $robots['nofollow'] ), 'noindex, nofollow' );
+		$rest = yume_rest( 'GET', '/wp/v2/' . ( get_post_type_object( 'yume_chapitre' )->rest_base ? get_post_type_object( 'yume_chapitre' )->rest_base : 'yume_chapitre' ) . '/' . $versions[0]->ID );
+		yume_assert_true( $rest->get_status() >= 401, 'REST : illisible pour un visiteur (' . $rest->get_status() . ')' );
+
+		// 4. Formulaire : encadré avec la version en attente et ses aperçus.
+		wp_set_current_user( $editeur );
+		$_GET = array( 'tome' => (string) $tome ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$html = yume_render_block( 'yume/publish-form' );
+		yume_assert_contains( 'Remplacer la lecture en ligne (4 chapitres actuels)', $html );
+		yume_assert_contains( 'Vérifier (sans rien changer en ligne)', $html );
+		yume_assert_contains( 'Version en attente : rien n’a changé en ligne', $html );
+		yume_assert_contains( 'à partir de «' . "\u{a0}" . 'regles.docx' . "\u{a0}" . '» : 13 chapitres prêts', $html );
+		yume_assert_contains( esc_url( get_preview_post_link( $versions[0] ) ), $html );
+		yume_assert_contains( 'value="remplacer"', $html );
+		yume_assert_contains( 'value="annuler_remplacement"', $html );
+		yume_assert_not_contains( '<div class="yn-publish__attente" data-yn-attente hidden', $html );
+	}
+);
+
+yume_tte_test(
+	'remplacement : « Remplacer la lecture en ligne maintenant » applique en place (mêmes ID, adresses, dates, commentaires), sans annonce ; images rattachées ; préparation nettoyée',
+	function ( $ctx ) {
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$oeuvre                = yume_tte_oeuvre( 'Grimgar de test' );
+		list( $tome, $champs ) = yume_tte_tome_en_ligne( $ctx, $oeuvre );
+		$avant                 = yume_tte_photo( $tome );
+		$chap1                 = (int) array_keys( $avant )[0];
+		$commentaire           = wp_insert_comment(
+			array(
+				'comment_post_ID'  => $chap1,
+				'comment_content'  => 'Merci !',
+				'comment_approved' => 1,
+			)
+		);
+		$r                     = yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'regles.docx' );
+		yume_assert_same( 'succes', $r['type'] ?? '', $r['message'] ?? '' );
+		yume_assert_true( (bool) wp_next_scheduled( Remplacement::HOOK_NETTOYAGE, array( $tome ) ), 'nettoyage programmé' );
+		$medias = Remplacement::lire( $tome )['medias'];
+		yume_assert_same( 5, count( $medias ), 'images nouvelles suivies' );
+
+		$n = yume_tte_compter(
+			function () use ( $ctx, $champs ) {
+				$r = yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'remplacer' ) ), '' );
+				yume_assert_same( 'succes', $r['type'] ?? '', $r['message'] ?? '' );
+				yume_assert_same( 'Grimgar de test — Tome 10 : lecture en ligne remplacée (14 chapitres en ligne ; 10 nouveaux), sans annonce : ni article, ni Discord, ni e-mail. La date de sortie du tome ne change pas.', $r['message'] );
+			}
+		);
+		yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->alertes, $n->discord, $n->articles ), 'aucune annonce' );
+		yume_assert_same( 0, $n->mails );
+		$apres = yume_tte_photo( $tome );
+		yume_assert_same( 14, count( yume_get_chapitres( $tome ) ), '4 chapitres remplacés ou gardés (le 4e, absent du fichier, reste en ligne) + 10 nouveaux' );
+		foreach ( $avant as $id => $ligne ) {
+			yume_assert_true( isset( $apres[ $id ] ), 'même chapitre ' . $id );
+			yume_assert_same( 'publish', $apres[ $id ][2] );
+			yume_assert_same( $ligne[4], $apres[ $id ][4], 'date conservée' );
+			yume_assert_same( $ligne[5], $apres[ $id ][5], 'adresse conservée' );
+		}
+		yume_assert_true( $avant[ $chap1 ][1] !== $apres[ $chap1 ][1], 'contenu remplacé' );
+		yume_assert_same( $chap1, (int) get_comment( $commentaire )->comment_post_ID, 'commentaire conservé' );
+		yume_assert_same( 1, (int) get_comments_number( $chap1 ) );
+		yume_assert_same( array(), Remplacement::versions( $tome ), 'versions supprimées' );
+		yume_assert_same( null, Remplacement::lire( $tome ) );
+		yume_assert_false( wp_next_scheduled( Remplacement::HOOK_NETTOYAGE, array( $tome ) ), 'nettoyage déprogrammé' );
+		yume_assert_same( 'regles.docx', get_post_meta( $tome, Service::META, true )['fichier']['nom'] ?? '' );
+		foreach ( $medias as $media ) {
+			yume_assert_true( (int) wp_get_post_parent_id( $media ) > 0, 'image rattachée ' . $media );
+		}
+		$galerie = get_post_meta( $tome, 'yume_illustrations', true );
+		yume_assert_same( 2, count( $galerie ), 'galerie posée au remplacement' );
+		foreach ( yume_get_chapitres( $tome ) as $c ) {
+			if ( ! isset( $avant[ (int) $c->ID ] ) ) {
+				yume_assert_same( Service::NOTIFIE_CATALOGUE, get_post_meta( $c->ID, '_yume_publie_notifie', true ), 'nouveau chapitre ajouté sans annonce' );
+				yume_assert_same( get_post_field( 'post_date_gmt', $tome ), $c->post_date_gmt, 'daté de la sortie du tome' );
+				yume_assert_false( metadata_exists( 'post', $c->ID, Remplacement::META_DE ) );
+			}
+		}
+		// Rien en attente : « Remplacer » sans fichier refuse clairement.
+		$r = yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'remplacer' ) ), '' );
+		yume_assert_same( 'erreur', $r['type'] ?? '' );
+		yume_assert_contains( 'Aucun remplacement n’est en attente', $r['message'] );
+	}
+);
+
+yume_tte_test(
+	'remplacement : « Annuler le remplacement » (formulaire, REST) — rien ne change en ligne, versions et images nouvelles supprimées (aucune orpheline)',
+	function ( $ctx ) {
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$oeuvre                = yume_tte_oeuvre( 'Grimgar de test' );
+		list( $tome, $champs ) = yume_tte_tome_en_ligne( $ctx, $oeuvre );
+		$avant                 = yume_tte_photo( $tome );
+		$pieces                = static function (): int {
+			return count(
+				get_posts(
+					array(
+						'post_type'        => 'attachment',
+						'post_status'      => 'inherit',
+						'posts_per_page'   => -1,
+						'fields'           => 'ids',
+						'suppress_filters' => true,
+					)
+				)
+			);
+		};
+		$nb_pieces             = $pieces();
+		$galerie_avant         = get_post_meta( $tome, 'yume_illustrations', true );
+
+		yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'regles.docx' );
+		$medias = Remplacement::lire( $tome )['medias'];
+		yume_assert_same( $nb_pieces + 5, $pieces() );
+		$r = yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'annuler_remplacement' ) ), '' );
+		yume_assert_same( 'succes', $r['type'] ?? '', $r['message'] ?? '' );
+		yume_assert_same( 'Remplacement annulé : la version en attente et ses images sont supprimées, la lecture en ligne n’a pas changé.', $r['message'] );
+		yume_assert_same( $avant, yume_tte_photo( $tome ), 'rien n’a changé en ligne' );
+		yume_assert_same( array(), Remplacement::versions( $tome ) );
+		yume_assert_same( null, Remplacement::lire( $tome ) );
+		yume_assert_same( $nb_pieces, $pieces(), 'aucune image orpheline' );
+		foreach ( $medias as $media ) {
+			yume_assert_same( null, get_post( $media ) );
+		}
+		yume_assert_false( wp_next_scheduled( Remplacement::HOOK_NETTOYAGE, array( $tome ) ) );
+		yume_assert_same( $galerie_avant, get_post_meta( $tome, 'yume_illustrations', true ), 'galerie inchangée' );
+
+		// REST : DELETE /publications/{id}/remplacement (équipe seulement).
+		Service::preparer(
+			array(
+				'oeuvre_id' => $oeuvre,
+				'nature'    => 'tome',
+				'numero'    => '10',
+			),
+			array( 'source' => yume_tte_fichier( $ctx, 'sans-titre.docx' ) )
+		);
+		yume_assert_true( count( Remplacement::versions( $tome ) ) > 0 );
+		yume_assert_same( 401, yume_rest( 'DELETE', '/yume/v1/publications/' . $tome . '/remplacement' )->get_status(), 'visiteur refusé' );
+		yume_assert_same( 403, yume_rest( 'DELETE', '/yume/v1/publications/' . $tome . '/remplacement', array(), yume_tte_membre( 'yume_traducteur' ) )->get_status(), 'traducteur refusé' );
+		$reponse = yume_rest( 'DELETE', '/yume/v1/publications/' . $tome . '/remplacement', array(), $editeur );
+		yume_assert_same( 200, $reponse->get_status() );
+		yume_assert_true( $reponse->get_data()['annule'] );
+		yume_assert_same( array(), Remplacement::versions( $tome ) );
+		yume_assert_same( $avant, yume_tte_photo( $tome ) );
+		yume_assert_same( $nb_pieces, $pieces(), 'aucune image orpheline (REST)' );
+		yume_assert_same( 404, yume_rest( 'DELETE', '/yume/v1/publications/' . $tome . '/remplacement', array(), $editeur )->get_status(), 'plus rien à annuler' );
+	}
+);
+
+yume_tte_test(
+	'remplacement : un seul en attente par tome — un second membre est averti (409) ; le même membre remplace sa préparation sans doublon ni image perdue',
+	function ( $ctx ) {
+		$alice = yume_tte_membre( 'yume_editeur' );
+		$bob   = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $alice );
+		$oeuvre                = yume_tte_oeuvre( 'Grimgar de test' );
+		list( $tome, $champs ) = yume_tte_tome_en_ligne( $ctx, $oeuvre );
+		$avant                 = yume_tte_photo( $tome );
+		yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'regles.docx' );
+		$premiere = Remplacement::lire( $tome );
+
+		wp_set_current_user( $bob );
+		$refus = Service::preparer(
+			array(
+				'oeuvre_id' => $oeuvre,
+				'nature'    => 'tome',
+				'numero'    => '10',
+			),
+			array( 'source' => yume_tte_fichier( $ctx, 'sans-titre.docx' ) )
+		);
+		yume_assert_true( is_wp_error( $refus ) );
+		yume_assert_same( 'yume_remplacement_en_attente', $refus->get_error_code() );
+		yume_assert_same( 409, $refus->get_error_data()['status'] );
+		yume_assert_contains( 'Un seul remplacement peut attendre par tome', $refus->get_error_message() );
+		yume_assert_contains( get_userdata( $alice )->display_name, $refus->get_error_message() );
+		$r = yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'sans-titre.docx' );
+		yume_assert_same( 'erreur', $r['type'] ?? '' );
+		yume_assert_contains( 'déjà en attente', $r['message'] );
+		yume_assert_same( $premiere, Remplacement::lire( $tome ), 'préparation d’Alice intacte' );
+		yume_assert_same( 13, count( Remplacement::versions( $tome ) ) );
+
+		// Alice vérifie à nouveau (même fichier) : sa préparation est remplacée, images réutilisées.
+		wp_set_current_user( $alice );
+		yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'regles.docx' );
+		yume_assert_same( 13, count( Remplacement::versions( $tome ) ), 'aucune version en double' );
+		yume_assert_same( $premiere['medias'], Remplacement::lire( $tome )['medias'], 'images réutilisées' );
+		// Puis un autre fichier : les images que plus rien n'utilise sont supprimées.
+		yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'sans-titre.docx' );
+		foreach ( $premiere['medias'] as $media ) {
+			yume_assert_same( null, get_post( $media ), 'image de la préparation précédente supprimée' );
+		}
+		yume_assert_same( $avant, yume_tte_photo( $tome ), 'rien n’a changé en ligne' );
+	}
+);
+
+yume_tte_test(
+	'remplacement : une préparation abandonnée est supprimée après 7 jours (tâche cron, temps simulé) et au prochain envoi',
+	function ( $ctx ) {
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$oeuvre                = yume_tte_oeuvre( 'Grimgar de test' );
+		list( $tome, $champs ) = yume_tte_tome_en_ligne( $ctx, $oeuvre );
+		$avant                 = yume_tte_photo( $tome );
+		yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'regles.docx' );
+		$prevu = wp_next_scheduled( Remplacement::HOOK_NETTOYAGE, array( $tome ) );
+		yume_assert_true( $prevu >= time() + 7 * DAY_IN_SECONDS, 'tâche programmée à 7 jours' );
+		$medias = Remplacement::lire( $tome )['medias'];
+
+		// Avant l'échéance : rien n'est supprimé.
+		do_action( Remplacement::HOOK_NETTOYAGE, $tome );
+		yume_assert_same( 13, count( Remplacement::versions( $tome ) ) );
+
+		// 8 jours plus tard (temps simulé : date de préparation reculée).
+		$etat         = Remplacement::lire( $tome );
+		$etat['cree'] = time() - 8 * DAY_IN_SECONDS;
+		update_post_meta( $tome, Remplacement::META_TOME, $etat );
+		do_action( Remplacement::HOOK_NETTOYAGE, $tome );
+		yume_assert_same( array(), Remplacement::versions( $tome ) );
+		yume_assert_same( null, Remplacement::lire( $tome ) );
+		foreach ( $medias as $media ) {
+			yume_assert_same( null, get_post( $media ), 'image supprimée' );
+		}
+		yume_assert_same( $avant, yume_tte_photo( $tome ) );
+
+		// Préparation expirée d'un autre membre : elle ne bloque plus, supprimée au prochain envoi.
+		yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'regles.docx' );
+		$etat         = Remplacement::lire( $tome );
+		$etat['cree'] = time() - 8 * DAY_IN_SECONDS;
+		update_post_meta( $tome, Remplacement::META_TOME, $etat );
+		wp_set_current_user( yume_tte_membre( 'yume_editeur' ) );
+		$r = yume_tte_formulaire( $ctx, array_merge( $champs, array( 'etape' => 'verifier' ) ), 'sans-titre.docx' );
+		yume_assert_same( 'succes', $r['type'] ?? '', $r['message'] ?? '' );
+		yume_assert_same( get_current_user_id(), Remplacement::lire( $tome )['par'] );
+		yume_assert_same( 1, count( Remplacement::versions( $tome ) ) );
+		// Publier sans appliquer : une préparation expirée n'est jamais appliquée.
+		$etat         = Remplacement::lire( $tome );
+		$etat['cree'] = time() - 8 * DAY_IN_SECONDS;
+		update_post_meta( $tome, Remplacement::META_TOME, $etat );
+		$sortie = Service::publier( $tome, 'maintenant', array( 'sans_annonce' => true ) );
+		yume_assert_same( null, $sortie['remplacement_applique'] );
+		yume_assert_same( $avant, yume_tte_photo( $tome ) );
+	}
+);
+
+yume_tte_test(
+	'remplacement : tomes non publiés (brouillon, programmé) et tome paru sans lecture en ligne gardent la mise à jour directe',
+	function ( $ctx ) {
+		wp_set_current_user( yume_tte_membre( 'yume_editeur' ) );
+		$oeuvre = yume_tte_oeuvre( 'Grimgar de test' );
+		foreach ( array( 'draft', 'future' ) as $i => $statut ) {
+			$tome = yume_tte_tome( $oeuvre, 20 + $i, $statut );
+			$base = array(
+				'oeuvre_id' => $oeuvre,
+				'nature'    => 'tome',
+				'numero'    => (string) ( 20 + $i ),
+			);
+			$r1   = Service::preparer( $base, array( 'source' => yume_tte_fichier( $ctx, 'styles-variantes.docx' ) ) );
+			yume_assert_same( null, $r1['remplacement'], $statut );
+			$ids = wp_list_pluck( yume_get_chapitres( $tome, array( 'status' => 'any' ) ), 'ID' );
+			yume_assert_same( 4, count( $ids ) );
+			wp_update_post(
+				array(
+					'ID'           => $ids[0],
+					'post_content' => '<!-- wp:paragraph --><p>Ancienne version.</p><!-- /wp:paragraph -->',
+				)
+			);
+			$r2 = Service::preparer( $base, array( 'source' => yume_tte_fichier( $ctx, 'styles-variantes.docx' ) ) );
+			yume_assert_same( null, $r2['remplacement'], $statut . ' : pas de préparation séparée' );
+			yume_assert_same( array(), Remplacement::versions( $tome ) );
+			yume_assert_same( $ids, array_slice( array_column( $r2['chapitres'], 'id' ), 0, 4 ), $statut . ' : mis à jour en place' );
+			yume_assert_same( 'maj', $r2['chapitres'][0]['action'] );
+			clean_post_cache( $ids[0] );
+			yume_assert_not_contains( 'Ancienne version', get_post( $ids[0] )->post_content, $statut . ' : mis à jour tout de suite' );
+		}
+		// Tome paru sans chapitre (ajout de la lecture en ligne) : brouillons créés directement.
+		$tome = yume_tte_tome( $oeuvre, 30 );
+		$r    = Service::preparer(
+			array(
+				'oeuvre_id' => $oeuvre,
+				'nature'    => 'tome',
+				'numero'    => '30',
+			),
+			array( 'source' => yume_tte_fichier( $ctx, 'styles-variantes.docx' ) )
+		);
+		yume_assert_same( null, $r['remplacement'] );
+		yume_assert_same( 4, count( yume_get_chapitres( $tome, array( 'status' => 'draft' ) ) ) );
+		yume_assert_same( array(), Remplacement::versions( $tome ) );
 	}
 );
