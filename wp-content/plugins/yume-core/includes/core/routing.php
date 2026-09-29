@@ -214,14 +214,51 @@ function verifier_regles(): void {
 	if ( ! $wp_rewrite instanceof \WP_Rewrite || ! $wp_rewrite->using_permalinks() ) {
 		return;
 	}
-	$signature = md5( (string) wp_json_encode( regles_reecriture() ) . '|oeuvres|' . YUME_CORE_VERSION );
-	if ( get_option( 'yume_core_regles' ) === $signature ) {
+	vider_regles_si_changees( 'yume_core_regles', regles_reecriture(), 'oeuvres' );
+}
+add_action( 'init', __NAMESPACE__ . '\\verifier_regles', 100 );
+
+/**
+ * Vide les règles de réécriture quand celles d'un module Yume ont changé (signature gardée dans
+ * $option : règles + version) ou manquent en base (première règle absente de rewrite_rules :
+ * un vidage fait sans l'extension chargée, par exemple celui que WordPress lance au premier
+ * chargement après un changement de thème, les a effacées sans changer la signature).
+ *
+ * La signature n'est enregistrée qu'une fois les règles réellement écrites : WordPress reporte
+ * le vidage à wp_loaded, qu'une requête arrêtée plus tôt n'atteint pas. Sans ces deux gardes,
+ * /contributeurs/, /listes/… ou /oeuvres/{o}/actualites/ restaient en 404 jusqu'à la version
+ * suivante.
+ *
+ * @param string   $option Option qui garde la signature.
+ * @param string[] $regles Règles du module (motif => requête), dans l'ordre de déclaration.
+ * @param string   $nom    Nom du module (entre dans la signature).
+ */
+function vider_regles_si_changees( string $option, array $regles, string $nom ): void {
+	$signature = md5( (string) wp_json_encode( $regles ) . '|' . $nom . '|' . YUME_CORE_VERSION );
+	$en_base   = get_option( 'rewrite_rules' );
+	// Option vide : WordPress la régénère à la demande, avec les règles déclarées.
+	$presentes = ! is_array( $en_base ) || array() === $en_base || array() === $regles || isset( $en_base[ (string) array_key_first( $regles ) ] );
+	if ( $presentes && get_option( $option ) === $signature ) {
 		return;
 	}
 	flush_rewrite_rules( false );
-	update_option( 'yume_core_regles', $signature, true );
+	$GLOBALS['yume_signatures_regles'][ $option ] = $signature;
+	if ( did_action( 'wp_loaded' ) ) {
+		enregistrer_signatures_regles();
+	} else {
+		add_action( 'wp_loaded', __NAMESPACE__ . '\\enregistrer_signatures_regles', 99 );
+	}
 }
-add_action( 'init', __NAMESPACE__ . '\\verifier_regles', 100 );
+
+/**
+ * Enregistre les signatures en attente, après le vidage des règles (wp_loaded, priorité 10).
+ */
+function enregistrer_signatures_regles(): void {
+	foreach ( (array) ( $GLOBALS['yume_signatures_regles'] ?? array() ) as $option => $signature ) {
+		update_option( $option, $signature, true );
+	}
+	$GLOBALS['yume_signatures_regles'] = array();
+}
 
 /*
  * -----------------------------------------------------------------------------

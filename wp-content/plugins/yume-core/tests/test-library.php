@@ -1821,8 +1821,9 @@ yume_tl_test(
 			$wp_query->set( 's', '' );
 			yume_assert_same( 'Recherche', apply_filters( 'document_title_parts', array( 'title' => 'x' ) )['title'] );
 
-			yume_assert_same( 'Administrateur', translate_user_role( 'Administrator' ) );
-			yume_assert_same( 'Éditeur', translate_user_role( 'Editor' ) );
+			// Le paquet de langue fr_FR récent dit « Administrateur/administratrice » : il est gardé.
+			yume_assert_true( str_starts_with( translate_user_role( 'Administrator' ), 'Administrateur' ), translate_user_role( 'Administrator' ) );
+			yume_assert_true( str_starts_with( translate_user_role( 'Editor' ), 'Éditeur' ), translate_user_role( 'Editor' ) );
 			yume_assert_same( 'Lecteur', translate_user_role( 'Subscriber' ), 'nom de l’extension conservé' );
 			yume_assert_same( 'Traducteur', translate_user_role( 'Traducteur' ), 'rôle Yume inchangé' );
 

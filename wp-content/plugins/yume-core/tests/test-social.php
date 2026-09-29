@@ -1594,7 +1594,8 @@ yume_test(
 		$sujet = \Yume\Core\Social\message_sortie( $s['tome'] )['sujet'];
 		yume_assert_not_contains( '&#', $sujet );
 		yume_assert_not_contains( '&amp;', $sujet );
-		yume_assert_contains( 'Medic’s Diary & “War”…', $sujet );
+		// Guillemets typographiques de la langue du site : “War” (anglais) ou « War » (fr_FR).
+		yume_assert_true( (bool) preg_match( '/Medic’s Diary & (“War”|«[\x{a0}\x{202f} ]?War[\x{a0}\x{202f} ]?»)…/u', $sujet ), $sujet );
 
 		$u = yume_factory_user();
 		ajouter_favori( $u, $s['oeuvre'] );

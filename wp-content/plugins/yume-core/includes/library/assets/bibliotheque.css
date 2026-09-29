@@ -89,8 +89,11 @@
 	isolation: isolate;
 }
 
+/* Pas d'overflow: hidden ici : la bannière se découpe elle-même (.yn-fiche-banniere) et les
+   menus déroulants de l'œuvre (Noter, Alerte, Listes) doivent pouvoir dépasser de la bande.
+   z-index 1 : la bande (contexte isolé) passe au-dessus du contenu qui suit, menus compris. */
 .yn-fiche__entete:has(.yn-fiche-banniere) {
-	overflow: hidden;
+	z-index: 1;
 }
 
 /* Dans la bande du thème, c'est la bande entière (et non le bloc) qui porte la bannière. */

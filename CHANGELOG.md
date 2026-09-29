@@ -2,6 +2,14 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.2 — 2026-09-29
+
+- Version 2.0.2 : correctifs de la recette (menus de l'œuvre, règles de réécriture, CI unique).
+
+## 2.0.2-dev.1 — 2026-09-29
+
+- Menus de la fiche œuvre visibles sous la bannière ; règles de réécriture rétablies si un vidage les a effacées ; CI une seule fois par changement.
+
 ## 2.0.1 — 2026-09-29
 
 - Yume Novel 2.0.1 : correctifs de la recette (Tous les tomes, Mes tâches, remplacement de la lecture en ligne en deux temps, connexion en façade, images EMF, EPUB, dialogues, commentaires, Ko-fi, formulaires).
