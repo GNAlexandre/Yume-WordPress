@@ -276,6 +276,10 @@ Pour WordPress 6.6 : `tools/localenv/setup.sh --dossier /tmp/yume-66 --version 6
    `yume-core.zip`, `yume.zip`, `SHA256SUMS` et des notes de version générées (modifiables ensuite
    sur GitHub : elles s'affichent dans « Voir les détails » de la mise à jour). **Ne jamais
    remplacer un asset à la main** : le site refuserait l'archive.
+   **Aucun run « Release » après la pose du tag** (événement du tag non transmis par GitHub) :
+   *Actions → Release → Run workflow*, choisir le tag dans « Use workflow from » (onglet *Tags*),
+   puis *Run workflow*. Mêmes contrôles, même CI et même approbation ; un run lancé sur une
+   branche est refusé. Possible pour les tags posés à partir de la 2.1.3.
 6. **Sur le site** : le plugin interroge la dernière release **toutes les 12 heures** (ou tout de
    suite avec le lien « Vérifier les mises à jour » sous Yume Core dans *Extensions*). La nouvelle
    version apparaît dans *Tableau de bord → Mises à jour* ; si *Yume → Réglages → Mises à jour
