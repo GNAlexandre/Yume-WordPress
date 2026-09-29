@@ -291,3 +291,16 @@ function yume_theme_badge_equipe( $contenu, $brut = array(), $bloc = null ) {
 	return false === $fin ? $contenu . $badge : substr_replace( (string) $contenu, $badge . '</div>', $fin, 6 );
 }
 add_filter( 'render_block_core/comment-author-name', 'yume_theme_badge_equipe', 10, 3 );
+
+/**
+ * Formulaire de commentaire du thème, pas celui de Jetpack / WordPress.com (« Highlander »,
+ * Verbum) qui remplace comment_form() par un cadre blanc sur l'hébergement WordPress.com : il
+ * ignore le design, les libellés français et les règles du site (commentaires réservés aux
+ * comptes, signalement). Jetpack le désactive type de contenu par type de contenu.
+ */
+function yume_theme_sans_formulaire_jetpack(): void {
+	foreach ( get_post_types( array( 'public' => true ) ) as $yume_type ) {
+		add_filter( 'jetpack_comment_form_enabled_for_' . $yume_type, '__return_false' );
+	}
+}
+add_action( 'init', 'yume_theme_sans_formulaire_jetpack', 99 );

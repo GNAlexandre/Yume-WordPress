@@ -859,3 +859,14 @@ yume_tm_test(
 		wp_dequeue_style( 'yume-commentaires' );
 	}
 );
+
+yume_test(
+	'Commentaires : le formulaire Jetpack / WordPress.com (Verbum) est désactivé au profit de celui du thème',
+	function () {
+		yume_assert_true( function_exists( 'yume_theme_sans_formulaire_jetpack' ), 'thème Yume chargé' );
+		yume_theme_sans_formulaire_jetpack();
+		foreach ( array( 'post', 'page', 'yume_oeuvre', 'yume_tome', 'yume_chapitre' ) as $type ) {
+			yume_assert_false( (bool) apply_filters( 'jetpack_comment_form_enabled_for_' . $type, true ), $type );
+		}
+	}
+);
