@@ -626,7 +626,41 @@ le contenu. Résultat d'import (`Result`) : `chapters` (liste de
 `['numero'=>?float,'nature'=>string,'titre'=>string,'sous_titre'=>string,'blocks'=>string (markup
 de blocs, images référencées par un jeton {{yume-image:<cle>}}),'nb_mots'=>int]`), `front_images`
 (images avant le premier chapitre), `images` (`cle => ['nom'=>…,'mime'=>…,'chemin_zip'=>…]`),
-`warnings` (string[]), `stats` (array).
+`warnings` (string[]), `stats` (array), `candidats` et `decoupages` (découpage manuel, ci-dessous ;
+dans `rapport()`, pas dans `to_array()`).
+
+**Découpage manuel** (`Chapter_Builder`, commun au DOCX et à l'EPUB) :
+
+- chaque élément de contenu reçoit une **ancre** stable `e{rang}-{6 hex}` (rang dans le document,
+  CRC32 du texte normalisé sans les appels de note ; image : `image:<clé>`), identique d'une
+  conversion à l'autre du même fichier, avec ou sans découpage (les requêtes du convertisseur au
+  constructeur répondent toujours comme la détection automatique) ;
+- `Result::$candidats` (3 000 au plus, `stats['candidats_tronques']`) : `['ancre', 'rang', 'type',
+  'raisons' => marqueur|titre|image|saut_page|separateur|gras|centre|ligne_courte (≤ 12 mots, hors
+  dialogue)|debut, 'extrait' (80 car.), 'nature', 'titre' (proposés), 'auto' (un chapitre commence
+  ici), 'avant' (avant le premier chapitre)]` ; `Result::$decoupages` : `['images' => ancres (première
+  d'une suite d'illustrations), 'sauts' => ancres (saut de page DOCX `w:br type=page`,
+  `pageBreakBefore`, fin de section non continue ; début de chaque document de la spine EPUB)]` ;
+- option `plan` des convertisseurs : `['debuts' => [['ancre', 'nature' (Texte::LIBELLES), 'titre',
+  'numero'?], …], 'garder_avant' => bool]`. Le plan est la **seule** source des débuts : un titre
+  détecté hors plan devient un intertitre `core/heading` ; sur un début, il donne le titre par
+  défaut et n'est pas répété (de même qu'une ligne courte reconnue comme titre ou identique au titre
+  choisi) ; aucune page liminaire écartée ; `garder_avant` : le texte d'ouverture rejoint le premier
+  chapitre ; numérotation `Chapter_Builder::numeroter()` (chapitres à la suite, un numéro saisi fixe
+  la suite ; prologue 0 ; spéciaux de même nature numérotés s'ils sont plusieurs) ; notes numérotées
+  dans le chapitre qui reçoit leur appel ; ancre absente : avertissement « Début de chapitre manuel
+  introuvable : … » ;
+- sans plan, un paragraphe **marqueur** `[chapitre]`, `[chapitre] Titre`, `[prologue]`,
+  `[interlude] …`, `[bonus] …`, `[épilogue] …`, `[postface] …` (`Texte::marqueur()`, casse et accents
+  indifférents) force un début de chapitre de cette nature (jamais écarté comme page liminaire) et
+  n'est pas publié ; un titre qui le suit aussitôt le complète.
+
+Côté publication, `Service::plan()` contrôle strictement le découpage reçu (JSON ≤ 1 Mo ou tableau ;
+liste de 1 à 3 000 débuts ; ancres au motif `Chapter_Builder::MOTIF_ANCRE` ; nature connue ; titre
+`sanitize_text_field` ≤ 200 caractères ; numéro facultatif ≥ 0 ; ancre en double ou clé nature +
+numéro en double refusées) → 400 `yume_plan_invalide`. Le fichier source n'étant jamais conservé,
+le découpage est envoyé **avec** le fichier (`analyser()`, `preparer()`, donc aussi la version en
+attente d'un remplacement) et n'est pas enregistré sur le tome.
 
 ## 10. Blocs dynamiques (nom, propriétaire, attributs, classe racine)
 
@@ -741,8 +775,8 @@ sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sa
 | `PATCH /tomes/(?P<id>\d+)/planning` | planning | `yume_user_can_edit_planning` (règles du §5 : 400 `yume_etape_prematuree`, 403 `yume_avancement_interdit`) |
 | `DELETE /tomes/(?P<id>\d+)/planning` | planning | `yume_maj_planning_tous` — retire le tome du planning (`retirer_tome()`, §7) |
 | `GET /planning/journal` | planning | public (sans notes d'équipe) |
-| `POST /publications/analyse` | publication | `yume_publier` — multipart `source` (DOCX/EPUB) → rapport sans rien créer |
-| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) ; `sans_annonce` (booléen) : aucun article d'annonce préparé ; réponse `sans_annonce` (valeur retenue) ; tome paru avec lecture en ligne : versions en attente, rien ne change en ligne, réponse `remplacement` (§8), 409 `yume_remplacement_en_attente` si un autre membre en a déjà un |
+| `POST /publications/analyse` | publication | `yume_publier` — multipart `source` (DOCX/EPUB) → rapport sans rien créer, avec `candidats` et `decoupages` (§9) ; `plan` (JSON ou objet, §9) : découpage manuel essayé sur ce fichier ; 400 `rest_invalid_param` si le découpage est invalide |
+| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) ; `plan` (JSON ou objet, §9) : découpage manuel appliqué au fichier `source` de la même requête (ignoré et signalé sans fichier) ; `sans_annonce` (booléen) : aucun article d'annonce préparé ; réponse `sans_annonce` (valeur retenue) ; tome paru avec lecture en ligne : versions en attente, rien ne change en ligne, réponse `remplacement` (§8), 409 `yume_remplacement_en_attente` si un autre membre en a déjà un |
 | `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` ; `sans_annonce` (booléen) : ajout au catalogue sans annonce (§8) ; **absent : vrai si le tome est déjà publié (`publish`), faux sinon** (même règle pour `POST /publications`) ; réponse `sans_annonce` ; en mode catalogue sur un tome qui avait déjà des chapitres en ligne : `remplacement` (true) et `en_ligne` (chapitres publiés) ; applique d'abord un remplacement de lecture en ligne en attente (§8), réponse `remplacement_applique` |
 | `DELETE /publications/(?P<id>\d+)/remplacement` | publication | `yume_publier` + droit de modifier le tome — annule le remplacement de lecture en ligne en attente (versions et images supprimées, rien ne change en ligne) → `{annule, message}` ; 404 `yume_remplacement_absent` s'il n'y en a pas |
 | `GET /moi` | lecteurs | connecté |

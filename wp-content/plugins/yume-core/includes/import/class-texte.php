@@ -360,6 +360,40 @@ final class Texte {
 	}
 
 	/**
+	 * Paragraphe marqueur de début de chapitre, écrit dans le document : « [chapitre] »,
+	 * « [chapitre] Titre », « [bonus] Titre », « [prologue] », « [interlude] … », « [épilogue] … »,
+	 * « [postface] … » (casse et accents indifférents). Tout le paragraphe doit être le marqueur.
+	 *
+	 * @param string $texte Texte brut du paragraphe.
+	 * @return array{nature:string,titre:string}|null Nature et titre (éventuellement vide), ou null.
+	 */
+	public static function marqueur( string $texte ): ?array {
+		$texte = self::espaces( $texte );
+		if ( '' === $texte || '[' !== $texte[0] || mb_strlen( $texte, 'UTF-8' ) > 260 ) {
+			return null;
+		}
+		if ( ! preg_match( '/^\[\s*([\p{L}]+)\s*\]\s*(?:[:.\-–—]\s*)?(.*)$/u', $texte, $m ) ) {
+			return null;
+		}
+		$natures = array(
+			'chapitre'  => 'chapitre',
+			'bonus'     => 'bonus',
+			'prologue'  => 'prologue',
+			'interlude' => 'interlude',
+			'epilogue'  => 'epilogue',
+			'postface'  => 'postface',
+		);
+		$mot     = self::sans_accents( mb_strtolower( $m[1], 'UTF-8' ) );
+		if ( ! isset( $natures[ $mot ] ) ) {
+			return null;
+		}
+		return array(
+			'nature' => $natures[ $mot ],
+			'titre'  => mb_substr( trim( $m[2] ), 0, 200, 'UTF-8' ),
+		);
+	}
+
+	/**
 	 * Le titre correspond-il à un chapitre spécial (prologue, postface…) ?
 	 *
 	 * @param string $texte Texte brut.

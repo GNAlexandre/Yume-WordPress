@@ -19,6 +19,11 @@
  * brouillon », « Vérifier » et « Prévisualiser » ne changent rien pour les lecteurs ; publier()
  * l'applique en place avant la sortie.
  *
+ * Découpage manuel (plan()) : l'équipe choisit elle-même les débuts de chapitre après l'analyse.
+ * Le fichier source n'est jamais conservé entre deux requêtes : le découpage est renvoyé AVEC le
+ * même fichier (analyse, préparation, remplacement) et appliqué à la conversion
+ * (Chapter_Builder). Il n'est pas enregistré sur le tome.
+ *
  * Sortie (publier()) : yume_publication_en_cours, puis chapitres, tome et annonce publiés (ou programmés
  * à la date donnée), puis yume_tome_publie une seule fois pour une publication immédiate. Plusieurs
  * chapitres ajoutés d'un coup à un tome déjà en ligne forment UNE sortie (annoncer_groupe()),
@@ -37,6 +42,7 @@
 namespace Yume\Core\Publication;
 
 use Yume\Core\Import\Blocks;
+use Yume\Core\Import\Chapter_Builder;
 use Yume\Core\Import\Docx_Converter;
 use Yume\Core\Import\Epub_Converter;
 use Yume\Core\Import\Import_Exception;
@@ -87,13 +93,118 @@ final class Service {
 		}
 	}
 
+	/** Taille maximale du découpage manuel reçu en JSON (octets). */
+	public const PLAN_OCTETS_MAX = 1048576;
+
+	/**
+	 * Contrôle strict d'un découpage manuel reçu (champ « plan » : JSON ou tableau) :
+	 * {"debuts": [{"ancre": "e12-3fa9c1", "nature": "chapitre", "titre": "…", "numero": 3}, …],
+	 * "garder_avant": false}. Au plus Chapter_Builder::PLAN_MAX débuts, ancres au format
+	 * e{rang}-{6 hexadécimaux}, natures connues (Texte::LIBELLES), titres en texte brut
+	 * (sanitize_text_field, 200 caractères au plus), numéro facultatif ; deux débuts ne peuvent
+	 * pas porter la même ancre ni donner la même clé nature + numéro (rapprochement des chapitres).
+	 *
+	 * @param mixed $valeur Valeur reçue.
+	 * @return array<string,mixed>|null|\WP_Error Découpage normalisé, null si aucun (détection
+	 *                                             automatique), erreur 400 sinon.
+	 */
+	public static function plan( $valeur ) {
+		if ( null === $valeur || '' === $valeur || false === $valeur ) {
+			return null;
+		}
+		$erreur = static function ( string $message ): \WP_Error {
+			return new \WP_Error( 'yume_plan_invalide', $message, array( 'status' => 400 ) );
+		};
+		if ( is_string( $valeur ) ) {
+			if ( strlen( $valeur ) > self::PLAN_OCTETS_MAX ) {
+				return $erreur( __( 'Découpage manuel refusé : il est trop volumineux.', 'yume-core' ) );
+			}
+			$valeur = json_decode( $valeur, true, 8 );
+		}
+		if ( ! is_array( $valeur ) || ! isset( $valeur['debuts'] ) || ! is_array( $valeur['debuts'] ) || array_values( $valeur['debuts'] ) !== $valeur['debuts'] ) {
+			return $erreur( __( 'Découpage manuel illisible : relancez l’analyse du fichier et refaites le découpage.', 'yume-core' ) );
+		}
+		$nb = count( $valeur['debuts'] );
+		if ( 0 === $nb ) {
+			return $erreur( __( 'Le découpage manuel ne contient aucun début de chapitre : cochez au moins un début, ou revenez au découpage automatique.', 'yume-core' ) );
+		}
+		if ( $nb > Chapter_Builder::PLAN_MAX ) {
+			/* translators: %s : nombre maximal de chapitres */
+			return $erreur( sprintf( __( 'Découpage manuel refusé : au plus %s débuts de chapitre.', 'yume-core' ), number_format_i18n( Chapter_Builder::PLAN_MAX ) ) );
+		}
+		$debuts = array();
+		$ancres = array();
+		foreach ( $valeur['debuts'] as $i => $entree ) {
+			/* translators: %d : rang du début de chapitre dans le découpage */
+			$ou    = sprintf( __( 'début n° %d', 'yume-core' ), $i + 1 );
+			$ancre = is_array( $entree ) && is_string( $entree['ancre'] ?? null ) ? $entree['ancre'] : '';
+			if ( ! preg_match( Chapter_Builder::MOTIF_ANCRE, $ancre ) ) {
+				/* translators: %s : début de chapitre concerné */
+				return $erreur( sprintf( __( 'Découpage manuel refusé (%s) : repère de début de chapitre invalide.', 'yume-core' ), $ou ) );
+			}
+			if ( isset( $ancres[ $ancre ] ) ) {
+				/* translators: %s : repère */
+				return $erreur( sprintf( __( 'Découpage manuel refusé : le début « %s » figure deux fois.', 'yume-core' ), $ancre ) );
+			}
+			$ancres[ $ancre ] = true;
+			$nature           = $entree['nature'] ?? 'chapitre';
+			if ( ! is_string( $nature ) || ! isset( Texte::LIBELLES[ $nature ] ) ) {
+				/* translators: %s : début de chapitre concerné */
+				return $erreur( sprintf( __( 'Découpage manuel refusé (%s) : nature de chapitre inconnue.', 'yume-core' ), $ou ) );
+			}
+			$titre = $entree['titre'] ?? '';
+			if ( ! is_scalar( $titre ) ) {
+				/* translators: %s : début de chapitre concerné */
+				return $erreur( sprintf( __( 'Découpage manuel refusé (%s) : titre invalide.', 'yume-core' ), $ou ) );
+			}
+			$titre = sanitize_text_field( (string) $titre );
+			if ( mb_strlen( $titre, 'UTF-8' ) > Chapter_Builder::TITRE_MAX ) {
+				/* translators: 1: début de chapitre concerné, 2: longueur maximale */
+				return $erreur( sprintf( __( 'Découpage manuel refusé (%1$s) : titre trop long (%2$d caractères au plus).', 'yume-core' ), $ou, Chapter_Builder::TITRE_MAX ) );
+			}
+			$numero = null;
+			if ( isset( $entree['numero'] ) && '' !== $entree['numero'] ) {
+				$numero = is_scalar( $entree['numero'] ) ? self::numero( (string) $entree['numero'] ) : null;
+				if ( null === $numero || $numero >= 100000 ) {
+					/* translators: %s : début de chapitre concerné */
+					return $erreur( sprintf( __( 'Découpage manuel refusé (%s) : numéro invalide.', 'yume-core' ), $ou ) );
+				}
+			}
+			$debuts[] = array(
+				'ancre'  => $ancre,
+				'nature' => $nature,
+				'titre'  => $titre,
+				'numero' => $numero,
+			);
+		}
+		// Clés de rapprochement des chapitres (nature + numéro) : jamais deux fois la même.
+		$cles = array();
+		foreach ( Chapter_Builder::numeroter( $debuts ) as $i => $n ) {
+			if ( null === $n['numero'] ) {
+				continue;
+			}
+			$cle = $debuts[ $i ]['nature'] . ':' . Texte::numero_url( (float) $n['numero'] );
+			if ( isset( $cles[ $cle ] ) ) {
+				/* translators: %s : libellé du chapitre (« Chapitre 3 ») */
+				return $erreur( sprintf( __( 'Découpage manuel refusé : deux chapitres porteraient le même numéro (%s). Corrigez la nature ou le numéro.', 'yume-core' ), $n['titre'] ) );
+			}
+			$cles[ $cle ] = true;
+		}
+		return array(
+			'debuts'       => $debuts,
+			// Texte d'ouverture conservé : seulement sur une valeur vraie explicite.
+			'garder_avant' => in_array( $valeur['garder_avant'] ?? false, array( true, 1, '1', 'true', 'on' ), true ),
+		);
+	}
+
 	/**
 	 * Convertit un fichier source contrôlé (Fichiers::source()).
 	 *
-	 * @param array<string,mixed> $source Fichier source.
+	 * @param array<string,mixed>      $source Fichier source.
+	 * @param array<string,mixed>|null $plan   Découpage manuel contrôlé (plan()), ou null.
 	 * @return Result|\WP_Error
 	 */
-	public static function convertir( array $source ) {
+	public static function convertir( array $source, ?array $plan = null ) {
 		/**
 		 * Options du convertisseur (typographie…).
 		 *
@@ -101,6 +212,9 @@ final class Service {
 		 * @param array<string,mixed> $source  Fichier source.
 		 */
 		$options = (array) apply_filters( 'yume_publication_options_import', array(), $source );
+		if ( null !== $plan ) {
+			$options['plan'] = $plan;
+		}
 		try {
 			return 'epub' === $source['format']
 				? Epub_Converter::convert_file( (string) $source['chemin'], $options )
@@ -186,20 +300,26 @@ final class Service {
 	}
 
 	/**
-	 * Analyse un fichier téléversé sans rien créer (le fichier est ensuite supprimé).
+	 * Analyse un fichier téléversé sans rien créer (le fichier est ensuite supprimé). Le rapport
+	 * contient les débuts de chapitre possibles (candidats) et les découpages rapides.
 	 *
 	 * @param array<string,mixed> $fichier Entrée de $_FILES.
-	 * @param array<string,mixed> $champs  oeuvre_id, nature, numero (facultatifs : tome existant).
+	 * @param array<string,mixed> $champs  oeuvre_id, nature, numero (facultatifs : tome existant),
+	 *                                     plan (découpage manuel à essayer, voir plan()).
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function analyser( array $fichier, array $champs = array() ) {
 		self::relever_limites();
 		try {
+			$plan = self::plan( $champs['plan'] ?? null );
+			if ( is_wp_error( $plan ) ) {
+				return $plan;
+			}
 			$source = Fichiers::source( $fichier );
 			if ( is_wp_error( $source ) ) {
 				return $source;
 			}
-			$resultat = self::convertir( $source );
+			$resultat = self::convertir( $source, $plan );
 			if ( is_wp_error( $resultat ) ) {
 				return $resultat;
 			}
@@ -820,7 +940,8 @@ final class Service {
 	 *                                      lien_pdf, lien_epub, credits{traduction,relecture,edition},
 	 *                                      couverture_id, retirer_absents, tome_id, sans_annonce
 	 *                                      (null ou absent : sans_annonce_par_defaut() ; vrai :
-	 *                                      aucun article d'annonce créé ni mis à jour).
+	 *                                      aucun article d'annonce créé ni mis à jour), plan
+	 *                                      (découpage manuel du fichier source, voir plan()).
 	 * @param array<string,mixed> $fichiers Fichiers ($_FILES) : source (DOCX/EPUB), couverture.
 	 * @return array<string,mixed>|\WP_Error Rapport : tome, chapitres, disparus, article, import,
 	 *                                      avertissements, sans_annonce, remplacement (préparation
@@ -838,6 +959,10 @@ final class Service {
 			if ( is_wp_error( $champs ) ) {
 				return $champs;
 			}
+			$plan = self::plan( $brut['plan'] ?? null );
+			if ( is_wp_error( $plan ) ) {
+				return $plan;
+			}
 			$oeuvre = $champs['oeuvre_id'] ? get_post( $champs['oeuvre_id'] ) : null;
 			if ( ! $oeuvre || 'yume_oeuvre' !== $oeuvre->post_type || 'trash' === $oeuvre->post_status ) {
 				return new \WP_Error( 'yume_oeuvre_invalide', __( 'Choisissez l’œuvre du tome.', 'yume-core' ), array( 'status' => 400 ) );
@@ -849,7 +974,7 @@ final class Service {
 				if ( is_wp_error( $source ) ) {
 					return $source;
 				}
-				$resultat = self::convertir( $source );
+				$resultat = self::convertir( $source, $plan );
 				if ( is_wp_error( $resultat ) ) {
 					return $resultat;
 				}
@@ -863,7 +988,10 @@ final class Service {
 			}
 
 			$avert = $resultat ? $resultat->warnings : array();
-			$tome  = self::trouver_tome( (int) $oeuvre->ID, $champs['nature'], $champs['numero'] );
+			if ( null !== $plan && ! $resultat ) {
+				$avert[] = __( 'Découpage manuel ignoré : il s’applique au fichier DOCX ou EPUB, à déposer à nouveau avec lui.', 'yume-core' );
+			}
+			$tome = self::trouver_tome( (int) $oeuvre->ID, $champs['nature'], $champs['numero'] );
 			if ( ! $tome && $champs['tome_id'] && 'yume_tome' === get_post_type( $champs['tome_id'] ) && 'trash' !== get_post_status( $champs['tome_id'] ) && current_user_can( 'edit_post', $champs['tome_id'] ) ) {
 				$tome = get_post( $champs['tome_id'] );
 			}
@@ -1063,6 +1191,8 @@ final class Service {
 				foreach ( $rapport['import']['chapitres'] as $i => $c ) {
 					unset( $rapport['import']['chapitres'][ $i ]['stats'] );
 				}
+				// Débuts possibles : utiles à l'analyse seulement (le fichier n'est pas conservé).
+				unset( $rapport['import']['candidats'], $rapport['import']['decoupages'] );
 			}
 			/**
 			 * Une publication vient d'être préparée (tome et chapitres en brouillon ou mis à jour).

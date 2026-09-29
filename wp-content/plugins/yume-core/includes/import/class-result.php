@@ -10,7 +10,17 @@
  *   'conversion' => 'metafichier' pour une image EMF/WMF convertie en PNG à l'extraction ; 'mime'
  *   est alors le type de l'image produite) ;
  * - warnings : avertissements lisibles, en français ;
- * - stats : chiffres globaux (format, fichier, octets, hash, chapitres, mots, dialogues…).
+ * - stats : chiffres globaux (format, fichier, octets, hash, chapitres, mots, dialogues…) ;
+ * - candidats : débuts de chapitre possibles, pour le découpage manuel (au plus CANDIDATS_MAX) :
+ *   ['ancre' => 'e12-3fa9c1', 'rang' => int, 'type' => raison principale, 'raisons' => string[]
+ *   (marqueur, titre, image, saut_page, separateur, gras, centre, ligne_courte, debut),
+ *   'extrait' => 80 caractères, 'nature' et 'titre' proposés, 'auto' => la détection automatique
+ *   (ou le découpage appliqué) commence un chapitre ici, 'avant' => élément placé avant le
+ *   premier chapitre] ;
+ * - decoupages : découpages rapides, ancres des débuts proposés ('images' : chaque illustration
+ *   (la première d'une suite), 'ouvertures' : première illustration de chaque suite d'au moins
+ *   deux (pages d'ouverture de chapitre), 'sauts' : chaque saut de page ; les ornements —
+ *   petites images de Chapter_Builder::ORNEMENT_MAX pixels au plus — ne sont jamais proposés).
  *
  * Aucune fonction WordPress.
  *
@@ -23,6 +33,9 @@ namespace Yume\Core\Import;
  * Résultat de conversion.
  */
 final class Result implements \JsonSerializable {
+
+	/** Nombre maximal de débuts de chapitre possibles relevés. */
+	public const CANDIDATS_MAX = 3000;
 
 	/**
 	 * Chapitres dans l'ordre du document.
@@ -58,6 +71,20 @@ final class Result implements \JsonSerializable {
 	 * @var array<string,mixed>
 	 */
 	public array $stats = array();
+
+	/**
+	 * Débuts de chapitre possibles, dans l'ordre du document.
+	 *
+	 * @var array<int,array<string,mixed>>
+	 */
+	public array $candidats = array();
+
+	/**
+	 * Découpages rapides : 'images', 'ouvertures' et 'sauts' => ancres.
+	 *
+	 * @var array<string,string[]>
+	 */
+	public array $decoupages = array();
 
 	/**
 	 * Chemin du fichier source (pour extraire les images).
@@ -142,6 +169,8 @@ final class Result implements \JsonSerializable {
 			'images'         => $images,
 			'avertissements' => $this->warnings,
 			'stats'          => $this->stats,
+			'candidats'      => $this->candidats,
+			'decoupages'     => $this->decoupages,
 		);
 	}
 

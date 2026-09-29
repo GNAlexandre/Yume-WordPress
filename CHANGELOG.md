@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.1-dev.4 — 2026-09-29
+
+- Import : découpage manuel des chapitres, étiquettes DOCX (Prologue, 1, Bonus…), ouvertures illustrées
+
 ## 2.1.1-dev.3 — 2026-09-29
 
 - Couvertures : cadrage réglable à la création et sur les œuvres existantes.

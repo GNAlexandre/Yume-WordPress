@@ -263,9 +263,11 @@ il suffit d'utiliser les bons styles :
 | Image JPG, PNG ou WebP dans le texte | Illustration pleine largeur |
 | Images placées avant le premier Titre 1 | Galerie d'illustrations du tome (pas un chapitre) |
 | Notes de bas de page | Appels de note et liste de notes en fin de chapitre |
+| Paragraphe seul « [chapitre] Titre », « [bonus] Titre », « [prologue] »… | Début de chapitre forcé (le marqueur n'est pas publié, voir 5.2 bis) |
 
-Les ornements Word au format EMF/WMF, les en-têtes, pieds de page et sauts de page sont ignorés (et
-signalés dans le rapport). Un EPUB est accepté en dépannage, mais le DOCX reste la référence.
+Les ornements Word au format EMF/WMF, les en-têtes et pieds de page sont ignorés (et signalés dans
+le rapport). Les sauts de page ne changent rien au texte, mais ils sont proposés comme débuts de
+chapitre possibles (5.2 bis). Un EPUB est accepté en dépannage, mais le DOCX reste la référence.
 
 ### 5.2 Remplir le formulaire
 
@@ -281,8 +283,46 @@ signalés dans le rapport). Un EPUB est accepté en dépannage, mais le DOCX res
    - les **avertissements** (par exemple un titre mal formé corrigé automatiquement, des images
      ignorées) ;
    - un bouton pour **prévisualiser** un chapitre.
-   Si le découpage est faux, corrigez les styles dans Word et déposez à nouveau le fichier.
+   Si le découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez les
+   styles dans Word et déposez à nouveau le fichier.
 5. **Crédits** : traduction, relecture, édition / couverture (affichés sur le tome et les chapitres).
+
+### 5.2 bis Délimiter les chapitres soi-même
+
+Quand la détection automatique se trompe (roman sans styles de titre, chapitres séparés par une
+illustration ou un saut de page, histoire bonus placée avant le premier chapitre et ignorée…),
+l'encadré **« Délimiter les chapitres moi-même »** apparaît sous les chapitres détectés, dès que le
+fichier est analysé :
+
+1. le tableau liste les **débuts de chapitre possibles** trouvés dans le fichier : titres,
+   illustrations, sauts de page, lignes courtes, centrées ou en gras, paragraphe qui suit un
+   séparateur, début du fichier. Les débuts retenus par la détection automatique sont déjà cochés ;
+   les lignes **surlignées** sont placées avant le premier début coché ;
+2. cochez **« Début de chapitre »** sur chaque ligne où un chapitre commence, choisissez sa
+   **nature** (chapitre, prologue, interlude, épilogue, postface, bonus, illustrations) et, si
+   besoin, son **titre** (sinon, le titre trouvé à cet endroit). Les chapitres sont numérotés à la
+   suite à partir du **premier numéro** indiqué ; plusieurs bonus deviennent « Bonus 1 », « Bonus 2 » ;
+3. raccourcis : **« Couper à chaque illustration »** (romans dont chaque chapitre commence par une
+   illustration), **« Couper à chaque saut de page »**, **« Revenir à la détection automatique »** ;
+4. **« Conserver le texte d'ouverture »** : le texte placé avant le premier début coché (préface,
+   histoire bonus…) rejoint le premier chapitre ; sinon il n'est pas publié, comme aujourd'hui.
+   Pour en faire un chapitre à part, cochez simplement sa première ligne ;
+5. le nombre de chapitres obtenus s'affiche en direct ; **« Vérifier ce découpage »** montre la liste
+   des chapitres et les avertissements sans rien enregistrer ;
+6. cochez **« Utiliser ce découpage »** (automatique dès que vous modifiez le tableau), puis
+   enregistrez, vérifiez ou publiez comme d'habitude : le découpage part **avec le fichier**.
+
+**Le fichier n'est pas conservé sur le site** : le découpage n'est pas enregistré non plus. Pour
+redécouper plus tard (ou remplacer la lecture en ligne, 5.4 bis), choisissez à nouveau le fichier et
+refaites le découpage. Si le fichier a changé depuis l'analyse, le rapport signale « Début de
+chapitre manuel introuvable ».
+
+**Sans JavaScript** (ou pour un découpage écrit une fois pour toutes dans le document) : ajoutez à
+chaque début de chapitre un paragraphe seul `[chapitre]` ou `[chapitre] Titre`, `[prologue]`,
+`[interlude] Titre`, `[bonus] Titre`, `[épilogue]` ou `[postface]` (majuscules et accents
+indifférents). Il force le début d'un chapitre de cette nature, avec ce titre, et n'est jamais
+publié. Une histoire bonus précédée de `[bonus]` n'est plus ignorée, même avant le premier
+chapitre.
 
 ### 5.3 Publier
 

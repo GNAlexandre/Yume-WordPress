@@ -6,6 +6,11 @@
  *   au clavier) ;
  * - analyse immédiate du fichier déposé (POST /yume/v1/publications/analyse) : chapitres
  *   détectés, nombre de mots, avertissements, rien n'est créé ;
+ * - « Délimiter les chapitres moi-même » : tableau des débuts de chapitre possibles renvoyés par
+ *   l'analyse (case, nature, titre), découpages rapides (chaque illustration, chaque saut de
+ *   page), texte d'ouverture conservé ou non, nombre de chapitres obtenus annoncé ; le découpage
+ *   est écrit dans le champ caché « plan » et envoyé AVEC le fichier (le serveur ne garde jamais
+ *   le fichier : pour redécouper, il faut le choisir à nouveau) ;
  * - enregistrement via l'API REST (POST /yume/v1/publications) avec barre de progression,
  *   puis publication ou programmation (POST /yume/v1/publications/{id}/publier) ;
  * - aperçu du chapitre 1 dans un nouvel onglet ;
@@ -148,6 +153,35 @@
 		var declencheur = null;
 		var sourceAEnvoyer = false;
 		var analyseCourante = 0;
+		// Découpage manuel.
+		var decoupage = racine.querySelector( '[data-yn-decoupage]' );
+		var planChamp = form.querySelector( '[data-yn-plan]' );
+		var planActif = racine.querySelector( '[data-yn-plan-actif]' );
+		var planAvant = racine.querySelector( '[data-yn-plan-avant]' );
+		var planPremier = racine.querySelector( '[data-yn-plan-premier]' );
+		var planFiltre = racine.querySelector( '[data-yn-plan-filtre]' );
+		var planCompte = racine.querySelector( '[data-yn-plan-compte]' );
+		var planLignes = racine.querySelector( '[data-yn-plan-lignes]' );
+		var planVerifier = racine.querySelector( '[data-yn-plan-verifier]' );
+		var natures = {};
+		try {
+			natures = JSON.parse( ( decoupage && decoupage.getAttribute( 'data-natures' ) ) || '{}' );
+		} catch ( err ) {
+			natures = { chapitre: 'Chapitre' };
+		}
+		var lignes = [];
+		var decoupagesRapides = {};
+		var RAISONS = {
+			marqueur: 'Marqueur',
+			titre: 'Titre',
+			image: 'Illustration',
+			saut_page: 'Saut de page',
+			separateur: 'Après un séparateur',
+			gras: 'En gras',
+			centre: 'Centré',
+			ligne_courte: 'Ligne courte',
+			debut: 'Début du fichier',
+		};
 
 		racine.classList.add( 'is-js' );
 
@@ -347,7 +381,228 @@
 			return m ? m[ 1 ].toLowerCase() : '';
 		}
 
-		function analyser() {
+		/**
+		 * Découpage manuel : ligne du tableau d'un début de chapitre possible.
+		 */
+		function lignePlan( c, i ) {
+			var tr = el( 'tr', 'yn-publish__decoupage-ligne' );
+			var id = 'yn-publish-plan-' + i;
+			var td = el( 'td', 'yn-publish__decoupage-debut' );
+			var coche = el( 'input' );
+			coche.type = 'checkbox';
+			coche.id = id;
+			coche.checked = !! c.auto;
+			var etiquette = el( 'label', '', 'Début de chapitre' );
+			etiquette.htmlFor = id;
+			etiquette.appendChild( el( 'span', 'yn-visually-hidden', ' : ' + c.extrait ) );
+			td.appendChild( coche );
+			td.appendChild( etiquette );
+			var raisons = el( 'span', 'yn-publish__decoupage-raisons' );
+			( c.raisons || [] ).forEach( function ( r ) {
+				raisons.appendChild( el( 'span', 'yn-chip yn-chip--info', RAISONS[ r ] || r ) );
+			} );
+			td.appendChild( raisons );
+			tr.appendChild( td );
+
+			td = el( 'td' );
+			var nature = el( 'select' );
+			nature.id = id + '-nature';
+			Object.keys( natures ).forEach( function ( cle ) {
+				var option = el( 'option', '', natures[ cle ] );
+				option.value = cle;
+				nature.appendChild( option );
+			} );
+			nature.value = natures[ c.nature ] ? c.nature : 'chapitre';
+			var etiquetteNature = el( 'label', 'yn-visually-hidden', 'Nature — ' + c.extrait );
+			etiquetteNature.htmlFor = nature.id;
+			td.appendChild( etiquetteNature );
+			td.appendChild( nature );
+			tr.appendChild( td );
+
+			td = el( 'td' );
+			var titre = el( 'input' );
+			titre.type = 'text';
+			titre.id = id + '-titre';
+			titre.maxLength = 200;
+			titre.value = c.titre || '';
+			titre.placeholder = 'Titre (facultatif)';
+			var etiquetteTitre = el( 'label', 'yn-visually-hidden', 'Titre du chapitre — ' + c.extrait );
+			etiquetteTitre.htmlFor = titre.id;
+			td.appendChild( etiquetteTitre );
+			td.appendChild( titre );
+			tr.appendChild( td );
+
+			td = el( 'td', 'yn-muted yn-publish__decoupage-extrait' );
+			td.appendChild( el( 'span', '', c.extrait ) );
+			var avant = el( 'span', 'yn-publish__decoupage-avant', ' · avant le premier chapitre' );
+			td.appendChild( avant );
+			tr.appendChild( td );
+
+			// La ligne est affichée en grille : les rôles gardent la sémantique du tableau.
+			tr.setAttribute( 'role', 'row' );
+			Array.prototype.forEach.call( tr.children, function ( cellule ) {
+				cellule.setAttribute( 'role', 'cell' );
+			} );
+
+			var principal = !! c.auto || ( c.raisons || [] ).some( function ( r ) {
+				return [ 'marqueur', 'titre', 'image', 'saut_page', 'debut' ].indexOf( r ) >= 0;
+			} );
+			return { c: c, tr: tr, coche: coche, nature: nature, titre: titre, avant: avant, principal: principal };
+		}
+
+		/**
+		 * Découpage manuel : tableau construit après l'analyse du fichier choisi.
+		 */
+		function construirePlan( rapport ) {
+			if ( ! decoupage ) {
+				return;
+			}
+			var candidats = rapport.candidats || [];
+			planLignes.textContent = '';
+			lignes = [];
+			decoupagesRapides = rapport.decoupages || {};
+			if ( ! candidats.length ) {
+				effacerPlan();
+				return;
+			}
+			var fragment = document.createDocumentFragment();
+			candidats.forEach( function ( c, i ) {
+				var l = lignePlan( c, i );
+				lignes.push( l );
+				fragment.appendChild( l.tr );
+			} );
+			planLignes.appendChild( fragment );
+			// Premier numéro : celui du premier chapitre détecté (sinon 1).
+			var premier = ( rapport.chapitres || [] ).filter( function ( c ) {
+				return c.nature === 'chapitre' && c.numero !== null;
+			} )[ 0 ];
+			planPremier.value = premier ? String( Math.floor( premier.numero ) ) : '1';
+			planActif.checked = false;
+			planAvant.checked = false;
+			decoupage.hidden = false;
+			majPlan();
+		}
+
+		function effacerPlan() {
+			if ( ! decoupage ) {
+				return;
+			}
+			decoupage.hidden = true;
+			planLignes.textContent = '';
+			lignes = [];
+			planChamp.value = '';
+			planActif.checked = false;
+		}
+
+		/**
+		 * Découpage manuel : débuts cochés (le premier chapitre numéroté porte le premier numéro).
+		 */
+		function serialiserPlan() {
+			var debuts = [];
+			var numeroPose = false;
+			var premier = planPremier.value.replace( ',', '.' );
+			lignes.forEach( function ( l ) {
+				if ( ! l.coche.checked ) {
+					return;
+				}
+				var debut = { ancre: l.c.ancre, nature: l.nature.value, titre: l.titre.value.trim() };
+				if ( ! numeroPose && debut.nature === 'chapitre' && premier !== '' && ! isNaN( Number( premier ) ) && Number( premier ) >= 0 ) {
+					debut.numero = Number( premier );
+					numeroPose = true;
+				}
+				debuts.push( debut );
+			} );
+			return { debuts: debuts, garder_avant: !! planAvant.checked };
+		}
+
+		/**
+		 * Découpage manuel : champs de chaque ligne, lignes placées avant le premier début
+		 * coché, filtre, nombre de chapitres obtenus et champ caché « plan ».
+		 */
+		function majPlan() {
+			var premierCoche = -1;
+			var parNature = {};
+			var nb = 0;
+			lignes.forEach( function ( l, i ) {
+				var coche = l.coche.checked;
+				l.nature.disabled = ! coche;
+				l.titre.disabled = ! coche;
+				l.tr.classList.toggle( 'is-coche', coche );
+				if ( coche ) {
+					nb++;
+					parNature[ l.nature.value ] = ( parNature[ l.nature.value ] || 0 ) + 1;
+					if ( premierCoche < 0 ) {
+						premierCoche = i;
+					}
+				}
+			} );
+			var filtre = planFiltre ? planFiltre.value : 'principaux';
+			lignes.forEach( function ( l, i ) {
+				var avant = premierCoche >= 0 && i < premierCoche;
+				l.tr.classList.toggle( 'is-avant', avant );
+				l.avant.hidden = ! avant;
+				l.tr.hidden = filtre === 'coches' ? ! l.coche.checked : ( filtre === 'principaux' ? ! ( l.principal || l.coche.checked || avant ) : false );
+			} );
+			var texte;
+			if ( ! nb ) {
+				texte = 'Aucun début coché : cochez au moins un début de chapitre (sinon la détection automatique s’applique).';
+			} else {
+				var numerotes = parNature.chapitre || 0;
+				var speciaux = Object.keys( parNature ).filter( function ( n ) {
+					return n !== 'chapitre';
+				} ).map( function ( n ) {
+					return ( parNature[ n ] > 1 ? parNature[ n ] + ' × ' : '' ) + ( natures[ n ] || n ).toLowerCase();
+				} );
+				var premier = Number( planPremier.value.replace( ',', '.' ) ) || 0;
+				texte = nb + ( nb > 1 ? ' chapitres' : ' chapitre' ) + ' avec ce découpage : ' + numerotes + ( numerotes > 1 ? ' chapitres numérotés' : ' chapitre numéroté' )
+					+ ( numerotes ? ' (' + numeroFr( premier ) + ( numerotes > 1 ? ' à ' + numeroFr( Math.floor( premier ) + numerotes - 1 ) : '' ) + ')' : '' )
+					+ ( speciaux.length ? ' + ' + speciaux.join( ', ' ) : '' ) + '.';
+				if ( premierCoche > 0 ) {
+					texte += planAvant.checked ? ' Le texte d’ouverture rejoint le premier chapitre.' : ' Le texte d’ouverture (lignes surlignées) ne sera pas publié.';
+				}
+				texte += planActif.checked ? '' : ' Cochez « Utiliser ce découpage » pour l’appliquer.';
+			}
+			planCompte.textContent = texte;
+			planChamp.value = planActif.checked && nb ? JSON.stringify( serialiserPlan() ) : '';
+		}
+
+		/**
+		 * Découpages rapides (chaque illustration, chaque saut de page) ou retour à la détection
+		 * automatique.
+		 */
+		function decoupageRapide( action ) {
+			if ( action === 'auto' ) {
+				lignes.forEach( function ( l ) {
+					l.coche.checked = !! l.c.auto;
+					l.nature.value = natures[ l.c.nature ] ? l.c.nature : 'chapitre';
+					l.titre.value = l.c.titre || '';
+				} );
+				planActif.checked = false;
+				majPlan();
+				return;
+			}
+			var ancres = decoupagesRapides[ action ] || [];
+			if ( ! ancres.length ) {
+				planCompte.textContent = {
+					images: 'Aucune illustration repérée dans le fichier.',
+					ouvertures: 'Aucune suite de plusieurs illustrations repérée dans le fichier.',
+					sauts: 'Aucun saut de page repéré dans le fichier.',
+				}[ action ] || '';
+				return;
+			}
+			lignes.forEach( function ( l ) {
+				var debut = ancres.indexOf( l.c.ancre ) >= 0;
+				l.coche.checked = debut;
+				if ( debut ) {
+					l.nature.value = 'chapitre';
+					l.titre.value = l.c.raisons.indexOf( 'titre' ) >= 0 || l.c.raisons.indexOf( 'marqueur' ) >= 0 ? l.c.titre || '' : '';
+				}
+			} );
+			planActif.checked = true;
+			majPlan();
+		}
+
+		function analyser( avecPlan ) {
 			var fichier = source.files && source.files[ 0 ];
 			if ( ! fichier ) {
 				return;
@@ -377,6 +632,17 @@
 					donnees.append( nom, champ.value );
 				}
 			} );
+			// Vérification d'un découpage manuel : même fichier, envoyé avec le découpage.
+			var essai = avecPlan === true ? serialiserPlan() : null;
+			if ( essai ) {
+				if ( ! essai.debuts.length ) {
+					planCompte.textContent = 'Aucun début coché : cochez au moins un début de chapitre.';
+					liste.removeAttribute( 'aria-busy' );
+					afficherFiche( fichier.name, ext, taille( fichier.size ), 'ok' );
+					return;
+				}
+				donnees.append( 'plan', JSON.stringify( essai ) );
+			}
 			requete( rest + 'publications/analyse', donnees, nonce, progres ).then( function ( rapport ) {
 				if ( numeroAnalyse !== analyseCourante ) {
 					return;
@@ -385,6 +651,11 @@
 				afficherChapitres( rapport.chapitres || [] );
 				afficherAvertissements( rapport.avertissements || [] );
 				majRecap( rapport.chapitres || [] );
+				if ( essai ) {
+					annoncer( 'Découpage vérifié (rien n’est enregistré) : ' + rapport.resume + '.' + ( planActif.checked ? '' : ' Cochez « Utiliser ce découpage » pour l’appliquer à l’enregistrement.' ), 'succes' );
+					return;
+				}
+				construirePlan( rapport );
 				var texte = 'Analyse terminée : ' + rapport.resume + '.';
 				if ( rapport.tome_existant && etat ) {
 					etat.textContent = 'Tome existant (' + rapport.tome_existant.etat.toLowerCase() + ') : mise à jour';
@@ -397,6 +668,9 @@
 			} ).catch( function ( erreur ) {
 				if ( numeroAnalyse !== analyseCourante ) {
 					return;
+				}
+				if ( ! essai ) {
+					effacerPlan();
 				}
 				afficherFiche( fichier.name, ext, erreur.message, 'err' );
 				annoncer( erreur.message, 'erreur' );
@@ -578,6 +852,10 @@
 			} );
 			if ( ! sourceAEnvoyer || ! ( source.files && source.files.length ) ) {
 				donnees.delete( 'source' );
+				donnees.delete( 'plan' );
+			} else if ( ! planChamp || ! planChamp.value ) {
+				// Détection automatique.
+				donnees.delete( 'plan' );
 			}
 			if ( ! ( couverture.files && couverture.files.length ) ) {
 				donnees.delete( 'couverture' );
@@ -594,6 +872,8 @@
 				sourceAEnvoyer = false;
 				source.value = '';
 				couverture.value = '';
+				// Le fichier n'est pas conservé : son découpage non plus.
+				effacerPlan();
 				if ( rapport.import ) {
 					afficherFiche( rapport.import.fichier.nom, rapport.import.fichier.format, rapport.import.fichier.taille + ' · importé : ' + rapport.import.resume, 'ok' );
 				}
@@ -765,7 +1045,39 @@
 			} );
 		} );
 
-		source.addEventListener( 'change', analyser );
+		source.addEventListener( 'change', function () {
+			analyser( false );
+		} );
+		if ( decoupage ) {
+			// Toute modification du tableau active le découpage manuel.
+			var modifierPlan = function ( e ) {
+				var cible = e.target;
+				if ( cible !== planActif && cible !== planFiltre && cible !== planPremier && cible !== planAvant && cible.closest && cible.closest( '[data-yn-plan-lignes]' ) ) {
+					planActif.checked = true;
+				}
+				majPlan();
+			};
+			decoupage.addEventListener( 'change', modifierPlan );
+			decoupage.addEventListener( 'input', function ( e ) {
+				if ( e.target.type === 'text' || e.target.type === 'number' ) {
+					modifierPlan( e );
+				}
+			} );
+			Array.prototype.forEach.call( decoupage.querySelectorAll( '[data-yn-plan-action]' ), function ( bouton ) {
+				bouton.addEventListener( 'click', function () {
+					decoupageRapide( bouton.getAttribute( 'data-yn-plan-action' ) );
+				} );
+			} );
+			if ( planVerifier ) {
+				planVerifier.addEventListener( 'click', function () {
+					if ( ! ( source.files && source.files.length ) ) {
+						annoncer( 'Choisissez à nouveau le fichier du tome : il n’est pas conservé sur le serveur.', 'erreur' );
+						return;
+					}
+					analyser( true );
+				} );
+			}
+		}
 		couverture.addEventListener( 'change', function () {
 			var fichier = couverture.files && couverture.files[ 0 ];
 			if ( ! fichier ) {
@@ -791,6 +1103,7 @@
 				source.value = '';
 				sourceAEnvoyer = false;
 				analyseCourante++;
+				effacerPlan();
 				fiche.hidden = true;
 				afficherAvertissements( [] );
 				liste.textContent = '';

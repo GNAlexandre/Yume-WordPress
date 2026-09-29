@@ -10,6 +10,10 @@
  * - DELETE /yume/v1/publications/(?P<id>\d+)/remplacement  annule le remplacement en attente
  *                                               (versions et images supprimées, rien ne change en ligne).
  *
+ * Paramètre « plan » (analyse et création) : découpage manuel en chapitres, en JSON ou en objet
+ * (Service::plan()), appliqué au fichier « source » envoyé dans la même requête : le fichier n'est
+ * jamais conservé entre deux requêtes.
+ *
  * Paramètre booléen « sans_annonce » (création et publication) : ajout au catalogue, sans
  * article d'annonce, ni Discord, ni e-mail (Service::ajouter_au_catalogue()). Absent, il vaut
  * vrai pour un tome déjà paru (statut publish) et faux sinon (nouveau tome, brouillon, tome
@@ -50,6 +54,7 @@ final class Rest {
 					'oeuvre_id' => $champs['oeuvre_id'],
 					'nature'    => $champs['nature'],
 					'numero'    => $champs['numero'],
+					'plan'      => $champs['plan'],
 				),
 			)
 		);
@@ -180,6 +185,17 @@ final class Rest {
 				'default'     => false,
 			),
 			'sans_annonce'    => self::argument_sans_annonce(),
+			'plan'            => array(
+				'description'       => __( 'Découpage manuel du fichier source (JSON ou objet) : {"debuts": [{"ancre": "e12-3fa9c1", "nature": "chapitre", "titre": "…", "numero": 3 (facultatif)}], "garder_avant": false}. Les repères viennent de l’analyse du même fichier.', 'yume-core' ),
+				// Contrôle strict par Service::plan() (erreur 400 lisible) ; valeur transmise telle quelle.
+				'validate_callback' => static function ( $valeur ) {
+					$plan = Service::plan( $valeur );
+					return is_wp_error( $plan ) ? $plan : true;
+				},
+				'sanitize_callback' => static function ( $valeur ) {
+					return is_array( $valeur ) || is_string( $valeur ) ? $valeur : null;
+				},
+			),
 		);
 	}
 
@@ -292,7 +308,7 @@ final class Rest {
 	 */
 	private static function champs( \WP_REST_Request $requete ): array {
 		$champs = array();
-		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'credits', 'couverture_id', 'retirer_absents', 'sans_annonce', 'credits_traduction', 'credits_relecture', 'credits_edition' ) as $cle ) {
+		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'credits', 'couverture_id', 'retirer_absents', 'sans_annonce', 'credits_traduction', 'credits_relecture', 'credits_edition', 'plan' ) as $cle ) {
 			if ( null !== $requete->get_param( $cle ) ) {
 				$champs[ $cle ] = $requete->get_param( $cle );
 			}

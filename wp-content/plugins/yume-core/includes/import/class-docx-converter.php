@@ -18,7 +18,8 @@
  * - images JPG/PNG/WebP/GIF conservées (jeton) ; EMF/WMF/EMZ/WMZ converties en PNG quand elles
  *   portent une image bitmap (Metafichier), sinon ignorées et signalées avec leur raison ;
  *   images placées avant le premier chapitre → galerie du tome (front_images) ;
- * - sauts de page, sections, en-têtes et pieds de page, zones de texte ignorés.
+ * - sauts de page et de section relevés (débuts de chapitre possibles du découpage manuel),
+ *   en-têtes et pieds de page, zones de texte ignorés.
  *
  * Aucune fonction WordPress.
  *
@@ -168,6 +169,14 @@ final class Docx_Converter {
 	private array $champs = array();
 
 	/**
+	 * Étiquette de chapitre en attente (« Prologue », « 1 », « Bonus »… centrée ou en gras) :
+	 * arguments de paragraphe_contenu(), pour l'émettre telle quelle si aucun titre ne la suit.
+	 *
+	 * @var array<string,mixed>|null
+	 */
+	private ?array $etiquette = null;
+
+	/**
 	 * Constructeur.
 	 *
 	 * @param string              $chemin  Fichier DOCX.
@@ -185,7 +194,8 @@ final class Docx_Converter {
 	 * @param array<string,mixed> $options typographie (bool, défaut true) : espaces insécables
 	 *                                     ajoutées devant ? ! : ; et dans les guillemets ;
 	 *                                     volume_max (int, octets) : texte converti maximal
-	 *                                     (défaut Chapter_Builder::VOLUME_MAX).
+	 *                                     (défaut Chapter_Builder::VOLUME_MAX) ; plan (array) :
+	 *                                     découpage manuel (Chapter_Builder::normaliser_plan()).
 	 * @throws Import_Exception Fichier illisible ou qui n'est pas un DOCX.
 	 */
 	public static function convert_file( string $path, array $options = array() ): Result {
@@ -209,8 +219,9 @@ final class Docx_Converter {
 			$this->styles    = new Docx_Styles( $this->xml_relation( 'styles' ), $this->xml_relation( 'numbering' ) );
 			$this->lire_notes( 'footnotes', 'footnote' );
 			$this->lire_notes( 'endnotes', 'endnote' );
-			$this->chapitres = new Chapter_Builder( $this->resultat, (int) ( $this->options['volume_max'] ?? Chapter_Builder::VOLUME_MAX ) );
+			$this->chapitres = new Chapter_Builder( $this->resultat, (int) ( $this->options['volume_max'] ?? Chapter_Builder::VOLUME_MAX ), is_array( $this->options['plan'] ?? null ) ? $this->options['plan'] : null );
 			$this->parcourir();
+			$this->vider_etiquette();
 			$this->chapitres->terminer();
 		} finally {
 			$this->zip->fermer();
@@ -407,6 +418,9 @@ final class Docx_Converter {
 	 * @param \DOMElement $el Élément.
 	 */
 	private function bloc( \DOMElement $el ): void {
+		if ( 'p' !== $el->localName && 'sectPr' !== $el->localName ) {
+			$this->vider_etiquette();
+		}
 		switch ( $el->localName ) {
 			case 'p':
 				$this->paragraphe( $el );
@@ -492,17 +506,77 @@ final class Docx_Converter {
 			'car_total'  => 0,
 			'car_pensee' => 0,
 			'car_italic' => 0,
+			'car_gras'   => 0,
 			'ignorees'   => 0,
+			'saut'       => '', // Saut de page : « avant » ou « apres » le texte du paragraphe.
 		);
 		$this->champs = array();
 		$this->contenu( $p, $props['rpr'], $etat, '' );
 		$items = $etat['items'];
 
+		// Saut de page (début de chapitre possible) : avant le paragraphe, ou après lui (saut
+		// placé après son texte, fin d'une section « page suivante »).
+		$avant_para = Docx_Styles::enfant( $ppr, 'pageBreakBefore' );
+		if ( $avant_para && ! in_array( (string) Docx_Styles::attr( $avant_para ), array( '0', 'false', 'off' ), true ) ) {
+			$etat['saut'] = 'avant';
+		}
+		$section = Docx_Styles::enfant( $ppr, 'sectPr' );
+		$apres   = $section && 'continuous' !== (string) Docx_Styles::attr( Docx_Styles::enfant( $section, 'type' ) );
+		if ( 'avant' === $etat['saut'] ) {
+			$this->chapitres->indice( 'saut_page' );
+		}
+		$apres = $apres || 'apres' === $etat['saut'];
+		$this->paragraphe_contenu( $etat, $role, $niveau, $jc, $ppr );
+		if ( $apres ) {
+			$this->chapitres->indice( 'saut_page' );
+		}
+	}
+
+	/**
+	 * Émet le contenu d'un paragraphe lu (titre, ligne vide, texte et images).
+	 *
+	 * @param array<string,mixed>      $etat   Segments et compteurs du paragraphe.
+	 * @param string|null              $role   Rôle du style.
+	 * @param array<string,mixed>|null $niveau Niveau de liste.
+	 * @param string|null              $jc     Alignement.
+	 * @param \DOMElement|null         $ppr    Propriétés du paragraphe.
+	 * @param bool                     $etiquettes Reconnaître une étiquette de chapitre.
+	 */
+	private function paragraphe_contenu( array $etat, ?string $role, ?array $niveau, ?string $jc, ?\DOMElement $ppr, bool $etiquettes = true ): void {
+		$items = $etat['items'];
+
 		$texte  = Texte::espaces( Inline::texte_brut( array_filter( $items, static fn( $i ) => 'image' !== $i['type'] ) ) );
 		$images = array_values( array_filter( $items, static fn( $i ) => 'image' === $i['type'] ) );
 
+		// Étiquette de chapitre (« Prologue », « 1 », « Bonus »…) sur sa propre ligne, centrée ou
+		// en gras, juste avant le titre : elle donne sa nature et son numéro au chapitre.
+		if ( null !== $this->etiquette ) {
+			if ( '' === $texte && ! $images ) {
+				return; // Ligne vide entre l'étiquette et le titre.
+			}
+			if ( '' === $texte || ! in_array( $role, array( 'titre1', 'titre2' ), true ) ) {
+				$this->vider_etiquette();
+			}
+		} elseif ( $etiquettes && $this->est_etiquette( $texte, $images, $role, $niveau, $jc, $etat ) ) {
+			$this->etiquette = array(
+				'etat'   => $etat,
+				'role'   => $role,
+				'niveau' => $niveau,
+				'jc'     => $jc,
+				'ppr'    => $ppr,
+				'texte'  => $texte,
+			);
+			return;
+		}
+
 		if ( '' !== $texte && in_array( $role, array( 'titre1', 'titre2', 'titre3' ), true ) ) {
-			$this->titre( $role, Inline::texte_brut( array_filter( $items, static fn( $i ) => 'texte' === $i['type'] || 'br' === $i['type'] ) ) );
+			$brut = Inline::texte_brut( array_filter( $items, static fn( $i ) => 'texte' === $i['type'] || 'br' === $i['type'] ) );
+			if ( null !== $this->etiquette ) {
+				$brut            = self::titre_etiquete( (string) $this->etiquette['texte'], $brut );
+				$role            = 'titre1';
+				$this->etiquette = null;
+			}
+			$this->titre( $role, $brut );
 			foreach ( $images as $image ) {
 				$this->chapitres->image( (string) $image['cle'] );
 			}
@@ -537,6 +611,58 @@ final class Docx_Converter {
 	}
 
 	/**
+	 * Paragraphe d'étiquette de chapitre : texte seul « Prologue », « Épilogue », « Interlude »,
+	 * « Bonus », « Postface », « Chapitre 3 », un nombre (« 1 ») ou un chiffre romain, centré ou
+	 * entièrement en gras, hors liste, dialogue et pensée.
+	 *
+	 * @param string                   $texte  Texte du paragraphe.
+	 * @param array                    $images Images du paragraphe.
+	 * @param string|null              $role   Rôle du style.
+	 * @param array<string,mixed>|null $niveau Niveau de liste.
+	 * @param string|null              $jc     Alignement.
+	 * @param array<string,mixed>      $etat   Compteurs de caractères.
+	 */
+	private function est_etiquette( string $texte, array $images, ?string $role, ?array $niveau, ?string $jc, array $etat ): bool {
+		if ( '' === $texte || $images || null !== $niveau || null !== $role || mb_strlen( $texte ) > 40 ) {
+			return false;
+		}
+		$gras = (int) $etat['car_total'] > 0 && (int) $etat['car_gras'] >= (int) $etat['car_total'];
+		if ( 'center' !== $jc && ! $gras ) {
+			return false;
+		}
+		return (bool) preg_match( '/^(?:\d{1,3}|[IVXLC]{1,6}|(?:chapitre|chapter)\s+\S+|prologue|[ée]pilogue|interlude(?:\s+\S+)?|bonus(?:\s+\S+)?|histoire\s+bonus|postface|extra)$/iu', $texte );
+	}
+
+	/**
+	 * Titre complété par son étiquette : « 1 » + « Le Début… » → « Chapitre 1 : Le Début… »,
+	 * « Bonus » + « L’Histoire d’Ira » → « Bonus : L’Histoire d’Ira ». Un titre qui porte
+	 * déjà son numéro ou sa nature (« Chapitre 3 : … ») reste tel quel.
+	 *
+	 * @param string $etiquette Texte de l'étiquette.
+	 * @param string $titre     Texte brut du titre.
+	 */
+	private static function titre_etiquete( string $etiquette, string $titre ): string {
+		$premiere = (string) ( explode( "\n", ltrim( $titre, "\n" ) )[0] ?? '' );
+		if ( 'inconnu' !== Texte::analyser_titre( $premiere )['motif'] ) {
+			return $titre;
+		}
+		$libelle = preg_match( '/^(?:\d{1,3}|[IVXLC]{1,6})$/u', $etiquette ) ? 'Chapitre ' . $etiquette : $etiquette;
+		return $libelle . ' : ' . ltrim( $titre, "\n" );
+	}
+
+	/**
+	 * Émet l'étiquette en attente comme un paragraphe ordinaire (aucun titre ne la suit).
+	 */
+	private function vider_etiquette(): void {
+		if ( null === $this->etiquette ) {
+			return;
+		}
+		$e               = $this->etiquette;
+		$this->etiquette = null;
+		$this->paragraphe_contenu( $e['etat'], $e['role'], $e['niveau'], $e['jc'], $e['ppr'], false );
+	}
+
+	/**
 	 * Émet la partie texte d'un paragraphe selon sa nature.
 	 *
 	 * @param array<int,array<string,mixed>> $items  Segments.
@@ -554,7 +680,11 @@ final class Docx_Converter {
 			$this->chapitres->separateur();
 			return;
 		}
-		$total   = max( 1, (int) $etat['car_total'] );
+		$total = max( 1, (int) $etat['car_total'] );
+		// Paragraphe entièrement en gras : début de chapitre possible (titre sans style).
+		if ( (int) $etat['car_gras'] >= (int) $etat['car_total'] && (int) $etat['car_total'] > 0 ) {
+			$this->chapitres->indice( 'gras' );
+		}
 		$pensee  = 'pensee' === $role || ( null === $niveau && (int) $etat['car_pensee'] * 2 >= $total && (int) $etat['car_pensee'] > 0 );
 		$inverse = $pensee && (int) $etat['car_italic'] * 2 >= $total;
 		$html    = Inline::html( $items, $inverse );
@@ -724,6 +854,7 @@ final class Docx_Converter {
 			$etat['car_total']  += $longueur;
 			$etat['car_pensee'] += $pensee ? $longueur : 0;
 			$etat['car_italic'] += $f['i'] ? $longueur : 0;
+			$etat['car_gras']   += $f['b'] ? $longueur : 0;
 			$texte               = '';
 		};
 		for ( $n = $r->firstChild; null !== $n; $n = $n->nextSibling ) {
@@ -748,6 +879,9 @@ final class Docx_Converter {
 					$genre = (string) Docx_Styles::attr( $n, 'type' );
 					if ( 'page' === $genre ) {
 						++$this->compteurs['sauts_de_page'];
+						if ( '' === $etat['saut'] ) {
+							$etat['saut'] = $etat['car_total'] > 0 || '' !== trim( $texte ) ? 'apres' : 'avant';
+						}
 						$texte .= ' ';
 					} elseif ( 'column' === $genre ) {
 						$texte .= ' ';
@@ -1040,7 +1174,9 @@ final class Docx_Converter {
 				'car_total'  => 0,
 				'car_pensee' => 0,
 				'car_italic' => 0,
+				'car_gras'   => 0,
 				'ignorees'   => 0,
+				'saut'       => '',
 			);
 			$champs       = $this->champs;
 			$this->champs = array();

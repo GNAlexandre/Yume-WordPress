@@ -358,10 +358,73 @@ if ( $yume_tome ) {
 							<li><span class="yn-chip yn-chip--warn"><?php echo self::icone( 'alerte', 14 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statique. ?><?php echo esc_html( (string) $yume_a ); ?></span></li>
 						<?php endforeach; ?>
 					</ul>
+					<p class="yn-muted yn-publish__aide yn-publish__marqueurs" id="yn-publish-marqueurs">
+						<?php esc_html_e( 'Découpage à corriger ? Après l’analyse du fichier, « Délimiter les chapitres moi-même » permet de choisir chaque début de chapitre. Autre possibilité, sans rien installer : dans le document, ajoutez à chaque début de chapitre un paragraphe seul « [chapitre] Titre » (ou « [prologue] », « [interlude] Titre », « [bonus] Titre », « [épilogue] », « [postface] ») : il force ce début de chapitre et n’est pas publié.', 'yume-core' ); ?>
+					</p>
 					<div class="yn-publish__apercu">
 						<button type="submit" name="etape" value="apercu" class="yn-btn" data-yn-etape="apercu" formtarget="_blank"><?php esc_html_e( 'Prévisualiser le chapitre 1', 'yume-core' ); ?></button>
 					</div>
 				</div>
+
+				<?php
+				// Découpage manuel (script du bloc) : rempli après l'analyse du fichier choisi. Seul le
+				// champ caché « plan » est envoyé, avec le même fichier ; les autres commandes n'ont pas
+				// de nom. Sans JavaScript, le cadre reste masqué (marqueurs dans le document).
+				?>
+				<fieldset class="yn-card yn-publish__decoupage" data-yn-decoupage data-natures="<?php echo esc_attr( (string) wp_json_encode( \Yume\Core\Import\Texte::LIBELLES ) ); ?>" aria-describedby="yn-publish-decoupage-aide" hidden>
+					<legend class="yn-label"><?php esc_html_e( 'Délimiter les chapitres moi-même', 'yume-core' ); ?></legend>
+					<p id="yn-publish-decoupage-aide" class="yn-muted yn-publish__aide">
+						<?php esc_html_e( 'Cochez chaque début de chapitre parmi les endroits repérés dans le fichier (titres, illustrations, sauts de page, lignes courtes, centrées ou en gras), puis choisissez sa nature et son titre. Le découpage est envoyé avec le fichier à l’enregistrement. Le fichier n’est pas conservé sur le serveur : pour redécouper plus tard, choisissez à nouveau le fichier.', 'yume-core' ); ?>
+					</p>
+					<p class="yn-publish__option">
+						<input id="yn-publish-plan-actif" type="checkbox" data-yn-plan-actif>
+						<label for="yn-publish-plan-actif"><?php esc_html_e( 'Utiliser ce découpage (sinon : détection automatique des chapitres)', 'yume-core' ); ?></label>
+					</p>
+					<div class="yn-publish__decoupage-outils">
+						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="ouvertures"><?php esc_html_e( 'Couper aux ouvertures illustrées (2 illustrations ou plus à la suite)', 'yume-core' ); ?></button>
+						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="images"><?php esc_html_e( 'Couper à chaque illustration', 'yume-core' ); ?></button>
+						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="sauts"><?php esc_html_e( 'Couper à chaque saut de page', 'yume-core' ); ?></button>
+						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="auto"><?php esc_html_e( 'Revenir à la détection automatique', 'yume-core' ); ?></button>
+						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-verifier><?php esc_html_e( 'Vérifier ce découpage (rien n’est enregistré)', 'yume-core' ); ?></button>
+					</div>
+					<div class="yn-publish__decoupage-reglages">
+						<p class="yn-publish__option">
+							<input id="yn-publish-plan-avant" type="checkbox" data-yn-plan-avant aria-describedby="yn-publish-plan-avant-aide">
+							<span class="yn-publish__option-texte">
+								<label for="yn-publish-plan-avant"><?php esc_html_e( 'Conserver le texte d’ouverture', 'yume-core' ); ?></label>
+								<span id="yn-publish-plan-avant-aide" class="yn-muted yn-publish__option-aide"><?php esc_html_e( 'Le texte placé avant le premier début coché (lignes surlignées) rejoint le premier chapitre ; sinon il n’est pas publié (ses illustrations vont dans la galerie du tome).', 'yume-core' ); ?></span>
+							</span>
+						</p>
+						<p class="yn-publish__champ yn-publish__decoupage-premier">
+							<label for="yn-publish-plan-premier" class="yn-publish__petit"><?php esc_html_e( 'Premier numéro de chapitre', 'yume-core' ); ?></label>
+							<input id="yn-publish-plan-premier" type="number" min="0" step="any" value="1" inputmode="decimal" data-yn-plan-premier>
+						</p>
+						<p class="yn-publish__champ yn-publish__decoupage-premier">
+							<label for="yn-publish-plan-filtre" class="yn-publish__petit"><?php esc_html_e( 'Afficher', 'yume-core' ); ?></label>
+							<select id="yn-publish-plan-filtre" data-yn-plan-filtre>
+								<option value="principaux"><?php esc_html_e( 'Titres, illustrations, sauts de page et débuts cochés', 'yume-core' ); ?></option>
+								<option value="tous"><?php esc_html_e( 'Tous les débuts possibles', 'yume-core' ); ?></option>
+								<option value="coches"><?php esc_html_e( 'Débuts cochés seulement', 'yume-core' ); ?></option>
+							</select>
+						</p>
+					</div>
+					<p class="yn-publish__decoupage-compte" data-yn-plan-compte role="status" aria-live="polite"></p>
+					<div class="yn-publish__decoupage-table" role="region" tabindex="0" aria-label="<?php esc_attr_e( 'Débuts de chapitre possibles', 'yume-core' ); ?>">
+						<table role="table">
+							<caption class="yn-visually-hidden"><?php esc_html_e( 'Débuts de chapitre possibles, dans l’ordre du fichier', 'yume-core' ); ?></caption>
+							<thead role="rowgroup">
+								<tr role="row">
+									<th scope="col" role="columnheader"><?php esc_html_e( 'Début de chapitre', 'yume-core' ); ?></th>
+									<th scope="col" role="columnheader"><?php esc_html_e( 'Nature', 'yume-core' ); ?></th>
+									<th scope="col" role="columnheader"><?php esc_html_e( 'Titre', 'yume-core' ); ?></th>
+									<th scope="col" role="columnheader"><?php esc_html_e( 'Dans le fichier', 'yume-core' ); ?></th>
+								</tr>
+							</thead>
+							<tbody role="rowgroup" data-yn-plan-lignes></tbody>
+						</table>
+					</div>
+					<input type="hidden" name="plan" value="" data-yn-plan>
+				</fieldset>
 			</div>
 
 			<aside class="yn-publish__cote" aria-label="<?php esc_attr_e( 'Récapitulatif et actions', 'yume-core' ); ?>">
