@@ -293,9 +293,13 @@ Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approu
   changement de rôle reste possible, mais il ne le décharge pas de ces tomes. **Ajouter un
   membre** : la personne crée d'abord son compte de lecteur sur le site, puis vous saisissez son
   identifiant ou son e-mail et choisissez son rôle. Les comptes administrateurs et gérants, et le
-  vôtre, ne sont modifiables que par un administrateur (*Comptes* dans l'administration, où vous
-  pouvez aussi créer un compte ou modifier un profil) ; l'administrateur a pour cela un lien
-  **Modifier dans l'administration** sur la ligne de ces comptes.
+  vôtre, ne sont modifiables que par un administrateur ; l'administrateur a pour cela un lien
+  **Modifier dans l'administration** sur la ligne de ces comptes. Un gérant change **seulement les
+  rôles** : il ne crée pas de compte et ne modifie ni le mot de passe, ni l'e-mail, ni le profil d'un
+  autre membre ou lecteur (*Comptes* dans l'administration ne sert qu'à consulter la liste et à
+  changer un rôle). Un membre qui a perdu son mot de passe utilise « Mot de passe oublié ? » sur la
+  page de connexion ; pour un changement d'e-mail ou un compte bloqué, c'est l'administrateur qui
+  s'en charge.
 - **Réglages** (menu de l'espace équipe, ou *Yume → Réglages* dans l'administration) :
   - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),

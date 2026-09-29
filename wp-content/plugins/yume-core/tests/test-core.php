@@ -2500,10 +2500,16 @@ yume_test(
 		$trad   = yume_factory_user( 'yume_traducteur' );
 		$lec    = yume_factory_user( 'subscriber' );
 		wp_set_current_user( $gerant );
-		foreach ( array( 'create_users', 'list_users', 'promote_users', 'edit_users' ) as $cap ) {
+		foreach ( array( 'list_users', 'promote_users' ) as $cap ) {
 			yume_assert_true( current_user_can( $cap ), "gérant : $cap" );
 		}
-		yume_assert_true( current_user_can( 'edit_user', $trad ) );
+		// SEC-03 : ni création de compte ni modification du profil d'un autre compte.
+		foreach ( array( 'create_users', 'edit_users' ) as $cap ) {
+			yume_assert_false( current_user_can( $cap ), "gérant sans $cap" );
+		}
+		yume_assert_false( current_user_can( 'edit_user', $trad ), 'profil d’un membre : administrateur seulement' );
+		yume_assert_false( current_user_can( 'edit_user', $lec ), 'profil d’un lecteur : administrateur seulement' );
+		yume_assert_true( current_user_can( 'promote_user', $trad ) );
 		yume_assert_true( current_user_can( 'promote_user', $lec ) );
 		yume_assert_false( current_user_can( 'edit_user', $admin ), 'administrateur intouchable' );
 		yume_assert_false( current_user_can( 'promote_user', $admin ) );

@@ -13,7 +13,10 @@
  * - rien ne casse si la bibliothèque est absente ou si le réseau est bloqué (aucune notice) ;
  * - seules les releases publiées (ni brouillon ni préversion) portant l'archive attendue
  *   comptent : jamais l'archive source du dépôt entier, jamais une branche ou un tag nu ;
- * - une copie de développement (lien symbolique ou dépôt Git) n'est jamais écrasée.
+ * - une copie de développement (lien symbolique ou dépôt Git) n'est jamais écrasée ;
+ * - l'archive n'est installée (manuellement ou automatiquement) que si son empreinte SHA-256
+ *   correspond au fichier SHA256SUMS de la même release et que le tag correspond à la version
+ *   proposée (integrite.php, constante YUME_EXIGER_EMPREINTE, vraie par défaut).
  *
  * Dépôt privé : définir YUME_GITHUB_TOKEN (jeton en lecture seule) dans wp-config.php.
  * Source figée : définir YUME_GITHUB_REPO (« propriétaire/dépôt ») dans wp-config.php ; elle
@@ -47,6 +50,8 @@ const FABRIQUE = 'YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory';
 
 /** Motif d'un dépôt GitHub « propriétaire/dépôt » (même règle que la validation de core). */
 const MOTIF_DEPOT = '#^[A-Za-z0-9_.-]{1,39}/[A-Za-z0-9_.-]{1,100}$#';
+
+require_once __DIR__ . '/integrite.php';
 
 add_action( 'plugins_loaded', __NAMESPACE__ . '\\demarrer', 20 );
 add_filter( 'auto_update_plugin', __NAMESPACE__ . '\\filtrer_maj_auto_plugin', 20, 2 );

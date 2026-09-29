@@ -6,8 +6,8 @@
  * Utilisation :
  *   php tools/docx2chapters/docx2chapters.php convert tome.docx --out dossier
  *   php tools/docx2chapters/docx2chapters.php analyse tome.docx
- *   php tools/docx2chapters/docx2chapters.php publish tome.docx --site https://yumenovel.fr \
- *       --user pseudo --app-password "xxxx xxxx xxxx xxxx xxxx xxxx" --oeuvre 12 --numero 10 \
+ *   YUME_APP_PASSWORD=… php tools/docx2chapters/docx2chapters.php publish tome.docx \
+ *       --site https://yumenovel.fr --user pseudo --oeuvre 12 --numero 10 \
  *       [--nature tome] [--titre "…"] [--pdf URL] [--epub URL] [--couverture image.jpg] \
  *       [--traduction X] [--relecture Y] [--edition Z] [--retirer-absents] \
  *       [--publier maintenant|AAAA-MM-JJTHH:MM] [--sans-annonce|--avec-annonce]
@@ -54,7 +54,7 @@ docx2chapters — découpe un DOCX (ou un EPUB) du tome en chapitres Yume.
 Commandes :
   convert FICHIER --out DOSSIER      écrit resultat.json, les images et un aperçu HTML par chapitre
   analyse FICHIER                    affiche le rapport (chapitres, mots, avertissements), n'écrit rien
-  publish FICHIER --site URL --user IDENTIFIANT --app-password MOT_DE_PASSE --oeuvre ID --numero N
+  publish FICHIER --site URL --user IDENTIFIANT --oeuvre ID --numero N
                                      envoie le fichier au site (tome et chapitres en brouillon)
   aide                               cette aide
 
@@ -75,9 +75,14 @@ Options de convert et analyse :
   --sans-typographie                      n'ajoute pas d'espaces insécables devant ? ! : ;
   --json                                  (analyse) rapport au format JSON
 
-Le mot de passe d'application se crée dans l'administration du site :
-Profil → Mots de passe d'application. Il peut aussi être lu dans la variable
-d'environnement YUME_APP_PASSWORD.
+Mot de passe d'application (Profil → Mots de passe d'application), lu dans l'ordre :
+  1. la variable d'environnement YUME_APP_PASSWORD (méthode conseillée) ;
+  2. le fichier ~/.config/yume/credentials (ou $YUME_CREDENTIALS), une ligne
+     « YUME_APP_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx », droits 600 obligatoires
+     (chmod 600 ~/.config/yume/credentials) ;
+  3. --app-password MOT_DE_PASSE : déconseillé, le secret reste dans l'historique du
+     shell et est visible des autres utilisateurs de la machine (ps) ; un avertissement
+     est affiché.
 
 AIDE;
 }
@@ -317,6 +322,74 @@ function yume_d2c_url( string $site, string $route, bool $jolie ): string {
 }
 
 /**
+ * Chemin du fichier d'identifiants : $YUME_CREDENTIALS, sinon
+ * $XDG_CONFIG_HOME/yume/credentials, sinon ~/.config/yume/credentials ('' si introuvable).
+ */
+function yume_d2c_fichier_identifiants(): string {
+	$chemin = (string) getenv( 'YUME_CREDENTIALS' );
+	if ( '' !== $chemin ) {
+		return $chemin;
+	}
+	$config = (string) getenv( 'XDG_CONFIG_HOME' );
+	if ( '' === $config ) {
+		$maison = (string) ( getenv( 'HOME' ) ? getenv( 'HOME' ) : getenv( 'USERPROFILE' ) );
+		$config = '' !== $maison ? $maison . '/.config' : '';
+	}
+	return '' !== $config ? $config . '/yume/credentials' : '';
+}
+
+/**
+ * Lit le mot de passe d'application dans le fichier d'identifiants : ligne
+ * « YUME_APP_PASSWORD=… » (ou première ligne non vide hors commentaire « # »). Le fichier
+ * doit n'être lisible que par son propriétaire (600) : sinon l'outil refuse de s'en servir.
+ *
+ * @param string $chemin Fichier.
+ * @return string Mot de passe, '' si le fichier n'existe pas ou n'en contient pas.
+ */
+function yume_d2c_lire_identifiants( string $chemin ): string {
+	if ( '' === $chemin || ! is_file( $chemin ) ) {
+		return '';
+	}
+	clearstatcache( true, $chemin );
+	$droits = fileperms( $chemin );
+	if ( DIRECTORY_SEPARATOR === '/' && false !== $droits && ( $droits & 0077 ) ) {
+		yume_d2c_erreur( sprintf( 'le fichier d’identifiants %s est lisible par d’autres utilisateurs (droits %o) : lancez « chmod 600 %s ».', $chemin, $droits & 0777, $chemin ), 2 );
+	}
+	$lignes = file( $chemin, FILE_IGNORE_NEW_LINES );
+	foreach ( false === $lignes ? array() : $lignes as $ligne ) {
+		$ligne = trim( $ligne );
+		if ( '' === $ligne || str_starts_with( $ligne, '#' ) ) {
+			continue;
+		}
+		if ( preg_match( '/^(?:export\s+)?YUME_APP_PASSWORD\s*=\s*(.*)$/', $ligne, $m ) ) {
+			return trim( $m[1], " \t\"'" );
+		}
+		if ( ! str_contains( $ligne, '=' ) ) {
+			return $ligne;
+		}
+	}
+	return '';
+}
+
+/**
+ * Mot de passe d'application : YUME_APP_PASSWORD, puis fichier d'identifiants, puis
+ * --app-password (déconseillé : historique du shell, ps), avec un avertissement.
+ *
+ * @param array<string,mixed> $o Options.
+ */
+function yume_d2c_mot_de_passe( array $o ): string {
+	if ( isset( $o['app-password'] ) && '' !== (string) $o['app-password'] ) {
+		fwrite( STDERR, "Attention : --app-password laisse le mot de passe dans l'historique du shell et le rend visible dans la liste des processus (ps). Préférez la variable YUME_APP_PASSWORD ou le fichier ~/.config/yume/credentials (droits 600), puis révoquez ce mot de passe d'application s'il a fuité.\n" );
+		return (string) $o['app-password'];
+	}
+	$env = (string) getenv( 'YUME_APP_PASSWORD' );
+	if ( '' !== $env ) {
+		return $env;
+	}
+	return yume_d2c_lire_identifiants( yume_d2c_fichier_identifiants() );
+}
+
+/**
  * Commande publish.
  *
  * @param string              $fichier Fichier source.
@@ -326,14 +399,14 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	if ( ! function_exists( 'curl_init' ) ) {
 		yume_d2c_erreur( 'l’extension PHP « curl » est nécessaire pour publier.' );
 	}
-	$pass = (string) ( $o['app-password'] ?? getenv( 'YUME_APP_PASSWORD' ) );
 	foreach ( array( 'site', 'user', 'oeuvre' ) as $requis ) {
 		if ( empty( $o[ $requis ] ) ) {
 			yume_d2c_erreur( 'option --' . $requis . ' manquante (voir « aide »).', 2 );
 		}
 	}
+	$pass = yume_d2c_mot_de_passe( $o );
 	if ( '' === $pass ) {
-		yume_d2c_erreur( 'mot de passe d’application manquant (--app-password ou YUME_APP_PASSWORD).', 2 );
+		yume_d2c_erreur( 'mot de passe d’application manquant : variable YUME_APP_PASSWORD ou fichier ~/.config/yume/credentials (droits 600) ; voir « aide ».', 2 );
 	}
 	if ( ! empty( $o['sans-annonce'] ) && ! empty( $o['avec-annonce'] ) ) {
 		yume_d2c_erreur( '--sans-annonce et --avec-annonce sont incompatibles.', 2 );

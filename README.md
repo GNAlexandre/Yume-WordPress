@@ -24,6 +24,7 @@ de l'équipe.
 | [docs/04-import-docx-epub-lecteur.md](docs/04-import-docx-epub-lecteur.md) | Conversion DOCX/EPUB → chapitres, rendu et réglages du lecteur, marque-page |
 | [docs/05-pipeline-github-wordpress.md](docs/05-pipeline-github-wordpress.md) | Releases GitHub → mises à jour WordPress, environnement local, CI, migration |
 | [docs/06-contrat-technique.md](docs/06-contrat-technique.md) | Contrat technique partagé : types, métadonnées, blocs, routes, rôles, pages |
+| [docs/mise-en-production.md](docs/mise-en-production.md) | Liste de contrôle de mise en production : comptes et 2FA, Jetpack, sauvegardes, `wp-config.php`, réglages GitHub |
 | [docs/tester-en-local.md](docs/tester-en-local.md) | Lancer le site sur son ordinateur (Playground, environnement PHP, préproduction) |
 | [docs/guide-equipe.md](docs/guide-equipe.md) | Guide de l'équipe : publier un tome, planning, rappels |
 | [docs/guide-developpeur.md](docs/guide-developpeur.md) | Guide développeur : modules, tests, CI, release |

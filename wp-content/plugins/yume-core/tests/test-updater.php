@@ -627,3 +627,390 @@ yume_test(
 		yume_assert_false( wp_next_scheduled( $tache ) );
 	}
 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Vérification d'intégrité des archives (SHA256SUMS, SEC-01)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Simule GitHub pour un téléchargement : $routes associe une URL exacte à une réponse
+ * array( code, corps, location ). /releases/latest renvoie $release. Toute autre URL : 404.
+ * Les corps des requêtes en flux (stream) sont écrits dans le fichier demandé, comme WP_Http.
+ *
+ * @param array|null        $release Release renvoyée par l'API, ou null.
+ * @param array             $routes  URL => array( 'code' => int, 'corps' => string, 'location' => string ).
+ * @param array<int,string> $journal URL demandées (par référence).
+ * @return callable
+ */
+function yume_tu_simuler_telechargements( ?array $release, array $routes, array &$journal ): callable {
+	$callback = static function ( $pre, $args, $url ) use ( $release, $routes, &$journal ) {
+		$url       = (string) $url;
+		$journal[] = $url;
+		if ( null !== $release && false !== strpos( $url, '/releases/latest' ) ) {
+			$route = array(
+				'code'  => 200,
+				'corps' => wp_json_encode( $release ),
+			);
+		} else {
+			$route = $routes[ $url ] ?? array(
+				'code'  => 404,
+				'corps' => 'Not Found',
+			);
+		}
+		$entetes = array();
+		if ( ! empty( $route['location'] ) ) {
+			$entetes['location'] = $route['location'];
+		}
+		if ( ! empty( $args['stream'] ) && ! empty( $args['filename'] ) ) {
+			file_put_contents( $args['filename'], $route['corps'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- simule WP_Http.
+		}
+		return array(
+			'headers'  => $entetes,
+			'body'     => ! empty( $args['stream'] ) ? '' : $route['corps'],
+			'response' => array(
+				'code'    => $route['code'],
+				'message' => '',
+			),
+			'cookies'  => array(),
+			'filename' => $args['filename'] ?? null,
+		);
+	};
+	add_filter( 'pre_http_request', $callback, 10, 3 );
+	return $callback;
+}
+
+/**
+ * Prépare une release v2.1.0 simulée avec ses archives et SHA256SUMS, et fait détecter la mise
+ * à jour par le vérificateur ($type). Renvoie le contexte du test.
+ *
+ * @param string $type       'plugin' ou 'theme'.
+ * @param array  $surcharges Routes remplaçant les routes par défaut (URL => réponse ou null pour retirer).
+ * @param string $sommes     Contenu de SHA256SUMS (null : empreintes correctes).
+ * @return array{paquet:string,archive:string,contenu:string,journal:array,http:callable,depot:string}
+ * @throws Yume_Test_Failure Si la mise à jour simulée n'est pas détectée.
+ */
+function yume_tu_release_signee( string $type, array $surcharges = array(), ?string $sommes = null ): array {
+	$verificateur = yume_tu_verificateur( $type );
+	$depot        = yume_tu_depot( $verificateur );
+	$archive      = 'theme' === $type ? 'yume.zip' : 'yume-core.zip';
+	$base         = "https://github.com/{$depot}/releases/download/v2.1.0/";
+	$contenus     = array(
+		'yume-core.zip' => "PK\x03\x04 archive yume-core factice",
+		'yume.zip'      => "PK\x03\x04 archive yume factice",
+	);
+	if ( null === $sommes ) {
+		$sommes = hash( 'sha256', $contenus['yume-core.zip'] ) . "  yume-core.zip\n" . hash( 'sha256', $contenus['yume.zip'] ) . "  yume.zip\n";
+	}
+	$routes = array(
+		$base . 'yume-core.zip' => array(
+			'code'     => 302,
+			'corps'    => '',
+			'location' => 'https://release-assets.githubusercontent.com/github-production-release-asset/1/yume-core?sig=abc',
+		),
+		'https://release-assets.githubusercontent.com/github-production-release-asset/1/yume-core?sig=abc' => array(
+			'code'  => 200,
+			'corps' => $contenus['yume-core.zip'],
+		),
+		$base . 'yume.zip'      => array(
+			'code'     => 302,
+			'corps'    => '',
+			'location' => 'https://objects.githubusercontent.com/github-production-release-asset/2/yume?sig=def',
+		),
+		'https://objects.githubusercontent.com/github-production-release-asset/2/yume?sig=def' => array(
+			'code'  => 200,
+			'corps' => $contenus['yume.zip'],
+		),
+		$base . 'SHA256SUMS'    => array(
+			'code'     => 302,
+			'corps'    => '',
+			'location' => 'https://release-assets.githubusercontent.com/github-production-release-asset/3/sums?sig=ghi',
+		),
+		'https://release-assets.githubusercontent.com/github-production-release-asset/3/sums?sig=ghi' => array(
+			'code'  => 200,
+			'corps' => $sommes,
+		),
+	);
+	foreach ( $surcharges as $url => $reponse ) {
+		if ( null === $reponse ) {
+			unset( $routes[ $url ] );
+		} else {
+			$routes[ $url ] = $reponse;
+		}
+	}
+	$journal = array();
+	$http    = yume_tu_simuler_telechargements( yume_tu_release( $depot, 'v2.1.0', array( 'yume-core.zip', 'yume.zip', 'SHA256SUMS' ) ), $routes, $journal );
+	yume_tu_reinitialiser();
+	$verificateur->checkForUpdates();
+	$maj = $verificateur->getUpdate();
+	if ( ! is_object( $maj ) ) {
+		yume_tu_retirer_http( $http );
+		throw new Yume_Test_Failure( 'mise à jour simulée non détectée' );
+	}
+	$journal = array();
+	return array(
+		'paquet'  => (string) $maj->download_url,
+		'archive' => $archive,
+		'contenu' => $contenus[ $archive ],
+		'journal' => &$journal,
+		'http'    => $http,
+		'depot'   => $depot,
+	);
+}
+
+/**
+ * Contexte upgrader_pre_download (hook_extra) du plugin ou du thème Yume.
+ *
+ * @param string $type 'plugin' ou 'theme'.
+ * @return array
+ */
+function yume_tu_hook_extra( string $type ): array {
+	return 'theme' === $type ? array( 'theme' => 'yume' ) : array( 'plugin' => 'yume-core/yume-core.php' );
+}
+
+/**
+ * Types à tester : le plugin, et le thème s'il est installé.
+ *
+ * @return string[]
+ */
+function yume_tu_types(): array {
+	return wp_get_theme( 'yume' )->exists() ? array( 'plugin', 'theme' ) : array( 'plugin' );
+}
+
+yume_test(
+	'SHA256SUMS : lecture du format de sha256sum (noms nus, mode binaire, lignes invalides ignorées)',
+	static function () {
+		$a = str_repeat( 'a', 64 );
+		$b = str_repeat( 'B', 64 );
+		yume_assert_same(
+			array(
+				'yume-core.zip' => $a,
+				'yume.zip'      => strtolower( $b ),
+			),
+			\Yume\Core\Updater\lire_empreintes( "{$a}  yume-core.zip\r\n{$b} *yume.zip\nnimporte quoi\n{$a}  dist/autre.zip\n" )
+		);
+		$ambigu = \Yume\Core\Updater\lire_empreintes( "{$a}  yume.zip\n{$b}  yume.zip\n" );
+		yume_assert_false( $ambigu['yume.zip'], 'deux empreintes différentes : ambiguë' );
+		yume_assert_same( array(), \Yume\Core\Updater\lire_empreintes( '' ) );
+		yume_assert_true( \Yume\Core\Updater\exiger_empreinte(), 'vérification exigée par défaut' );
+	}
+);
+
+yume_test(
+	'archive valide (empreinte conforme à SHA256SUMS, redirections GitHub) : acceptée',
+	static function () {
+		foreach ( yume_tu_types() as $type ) {
+			$ctx = yume_tu_release_signee( $type );
+			try {
+				$chemin = apply_filters( 'upgrader_pre_download', false, $ctx['paquet'], null, yume_tu_hook_extra( $type ) );
+				yume_assert_true( is_string( $chemin ) && is_file( $chemin ), "{$type} : chemin de l’archive vérifiée attendu, obtenu " . yume_test_export( is_wp_error( $chemin ) ? $chemin->get_error_message() : $chemin ) );
+				yume_assert_same( $ctx['contenu'], file_get_contents( $chemin ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+				wp_delete_file( $chemin );
+				$urls = implode( "\n", $ctx['journal'] );
+				yume_assert_contains( '/releases/download/v2.1.0/SHA256SUMS', $urls, 'SHA256SUMS de la même release' );
+				yume_assert_contains( 'githubusercontent.com', $urls, 'redirection vers le stockage GitHub suivie' );
+
+				// Sans contexte (hook_extra vide) : reconnu par son URL, vérifié de même.
+				$chemin = apply_filters( 'upgrader_pre_download', false, $ctx['paquet'], null, array() );
+				yume_assert_true( is_string( $chemin ) && is_file( $chemin ), "{$type} : reconnu sans hook_extra" );
+				wp_delete_file( $chemin );
+			} finally {
+				yume_tu_retirer_http( $ctx['http'] );
+				yume_tu_reinitialiser();
+			}
+		}
+	}
+);
+
+yume_test(
+	'archive altérée (empreinte différente de SHA256SUMS) : refusée et consignée',
+	static function () {
+		$refus  = array();
+		$espion = static function ( $erreur ) use ( &$refus ) {
+			$refus[] = $erreur->get_error_code();
+		};
+		add_action( 'yume_updater_refus', $espion );
+		foreach ( yume_tu_types() as $type ) {
+			$cible = 'theme' === $type
+				? 'https://objects.githubusercontent.com/github-production-release-asset/2/yume?sig=def'
+				: 'https://release-assets.githubusercontent.com/github-production-release-asset/1/yume-core?sig=abc';
+			$ctx   = yume_tu_release_signee(
+				$type,
+				array(
+					$cible => array(
+						'code'  => 200,
+						'corps' => "PK\x03\x04 archive piégée <?php system(\$_GET['c']);",
+					),
+				)
+			);
+			try {
+				$resultat = apply_filters( 'upgrader_pre_download', false, $ctx['paquet'], null, yume_tu_hook_extra( $type ) );
+				yume_assert_true( is_wp_error( $resultat ), "{$type} : WP_Error attendue" );
+				yume_assert_same( 'yume_maj_empreinte_differente', $resultat->get_error_code() );
+				yume_assert_contains( 'refusée', $resultat->get_error_message() );
+				yume_assert_contains( 'SHA-256', $resultat->get_error_message() );
+			} finally {
+				yume_tu_retirer_http( $ctx['http'] );
+				yume_tu_reinitialiser();
+			}
+		}
+		remove_action( 'yume_updater_refus', $espion );
+		yume_assert_same( count( yume_tu_types() ), count( $refus ), 'chaque refus est signalé' );
+	}
+);
+
+yume_test(
+	'SHA256SUMS absent, illisible ou sans l’archive : mise à jour refusée',
+	static function () {
+		$plugin = yume_tu_verificateur( 'plugin' );
+		$depot  = yume_tu_depot( $plugin );
+		$sommes = "https://github.com/{$depot}/releases/download/v2.1.0/SHA256SUMS";
+		$extra  = yume_tu_hook_extra( 'plugin' );
+
+		$ctx = yume_tu_release_signee( 'plugin', array( $sommes => null ) );
+		try {
+			$resultat = apply_filters( 'upgrader_pre_download', false, $ctx['paquet'], null, $extra );
+			yume_assert_true( is_wp_error( $resultat ), 'SHA256SUMS absent (404)' );
+			yume_assert_same( 'yume_maj_sha256sums_absent', $resultat->get_error_code() );
+			foreach ( $ctx['journal'] as $url ) {
+				yume_assert_not_contains( 'yume-core?sig', $url, 'archive non téléchargée sans SHA256SUMS' );
+			}
+		} finally {
+			yume_tu_retirer_http( $ctx['http'] );
+			yume_tu_reinitialiser();
+		}
+
+		$ctx = yume_tu_release_signee( 'plugin', array(), "<html>pas un fichier d'empreintes</html>" );
+		try {
+			$resultat = apply_filters( 'upgrader_pre_download', false, $ctx['paquet'], null, $extra );
+			yume_assert_true( is_wp_error( $resultat ) );
+			yume_assert_same( 'yume_maj_sha256sums_absent', $resultat->get_error_code(), 'SHA256SUMS illisible' );
+		} finally {
+			yume_tu_retirer_http( $ctx['http'] );
+			yume_tu_reinitialiser();
+		}
+
+		$ctx = yume_tu_release_signee( 'plugin', array(), str_repeat( 'c', 64 ) . "  yume.zip\n" );
+		try {
+			$resultat = apply_filters( 'upgrader_pre_download', false, $ctx['paquet'], null, $extra );
+			yume_assert_true( is_wp_error( $resultat ) );
+			yume_assert_same( 'yume_maj_empreinte_absente', $resultat->get_error_code(), 'archive absente de SHA256SUMS' );
+		} finally {
+			yume_tu_retirer_http( $ctx['http'] );
+			yume_tu_reinitialiser();
+		}
+	}
+);
+
+yume_test(
+	'redirection vers un hôte hors liste, autre dépôt ou tag différent de la version : refusés',
+	static function () {
+		$extra = yume_tu_hook_extra( 'plugin' );
+		$ctx   = yume_tu_release_signee(
+			'plugin',
+			array(
+				'https://github.com/' . yume_tu_depot( yume_tu_verificateur( 'plugin' ) ) . '/releases/download/v2.1.0/yume-core.zip' => array(
+					'code'     => 302,
+					'corps'    => '',
+					'location' => 'https://evil.example/yume-core.zip',
+				),
+			)
+		);
+		try {
+			$resultat = apply_filters( 'upgrader_pre_download', false, $ctx['paquet'], null, $extra );
+			yume_assert_true( is_wp_error( $resultat ), 'redirection hors GitHub' );
+			yume_assert_same( 'yume_maj_hote_refuse', $resultat->get_error_code() );
+			yume_assert_contains( 'evil.example', $resultat->get_error_message() );
+			yume_assert_not_contains( 'evil.example', implode( "\n", $ctx['journal'] ), 'l’hôte refusé n’est jamais contacté' );
+
+			// Paquet d'un autre dépôt, ou d'une autre release que la version proposée.
+			$autre = apply_filters( 'upgrader_pre_download', false, 'https://github.com/Pirate/Yume-WordPress/releases/download/v2.1.0/yume-core.zip', null, $extra );
+			yume_assert_true( is_wp_error( $autre ) );
+			yume_assert_same( 'yume_maj_source_inconnue', $autre->get_error_code() );
+			$hors = apply_filters( 'upgrader_pre_download', false, 'https://evil.example/yume-core.zip', null, $extra );
+			yume_assert_same( 'yume_maj_source_inconnue', is_wp_error( $hors ) ? $hors->get_error_code() : $hors );
+			$vieux = apply_filters( 'upgrader_pre_download', false, str_replace( '/v2.1.0/', '/v2.0.9/', $ctx['paquet'] ), null, $extra );
+			yume_assert_true( is_wp_error( $vieux ) );
+			yume_assert_same( 'yume_maj_version', $vieux->get_error_code() );
+			$theme = apply_filters( 'upgrader_pre_download', false, str_replace( 'yume-core.zip', 'yume.zip', $ctx['paquet'] ), null, $extra );
+			yume_assert_same( 'yume_maj_archive_inattendue', is_wp_error( $theme ) ? $theme->get_error_code() : $theme, 'archive du thème à la place du plugin' );
+		} finally {
+			yume_tu_retirer_http( $ctx['http'] );
+			yume_tu_reinitialiser();
+		}
+		yume_assert_false( \Yume\Core\Updater\url_autorisee( 'http://github.com/a/b' ), 'HTTP simple refusé' );
+		yume_assert_false( \Yume\Core\Updater\url_autorisee( 'https://github.com.evil.example/a' ) );
+		yume_assert_false( \Yume\Core\Updater\url_autorisee( 'https://github.com:8443/a' ) );
+		yume_assert_true( \Yume\Core\Updater\url_autorisee( 'https://objects.githubusercontent.com/x' ) );
+	}
+);
+
+yume_test(
+	'dépôt privé (URL API de l’asset) : release et SHA256SUMS lus via l’API GitHub',
+	static function () {
+		$ctx     = yume_tu_release_signee( 'plugin' );
+		$depot   = $ctx['depot'];
+		$release = yume_tu_release( $depot, 'v2.1.0', array( 'yume-core.zip', 'yume.zip', 'SHA256SUMS' ) );
+		yume_tu_retirer_http( $ctx['http'] );
+		$journal = array();
+		$api     = "https://api.github.com/repos/{$depot}/releases/assets/";
+		$http    = yume_tu_simuler_telechargements(
+			$release,
+			array(
+				$api . '100' => array(
+					'code'     => 302,
+					'corps'    => '',
+					'location' => 'https://objects.githubusercontent.com/p/1?sig=x',
+				),
+				'https://objects.githubusercontent.com/p/1?sig=x' => array(
+					'code'  => 200,
+					'corps' => $ctx['contenu'],
+				),
+				$api . '102' => array(
+					'code'  => 200,
+					'corps' => hash( 'sha256', $ctx['contenu'] ) . "  yume-core.zip\n",
+				),
+			),
+			$journal
+		);
+		try {
+			$chemin = \Yume\Core\Updater\verifier_paquet( 'plugin', $api . '100' );
+			yume_assert_true( is_string( $chemin ) && is_file( $chemin ), 'archive privée vérifiée : ' . yume_test_export( is_wp_error( $chemin ) ? $chemin->get_error_message() : $chemin ) );
+			wp_delete_file( $chemin );
+			$refus = \Yume\Core\Updater\verifier_paquet( 'plugin', $api . '999' );
+			yume_assert_true( is_wp_error( $refus ), 'asset hors de la dernière release' );
+		} finally {
+			yume_tu_retirer_http( $http );
+			yume_tu_reinitialiser();
+		}
+	}
+);
+
+yume_test(
+	'autres extensions, thèmes et fichiers locaux : upgrader_pre_download inchangé, aucune requête',
+	static function () {
+		$journal = array();
+		$http    = yume_tu_simuler_telechargements( null, array(), $journal );
+		try {
+			yume_assert_false( apply_filters( 'upgrader_pre_download', false, 'https://downloads.wordpress.org/plugin/akismet.5.3.zip', null, array( 'plugin' => 'akismet/akismet.php' ) ) );
+			yume_assert_false( apply_filters( 'upgrader_pre_download', false, 'https://downloads.wordpress.org/theme/twentytwentyfive.1.2.zip', null, array( 'theme' => 'twentytwentyfive' ) ) );
+			yume_assert_false( apply_filters( 'upgrader_pre_download', false, 'https://github.com/Autre/Extension/releases/download/v1.0.0/autre.zip', null, array() ) );
+			yume_assert_same( '/tmp/paquet-local.zip', apply_filters( 'upgrader_pre_download', '/tmp/paquet-local.zip', '/tmp/paquet-local.zip', null, yume_tu_hook_extra( 'plugin' ) ) );
+			$erreur = new WP_Error( 'autre', 'déjà refusé' );
+			yume_assert_same( $erreur, apply_filters( 'upgrader_pre_download', $erreur, 'https://github.com/x/y/releases/download/v1/yume-core.zip', null, yume_tu_hook_extra( 'plugin' ) ) );
+			yume_assert_same( array(), $journal, 'aucune requête HTTP' );
+
+			// Vérification désactivée (YUME_EXIGER_EMPREINTE à false, ou filtre) : WordPress télécharge seul.
+			add_filter( 'yume_updater_exiger_empreinte', '__return_false' );
+			try {
+				yume_assert_false( apply_filters( 'upgrader_pre_download', false, 'https://github.com/x/y/releases/download/v9.9.9/yume-core.zip', null, yume_tu_hook_extra( 'plugin' ) ) );
+			} finally {
+				remove_filter( 'yume_updater_exiger_empreinte', '__return_false' );
+			}
+			yume_assert_same( array(), $journal );
+		} finally {
+			yume_tu_retirer_http( $http );
+		}
+	}
+);
