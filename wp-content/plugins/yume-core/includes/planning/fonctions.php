@@ -265,7 +265,7 @@ function noms_mois( bool $court = false ): array {
 /**
  * Formate un horodatage en français, heure de Paris.
  *
- * Jetons : D (jour abrégé), l (jour), j, d, M (mois abrégé), F (mois), n, m, Y, H, i ;
+ * Jetons : D (jour abrégé), l (jour), j, d, M (mois abrégé), F (mois), n, m, Y, G, H, i ;
  * « \ » protège le caractère ASCII suivant.
  *
  * @param int    $ts     Horodatage.
@@ -299,6 +299,7 @@ function format_fr( int $ts, string $format ): string {
 			case 'n':
 			case 'm':
 			case 'Y':
+			case 'G':
 			case 'H':
 			case 'i':
 				$out .= $d->format( $c );

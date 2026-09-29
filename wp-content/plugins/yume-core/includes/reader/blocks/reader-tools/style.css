@@ -1,7 +1,44 @@
 /**
  * Bloc yume/reader-tools — structure de la barre de lecture et du panneau Paramètres.
- * Couleurs : uniquement les variables du thème (contrat §15), qui suivent Nuit / Papier / Sépia.
+ * Couleurs : uniquement les variables du thème (contrat §15), qui suivent Nuit / Papier / Sépia ;
+ * le mode « contraste renforcé » (html[data-yn-contraste="renforce"]) les redéfinit en fin de fichier.
  */
+
+/*
+ * OpenDyslexic (licence SIL OFL 1.1, assets/polices/opendyslexic/OFL.txt), sous-ensemble latin :
+ * téléchargée seulement quand la police est utilisée (choix « OpenDyslexic » du panneau).
+ */
+@font-face {
+	font-family: OpenDyslexic;
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url("../../assets/polices/opendyslexic/opendyslexic-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+	font-family: OpenDyslexic;
+	font-style: italic;
+	font-weight: 400;
+	font-display: swap;
+	src: url("../../assets/polices/opendyslexic/opendyslexic-latin-400-italic.woff2") format("woff2");
+}
+
+@font-face {
+	font-family: OpenDyslexic;
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url("../../assets/polices/opendyslexic/opendyslexic-latin-700-normal.woff2") format("woff2");
+}
+
+@font-face {
+	font-family: OpenDyslexic;
+	font-style: italic;
+	font-weight: 700;
+	font-display: swap;
+	src: url("../../assets/polices/opendyslexic/opendyslexic-latin-700-italic.woff2") format("woff2");
+}
 
 /* La racine ne crée pas de boîte : la barre collante suit toute la hauteur de la page. */
 .yn-reader-tools {
@@ -555,8 +592,68 @@ html[data-yn-theme="sepia"] .yn-reader-panel input[type="range"]::-moz-range-thu
 	text-decoration: underline;
 }
 
-.yn-reader-panel__raccourcis {
-	white-space: nowrap;
+/* Options d'accessibilité : cases à cocher. */
+.yn-reader-panel__cases {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.yn-reader-panel .yn-reader-panel__case {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 32px;
+	font-size: 14px;
+	font-weight: 400;
+	cursor: pointer;
+}
+
+.yn-reader-panel__case input {
+	flex: 0 0 auto;
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: var(--wp--preset--color--accent);
+	cursor: pointer;
+}
+
+.yn-reader-panel__case input:disabled,
+.yn-reader-panel__case input:disabled + span {
+	cursor: default;
+}
+
+.yn-reader-panel__case input:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-reader-panel__aide {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+/* Raccourcis clavier : liste touche → action. */
+.yn-reader-panel .yn-reader-panel__sous-titre {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.yn-reader-panel__touches {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: center;
+	gap: 6px 12px;
+	margin: 0;
+	font-size: 13px;
+}
+
+.yn-reader-panel__touches dt,
+.yn-reader-panel__touches dd {
+	margin: 0;
 }
 
 .yn-reader-panel__raccourcis kbd {
@@ -682,6 +779,64 @@ html[data-yn-theme="sepia"] .yn-reader-panel input[type="range"]::-moz-range-thu
 	.yn-reader-tools__progression.yn-bar > span {
 		transition: none;
 	}
+}
+
+/*
+ * Animations réduites à la demande (option du panneau), comme la préférence système
+ * prefers-reduced-motion que le thème respecte déjà.
+ */
+html[data-yn-animations="reduites"] *,
+html[data-yn-animations="reduites"] *::before,
+html[data-yn-animations="reduites"] *::after {
+	scroll-behavior: auto !important;
+	transition-duration: 0.01ms !important;
+	animation-duration: 0.01ms !important;
+	animation-iteration-count: 1 !important;
+}
+
+/*
+ * Contraste renforcé (option du panneau) : texte au plus foncé (ou au plus clair), filets et
+ * bordures appuyés, colonne de lecture opaque au-dessus de l'illustration, liens soulignés.
+ */
+html[data-yn-contraste="renforce"],
+html[data-yn-contraste="renforce"][data-yn-theme="nuit"] {
+	--wp--preset--color--fond: #0f0a1c;
+	--wp--preset--color--bande: #140d26;
+	--wp--preset--color--carte: #1b1231;
+	--wp--preset--color--filet: #9c89c4;
+	--wp--preset--color--bordure: #d9ccf0;
+	--wp--preset--color--texte-fort: #ffffff;
+	--wp--preset--color--texte: #ffffff;
+	--wp--preset--color--texte-faible: #e8e0f2;
+	--wp--preset--color--accent: #ffc4de;
+}
+
+html[data-yn-contraste="renforce"][data-yn-theme="papier"],
+html[data-yn-contraste="renforce"][data-yn-theme="sepia"] {
+	--wp--preset--color--fond: #ffffff;
+	--wp--preset--color--bande: #f7f2f5;
+	--wp--preset--color--carte: #ffffff;
+	--wp--preset--color--filet: #6d5a80;
+	--wp--preset--color--bordure: #2a1240;
+	--wp--preset--color--texte-fort: #000000;
+	--wp--preset--color--texte: #000000;
+	--wp--preset--color--texte-faible: #2a1240;
+	--wp--preset--color--accent: #8a1f52;
+}
+
+html[data-yn-contraste="renforce"][data-yn-theme="sepia"] {
+	--wp--preset--color--fond: #fbf4e6;
+	--wp--preset--color--bande: #f4ead9;
+	--wp--preset--color--carte: #fffaf0;
+}
+
+html[data-yn-contraste="renforce"] .yn-reader {
+	background: var(--wp--preset--color--fond);
+}
+
+html[data-yn-contraste="renforce"] .yn-reader a {
+	text-decoration: underline;
+	text-decoration-thickness: 2px;
 }
 
 @media print {

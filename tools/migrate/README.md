@@ -184,11 +184,12 @@ comptes            pages, articles, oeuvres, tomes, chapitres, liens, redirectio
 ```
 
 `pages.creer[]` porte aussi `reglage` (`page_on_front` pour « accueil », `page_for_posts` pour
-« actualites », sinon `null`). Les dix pages créées : les sept du §11 (`bibliotheque`, `planning`,
+« actualites », sinon `null`). Les onze pages créées : les sept du §11 (`bibliotheque`, `planning`,
 `equipe`, `publier` et `membres` sous `equipe`, `compte`, `connexion`), `actualites` (page des articles),
 `mentions-legales` (texte de base factuel : éditeur bénévole, hébergeur WordPress.com /
 Automattic, droits et retrait sur demande, données personnelles, cookies et stockage du
-navigateur) et `accueil` (page d'accueil statique, le thème fournit `front-page.html`).
+navigateur), `rejoindre` (`rejoindre-l-equipe`, bloc `yume/recrutement`) et `accueil` (page d'accueil
+statique, le thème fournit `front-page.html`).
 
 Liens des tomes : un lien PDF / EPUB absent de la fiche n'est repris d'un article que si
 l'article annonce la sortie de ce tome (`type_sortie` tome ou tome_relie) — jamais le lien d'un
@@ -225,7 +226,7 @@ utilisées (voir 3).
    | préparation | sauvegarde des options (`show_on_front`, `page_on_front`, `page_for_posts`, `default_category`, `yume_pages`, `yume_reglages`, `yume_redirections`, `yume_redirections_ids`, `users_can_register`, `default_role`, `posts_per_page`), des statuts des anciennes pages, des catégories et œuvres liées des articles, des catégories ; empreinte des contenus touchés ; correspondance des médias (par ID, puis par suffixe de `_wp_attached_file`, puis par nom de fichier unique) |
    | œuvres, tomes, chapitres | création (ou mise à jour) avec les champs et slugs du plan ; `yume_oeuvre_id` sur les tomes, `yume_tome_id` sur les chapitres (le cœur dérive le reste : œuvre du chapitre, mots, caches, terme `yume_oeuvre_liee`) ; images mises en avant et bannières par ID de pièce jointe ; taxonomies type et statut |
    | catégories, articles | « Yume News » → « Sorties », description d'« Actualités », `default_category` → Actualités ; chaque article reçoit sa catégorie cible et le terme `yume_oeuvre_liee` de son œuvre (jamais créé à la main) ; brouillons d'essai ignorés |
-   | pages | création des 10 pages (ou reprise d'une page existante à la même adresse), option `yume_pages` |
+   | pages | création des 11 pages (ou reprise d'une page existante à la même adresse), option `yume_pages` |
    | anciennes pages | les 90 pages remplacées passent en brouillon (statut seul, contenu intact) — **seulement si un contenu créé les remplace** : la page d'un élément ignoré ou en erreur reste en ligne, sans redirection |
    | pages conservées | couleurs de fond et de texte en ligne retirées (illisibles dans les thèmes Nuit / Papier), texte alternatif ajouté aux liens dont le seul contenu est une image (« Rejoindre le serveur Discord de Yume Novel ») ; contenu d'origine gardé au journal pour l'annulation |
    | réglages | `show_on_front = page`, `page_on_front` = Accueil, `page_for_posts` = Actualités, `banniere_id` (réglage Yume) si vide |

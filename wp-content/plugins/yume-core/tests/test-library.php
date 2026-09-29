@@ -1717,6 +1717,123 @@ yume_tl_test(
 			$pied = (string) file_get_contents( $theme . '/parts/footer.html' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
 			yume_assert_contains( 'href="https://noveldelaube.com/"', $pied );
 			yume_assert_not_contains( 'noveldelaube.fr', $pied );
+			// BUG-11 : « Contactez-nous » dans le pied de page ; « Contact » de l'en-tête reste le Discord.
+			yume_assert_contains( '"label":"Contactez-nous","url":"/contactez-nous/"', $pied );
+			yume_assert_contains( '"className":"yn-lien-contact"', $pied );
+			// BUG-02 : un seul h1 sur l'accueil, visuellement masqué, dans le repère <main>.
+			yume_assert_same( 1, preg_match_all( '/<h1\b/', $accueil ) );
+			yume_assert_same( 1, preg_match( '/<main[^>]*>\s*<!-- wp:heading \{"level":1,"className":"yn-visually-hidden"\} -->\s*<h1 class="wp-block-heading yn-visually-hidden">Yume Novel — fan-traductions de light novels<\/h1>/u', $accueil ) );
+			$feuille = (string) file_get_contents( $theme . '/assets/css/yume.css' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
+			yume_assert_contains( '.yn-accueil > .yn-visually-hidden + * {', $feuille, 'la première section garde sa place' );
+		}
+	}
+);
+
+yume_tl_test(
+	'partenaires : variante en ligne (noms liés séparés par « · »), rien sans partenaire (BUG-03)',
+	static function () {
+		yume_tl_partenaires(
+			array(
+				array(
+					'nom' => 'Ok & Cie',
+					'url' => 'https://ok.example/',
+				),
+				array(
+					'nom' => 'Ko',
+					'url' => 'javascript:alert(1)',
+				),
+				array(
+					'nom' => 'Deux',
+					'url' => 'https://deux.example/',
+				),
+			)
+		);
+		yume_assert_same( '<a href="https://ok.example/">Ok &amp; Cie</a> · <a href="https://deux.example/">Deux</a>', \Yume\Core\Library\partenaires_en_ligne() );
+		$html = yume_tl_rendu( 'partenaires', array( 'variante' => 'en-ligne' ) );
+		yume_assert_same( 1, preg_match( '/^<p class="[^"]*yn-partenaires-en-ligne[^"]*">Partenaires&nbsp;: <a href="https:\/\/ok\.example\/">Ok &amp; Cie<\/a> · <a href="https:\/\/deux\.example\/">Deux<\/a><\/p>$/u', $html ), $html );
+		yume_assert_not_contains( 'javascript:', $html );
+		yume_assert_not_contains( '<section', $html );
+
+		yume_tl_partenaires( array() );
+		yume_assert_same( '', \Yume\Core\Library\partenaires_en_ligne() );
+		yume_assert_same( '', yume_tl_rendu( 'partenaires', array( 'variante' => 'en-ligne' ) ) );
+	}
+);
+
+yume_tl_test(
+	'thème : le pied de page reflète le réglage « partenaires » (BUG-03)',
+	static function () {
+		if ( ! function_exists( 'yume_theme_partenaires_pied' ) ) {
+			return; // Thème Yume inactif.
+		}
+		$pied    = (string) file_get_contents( get_template_directory() . '/parts/footer.html' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
+		$mention = preg_match( '/<!-- wp:paragraph \{[^}]*yn-copyright[^}]*\} -->.*?<!-- \/wp:paragraph -->/s', $pied, $trouve ) ? $trouve[0] : '';
+		$rendu   = static fn(): string => do_blocks( $mention );
+		$annee   = wp_date( 'Y' );
+		yume_assert_true( '' !== $mention, 'paragraphe yn-copyright du pied de page' );
+
+		// Jamais enregistré : les quatre partenaires par défaut, comme le modèle.
+		yume_tl_partenaires( null );
+		$html = $rendu();
+		yume_assert_contains( '<a href="https://massnovel.fr/">MassNovel</a> · <a href="https://www.novel-index.com/">Novel Index</a> · <a href="https://noveldelaube.com/">Novel de l’Aube</a> · <a href="https://j-garden.fr/">J-Garden</a></p>', $html );
+		yume_assert_contains( 'Yume Novel © ' . $annee . ' · Fan-traductions à but non lucratif · Partenaires&nbsp;: <a', $html );
+
+		// Liste réduite : seul le partenaire réglé apparaît.
+		yume_tl_partenaires(
+			array(
+				array(
+					'nom' => 'Ok Partner',
+					'url' => 'https://ok.example/',
+				),
+			)
+		);
+		$html = $rendu();
+		yume_assert_contains( 'Partenaires&nbsp;: <a href="https://ok.example/">Ok Partner</a></p>', $html );
+		yume_assert_not_contains( 'massnovel', $html );
+		yume_assert_same( 1, substr_count( $html, '<a ' ), 'un seul lien' );
+
+		// Liste vide : plus de mention « Partenaires », le reste de la ligne demeure.
+		yume_tl_partenaires( array() );
+		$html = $rendu();
+		yume_assert_not_contains( 'Partenaires', $html );
+		yume_assert_contains( 'Fan-traductions à but non lucratif</p>', $html );
+	}
+);
+
+yume_tl_test(
+	'thème : titres 404 et recherche, rôles et dates en français quelle que soit la langue (BUG-07)',
+	static function () {
+		if ( ! function_exists( 'yume_theme_titre_document' ) ) {
+			return; // Thème Yume inactif.
+		}
+		global $wp_query;
+		$anglais = static fn(): string => 'en_US';
+		add_filter( 'pre_determine_locale', $anglais );
+		try {
+			$wp_query = new WP_Query(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			$wp_query->set_404();
+			yume_assert_same( 'Page introuvable', apply_filters( 'document_title_parts', array( 'title' => 'Page not found' ) )['title'] );
+
+			$wp_query            = new WP_Query(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			$wp_query->is_search = true;
+			$wp_query->set( 's', 'lanterne' );
+			yume_assert_same( 'Résultats pour « lanterne »', apply_filters( 'document_title_parts', array( 'title' => 'Search Results for “lanterne”' ) )['title'] );
+			$wp_query->set( 's', '' );
+			yume_assert_same( 'Recherche', apply_filters( 'document_title_parts', array( 'title' => 'x' ) )['title'] );
+
+			yume_assert_same( 'Administrateur', translate_user_role( 'Administrator' ) );
+			yume_assert_same( 'Éditeur', translate_user_role( 'Editor' ) );
+			yume_assert_same( 'Lecteur', translate_user_role( 'Subscriber' ), 'nom de l’extension conservé' );
+			yume_assert_same( 'Traducteur', translate_user_role( 'Traducteur' ), 'rôle Yume inchangé' );
+
+			$moment = ( new DateTimeImmutable( '2026-09-28 12:00:00', wp_timezone() ) )->getTimestamp();
+			yume_assert_same( '28 septembre 2026', wp_date( 'j F Y', $moment ) );
+			yume_assert_same( '28 sept.', wp_date( 'j M', $moment ) );
+			yume_assert_same( 'lundi 28', wp_date( 'l j', $moment ) );
+			yume_assert_same( 'lun. 28 à 12h00', wp_date( 'D j \\à G\\hi', $moment ), 'caractères échappés conservés' );
+			yume_assert_same( '2026-09-28', wp_date( 'Y-m-d', $moment ), 'format sans nom inchangé' );
+		} finally {
+			remove_filter( 'pre_determine_locale', $anglais );
 		}
 	}
 );
@@ -1924,5 +2041,347 @@ yume_tl_test(
 			yume_assert_not_contains( '/illustrations/', $liste );
 		}
 		wp_set_current_user( 0 );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Open Graph, Twitter Card, meta description (BUG-08)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Balises de partage de la page courante (requête principale).
+ *
+ * @return array<string,string>
+ */
+function yume_tl_og(): array {
+	return \Yume\Core\Library\balises_open_graph();
+}
+
+/**
+ * Fait de la requête principale l'accueil (derniers articles en page d'accueil).
+ */
+function yume_tl_aller_accueil(): void {
+	global $wp_query, $wp_the_query;
+	update_option( 'show_on_front', 'posts' );
+	// phpcs:disable WordPress.WP.GlobalVariablesOverride -- restaurées par yume_tl_test().
+	$wp_query          = new WP_Query();
+	$wp_query->is_home = true;
+	$wp_the_query      = $wp_query;
+	// phpcs:enable
+}
+
+yume_tl_test(
+	'Open Graph : accueil (website), œuvre et tome (book), chapitre et article (article), Twitter Card, Jetpack retiré',
+	static function () {
+		$couv = yume_tl_image( 'couv-grimgar.jpg', 'Couverture du tome 9' );
+		$id   = yume_tl_grimgar();
+		$tome = yume_tl_tome( $id, 9, array( 'meta_input' => array( '_thumbnail_id' => $couv ) ) );
+		$c1   = yume_tl_chapitre( $tome, 1, array( 'meta_input' => array( 'yume_sous_titre' => 'La Crête' ) ) );
+
+		yume_assert_false( apply_filters( 'jetpack_enable_open_graph', true ), 'Open Graph de Jetpack désactivé' );
+		yume_assert_true( false !== has_action( 'wp_head', 'Yume\Core\Library\afficher_open_graph' ), 'accroché à wp_head' );
+
+		// Œuvre.
+		yume_tl_aller( $id );
+		$og = yume_tl_og();
+		yume_assert_same( 'book', $og['og:type'] );
+		yume_assert_same( 'Grimgar of Fantasy and Ash', $og['og:title'] );
+		yume_assert_same( 'fr_FR', $og['og:locale'] );
+		yume_assert_same( wp_get_canonical_url( $id ), $og['og:url'] );
+		yume_assert_contains( 'Quand Haruhiro', $og['og:description'] );
+		yume_assert_same( $og['og:description'], $og['description'], 'meta description = og:description' );
+		yume_assert_same( '@YumeNovel', $og['twitter:site'] );
+		yume_assert_same( html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' ), $og['og:site_name'] );
+
+		// Tome : sa couverture, dimensions et texte alternatif.
+		yume_tl_aller( $tome );
+		$og = yume_tl_og();
+		yume_assert_same( 'book', $og['og:type'] );
+		yume_assert_same( wp_get_attachment_image_url( $couv, 'large' ), $og['og:image'] );
+		yume_assert_same( '480', $og['og:image:width'] );
+		yume_assert_same( '720', $og['og:image:height'] );
+		yume_assert_same( 'Couverture du tome 9', $og['og:image:alt'] );
+		yume_assert_same( 'summary_large_image', $og['twitter:card'] );
+		$html = \Yume\Core\Library\html_open_graph( $og );
+		yume_assert_contains( '<meta property="og:type" content="book" />', $html );
+		yume_assert_contains( '<meta name="twitter:card" content="summary_large_image" />', $html );
+		yume_assert_contains( '<meta name="description" content="', $html );
+		yume_assert_contains( '<meta property="og:image" content="' . esc_url( wp_get_attachment_image_url( $couv, 'large' ) ) . '" />', $html );
+
+		// Chapitre : article, couverture du tome, titre complet.
+		yume_tl_aller( $c1 );
+		$og = yume_tl_og();
+		yume_assert_same( 'article', $og['og:type'] );
+		yume_assert_same( 'Chapitre 1 — La Crête · ' . get_the_title( $tome ), $og['og:title'] );
+		yume_assert_same( wp_get_attachment_image_url( $couv, 'large' ), $og['og:image'] );
+		yume_assert_true( isset( $og['article:published_time'] ) );
+		yume_assert_contains( 'Les gremlins chantaient', $og['og:description'] );
+
+		// Article sans image : bannière du site par défaut ; échappement.
+		$banniere                = yume_tl_image( 'banniere.jpg' );
+		$reglages                = (array) get_option( 'yume_reglages', array() );
+		$reglages['banniere_id'] = $banniere;
+		update_option( 'yume_reglages', $reglages );
+		$article = yume_factory_post(
+			array(
+				'post_title'   => 'Sortie du tome 9 & « bonus »',
+				'post_excerpt' => 'Le tome 9 est <b>disponible</b> "maintenant".',
+			)
+		);
+		yume_tl_aller( $article );
+		$og = yume_tl_og();
+		yume_assert_same( 'article', $og['og:type'] );
+		yume_assert_same( wp_get_attachment_image_url( $banniere, 'large' ), $og['og:image'], 'image par défaut : bannière' );
+		yume_assert_same( 'Le tome 9 est disponible "maintenant".', $og['description'] );
+		$html = \Yume\Core\Library\html_open_graph( $og );
+		yume_assert_contains( 'content="Le tome 9 est disponible &quot;maintenant&quot;."', $html, 'attribut échappé' );
+		yume_assert_not_contains( '<b>', $html );
+
+		// Image mise en avant de l'article prioritaire.
+		set_post_thumbnail( $article, $couv );
+		yume_assert_same( wp_get_attachment_image_url( $couv, 'large' ), yume_tl_og()['og:image'] );
+
+		// Accueil : website, bannière.
+		yume_tl_aller_accueil();
+		$og = yume_tl_og();
+		yume_assert_same( 'website', $og['og:type'] );
+		yume_assert_same( home_url( '/' ), $og['og:url'] );
+		yume_assert_same( wp_get_attachment_image_url( $banniere, 'large' ), $og['og:image'] );
+
+		// Filtre yume_open_graph.
+		$filtre = static function ( array $balises ): array {
+			$balises['twitter:site'] = '@Autre';
+			unset( $balises['og:locale'] );
+			return $balises;
+		};
+		add_filter( 'yume_open_graph', $filtre );
+		$og = yume_tl_og();
+		remove_filter( 'yume_open_graph', $filtre );
+		yume_assert_same( '@Autre', $og['twitter:site'] );
+		yume_assert_false( isset( $og['og:locale'] ) );
+	}
+);
+
+yume_tl_test(
+	'Open Graph : rien sur les 404, la recherche, les pages privées, les aperçus ; description absente si vide',
+	static function () {
+		global $wp_query, $wp_the_query;
+		// phpcs:disable WordPress.WP.GlobalVariablesOverride -- restaurées par yume_tl_test().
+		$wp_query = new WP_Query();
+		$wp_query->set_404();
+		$wp_the_query = $wp_query;
+		yume_assert_same( array(), yume_tl_og(), '404' );
+		yume_assert_same( '', \Yume\Core\Library\html_open_graph( yume_tl_og() ) );
+
+		$wp_query            = new WP_Query();
+		$wp_query->is_search = true;
+		$wp_the_query        = $wp_query;
+		yume_assert_same( array(), yume_tl_og(), 'recherche (noindex)' );
+		// phpcs:enable
+
+		// Page Mon compte (yume_pages) et sous-page de l'espace équipe.
+		$compte  = yume_factory_post(
+			array(
+				'post_type'  => 'page',
+				'post_title' => 'Mon compte',
+			)
+		);
+		$equipe  = yume_factory_post(
+			array(
+				'post_type'  => 'page',
+				'post_title' => 'Espace équipe',
+			)
+		);
+		$publier = yume_factory_post(
+			array(
+				'post_type'   => 'page',
+				'post_title'  => 'Publier',
+				'post_parent' => $equipe,
+			)
+		);
+		$autre   = yume_factory_post(
+			array(
+				'post_type'    => 'page',
+				'post_title'   => 'Connexion bis',
+				'post_content' => '<!-- wp:yume/account /-->',
+			)
+		);
+		update_option(
+			'yume_pages',
+			array(
+				'compte' => $compte,
+				'equipe' => $equipe,
+			)
+		);
+		foreach ( array( $compte, $equipe, $publier, $autre ) as $page ) {
+			yume_tl_aller( $page );
+			yume_assert_same( array(), yume_tl_og(), 'page privée ' . get_the_title( $page ) );
+		}
+		$publique = yume_factory_post(
+			array(
+				'post_type'  => 'page',
+				'post_title' => 'Mentions légales',
+			)
+		);
+		yume_tl_aller( $publique );
+		yume_assert_same( 'website', yume_tl_og()['og:type'] ?? '', 'page publique' );
+
+		// Œuvre sans synopsis : ni description ni og:description ; chapitre en aperçu : rien.
+		$oeuvre = yume_tl_oeuvre( 'Sans résumé', array(), array( 'post_content' => '' ) );
+		yume_tl_aller( $oeuvre );
+		$og = yume_tl_og();
+		yume_assert_false( isset( $og['description'] ) || isset( $og['og:description'] ), 'description vide omise' );
+		yume_assert_not_contains( 'name="description"', \Yume\Core\Library\html_open_graph( $og ) );
+		yume_assert_same( 'summary', $og['twitter:card'], 'sans image' );
+
+		$tome      = yume_tl_tome( $oeuvre, 1 );
+		$brouillon = yume_tl_chapitre( $tome, 1, array( 'post_status' => 'draft' ) );
+		yume_tl_aller( $brouillon );
+		yume_assert_same( array(), yume_tl_og(), 'aperçu d’un brouillon' );
+
+		// Chapitre sans texte : résumé de l'œuvre.
+		$grimgar = yume_tl_grimgar();
+		$t9      = yume_tl_tome( $grimgar, 9 );
+		$vide    = yume_tl_chapitre( $t9, 1, array( 'post_content' => '' ) );
+		yume_tl_aller( $vide );
+		yume_assert_contains( 'Quand Haruhiro', yume_tl_og()['og:description'] ?? '' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Nombre de chapitres (yume_nb_chapitres) et requêtes de la fiche (BUG-09)
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tl_test(
+	'yume_nb_chapitres : maintenu à l’ajout, au retrait, à la suppression ; identique au calcul ; repli si absent',
+	static function () {
+		$o      = yume_tl_oeuvre( 'Compteur' );
+		$t      = yume_tl_tome( $o, 1 );
+		$n      = static fn(): int => \Yume\Core\Library\nb_chapitres_tome( $t );
+		$calcul = static fn(): int => count( yume_get_chapitres( $t ) );
+
+		yume_assert_same( 0, $n() );
+		$c1 = yume_tl_chapitre( $t, 1 );
+		$c2 = yume_tl_chapitre( $t, 2 );
+		yume_tl_chapitre( $t, null, array( 'meta_input' => array( 'yume_nature' => 'postface' ) ) );
+		yume_tl_chapitre( $t, 3, array( 'post_status' => 'draft' ) );
+		yume_assert_same( '3', (string) get_post_meta( $t, 'yume_nb_chapitres', true ), 'méta tenue par core' );
+		yume_assert_same( $calcul(), $n() );
+		yume_assert_same( 3, \Yume\Core\Library\calculer_stats_tome( $t )['publies'], 'identique aux statistiques' );
+
+		wp_trash_post( $c2 );
+		yume_assert_same( 2, $n(), 'chapitre à la corbeille' );
+		wp_delete_post( $c1, true );
+		yume_assert_same( 1, $n(), 'chapitre supprimé' );
+		yume_assert_same( $calcul(), $n() );
+
+		// Tome migré sans la méta : calcul.
+		delete_post_meta( $t, 'yume_nb_chapitres' );
+		yume_assert_same( 1, $n(), 'repli sur le calcul' );
+	}
+);
+
+yume_tl_test(
+	'fiche d’œuvre : statistiques des tomes en une requête, identiques au calcul tome par tome, et nombre de requêtes indépendant du nombre de tomes',
+	static function () {
+		global $wpdb;
+		$o     = yume_tl_oeuvre( 'Série longue' );
+		$tomes = array();
+		for ( $i = 1; $i <= 8; $i++ ) {
+			$tomes[ $i ] = yume_tl_tome( $o, $i, array( 'post_date' => yume_tl_date( 40 - $i ) ) );
+			yume_tl_chapitre( $tomes[ $i ], 2 );
+			yume_tl_chapitre( $tomes[ $i ], 1, array( 'menu_order' => 1 ) );
+			yume_tl_chapitre(
+				$tomes[ $i ],
+				null,
+				array(
+					'meta_input' => array( 'yume_nature' => 'prologue' ),
+					'menu_order' => 0,
+				)
+			);
+		}
+		yume_tl_chapitre( $tomes[2], 3, array( 'post_status' => 'draft' ) );
+		// Tome sans chapitre (cache à 0) et arc en cours (chapitres à venir).
+		$vide = yume_tl_tome( $o, 9 );
+		$arc  = yume_tl_tome( $o, 10, array( 'meta_input' => array( 'yume_nature' => 'arc' ) ) );
+		yume_tl_chapitre( $arc, 1 );
+		yume_tl_chapitre(
+			$arc,
+			2,
+			array(
+				'post_status' => 'future',
+				'post_date'   => yume_tl_date( -3 ),
+			)
+		);
+
+		renouveler_version();
+		$stats = \Yume\Core\Library\stats_oeuvre( $o );
+		foreach ( array_merge( $tomes, array( $vide, $arc ) ) as $tome_id ) {
+			yume_assert_same( \Yume\Core\Library\calculer_stats_tome( $tome_id ), $stats[ $tome_id ], 'tome ' . $tome_id );
+		}
+		yume_assert_same( 0, $stats[ $vide ]['publies'] );
+		yume_assert_true( $stats[ $arc ]['en_cours'] && 1 === $stats[ $arc ]['a_venir'], 'arc en cours' );
+
+		// Liste des tomes (statistiques en cache) : autant de requêtes pour 3 que pour 10 tomes.
+		$mesurer = static function ( int $oeuvre ) use ( $wpdb ): int {
+			yume_tl_rendu( 'tome-list', array(), $oeuvre ); // Statistiques en cache.
+			wp_cache_flush();
+			$avant = $wpdb->num_queries;
+			$html  = yume_tl_rendu( 'tome-list', array(), $oeuvre );
+			yume_assert_contains( 'Lire en ligne', $html );
+			return $wpdb->num_queries - $avant;
+		};
+		$petite  = yume_tl_oeuvre( 'Série courte' );
+		for ( $i = 1; $i <= 3; $i++ ) {
+			$t = yume_tl_tome( $petite, $i );
+			yume_tl_chapitre( $t, 1 );
+			yume_tl_chapitre( $t, 2 );
+		}
+		$q_petite = $mesurer( $petite );
+		$q_longue = $mesurer( $o );
+		yume_assert_true( $q_longue <= $q_petite + 2, "requêtes : $q_longue pour 10 tomes, $q_petite pour 3" );
+
+		// Permaliens des premiers chapitres : segments d'URL amorcés en une requête.
+		wp_cache_flush();
+		$premiers = array_map( static fn( int $t ): int => (int) $stats[ $t ]['premier'], $tomes );
+		\Yume\Core\Library\amorcer_caches( array_merge( array( $o ), array_values( $tomes ), $premiers ) );
+		wp_load_alloptions(); // Options vidées par wp_cache_flush() : hors mesure.
+		$avant = $wpdb->num_queries;
+		foreach ( $premiers as $chapitre ) {
+			get_permalink( $chapitre );
+		}
+		yume_assert_same( 0, $wpdb->num_queries - $avant, 'aucune requête par permalien' );
+		yume_assert_same( \Yume\Core\Core\segments_tome( $tomes[1] ), \Yume\Core\Core\calculer_segments( \Yume\Core\Core\ids_par_meta( 'yume_chapitre', 'yume_tome_id', $tomes[1], \Yume\Core\Core\statuts_actifs() ) ), 'segments identiques' );
+	}
+);
+
+yume_tl_test(
+	'pages Yume (yume_pages) chargées en une fois avant le rendu : yume_url_page() sans requête',
+	static function () {
+		global $wpdb;
+		$pages = array();
+		foreach ( array( 'bibliotheque', 'planning', 'compte', 'equipe' ) as $cle ) {
+			$pages[ $cle ] = yume_factory_post(
+				array(
+					'post_type'  => 'page',
+					'post_title' => ucfirst( $cle ),
+					'post_name'  => $cle,
+				)
+			);
+		}
+		update_option( 'yume_pages', $pages );
+		yume_assert_true( false !== has_action( 'template_redirect', 'Yume\Core\Library\amorcer_pages_yume' ) );
+		wp_cache_flush();
+		wp_load_alloptions();
+		\Yume\Core\Library\amorcer_pages_yume();
+		$avant = $wpdb->num_queries;
+		foreach ( array_keys( $pages ) as $cle ) {
+			yume_url_page( $cle );
+		}
+		yume_assert_same( 0, $wpdb->num_queries - $avant );
 	}
 );

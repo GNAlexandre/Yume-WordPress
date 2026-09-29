@@ -616,6 +616,18 @@
 	color: var(--wp--preset--color--texte-fort);
 }
 
+/* Lien dans le texte d'une entrée (nom du tome) : souligné, la couleur seule ne le distingue
+   pas du texte qui l'entoure (WCAG 1.4.1). Déclaré après .yn-team__carte a, qui le retire. */
+.yn-team .yn-journal__texte a {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+.yn-team .yn-journal__texte a:hover,
+.yn-team .yn-journal__texte a:focus-visible {
+	text-decoration-thickness: 2px;
+}
+
 /* Déconnexion (sous le nom, toujours visible). */
 .yn-team__sortie {
 	padding: 0 14px;
@@ -695,6 +707,92 @@
 
 .yn-team__retrait {
 	margin: 0;
+}
+
+/* « Mettre en pause » / « Reprendre » et badge « En pause » (espace équipe seulement). */
+.yn-team__pause-form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	margin: 0;
+}
+
+.yn-team__pause-aide {
+	font-size: 13px;
+}
+
+.yn-team .yn-team__pause {
+	border: 1px dashed var(--wp--preset--color--texte-faible);
+	background: transparent;
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+	vertical-align: middle;
+}
+
+/* Liens de la tête du planning complet (« Afficher tout le planning », export CSV). */
+.yn-team__section-liens {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 16px;
+	margin: 0;
+}
+
+/* Vue « Commentaires » (?vue=commentaires) : file de modération. */
+.yn-moderation__liste {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-moderation__commentaire {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 16px 20px;
+}
+
+.yn-moderation__tete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 12px;
+	margin: 0;
+	font-size: 14px;
+}
+
+.yn-moderation__texte {
+	margin: 0;
+	padding-left: 12px;
+	border-left: 3px solid var(--wp--preset--color--filet);
+	overflow-wrap: anywhere;
+	white-space: pre-line;
+}
+
+.yn-moderation__motifs {
+	margin: 0;
+	padding-left: 18px;
+	font-size: 14px;
+}
+
+.yn-moderation__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+}
+
+.yn-moderation__actions form {
+	margin: 0;
+}
+
+.yn-team .yn-moderation__danger {
+	border-color: var(--wp--preset--color--erreur);
+	color: var(--wp--preset--color--erreur);
 }
 
 .yn-team .yn-team__retirer {

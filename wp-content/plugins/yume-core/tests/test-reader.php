@@ -145,7 +145,7 @@ yume_test(
  */
 
 yume_test(
-	'réglages : valeurs par défaut du doc 04 et 12 polices (Literata par défaut)',
+	'réglages : valeurs par défaut du doc 04 et 13 polices (Literata par défaut, OpenDyslexic en dernier)',
 	function () {
 		yume_assert_same(
 			array(
@@ -159,8 +159,8 @@ yume_test(
 			defauts_reglages()
 		);
 		$polices = polices();
-		yume_assert_same( 12, count( $polices ) );
-		yume_assert_same( array( 'avenir', 'merriweather', 'arial', 'roboto', 'calibri', 'times', 'verdana', 'georgia', 'garamond', 'trebuchet', 'courier', 'literata' ), array_keys( $polices ) );
+		yume_assert_same( 13, count( $polices ) );
+		yume_assert_same( array( 'avenir', 'merriweather', 'arial', 'roboto', 'calibri', 'times', 'verdana', 'georgia', 'garamond', 'trebuchet', 'courier', 'literata', 'opendyslexic' ), array_keys( $polices ) );
 		yume_assert_same( 'Avenir Roman', $polices['avenir']['label'] );
 		yume_assert_contains( 'Nunito Sans', $polices['avenir']['pile'], 'repli libre d’Avenir' );
 		yume_assert_contains( 'serif', $polices['literata']['pile'] );
@@ -441,6 +441,9 @@ yume_test(
 		$s    = yume_tr_serie( 3 );
 		$html = yume_tr_sur( $s['chapitres'][1], static fn() => yume_render_block( 'yume/reader-tools' ) );
 		yume_assert_contains( 'class="yn-reader-tools wp-block-yume-reader-tools"', $html );
+		// Repère « banner » nommé : aucun contenu de la barre hors repère (axe region).
+		yume_assert_true( (bool) preg_match( '/^<header [^>]*class="yn-reader-tools wp-block-yume-reader-tools"[^>]*aria-label="Barre de lecture"/', trim( $html ) ), 'barre dans un <header> nommé' );
+		yume_assert_same( '</header>', substr( trim( $html ), -9 ), 'panneau Paramètres compris dans le repère' );
 		yume_assert_contains( 'data-yn-progression', $html );
 		yume_assert_contains( 'role="progressbar"', $html );
 		yume_assert_contains( 'data-yn-action="marque-page"', $html );
@@ -451,7 +454,7 @@ yume_test(
 		yume_assert_contains( 'aria-modal="true"', $html );
 		yume_assert_contains( 'href="' . esc_url( get_permalink( $s['tome'] ) ) . '"', $html, 'lien Sommaire' );
 		yume_assert_contains( '2 sur 3', $html );
-		yume_assert_same( 12, substr_count( $html, 'name="font"' ) );
+		yume_assert_same( 13, substr_count( $html, 'name="font"' ) );
 		yume_assert_same( 3, substr_count( $html, 'name="theme"' ) );
 		foreach ( array( 'Taille', 'Interligne', 'Opacité du fond', 'Largeur de colonne', 'Valider', 'Réinitialiser par défaut', 'Compact', 'Large', 'Transparent', 'Opaque' ) as $texte ) {
 			yume_assert_contains( $texte, $html );
@@ -675,6 +678,7 @@ yume_test(
 		$url  = yume_url_illustrations( $s['tome'] );
 		$html = yume_tr_sur_illustrations( $s['tome'], static fn() => yume_render_block( 'yume/reader-tools' ) );
 		yume_assert_contains( 'class="yn-reader-tools wp-block-yume-reader-tools"', $html );
+		yume_assert_contains( 'aria-label="Barre de lecture"', $html, 'même repère que sur un chapitre' );
 		yume_assert_not_contains( 'data-yn-action="marque-page"', $html, 'pas de marque-page' );
 		yume_assert_contains( 'data-yn-action="theme"', $html );
 		yume_assert_contains( 'id="yn-parametres-lecture"', $html, 'panneau Paramètres' );

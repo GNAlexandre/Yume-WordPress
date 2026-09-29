@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/oeuvre-onglets",
+	"title": "Onglets de l’œuvre",
+	"category": "yume",
+	"icon": "index-card",
+	"description": "Navigation entre la présentation d’une œuvre et ses sous-pages (Actualités, Glossaire…). Rien si l’œuvre n’a que sa fiche.",
+	"keywords": [
+		"œuvre",
+		"onglets",
+		"actualités"
+	],
+	"textdomain": "yume-core",
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false,
+		"align": [
+			"wide"
+		]
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

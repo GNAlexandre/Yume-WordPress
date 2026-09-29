@@ -1,0 +1,18 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/liste-publique",
+	"title": "Liste de lecture publique",
+	"category": "yume",
+	"icon": "list-view",
+	"description": "Titre, auteur et couvertures d’une liste de lecture (page /listes/{id}-{slug}/, placée automatiquement).",
+	"keywords": [ "liste", "lecture", "partage" ],
+	"textdomain": "yume-core",
+	"supports": {
+		"html": false,
+		"multiple": false,
+		"inserter": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

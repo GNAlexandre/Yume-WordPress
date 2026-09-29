@@ -4,8 +4,8 @@
  * page-large affichant déjà le titre de la page en <h1>).
  *
  * - Connecté : navigation par rubriques (onglets accessibles avec JavaScript, sections
- *   empilées et ancres sans JavaScript) : Lecture en cours, Favoris et alertes, Notes et
- *   commentaires, Réglages de lecture, Alertes, Profil et sécurité, Données et suppression.
+ *   empilées et ancres sans JavaScript) : Lecture en cours, Mes statistiques, Favoris et alertes, Mes
+ *   listes (listes.php), Notifications (notifications-lecteur.php), Notes et commentaires, Réglages de lecture, Alertes, Profil et sécurité, Données et suppression.
  * - Déconnecté : connexion (wp_login_form), mot de passe oublié et inscription en façade.
  *
  * @package Yume\Core
@@ -23,14 +23,17 @@ defined( 'ABSPATH' ) || exit;
  */
 function rubriques_compte( int $nb_favoris = 0 ): array {
 	return array(
-		'yn-lecture'  => __( 'Lecture en cours', 'yume-core' ),
+		'yn-lecture'       => __( 'Lecture en cours', 'yume-core' ),
+		'yn-stats'         => __( 'Mes statistiques', 'yume-core' ),
 		/* translators: %d : nombre de favoris. */
-		'yn-favoris'  => $nb_favoris > 0 ? sprintf( __( 'Favoris et alertes (%d)', 'yume-core' ), $nb_favoris ) : __( 'Favoris et alertes', 'yume-core' ),
-		'yn-notes'    => __( 'Notes et commentaires', 'yume-core' ),
-		'yn-reglages' => __( 'Réglages de lecture', 'yume-core' ),
-		'yn-alertes'  => __( 'Alertes', 'yume-core' ),
-		'yn-profil'   => __( 'Profil et sécurité', 'yume-core' ),
-		'yn-donnees'  => __( 'Données et suppression', 'yume-core' ),
+		'yn-favoris'       => $nb_favoris > 0 ? sprintf( __( 'Favoris et alertes (%d)', 'yume-core' ), $nb_favoris ) : __( 'Favoris et alertes', 'yume-core' ),
+		'yn-listes'        => __( 'Mes listes', 'yume-core' ),
+		'yn-notifications' => __( 'Notifications', 'yume-core' ),
+		'yn-notes'         => __( 'Notes et commentaires', 'yume-core' ),
+		'yn-reglages'      => __( 'Réglages de lecture', 'yume-core' ),
+		'yn-alertes'       => __( 'Alertes', 'yume-core' ),
+		'yn-profil'        => __( 'Profil et sécurité', 'yume-core' ),
+		'yn-donnees'       => __( 'Données et suppression', 'yume-core' ),
 	);
 }
 
@@ -39,7 +42,7 @@ function rubriques_compte( int $nb_favoris = 0 ): array {
  */
 function rendu_compte(): string {
 	if ( apercu_editeur() ) {
-		return rendu_apercu( 'yn-account', __( 'Page compte : lecture en cours, favoris et alertes, notes, réglages, profil, données (connexion et inscription pour les visiteurs).', 'yume-core' ) );
+		return rendu_apercu( 'yn-account', __( 'Page compte : lecture en cours, statistiques, favoris et alertes, notes, réglages, profil, données (connexion et inscription pour les visiteurs).', 'yume-core' ) );
 	}
 	$html = is_user_logged_in() ? compte_connecte() : compte_visiteur();
 	return $html;
@@ -207,7 +210,7 @@ function compte_connecte(): string {
 			}
 		)
 	);
-	$rubriques = rubriques_compte( count( $favoris ) );
+	$rubriques = rubriques_profil_public( rubriques_compte( count( $favoris ) ), $user_id );
 	$donnees   = array_merge( donnees_rest(), array( 'libelles' => libelles_frequences() ) );
 
 	$html  = '<div ' . attributs_racine(
@@ -237,11 +240,15 @@ function compte_connecte(): string {
 
 	$html .= '<div class="yn-account__contenu">';
 	$html .= section_lecture( $user_id );
+	$html .= section_statistiques( $user_id );
 	$html .= section_favoris( $user_id, $favoris );
+	$html .= section_listes( $user_id );
+	$html .= section_notifications( $user_id );
 	$html .= section_notes( $user_id );
 	$html .= section_reglages( $user_id );
 	$html .= section_alertes( $user_id );
 	$html .= section_profil( $user );
+	$html .= section_profil_public( $user );
 	$html .= section_donnees( $user );
 	$html .= '</div></div>';
 	$html .= '<p class="yn-visually-hidden" role="status" aria-live="polite" data-yn-annonce></p>';
@@ -296,6 +303,66 @@ function section_lecture( int $user_id ): string {
 	} else {
 		$html .= '<div class="yn-account__cartes">' . $cartes . '</div>';
 	}
+	return $html . '</section>';
+}
+
+/**
+ * Mes statistiques (PAGE-06) : chiffres clés et état de chaque série commencée, calculés à
+ * partir des positions de lecture du membre connecté seulement (Reader\statistiques_lecture()).
+ *
+ * @param int $user_id Membre.
+ */
+function section_statistiques( int $user_id ): string {
+	$html = debut_section( 'yn-stats', __( 'Mes statistiques', 'yume-core' ), __( 'Estimées d’après votre position dans chaque série', 'yume-core' ) );
+	if ( ! function_exists( '\Yume\Core\Reader\statistiques_lecture' ) ) {
+		return $html . '<p class="yn-account__vide">' . esc_html__( 'Le lecteur en ligne n’est pas disponible.', 'yume-core' ) . '</p></section>';
+	}
+	$stats = \Yume\Core\Reader\statistiques_lecture( $user_id );
+	if ( ! $stats['series'] ) {
+		$bibliotheque = function_exists( 'yume_url_page' ) ? yume_url_page( 'bibliotheque' ) : home_url( '/' );
+		return $html . '<p class="yn-account__vide">' . esc_html__( 'Vos statistiques apparaîtront après votre premier chapitre lu en étant connecté.', 'yume-core' ) . ' <a href="' . esc_url( $bibliotheque ) . '">' . esc_html__( 'Parcourir la bibliothèque', 'yume-core' ) . '</a></p></section>';
+	}
+	$chiffres = array(
+		'tomes'     => array( __( 'Tomes terminés', 'yume-core' ), number_format_i18n( $stats['tomes_termines'] ) ),
+		'chapitres' => array( __( 'Chapitres lus', 'yume-core' ), number_format_i18n( $stats['chapitres_lus'] ) ),
+		'temps'     => array( __( 'Temps de lecture estimé', 'yume-core' ), \Yume\Core\Reader\duree_lisible( $stats['minutes'] ) ),
+		'en-cours'  => array( __( 'Séries en cours', 'yume-core' ), number_format_i18n( $stats['series_en_cours'] ) ),
+		'a-jour'    => array( __( 'Séries à jour', 'yume-core' ), number_format_i18n( $stats['series_a_jour'] ) ),
+	);
+	$html    .= '<div class="yn-card yn-account__bloc yn-account__stats"><p class="yn-label">' . esc_html__( 'En chiffres', 'yume-core' ) . '</p><dl class="yn-account__resume">';
+	foreach ( $chiffres as $cle => $chiffre ) {
+		$html .= '<dt class="yn-muted">' . esc_html( $chiffre[0] ) . '</dt><dd data-yn-stat="' . esc_attr( $cle ) . '"><strong>' . esc_html( $chiffre[1] ) . '</strong></dd>';
+	}
+	$html .= '</dl></div>';
+
+	$html .= '<h3 class="yn-account__sous-titre">' . esc_html__( 'Séries commencées', 'yume-core' ) . '</h3><div class="yn-account__cartes" data-yn-stats-series>';
+	foreach ( $stats['series'] as $serie ) {
+		$part = $serie['chapitres'] > 0 ? (int) floor( 100 * $serie['chapitres_lus'] / $serie['chapitres'] ) : 0;
+		if ( $serie['a_jour'] ) {
+			$etat = pastille( 'ok', '✓', __( 'À jour', 'yume-core' ) );
+		} else {
+			/* translators: %d : nombre de chapitres publiés restant à lire. */
+			$etat = pastille( 'info', '●', sprintf( _n( '%d chapitre à lire', '%d chapitres à lire', $serie['reste'], 'yume-core' ), $serie['reste'] ) );
+		}
+		$detail = sprintf(
+			/* translators: 1 : chapitres lus, 2 : chapitres publiés, 3 : tomes terminés, 4 : tomes publiés. */
+			__( 'Chapitres lus : %1$d sur %2$d · tomes terminés : %3$d sur %4$d', 'yume-core' ),
+			$serie['chapitres_lus'],
+			$serie['chapitres'],
+			$serie['tomes_termines'],
+			$serie['tomes']
+		);
+		$html .= '<article class="yn-card yn-account__carte" data-yn-serie="' . esc_attr( (string) $serie['oeuvre_id'] ) . '">'
+			. mini_couverture( $serie['oeuvre_id'], $serie['titre'] )
+			. '<div class="yn-account__carte-corps">'
+			. '<h4 class="yn-account__carte-titre"><a href="' . esc_url( $serie['url'] ) . '">' . esc_html( $serie['titre'] ) . '</a></h4>'
+			. '<p class="yn-muted yn-account__carte-detail">' . esc_html( $detail ) . '</p>'
+			. '<span class="yn-bar" aria-hidden="true"><span style="--v:' . esc_attr( (string) $part ) . '%"></span></span>'
+			. '<p class="yn-account__carte-detail">' . $etat . '</p>'
+			. '</div></article>';
+	}
+	$html .= '</div>';
+	$html .= '<p class="yn-muted yn-account__aide">' . esc_html__( 'Un chapitre compte comme lu quand vous l’avez parcouru jusqu’à 90 % ou que vous êtes passé au suivant. Temps estimé à partir de la longueur des chapitres. « À jour » : vous avez lu tous les chapitres publiés de la série.', 'yume-core' ) . '</p>';
 	return $html . '</section>';
 }
 
@@ -444,7 +511,7 @@ function section_reglages( int $user_id ): string {
 	$html .= '<form class="yn-card yn-account__bloc yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 		. '<input type="hidden" name="action" value="yume_compte_reglages">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-		. wp_nonce_field( 'yume_compte_reglages', '_yn_nonce', false, false )
+		. champ_nonce( 'yume_compte_reglages' )
 		. '<p class="yn-label">' . esc_html__( 'Modifier ici', 'yume-core' ) . '</p>'
 		. '<div class="yn-account__champs">';
 	$html .= '<p class="yn-account__champ"><label for="yn-r-font">' . esc_html__( 'Police', 'yume-core' ) . '</label><select id="yn-r-font" name="yn_font">';
@@ -493,7 +560,7 @@ function section_alertes( int $user_id ): string {
 	$html   .= '<form class="yn-card yn-account__bloc yn-account__alertes" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 		. '<input type="hidden" name="action" value="yume_compte_alertes">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-		. wp_nonce_field( 'yume_compte_alertes', '_yn_nonce', false, false )
+		. champ_nonce( 'yume_compte_alertes' )
 		. '<p class="yn-label">' . esc_html__( 'Alertes', 'yume-core' ) . '</p><ul class="yn-account__interrupteurs">';
 	foreach ( $options as $cle => $option ) {
 		$id    = 'yn-pref-' . $cle;
@@ -501,7 +568,11 @@ function section_alertes( int $user_id ): string {
 			. '<span class="yn-muted" id="' . esc_attr( $id . '-aide' ) . '">' . esc_html( $option[1] ) . '</span></span>'
 			. '<input type="checkbox" role="switch" class="yn-interrupteur" id="' . esc_attr( $id ) . '" name="yn_' . esc_attr( $cle ) . '" value="1" aria-describedby="' . esc_attr( $id . '-aide' ) . '"' . checked( $prefs[ $cle ], true, false ) . '></label></li>';
 	}
-	$html .= '<li class="yn-account__interrupteur yn-account__interrupteur--bientot"><span class="yn-account__interrupteur-texte">' . esc_html__( 'Notifications navigateur (bientôt)', 'yume-core' ) . '</span>' . pastille( 'info', '◷', 'v2.1' ) . '</li>';
+	if ( push_actif() ) {
+		// Notifications navigateur (AMEL-06) : activées appareil par appareil (push.php).
+		$html .= '<li class="yn-account__interrupteur"><span class="yn-account__interrupteur-texte">' . esc_html__( 'Notifications navigateur', 'yume-core' )
+			. '<span class="yn-muted">' . esc_html__( 'À activer sur chaque appareil dans la rubrique', 'yume-core' ) . ' <a href="#yn-notifications">' . esc_html__( 'Notifications', 'yume-core' ) . '</a>.</span></span></li>';
+	}
 	$html .= '</ul><div class="yn-account__boutons"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Enregistrer les alertes', 'yume-core' ) . '</button></div></form>';
 	return $html . '</section>';
 }
@@ -517,7 +588,7 @@ function section_profil( \WP_User $user ): string {
 	$html   .= '<form class="yn-card yn-account__bloc yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 		. '<input type="hidden" name="action" value="yume_compte_profil">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-		. wp_nonce_field( 'yume_compte_profil', '_yn_nonce', false, false )
+		. champ_nonce( 'yume_compte_profil' )
 		. '<div class="yn-account__champs">'
 		. '<p class="yn-account__champ"><label for="yn-pseudo">' . esc_html__( 'Pseudo', 'yume-core' ) . '</label>'
 		. '<input type="text" id="yn-pseudo" name="yn_pseudo" value="' . esc_attr( $user->display_name ) . '" minlength="2" maxlength="40" autocomplete="nickname" aria-describedby="yn-pseudo-aide">'
@@ -557,16 +628,16 @@ function section_donnees( \WP_User $user ): string {
 	$export = add_query_arg( '_wpnonce', wp_create_nonce( 'wp_rest' ), rest_url( REST_NS . '/moi/export' ) );
 	$html  .= '<div class="yn-account__deux">'
 		. '<div class="yn-card yn-account__bloc"><h3 class="yn-account__sous-titre">' . esc_html__( 'Vos données', 'yume-core' ) . '</h3>'
-		. '<p>' . esc_html__( 'Nous conservons uniquement votre pseudo, votre adresse e-mail, vos favoris et alertes, vos notes, vos positions de lecture, vos réglages de lecture et vos commentaires.', 'yume-core' ) . '</p>'
+		. '<p>' . esc_html__( 'Nous conservons uniquement votre pseudo, votre adresse e-mail, vos favoris et alertes, vos listes de lecture, vos notifications, vos notes, vos positions de lecture, vos réglages de lecture et vos commentaires.', 'yume-core' ) . '</p>'
 		. '<p><a class="yn-btn" href="' . esc_url( $export ) . '" download>' . esc_html__( 'Télécharger mes données (JSON)', 'yume-core' ) . '</a></p></div>';
 
 	$html .= '<div class="yn-card yn-account__bloc yn-account__danger"><h3 class="yn-account__sous-titre">' . esc_html__( 'Supprimer mon compte', 'yume-core' ) . '</h3>';
 	if ( peut_supprimer_compte( (int) $user->ID ) ) {
-		$html .= '<p>' . esc_html__( 'La suppression est définitive : vos favoris, notes, positions, réglages et préférences sont effacés ; vos commentaires restent publiés mais anonymisés.', 'yume-core' ) . '</p>'
+		$html .= '<p>' . esc_html__( 'La suppression est définitive : vos favoris, listes, notifications, notes, positions, réglages et préférences sont effacés ; vos commentaires restent publiés mais anonymisés.', 'yume-core' ) . '</p>'
 			. '<form class="yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 			. '<input type="hidden" name="action" value="yume_compte_supprimer">'
 			. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
-			. wp_nonce_field( 'yume_compte_supprimer', '_yn_nonce', false, false )
+			. champ_nonce( 'yume_compte_supprimer' )
 			. '<p class="yn-account__champ"><label for="yn-suppression-confirmation">' . esc_html__( 'Saisissez SUPPRIMER pour confirmer', 'yume-core' ) . '</label>'
 			. '<input type="text" id="yn-suppression-confirmation" name="yn_confirmation" required autocomplete="off" spellcheck="false" pattern="[Ss][Uu][Pp][Pp][Rr][Ii][Mm][Ee][Rr]"></p>'
 			. '<p class="yn-account__champ"><label for="yn-suppression-mdp">' . esc_html__( 'Mot de passe actuel', 'yume-core' ) . '</label>'
@@ -631,7 +702,7 @@ function compte_visiteur(): string {
 		. '<form class="yn-account__formulaire" method="post" action="' . $action . '">'
 		. '<input type="hidden" name="action" value="yume_oubli">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( $ici ) . '">'
-		. wp_nonce_field( 'yume_oubli', '_yn_nonce', false, false )
+		. champ_nonce( 'yume_oubli' )
 		. '<p class="yn-account__champ"><label for="yn-oubli-identifiant">' . esc_html__( 'Pseudo ou adresse e-mail', 'yume-core' ) . '</label>'
 		. '<input type="text" id="yn-oubli-identifiant" name="yn_identifiant" required autocomplete="username"></p>'
 		. '<div class="yn-account__boutons"><button type="submit" class="yn-btn">' . esc_html__( 'Recevoir un lien de réinitialisation', 'yume-core' ) . '</button></div>'
@@ -647,7 +718,7 @@ function compte_visiteur(): string {
 			. '<input type="hidden" name="action" value="yume_inscription">'
 			. '<input type="hidden" name="yn_retour" value="' . esc_url( $ici ) . '">'
 			. '<input type="hidden" name="yn_jeton" value="' . esc_attr( jeton_formulaire() ) . '">'
-			. wp_nonce_field( 'yume_inscription', '_yn_nonce', false, false )
+			. champ_nonce( 'yume_inscription' )
 			. '<p class="yn-account__champ"><label for="yn-inscription-pseudo">' . esc_html__( 'Pseudo', 'yume-core' ) . '</label>'
 			. '<input type="text" id="yn-inscription-pseudo" name="yn_pseudo" required minlength="3" maxlength="40" autocomplete="username" aria-describedby="yn-inscription-pseudo-aide">'
 			. '<span class="yn-muted yn-account__note" id="yn-inscription-pseudo-aide">' . esc_html__( '3 à 40 caractères : lettres, chiffres, espaces, points, tirets et tirets bas.', 'yume-core' ) . '</span></p>'

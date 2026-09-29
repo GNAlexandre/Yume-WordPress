@@ -1,0 +1,44 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/recherche",
+	"title": "Résultats de recherche",
+	"category": "yume",
+	"icon": "search",
+	"description": "Résultats de la recherche du site (/?s=) groupés : œuvres, tomes, actualités et, si le réglage est actif, texte des chapitres. Filtres (contenu, statut de l’œuvre, genre, tri), compteurs, termes surlignés, pagination par groupe.",
+	"keywords": [
+		"recherche",
+		"résultats",
+		"search"
+	],
+	"textdomain": "yume-core",
+	"attributes": {
+		"perPage": {
+			"type": "number",
+			"default": 20,
+			"label": "Résultats par page (un seul groupe affiché)"
+		},
+		"apercu": {
+			"type": "number",
+			"default": 5,
+			"label": "Résultats par groupe (tous les groupes affichés)"
+		},
+		"showFilters": {
+			"type": "boolean",
+			"default": true,
+			"label": "Afficher les filtres"
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [
+			"wide",
+			"full"
+		]
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}

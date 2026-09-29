@@ -378,7 +378,8 @@ function prerequis_masques( int $user_id ): array {
 
 /**
  * L'avis doit-il être affiché sur cet écran ? Tableau de bord, écrans Yume, extensions et
- * réglages (pas sur chaque écran d'édition).
+ * réglages (pas sur chaque écran d'édition, ni sur Yume → Santé, qui détaille déjà les
+ * prérequis).
  */
 function ecran_prerequis(): bool {
 	$ecran = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
@@ -386,6 +387,9 @@ function ecran_prerequis(): bool {
 		return true;
 	}
 	$id = (string) $ecran->id;
+	if ( 'yume_page_' . PAGE_SANTE === $id ) {
+		return false;
+	}
 	return in_array( $id, array( 'dashboard', 'plugins', 'toplevel_page_yume', 'users', 'profile' ), true )
 		|| str_starts_with( $id, 'yume_page_' ) || str_starts_with( $id, 'options-' );
 }
@@ -440,7 +444,9 @@ function avis_prerequis_production(): void {
 	}
 	echo '</ul><p>';
 	printf(
-		'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a> · <a href="%3$s">%4$s</a>',
+		'<a href="%1$s">%2$s</a> · <a href="%3$s" target="_blank" rel="noopener noreferrer">%4$s</a> · <a href="%5$s">%6$s</a>',
+		esc_url( url_sante() . '#yn-sante-prerequis' ),
+		esc_html__( 'Détail dans la santé du site (espace équipe)', 'yume-core' ),
 		esc_url( URL_DOC_MISE_EN_PRODUCTION ),
 		esc_html__( 'Liste de mise en production (docs/mise-en-production.md)', 'yume-core' ),
 		esc_url( url_action_prerequis( 'masquer' ) ),

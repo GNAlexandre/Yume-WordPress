@@ -1,0 +1,248 @@
+/**
+ * yume/recherche — filtres en pastilles, groupes de résultats, surlignage, pagination.
+ * Couleurs : variables du thème (§15).
+ */
+.yn-search {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
+
+.yn-search > *,
+.yn-search p {
+	margin: 0;
+}
+
+/* Filtres */
+.yn-search__filtres {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.yn-search__groupe-filtres {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+}
+
+.yn-search__legende {
+	flex: 0 0 132px;
+}
+
+.yn-search .yn-search__pastilles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-search .yn-search__pastilles > li {
+	margin: 0;
+}
+
+.yn-search .yn-search__pastille {
+	min-height: 32px;
+	padding: 4px 12px;
+	font-size: 13px;
+	text-decoration: none;
+}
+
+.yn-search .yn-search__pastille:not(.is-active):hover,
+.yn-search .yn-search__pastille:not(.is-active):focus-visible {
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-search .yn-search__pastille.is-active:hover,
+.yn-search .yn-search__pastille.is-active:focus-visible {
+	border-color: var(--yn-accent-survol);
+	background: var(--yn-accent-survol);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-search__nombre,
+.yn-search__compteur {
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+}
+
+.yn-search__resume {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+/* Groupes */
+.yn-search__section {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.yn-search .yn-search__titre {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 0;
+	font-size: 22px;
+}
+
+.yn-search__compteur {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 15px;
+}
+
+.yn-search .yn-search__liste {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-search__item {
+	position: relative;
+	display: flex;
+	gap: 14px;
+	align-items: flex-start;
+	margin: 0;
+	padding: 14px 16px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+	background: var(--wp--preset--color--carte);
+}
+
+.yn-search__item:hover,
+.yn-search__item:focus-within {
+	border-color: var(--wp--preset--color--bordure);
+}
+
+.yn-search .yn-search__vignette {
+	flex: 0 0 56px;
+	width: 56px;
+	font-size: 8px;
+}
+
+.yn-search .yn-search__vignette .yn-cover__texte {
+	display: none;
+}
+
+.yn-search__corps {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.yn-search .yn-search__nom {
+	margin: 0;
+	font-size: 17px;
+	line-height: 1.3;
+}
+
+.yn-search__lien {
+	color: var(--wp--preset--color--texte-fort);
+	text-decoration: none;
+}
+
+.yn-search__lien::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+}
+
+.yn-search__lien:focus-visible {
+	outline: none;
+}
+
+.yn-search__item:has(.yn-search__lien:focus-visible) {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-search__detail,
+.yn-search__meta {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 13px;
+}
+
+.yn-search__extrait {
+	font-size: 14px;
+	line-height: 1.55;
+	overflow-wrap: anywhere;
+}
+
+.yn-search .yn-search__marque {
+	padding: 0;
+	border-radius: 2px;
+	box-shadow: 0 0 0 1px var(--wp--preset--color--selection);
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-search__note {
+	font-size: 13px;
+}
+
+.yn-search__pagination {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+/* Aucun résultat */
+.yn-search__vide {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 28px 24px;
+	border: 1px dashed var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+}
+
+.yn-search__vide > * {
+	margin: 0;
+}
+
+.yn-search .yn-search__proches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 16px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-search__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+@media (max-width: 599.98px) {
+	.yn-search__groupe-filtres {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.yn-search__legende {
+		flex-basis: auto;
+	}
+
+	.yn-search__item {
+		padding: 12px;
+	}
+
+	.yn-search .yn-search__vignette {
+		flex-basis: 44px;
+		width: 44px;
+	}
+}

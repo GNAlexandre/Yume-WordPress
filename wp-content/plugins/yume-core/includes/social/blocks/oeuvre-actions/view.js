@@ -1,7 +1,8 @@
 /**
  * Actions de la fiche œuvre (bloc yume/oeuvre-actions), amélioration progressive :
  * sans JavaScript, les formulaires admin-post fonctionnent ; avec, les actions passent par la
- * REST (/yume/v1/moi/favoris|notes|alertes/{oeuvre}, nonce en X-WP-Nonce) sans recharger.
+ * REST (/yume/v1/moi/favoris|notes|alertes/{oeuvre}, /moi/listes…, nonce en X-WP-Nonce) sans
+ * recharger.
  * Visiteur : le bouton « Reprendre » est rempli depuis localStorage['yn.progression'].
  *
  * JavaScript sans étape de build (ES2019), sans dépendance.
@@ -286,6 +287,89 @@
 				if ( coche ) {
 					envoyerAlerte( coche.value );
 				}
+			} );
+		}
+
+		// Listes de lecture (listes.php) : chaque case ajoute ou retire l'œuvre aussitôt
+		// (PUT/DELETE /moi/listes/{id}/oeuvres/{oeuvre}) ; « Créer » crée la liste puis y ajoute
+		// l'œuvre. Les listes « À lire », « En cours » et « Terminé » s'excluent : l'état
+		// renvoyé par la REST resynchronise toutes les cases.
+		const formListes = racine.querySelector( 'form[data-yn-form="listes"]' );
+		if ( formListes ) {
+			const conteneur = formListes.querySelector( '[data-yn-listes]' );
+			const resumeListes = racine.querySelector( '[data-yn-listes-resume]' );
+			const champNom = formListes.querySelector( '[data-yn-nouvelle-liste]' );
+			const majListes = function ( etat ) {
+				const ids = ( etat && etat.listes ) || [];
+				formListes.querySelectorAll( 'input[data-yn-liste]' ).forEach( function ( caseListe ) {
+					caseListe.checked = ids.indexOf( parseInt( caseListe.value, 10 ) ) > -1;
+				} );
+				if ( resumeListes ) {
+					resumeListes.textContent = ids.length ? 'Dans ' + ids.length + ( ids.length > 1 ? ' listes' : ' liste' ) : 'Ajouter à une liste';
+				}
+			};
+			const nomListe = function ( caseListe ) {
+				const etiquette = caseListe.parentNode.querySelector( 'span' );
+				return etiquette ? etiquette.textContent : '';
+			};
+			formListes.addEventListener( 'change', function ( e ) {
+				const caseListe = e.target;
+				if ( ! caseListe || ! caseListe.hasAttribute( 'data-yn-liste' ) ) {
+					return;
+				}
+				const coche = caseListe.checked;
+				caseListe.disabled = true;
+				requete( coche ? 'PUT' : 'DELETE', 'moi/listes/' + caseListe.value + '/oeuvres/' + config.oeuvre )
+					.then( function ( etat ) {
+						majListes( etat );
+						annoncer( ( coche ? 'Ajoutée à la liste ' : 'Retirée de la liste ' ) + nomListe( caseListe ) + '.' );
+					} )
+					.catch( function ( erreur ) {
+						caseListe.checked = ! coche;
+						annoncer( erreur && erreur.message ? erreur.message : 'La liste n’a pas pu être mise à jour. Réessayez.' );
+					} )
+					.then( function () {
+						caseListe.disabled = false;
+					} );
+			} );
+			formListes.addEventListener( 'submit', function ( e ) {
+				e.preventDefault();
+				const nom = champNom ? champNom.value.trim() : '';
+				if ( ! nom ) {
+					if ( champNom ) {
+						champNom.focus();
+					}
+					annoncer( 'Donnez un nom à la nouvelle liste.' );
+					return;
+				}
+				requete( 'POST', 'moi/listes', { nom: nom } )
+					.then( function ( liste ) {
+						return requete( 'PUT', 'moi/listes/' + liste.id + '/oeuvres/' + config.oeuvre ).then( function ( etat ) {
+							const li = document.createElement( 'li' );
+							const label = document.createElement( 'label' );
+							const caseListe = document.createElement( 'input' );
+							const texte = document.createElement( 'span' );
+							label.className = 'yn-oeuvre-actions__liste';
+							label.htmlFor = 'yn-liste-' + liste.id;
+							caseListe.type = 'checkbox';
+							caseListe.id = 'yn-liste-' + liste.id;
+							caseListe.name = 'yn_listes[]';
+							caseListe.value = String( liste.id );
+							caseListe.setAttribute( 'data-yn-liste', String( liste.id ) );
+							texte.textContent = liste.nom;
+							label.appendChild( caseListe );
+							label.appendChild( document.createTextNode( ' ' ) );
+							label.appendChild( texte );
+							li.appendChild( label );
+							conteneur.appendChild( li );
+							majListes( etat );
+							champNom.value = '';
+							annoncer( 'Liste « ' + liste.nom + ' » créée, l’œuvre y est ajoutée.' );
+						} );
+					} )
+					.catch( function ( erreur ) {
+						annoncer( erreur && erreur.message ? erreur.message : 'La liste n’a pas pu être créée. Réessayez.' );
+					} );
 			} );
 		}
 

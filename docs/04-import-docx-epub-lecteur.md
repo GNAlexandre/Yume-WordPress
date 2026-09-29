@@ -109,7 +109,7 @@ n'a pas de position dans le tome. Un vrai chapitre de nature « Illustrations »
 | Taille | `--yn-size` | 18 px | 14–26 |
 | Interligne | `--yn-lh` | 1,6 | 1,3–2,1 (« compact → large ») |
 | Opacité du fond | `--yn-bg-alpha` | 0,93 | 0,6–1 (« transparent → opaque », l'illustration/bandeau de l'œuvre en arrière-plan) |
-| Police | `--yn-font` | Literata (défaut « Avenir » remplacé par une police libre équivalente : Nunito Sans) | 12 choix : Avenir/Nunito Sans, Merriweather, Arial, Roboto, Calibri/Carlito, Times New Roman, Verdana, Georgia, Garamond/EB Garamond, Trebuchet MS, Courier New, Literata |
+| Police | `--yn-font` | Literata (défaut « Avenir » remplacé par une police libre équivalente : Nunito Sans) | 13 choix : Avenir/Nunito Sans, Merriweather, Arial, Roboto, Calibri/Carlito, Times New Roman, Verdana, Georgia, Garamond/EB Garamond, Trebuchet MS, Courier New, Literata, OpenDyslexic (dyslexie ; aussi par la case « Police adaptée à la dyslexie » du groupe Accessibilité) |
 | Thème | `data-yn-theme` | suit le site | nocturne · papier · sépia |
 | Largeur | `--yn-width` | 68 ch | 56–80 |
 

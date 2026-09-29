@@ -135,6 +135,11 @@ figer alors le dépôt dans *Yume → Réglages* et le noter dans le ticket.
       Webhooks*, supprimer les anciens (ceux utilisés en préproduction ou partagés), en créer de
       nouveaux et les coller dans *Yume → Réglages* ; ne jamais les coller dans un ticket ou un
       message.
+- [ ] **Notifications navigateur** (*Yume → Réglages → Notifications*) : le site doit être servi en
+      **HTTPS** et les tâches planifiées doivent tourner (sinon les push et la purge des notifications
+      n'ont jamais lieu) : *Outils → Santé du site* sans erreur sur les tâches planifiées ; avec un
+      compte lecteur, activer les notifications dans *Mon compte → Notifications* et vérifier qu'une
+      sortie d'un favori s'affiche sur l'appareil. Décocher la case si ce n'est pas le cas.
 - [ ] **XML-RPC** : Jetpack en a besoin sur WordPress.com ; ne pas le désactiver entièrement.
       `yume-core` retire les méthodes d'authentification exposées (SEC-06). Sans Jetpack, l'avis
       demande de le désactiver.

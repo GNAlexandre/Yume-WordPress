@@ -4,9 +4,12 @@
 #                blueprints Playground régénérés depuis tools/playground/demo.php
 #   normes       PHPCS : WordPress-Extra + WordPress-Docs + phpcs.xml.dist (bloquant : zéro écart)
 #   tests        WordPress fr_FR monté comme tools/localenv, puis tests/runner.php, sur la version
-#                minimale déclarée (6.6) et la dernière, avec SQLite et MariaDB 10.11 (production)
+#                minimale déclarée (6.6) et la dernière, avec SQLite et MariaDB 10.11 (production) ;
+#                comprend la matrice de sécurité REST et les DOCX malveillants (securite-rest,
+#                securite-import)
 #   rendu        démo (tools/playground/demo.php) servie par php -S, styles calculés des blocs vérifiés
-#                dans Chromium (tools/ci/rendu.js) sur WordPress 6.6 et la dernière, puis comparés
+#                dans Chromium (tools/ci/rendu.js) sur WordPress 6.6 et la dernière, puis comparés ;
+#                axe-core (WCAG 2.1 A/AA) sur les mêmes pages : aucune violation sérieuse ou critique
 #   archives     dist/yume-core.zip et dist/yume.zip en artefacts téléchargeables
 #
 # Déclenché à chaque push de branche et à chaque pull request ; appelé aussi par release.yml
@@ -195,7 +198,8 @@ jobs:
   # Revue RC-1/RC-2 : sous WordPress 6.6.0, les styles globaux du cœur écrasaient les sélecteurs de
   # bloc non préfixés (titre du panneau de lecture en 28px/700, lien de retour en rose accent…).
   # Ce job ouvre les pages œuvre, tome et chapitre (panneau Paramètres ouvert) de la démo dans
-  # Chromium et compare font-size, font-weight et color à tools/ci/rendu-attendus.js.
+  # Chromium et compare font-size, font-weight et color à tools/ci/rendu-attendus.js, puis y exécute
+  # axe-core (WCAG 2.1 A/AA) : une violation « serious » ou « critical » fait échouer le job (AMEL-14).
   # Garder « 6.6 » exact (6.6.0) : la régression ne se reproduit plus à partir de 6.6.1.
   rendu:
     name: Rendu WordPress ${{ matrix.wp }} (PHP ${{ matrix.php }})
@@ -245,13 +249,14 @@ jobs:
           tools/localenv/wp.sh core version --extra
           tools/localenv/wp.sh eval-file tools/playground/demo.php
 
-      - name: Installer Playwright et Chromium
+      # Versions figées par tools/ci/package-lock.json (npm ci).
+      - name: Installer Playwright, axe-core et Chromium
         working-directory: tools/ci
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Styles calculés (tools/ci/rendu.sh)
+      - name: Styles calculés et accessibilité (tools/ci/rendu.sh)
         env:
           YUME_RENDU_JOURNAL: ${{ runner.temp }}/rendu-serveur.log
         run: |

@@ -2,6 +2,46 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0-dev.14 — 2026-09-28
+
+- Dernières corrections : vue Glossaires (liens soulignés, plus de débordement à 390 px, titres alignés sur les autres vues, repère nommé), identifiants _yn_nonce uniques dans les formulaires du compte.
+
+## 2.0.0-dev.13 — 2026-09-28
+
+- Revue de sécurité : abonnements Web Push liés à la session (révoqués à la déconnexion et au changement de mot de passe), purge des nouvelles tables à la désinstallation, brouillon de glossaire en base (plus en cache objet), détection de transaction compatible MySQL 8, pause d'un tome invalidant ICS et indicateurs, listes publiques à jeton aléatoire, purge Batcache, signalements pondérés par l'ancienneté et jamais de masquage automatique pour l'équipe.
+
+## 2.0.0-dev.12 — 2026-09-28
+
+- Corrections du parcours final : liens des commentaires soulignés, Échap des suggestions sans fermer le menu mobile, tableau du tableau de bord défilant à 390 px, « des »/« du » dans les titres d'annonce, messages de publication exacts sans DOCX.
+
+## 2.0.0-dev.11 — 2026-09-28
+
+- Glossaire : lecteur YAML en temps linéaire pour les chaînes entre guillemets et les listes en ligne sur plusieurs lignes (déni de service par le CPU corrigé).
+
+## 2.0.0-dev.10 — 2026-09-28
+
+- Santé du site intégrée à l'espace équipe (?vue=sante, design du site, dates en français) ; Yume → Santé redirige vers la vue ; prérequis affichés une seule fois ; libellés des tâches de notifications.
+
+## 2.0.0-dev.9 — 2026-09-28
+
+- Glossaire : nouvelle structure Yume-Trad (graphies_refusees en notes d'équipe, genre « ? », termes_source vide, termes anglais en lang="en", terme VO identique au nom non répété).
+
+## 2.0.0-dev.8 — 2026-09-28
+
+- Phase 3 nouvelles pages : glossaire par œuvre (format YAML de Yume-Trad, envoi ponctuel authentifié, téléversement et historique dans l'espace équipe, notes de traduction réservées à l'équipe) ; onglets de la fiche d'œuvre et actualités par œuvre ; page « Rejoindre l'équipe » et profils publics de contributeurs sur consentement ; listes de lecture, centre de notifications et notifications navigateur ; recherche avancée insensible aux accents avec suggestions (chapitres désactivés par défaut).
+
+## 2.0.0-dev.7 — 2026-09-28
+
+- Routage : sous-pages d'œuvre /oeuvres/{oeuvre}/{onglet}/ déclarées par le filtre yume_sous_pages_oeuvre (préparation des actualités et du glossaire).
+
+## 2.0.0-dev.6 — 2026-09-28
+
+- Phase 2 améliorations : flux ICS du planning, calendrier mensuel et RSS par œuvre ; vue Indicateurs et page Santé (crons, e-mails, test Discord) ; pause d'un tome, tri « en retard d'abord », export CSV, rappels plafonnés ; signalement et modération des commentaires, badge Équipe ; lecture hors ligne, police OpenDyslexic, contraste renforcé, statistiques de lecture ; matrice de sécurité REST, DOCX et EPUB piégés, axe-core en CI ; lecteur YAML pour le glossaire.
+
+## 2.0.0-dev.5 — 2026-09-28
+
+- Phase 1 corrections : accessibilité (liens du journal soulignés, repère de la barre de lecture, recherches nommées, titres de Nos réseaux), accueil avec h1, partenaires du pied de page suivant le réglage, lien Contactez-nous, libellés français quelle que soit la langue, liens d'auteur sans 404, Open Graph et Twitter Cards, requêtes N+1 supprimées, vues de l'espace équipe extensibles (yume_vues_equipe).
+
 ## 2.0.0-dev.4 — 2026-09-28
 
 - Phase 0 sécurité : intégrité des mises à jour (SHA256SUMS, hôtes autorisés), points d'entrée WordPress (REST utilisateurs, XML-RPC, en-têtes, inscription et mot de passe oublié limités), gérant sans gestion directe des comptes, liste de mise en production et avis des prérequis, Dependabot et CODEOWNERS.

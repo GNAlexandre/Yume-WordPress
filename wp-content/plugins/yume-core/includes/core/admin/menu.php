@@ -181,7 +181,7 @@ function afficher_tableau_de_bord(): void {
 		echo '<p>' . esc_html__( 'Aucun tome en préparation.', 'yume-core' ) . '</p>';
 	} else {
 		$etapes = yume_etapes();
-		echo '<table class="widefat striped yume-admin__table"><thead><tr>';
+		echo '<div style="overflow-x:auto"><table class="widefat striped yume-admin__table"><thead><tr>';
 		echo '<th scope="col">' . esc_html__( 'Œuvre', 'yume-core' ) . '</th>';
 		echo '<th scope="col">' . esc_html__( 'Tome', 'yume-core' ) . '</th>';
 		echo '<th scope="col">' . esc_html__( 'Étape', 'yume-core' ) . '</th>';
@@ -215,7 +215,7 @@ function afficher_tableau_de_bord(): void {
 			echo '<td>' . esc_html( $date ? date_i18n( 'j F Y', (int) strtotime( $date . ' 12:00:00' ) ) : '—' ) . '</td>';
 			echo '</tr>';
 		}
-		echo '</tbody></table>';
+		echo '</tbody></table></div>';
 	}
 	echo '</div>';
 }

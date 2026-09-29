@@ -10,6 +10,10 @@
  *   localStorage yn.progression (clé : œuvre) et, pour les membres, PUT /moi/progression
  *   (au plus toutes les 10 s, et au départ de la page avec fetch keepalive).
  * - Marque-page explicite avec retour visuel ; bandeau « Reprendre au paragraphe N ».
+ * - Options d'accessibilité (AMEL-08) : police OpenDyslexic (case liée au choix de police),
+ *   contraste renforcé (html[data-yn-contraste="renforce"]) et animations réduites
+ *   (html[data-yn-animations="reduites"], la préférence système prefers-reduced-motion
+ *   s'applique toujours) ; mémorisées sur l'appareil dans localStorage yn.a11y (contrat §14).
  * - Raccourcis : ← / → chapitre précédent / suivant, « s » paramètres (inactifs dans un champ).
  * - Page « Illustrations » d'un tome (config.chapitre = 0) : ni suivi ni marque-page, la
  *   position enregistrée n'est jamais remplacée ; → ouvre le premier chapitre.
@@ -33,6 +37,8 @@
 	const CLE_REGLAGES = 'yn.reglages';
 	const CLE_PROGRESSION = 'yn.progression';
 	const CLE_THEME = 'yn.theme';
+	const CLE_A11Y = 'yn.a11y';
+	const POLICE_DYSLEXIE = 'opendyslexic';
 	const THEMES = [ 'nuit', 'papier', 'sepia' ];
 	const NOMS_THEMES = config.themes || { nuit: 'Nuit', papier: 'Papier', sepia: 'Sépia' };
 	const MAX_ENTREES = 100;
@@ -42,7 +48,7 @@
 	const D = config.defauts;
 	const B = config.bornes;
 	const P = config.polices || {};
-	const reduit = window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+	const systemeReduit = !! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
 
 	const collant = racine.querySelector( '.yn-reader-tools__collant' );
 	const dialogue = document.getElementById( 'yn-parametres-lecture' );
@@ -194,6 +200,36 @@
 	}
 
 	/* ------------------------------------------------------------------ */
+	/* Accessibilité (yn.a11y, appareil seulement)                         */
+	/* ------------------------------------------------------------------ */
+
+	function validerA11y( brut ) {
+		const source = brut && typeof brut === 'object' ? brut : {};
+		return {
+			contraste: source.contraste === true,
+			animations: source.animations === 'reduites' ? 'reduites' : 'systeme',
+		};
+	}
+
+	/** Pose (ou retire) les attributs d'accessibilité sur <html>. */
+	function appliquerA11y( a ) {
+		if ( a.contraste ) {
+			html.setAttribute( 'data-yn-contraste', 'renforce' );
+		} else {
+			html.removeAttribute( 'data-yn-contraste' );
+		}
+		if ( a.animations === 'reduites' ) {
+			html.setAttribute( 'data-yn-animations', 'reduites' );
+		} else {
+			html.removeAttribute( 'data-yn-animations' );
+		}
+	}
+
+	function mouvementsReduits() {
+		return systemeReduit || html.getAttribute( 'data-yn-animations' ) === 'reduites';
+	}
+
+	/* ------------------------------------------------------------------ */
 	/* Réglages de lecture                                                 */
 	/* ------------------------------------------------------------------ */
 
@@ -226,6 +262,7 @@
 		const base = config.reglages || lireJSON( CLE_REGLAGES ) || {};
 		const r = valider( base );
 		r.theme = themeCourant();
+		r.a11y = validerA11y( lireJSON( CLE_A11Y ) );
 		return r;
 	}
 
@@ -266,6 +303,9 @@
 				}
 			} );
 		} );
+		if ( r.a11y ) {
+			appliquerA11y( r.a11y );
+		}
 		poserTheme( r.theme );
 	}
 
@@ -273,10 +313,14 @@
 	function enregistrerReglages( r ) {
 		enVigueur = copie( r );
 		ecrireJSON( CLE_REGLAGES, { size: r.size, lh: r.lh, font: r.font, width: r.width, bgAlpha: r.bgAlpha } );
+		if ( r.a11y ) {
+			ecrireJSON( CLE_A11Y, r.a11y );
+		}
 		if ( ! config.connecte ) {
 			return Promise.resolve( 'local' );
 		}
-		return requete( 'PUT', 'moi/reglages', r ).then(
+		// Les options d'accessibilité restent sur l'appareil : jamais envoyées au compte.
+		return requete( 'PUT', 'moi/reglages', { size: r.size, lh: r.lh, font: r.font, width: r.width, bgAlpha: r.bgAlpha, theme: r.theme } ).then(
 			function ( reponse ) {
 				config.reglages = reponse;
 				return 'compte';
@@ -298,6 +342,7 @@
 			// par défaut, qui écraseraient ensuite les réglages de l'appareil (appliqués
 			// jusque-là). On envoie donc le jeu complet en vigueur.
 			const donnees = config.reglages ? { theme: theme } : Object.assign( copie( enVigueur ), { theme: theme } );
+			delete donnees.a11y;
 			requete( 'PUT', 'moi/reglages', donnees ).then(
 				function ( reponse ) {
 					config.reglages = reponse;
@@ -359,6 +404,11 @@
 			const radio = option.querySelector( 'input' );
 			option.classList.toggle( 'est-choisi', !! ( radio && radio.checked ) );
 		} );
+		const dyslexie = caseA11y( 'dyslexie' );
+		const police = formulaire.querySelector( 'input[name="font"]:checked' );
+		if ( dyslexie ) {
+			dyslexie.checked = !! police && police.value === POLICE_DYSLEXIE;
+		}
 	}
 
 	function majSorties( r ) {
@@ -390,13 +440,47 @@
 		formulaire.querySelectorAll( 'input[name="theme"]' ).forEach( function ( radio ) {
 			radio.checked = radio.value === r.theme;
 		} );
+		const a = validerA11y( r.a11y );
+		if ( caseA11y( 'contraste' ) ) {
+			caseA11y( 'contraste' ).checked = a.contraste;
+		}
+		if ( caseA11y( 'animations' ) ) {
+			// Préférence système : la case reste cochée et ne peut pas la désactiver.
+			caseA11y( 'animations' ).checked = systemeReduit || a.animations === 'reduites';
+			caseA11y( 'animations' ).disabled = systemeReduit;
+			const aide = formulaire.querySelector( '[data-yn-a11y-systeme]' );
+			if ( aide ) {
+				aide.hidden = ! systemeReduit;
+			}
+		}
 		majSorties( r );
+	}
+
+	function caseA11y( nom ) {
+		return formulaire ? formulaire.querySelector( '[data-yn-a11y="' + nom + '"]' ) : null;
+	}
+
+	/** Police choisie avant la case « dyslexie » (rétablie quand on la décoche). */
+	let policeAvantDyslexie = null;
+
+	/** Case « Police adaptée à la dyslexie » : sélectionne OpenDyslexic ou rétablit la police précédente. */
+	function basculerDyslexie( coche ) {
+		const courante = formulaire.querySelector( 'input[name="font"]:checked' );
+		let cible = POLICE_DYSLEXIE;
+		if ( coche ) {
+			policeAvantDyslexie = courante && courante.value !== POLICE_DYSLEXIE ? courante.value : policeAvantDyslexie;
+		} else {
+			cible = policeAvantDyslexie && policeAvantDyslexie !== POLICE_DYSLEXIE ? policeAvantDyslexie : D.font;
+		}
+		formulaire.querySelectorAll( 'input[name="font"]' ).forEach( function ( radio ) {
+			radio.checked = radio.value === cible;
+		} );
 	}
 
 	function lireFormulaire() {
 		const police = formulaire.querySelector( 'input[name="font"]:checked' );
 		const theme = formulaire.querySelector( 'input[name="theme"]:checked' );
-		return valider( {
+		const r = valider( {
 			size: champ( 'size' ).value,
 			lh: champ( 'lh' ).value,
 			bgAlpha: parseFloat( champ( 'bgAlpha' ).value ) / 100,
@@ -404,6 +488,13 @@
 			font: police ? police.value : D.font,
 			theme: theme ? theme.value : themeCourant(),
 		} );
+		const contraste = caseA11y( 'contraste' );
+		const animations = caseA11y( 'animations' );
+		r.a11y = {
+			contraste: !! ( contraste && contraste.checked ),
+			animations: animations && animations.checked && ! systemeReduit ? 'reduites' : 'systeme',
+		};
+		return r;
 	}
 
 	let avantOuverture = null;
@@ -523,6 +614,8 @@
 
 	function reinitialiserPanneau() {
 		const r = copie( D );
+		r.a11y = validerA11y( null );
+		effacer( CLE_A11Y );
 		remplirFormulaire( r );
 		appliquer( r );
 		enVigueur = copie( r );
@@ -549,7 +642,10 @@
 			}
 		} );
 
-		formulaire.addEventListener( 'input', function () {
+		formulaire.addEventListener( 'input', function ( e ) {
+			if ( e.target && e.target.getAttribute && e.target.getAttribute( 'data-yn-a11y' ) === 'dyslexie' ) {
+				basculerDyslexie( e.target.checked );
+			}
 			const r = lireFormulaire();
 			majSorties( r );
 			appliquer( r );
@@ -916,7 +1012,7 @@
 			return false;
 		}
 		const y = cible.getBoundingClientRect().top + window.pageYOffset - hauteurCollant() - 16;
-		window.scrollTo( { top: Math.max( 0, y ), behavior: doux && ! reduit ? 'smooth' : 'auto' } );
+		window.scrollTo( { top: Math.max( 0, y ), behavior: doux && ! mouvementsReduits() ? 'smooth' : 'auto' } );
 		cible.classList.add( 'yn-reprise-cible' );
 		if ( ! cible.hasAttribute( 'tabindex' ) ) {
 			cible.setAttribute( 'tabindex', '-1' );
@@ -988,7 +1084,7 @@
 			if ( nom === 'reprendre' ) {
 				masquerBandeau();
 				allerAuParagraphe( memo.paragraphe, true );
-				setTimeout( activerSuivi, reduit ? 50 : 900 );
+				setTimeout( activerSuivi, mouvementsReduits() ? 50 : 900 );
 				annoncer( 'Reprise au paragraphe ' + numero + '.' );
 			} else if ( nom === 'ignorer-reprise' ) {
 				masquerBandeau();

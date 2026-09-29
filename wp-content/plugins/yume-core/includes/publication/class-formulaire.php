@@ -238,8 +238,11 @@ final class Formulaire {
 				} elseif ( ! empty( $sortie['sans_annonce'] ) ) {
 					$message = self::message_catalogue( $sortie );
 				} elseif ( 'publish' === $sortie['statut'] ) {
-					/* translators: %s : titre du tome */
-					$message = sprintf( __( '%s est en ligne ! Les chapitres, l’annonce et les notifications sont partis.', 'yume-core' ), $sortie['tome']['titre'] );
+					$message = (int) ( $sortie['chapitres'] ?? 0 ) > 0
+						/* translators: %s : titre du tome */
+						? sprintf( __( '%s est en ligne ! Les chapitres, l’annonce et les notifications sont partis.', 'yume-core' ), $sortie['tome']['titre'] )
+						/* translators: %s : titre du tome */
+						: sprintf( __( '%s est en ligne ! L’annonce et les notifications sont parties ; la lecture en ligne reste à ajouter (Lecture à compléter).', 'yume-core' ), $sortie['tome']['titre'] );
 				} else {
 					/* translators: 1: titre du tome, 2: date */
 					$message = sprintf( __( '%1$s sortira le %2$s.', 'yume-core' ), $sortie['tome']['titre'], self::date_fr( ( new \DateTimeImmutable( (string) $sortie['date'], wp_timezone() ) )->getTimestamp(), 'long' ) );

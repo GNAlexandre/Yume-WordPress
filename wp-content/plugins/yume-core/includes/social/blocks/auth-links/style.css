@@ -60,3 +60,264 @@
 		white-space: nowrap;
 	}
 }
+
+/*
+ * Cloche des notifications (notifications-lecteur.php, membres connectés seulement).
+ */
+.yn-cloche {
+	position: relative;
+	display: inline-flex;
+}
+
+.yn-cloche [hidden] {
+	display: none !important;
+}
+
+.yn-auth .yn-cloche__bouton {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	min-width: 36px;
+	min-height: 36px;
+	padding: 0 8px;
+}
+
+.yn-cloche__bouton[aria-expanded="true"] {
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-cloche__icone {
+	display: block;
+	flex-shrink: 0;
+}
+
+.yn-cloche__pastille {
+	position: absolute;
+	top: -6px;
+	right: -6px;
+	box-sizing: border-box;
+	min-width: 20px;
+	height: 20px;
+	padding: 0 5px;
+	border: 2px solid var(--wp--preset--color--bande, var(--wp--preset--color--fond));
+	border-radius: 999px;
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+	font-size: 11px;
+	font-weight: 800;
+	line-height: 16px;
+	text-align: center;
+}
+
+.yn-cloche__panneau {
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	z-index: 60;
+	box-sizing: border-box;
+	width: min(360px, calc(100vw - 32px));
+	max-height: min(70vh, 520px);
+	padding: 12px 16px;
+	overflow-y: auto;
+	color: var(--wp--preset--color--texte);
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.4;
+	text-align: start;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+/* Le thème garde les liens de l'en-tête sur une ligne : pas ceux du panneau. */
+.yn-header .yn-nav .yn-auth .yn-cloche__panneau a,
+.yn-cloche__panneau a {
+	white-space: normal;
+}
+
+.yn-cloche__entete {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.yn-cloche__titre {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 800;
+}
+
+.yn-cloche__tout-lu {
+	padding: 4px 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+	cursor: pointer;
+}
+
+.yn-cloche__liste,
+.yn-notifications__liste {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-notification {
+	position: relative;
+	padding: 8px 0 8px 16px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	line-height: 1.4;
+}
+
+.yn-notification:first-child {
+	border-top: 0;
+}
+
+/* Non lue : puce (et texte « Non lue » pour les lecteurs d'écran), jamais la couleur seule. */
+.yn-notification.est-non-lue::before {
+	content: "";
+	position: absolute;
+	top: 14px;
+	left: 2px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--wp--preset--color--accent);
+}
+
+.yn-notification.est-non-lue .yn-notification__lien {
+	font-weight: 700;
+}
+
+.yn-notification__lien {
+	color: inherit;
+}
+
+.yn-notification__date {
+	display: block;
+	font-size: 12px;
+}
+
+.yn-cloche__vide,
+.yn-cloche__pied {
+	margin: 8px 0 0;
+}
+
+/* Menu mobile (navigation en surimpression) : panneau dans le flux. */
+.wp-block-navigation__responsive-container.is-menu-open .yn-cloche {
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.wp-block-navigation__responsive-container.is-menu-open .yn-cloche__panneau {
+	position: static;
+	width: min(360px, calc(100vw - 48px));
+	margin-top: 8px;
+}
+
+/*
+ * Page compte : rubriques « Mes listes » et « Notifications » (listes.php,
+ * notifications-lecteur.php, push.php), en complément des styles du bloc yume/account.
+ */
+.yn-listes {
+	display: grid;
+	gap: 16px;
+	margin-block: 16px;
+}
+
+.yn-listes__entete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.yn-listes__entete .yn-account__sous-titre {
+	margin: 0;
+}
+
+.yn-listes__description,
+.yn-listes__lien {
+	margin: 8px 0 0;
+	overflow-wrap: anywhere;
+}
+
+.yn-listes__oeuvres {
+	display: grid;
+	gap: 8px;
+	margin: 12px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-listes__oeuvre {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	align-items: center;
+	gap: 12px;
+}
+
+.yn-listes__oeuvre form {
+	margin: 0;
+}
+
+.yn-listes__modifier {
+	margin-top: 12px;
+}
+
+.yn-listes__modifier > summary {
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.yn-listes__modifier[open] > summary {
+	margin-bottom: 12px;
+}
+
+.yn-listes__supprimer {
+	margin-top: 12px;
+}
+
+.yn-listes__case label {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.yn-account .yn-listes__case input[type="checkbox"] {
+	flex: 0 0 auto;
+	width: 18px;
+	height: 18px;
+	margin: 1px 0 0;
+	accent-color: var(--wp--preset--color--accent);
+}
+
+.yn-notifications__entete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.yn-notifications__entete .yn-account__sous-titre,
+.yn-notifications__entete form {
+	margin: 0;
+}
+
+.yn-push {
+	margin-bottom: 16px;
+}
+
+.yn-push [hidden] {
+	display: none !important;
+}

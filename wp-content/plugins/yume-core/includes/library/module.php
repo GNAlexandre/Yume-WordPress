@@ -4,7 +4,8 @@
  *
  * - En-tête et accueil : yume/library-menu, yume/banner, yume/latest-releases ;
  * - bibliothèque : yume/library-grid (filtres GET type, statut, genre, tri) ;
- * - fiche d'une œuvre : yume/oeuvre-header, yume/oeuvre-infos, yume/tome-list ;
+ * - fiche d'une œuvre : yume/oeuvre-header, yume/oeuvre-infos, yume/tome-list, yume/oeuvre-onglets
+ *   (onglets.php), yume/oeuvre-news et sous-page /oeuvres/{o}/actualites/ (actualites.php) ;
  * - page d'un tome : yume/tome-header, yume/tome-toc ;
  * - lecteur : yume/chapter-header, yume/chapter-nav ;
  * - accueil, section « Nos partenaires » : yume/partenaires (réglage « partenaires », voir partenaires.php).
@@ -31,6 +32,9 @@ require_once __DIR__ . '/rendus-accueil.php';
 require_once __DIR__ . '/rendus-fiches.php';
 require_once __DIR__ . '/rendus-lecture.php';
 require_once __DIR__ . '/partenaires.php';
+require_once __DIR__ . '/onglets.php';
+require_once __DIR__ . '/actualites.php';
 require_once __DIR__ . '/blocs.php';
 require_once __DIR__ . '/seo.php';
 require_once __DIR__ . '/recherche.php';
+require_once __DIR__ . '/flux.php';

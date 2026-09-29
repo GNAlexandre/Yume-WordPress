@@ -1,0 +1,28 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/profil-contributeur",
+	"title": "Profils des contributeurs",
+	"category": "yume",
+	"icon": "id",
+	"description": "Profil public d’un contributeur (/contributeurs/{pseudo}/) ou liste des profils publics de l’équipe (consentement de chaque membre).",
+	"keywords": [ "équipe", "contributeur", "profil", "traducteur" ],
+	"textdomain": "yume-core",
+	"attributes": {
+		"mode": {
+			"type": "string",
+			"enum": [ "auto", "liste" ],
+			"default": "auto"
+		},
+		"titre": {
+			"type": "string",
+			"default": "Profils des contributeurs"
+		}
+	},
+	"supports": {
+		"html": false,
+		"reusable": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

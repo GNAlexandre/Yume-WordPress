@@ -1,0 +1,66 @@
+/**
+ * Bloc yume/liste-publique — page d'une liste de lecture partagée (/listes/{id}-{slug}/).
+ */
+
+.yn-liste-publique {
+	padding-block: 32px 64px;
+}
+
+.yn-liste-publique__entete {
+	max-width: 48rem;
+	margin-bottom: 32px;
+}
+
+.yn-liste-publique__titre {
+	margin: 4px 0 8px;
+	overflow-wrap: anywhere;
+}
+
+.yn-liste-publique__meta,
+.yn-liste-publique__description,
+.yn-liste-publique__proprietaire {
+	margin: 0 0 8px;
+}
+
+.yn-liste-publique__description {
+	white-space: pre-line;
+}
+
+.yn-liste-publique__grille {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 24px 16px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+@media (min-width: 900px) {
+	.yn-liste-publique__grille {
+		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	}
+}
+
+.yn-liste-publique__lien {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	color: inherit;
+	text-decoration: none;
+}
+
+.yn-liste-publique__lien .yn-cover {
+	width: 100%;
+}
+
+.yn-liste-publique__oeuvre {
+	font-weight: 700;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.yn-liste-publique__lien:hover .yn-liste-publique__oeuvre,
+.yn-liste-publique__lien:focus-visible .yn-liste-publique__oeuvre {
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}

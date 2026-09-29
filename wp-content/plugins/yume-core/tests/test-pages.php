@@ -466,3 +466,31 @@ yume_test(
 		wp_set_current_user( $courant );
 	}
 );
+
+yume_test(
+	'BUG-11 : lien « Contactez-nous » du pied de page vers la page enregistrée (yume_pages) ou au slug',
+	function () {
+		if ( ! function_exists( 'yume_theme_lien' ) ) {
+			return; // Thème Yume inactif.
+		}
+		// Page enregistrée sous la clé contactez-nous, à un autre slug : elle l'emporte sur le slug.
+		$page                    = yume_factory_post(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'Nous écrire',
+				'post_name'   => 'nous-ecrire-test',
+			)
+		);
+		$pages                   = get_option( 'yume_pages', array() );
+		$pages                   = is_array( $pages ) ? $pages : array();
+		$pages['contactez-nous'] = $page;
+		update_option( 'yume_pages', $pages );
+		yume_assert_same( get_permalink( $page ), yume_theme_lien( 'contact' ) );
+
+		// Rendu du lien de navigation : adresse réelle, classe conservée ; l'en-tête garde le Discord.
+		$html = do_blocks( '<!-- wp:navigation-link {"label":"Contactez-nous","url":"/contactez-nous/","kind":"custom","isTopLevelLink":true,"className":"yn-lien-contact"} /-->' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $page ) ) . '"', $html );
+		yume_assert_same( 'discord', yume_theme_cle_lien_depuis_classes( 'yn-lien-discord yn-lien-contact' ), 'en-tête : « Contact » → Discord' );
+	}
+);

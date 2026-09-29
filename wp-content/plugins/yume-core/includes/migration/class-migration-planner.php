@@ -65,6 +65,7 @@ final class Migration_Planner {
 		'connexion'        => array( 'connexion', '', 'Connexion', 'yume/account', '' ),
 		'actualites'       => array( 'actualites', '', 'Actualités', '', 'page_for_posts' ),
 		'mentions-legales' => array( 'mentions-legales', '', 'Mentions légales', '', '' ),
+		'rejoindre'        => array( 'rejoindre-l-equipe', '', 'Rejoindre l’équipe', 'yume/recrutement', '' ),
 		'accueil'          => array( 'accueil', '', 'Accueil', '', 'page_on_front' ),
 	);
 

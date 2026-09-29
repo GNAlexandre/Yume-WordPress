@@ -273,7 +273,21 @@ final class Epub_Converter {
 		if ( ! $doc->loadXML( $xml, LIBXML_NONET | LIBXML_COMPACT ) ) {
 			throw new Import_Exception( sprintf( 'EPUB endommagé : la partie « %s » est illisible.', $entree ), 'epub_endommage' );
 		}
+		if ( self::dtd_suspecte( $doc ) ) {
+			throw new Import_Exception( sprintf( 'EPUB refusé : la partie « %s » déclare des entités (DTD).', $entree ), 'epub_suspect' );
+		}
 		return $doc;
+	}
+
+	/**
+	 * DTD restée après sans_doctype() (déclaration que l'expression n'a pas su retirer) portant
+	 * un sous-ensemble interne ou des entités : jamais légitime dans un EPUB.
+	 *
+	 * @param \DOMDocument $doc Document chargé.
+	 */
+	private static function dtd_suspecte( \DOMDocument $doc ): bool {
+		$dtd = $doc->doctype;
+		return null !== $dtd && ( '' !== trim( (string) $dtd->internalSubset ) || $dtd->entities->length > 0 || '' !== (string) $dtd->systemId );
 	}
 
 	/**
@@ -518,6 +532,8 @@ final class Epub_Converter {
 				if ( ! $doc->loadHTML( '<?xml encoding="UTF-8">' . $propre, LIBXML_NONET | LIBXML_COMPACT | LIBXML_NOERROR | LIBXML_NOWARNING ) ) {
 					$doc = null;
 				}
+			} elseif ( self::dtd_suspecte( $doc ) ) {
+				$doc = null;
 			}
 		}
 		if ( count( $this->documents ) > 20 ) {

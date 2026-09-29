@@ -247,6 +247,10 @@ final class Docx_Converter {
 		if ( ! $doc->loadXML( $xml, LIBXML_NONET | LIBXML_COMPACT ) ) {
 			throw new Import_Exception( sprintf( 'Le document Word est endommagé (partie « %s » illisible).', $entree ), 'docx_endommage' );
 		}
+		// DOCTYPE repoussé après les 2 premiers Ko ou encodé autrement (UTF-16) : refusé aussi.
+		if ( null !== $doc->doctype ) {
+			throw new Import_Exception( 'Document refusé : il contient une déclaration de type (DOCTYPE) inattendue.', 'docx_suspect' );
+		}
 		return $doc;
 	}
 
@@ -339,6 +343,11 @@ final class Docx_Converter {
 		}
 		$profondeur = -1;
 		while ( $lecteur->read() ) {
+			// DOCTYPE repoussé après les 2 premiers Ko ou encodé autrement (UTF-16) : refusé aussi.
+			if ( \XMLReader::DOC_TYPE === $lecteur->nodeType ) {
+				$lecteur->close();
+				throw new Import_Exception( 'Document refusé : il contient une déclaration de type (DOCTYPE) inattendue.', 'docx_suspect' );
+			}
 			if ( \XMLReader::ELEMENT === $lecteur->nodeType && 'body' === $lecteur->localName ) {
 				$profondeur = $lecteur->depth;
 				break;

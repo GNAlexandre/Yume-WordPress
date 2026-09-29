@@ -169,6 +169,8 @@ function configuration_illustrations( int $tome_id ): array {
  * Script en ligne (en-tête des pages de lecture : chapitres et page Illustrations, juste après
  * celui du thème) : applique les réglages mémorisés avant le premier rendu, sans attendre le
  * script de la barre. Pour un membre, les réglages du compte l'emportent et sont recopiés dans le stockage local.
+ * Les options d'accessibilité (yn.a11y, appareil seulement) posent html[data-yn-contraste] et
+ * html[data-yn-animations].
  */
 function script_initialisation(): void {
 	if ( ! page_de_lecture() ) {
@@ -184,6 +186,8 @@ function script_initialisation(): void {
 	);
 	$script  = '(function(c,d){var r=null,s=c.s,b=c.b,v,css=[];'
 		. 'try{r=JSON.parse(window.localStorage.getItem("yn.reglages")||"null");}catch(e){r=null;}'
+		// Options d'accessibilité de l'appareil (yn.a11y) : contraste renforcé, animations réduites.
+		. 'try{var a=JSON.parse(window.localStorage.getItem("yn.a11y")||"null");if(a&&a.contraste===true){d.setAttribute("data-yn-contraste","renforce");}if(a&&a.animations==="reduites"){d.setAttribute("data-yn-animations","reduites");}}catch(e){}'
 		. 'if(s){r=s;try{window.localStorage.setItem("yn.reglages",JSON.stringify({size:s.size,lh:s.lh,font:s.font,width:s.width,bgAlpha:s.bgAlpha}));'
 		. 'if(c.t.indexOf(s.theme)>-1){window.localStorage.setItem("yn.theme",s.theme);}}catch(e){}'
 		. 'if(c.t.indexOf(s.theme)>-1){d.setAttribute("data-yn-theme",s.theme);}}'

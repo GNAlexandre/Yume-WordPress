@@ -1288,6 +1288,11 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 	margin-block-start: 40px;
 }
 
+/* Titre h1 de l'accueil visuellement masqué : la première section garde sa place. */
+.yn-accueil > .yn-visually-hidden + * {
+	margin-block-start: 0;
+}
+
 .yn-accueil__duo {
 	gap: 24px;
 }
@@ -1870,6 +1875,12 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 
 .yn-commentaire .wp-block-comment-content p {
 	margin: 0 0 0.6em;
+}
+
+/* Liens dans le texte d'un commentaire : soulignés (WCAG 1.4.1, theme.json retire le soulignement). */
+.yn-commentaire .wp-block-comment-content a {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
 }
 
 .yn-commentaire .comment-awaiting-moderation {

@@ -2129,6 +2129,28 @@ yume_test(
 );
 
 yume_test(
+	'BUG-12 : le lien d’auteur ne mène jamais aux archives fermées (fiche du compte, « Mon compte » ou accueil)',
+	function () {
+		$admin  = yume_factory_user( 'administrator' );
+		$membre = yume_factory_user( 'yume_traducteur' );
+		$autre  = yume_factory_user( 'yume_relecteur' );
+
+		wp_set_current_user( $admin );
+		yume_assert_same( add_query_arg( 'user_id', $membre, admin_url( 'user-edit.php' ) ), get_author_posts_url( $membre ), 'administrateur : fiche du compte' );
+		yume_assert_same( admin_url( 'profile.php' ), get_author_posts_url( $admin ), 'son propre compte : profil' );
+
+		wp_set_current_user( $membre );
+		yume_assert_same( yume_url_page( 'compte' ), get_author_posts_url( $membre ), 'sans edit_user : page « Mon compte »' );
+		yume_assert_same( home_url( '/' ), get_author_posts_url( $autre ), 'compte d’un autre : accueil' );
+
+		wp_set_current_user( 0 );
+		yume_assert_same( home_url( '/' ), get_author_posts_url( $membre ), 'visiteur : accueil' );
+		yume_assert_not_contains( get_userdata( $membre )->user_nicename, get_author_posts_url( $membre ), 'identifiant non révélé' );
+		yume_assert_same( home_url( '/' ), get_author_posts_url( 0 ) );
+	}
+);
+
+yume_test(
 	'MET-1 : la méta-boîte n’écrase ni la publication ni une mise à jour concurrente du planning',
 	function () {
 		$editeur = yume_factory_user( 'yume_editeur' );
@@ -2821,5 +2843,55 @@ yume_test(
 		$adresses    = $fournisseur ? wp_list_pluck( $fournisseur->get_url_list( 1, 'yume_tome' ), 'loc' ) : array();
 		yume_assert_true( in_array( get_permalink( $s['t'] ), $adresses, true ), 'tome dans le plan du site' );
 		yume_assert_false( in_array( $url, $adresses, true ), 'page Illustrations absente du plan du site' );
+	}
+);
+
+yume_test(
+	'Sous-pages d’œuvre (yume_sous_pages_oeuvre) : /oeuvres/{o}/{onglet}/ avant les tomes, slug de tome réservé, gabarit dédié',
+	function () {
+		global $wp_rewrite;
+		$ajout = static fn( array $slugs ): array => array_merge( $slugs, array( 'onglet-essai', '123', 'feed' ) );
+		add_filter( 'yume_sous_pages_oeuvre', $ajout );
+		try {
+			// Les modules déclarent aussi les leurs (actualites, glossaire…) : seul l'ajout du test compte.
+			$onglets = \Yume\Core\Core\onglets_oeuvre();
+			yume_assert_true( in_array( 'onglet-essai', $onglets, true ) );
+			yume_assert_same( array(), array_values( array_intersect( array( '123', 'feed' ), $onglets ) ), 'slugs numériques et réservés écartés' );
+			// En production le filtre est posé avant init ; ici les règles Yume sont remises en tête.
+			$wp_rewrite->extra_rules_top = array_merge( \Yume\Core\Core\regles_reecriture(), array_diff_key( $wp_rewrite->extra_rules_top, \Yume\Core\Core\regles_reecriture() ) );
+			$wp_rewrite->flush_rules( false );
+
+			$oeuvre = yume_tc_oeuvre( 'Onglets' );
+			$slug   = get_post_field( 'post_name', $oeuvre );
+			yume_tc_tome( $oeuvre, 1 );
+
+			$requete = yume_tc_requete( home_url( '/oeuvres/' . $slug . '/onglet-essai/' ) );
+			yume_assert_true( $requete->is_singular( 'yume_oeuvre' ), 'sous-page = fiche de l’œuvre' );
+			yume_assert_same( $oeuvre, (int) $requete->get_queried_object_id() );
+			yume_assert_same( 'onglet-essai', $requete->get( 'yume_onglet' ) );
+
+			// Les tomes gardent leur adresse.
+			$tome = yume_tc_requete( home_url( '/oeuvres/' . $slug . '/tome-1/' ) );
+			yume_assert_true( $tome->is_singular( 'yume_tome' ), 'tome' );
+
+			yume_assert_same( 'onglet-essai-2', \Yume\Core\Core\slug_autorise( 'onglet-essai', 'yume_tome' ) );
+			yume_assert_same( 'onglet-essai', \Yume\Core\Core\slug_autorise( 'onglet-essai', 'yume_chapitre' ) );
+			yume_assert_same( trailingslashit( (string) get_permalink( $oeuvre ) ) . 'onglet-essai/', \Yume\Core\Core\url_onglet_oeuvre( $oeuvre, 'onglet-essai' ) );
+			yume_assert_same( '', \Yume\Core\Core\url_onglet_oeuvre( $oeuvre, 'inconnu' ) );
+
+			$GLOBALS['wp_query'] = $requete; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			yume_assert_same( 'onglet-essai', \Yume\Core\Core\onglet_oeuvre() );
+			yume_assert_same( array( 'single-yume_oeuvre-onglet-essai.php', 'single.php' ), \Yume\Core\Core\gabarit_onglet_oeuvre( array( 'single.php' ) ) );
+		} finally {
+			remove_filter( 'yume_sous_pages_oeuvre', $ajout );
+			foreach ( array_keys( $wp_rewrite->extra_rules_top ) as $motif ) {
+				if ( str_contains( $motif, 'onglet' ) ) {
+					unset( $wp_rewrite->extra_rules_top[ $motif ] );
+				}
+			}
+			$wp_rewrite->extra_rules_top = array_merge( \Yume\Core\Core\regles_reecriture(), array_diff_key( $wp_rewrite->extra_rules_top, \Yume\Core\Core\regles_reecriture() ) );
+			$wp_rewrite->flush_rules( false );
+			$GLOBALS['wp_query'] = $GLOBALS['wp_the_query']; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
 	}
 );

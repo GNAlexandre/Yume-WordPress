@@ -1,0 +1,150 @@
+/**
+ * Espace équipe, vue « Glossaires » (?vue=glossaire) : téléversement, bilan de vérification,
+ * historique des versions.
+ */
+.yn-team--glossaire .yn-team__carte {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.yn-team--glossaire .yn-team__carte > * {
+	margin: 0;
+}
+
+.yn-glossaire-eq__champs {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px 16px;
+}
+
+@media (min-width: 782px) {
+	.yn-glossaire-eq__champs {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+.yn-glossaire-eq__champs .yn-team__champ {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	min-width: 0;
+}
+
+.yn-glossaire-eq__champs input[type="file"] {
+	max-width: 100%;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-glossaire-eq__boutons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+}
+
+.yn-glossaire-eq__compteurs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-glossaire-eq__compteurs li {
+	display: inline-flex;
+	gap: 6px;
+	margin: 0;
+	padding: 4px 12px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: 14px;
+	background: var(--wp--preset--color--bande);
+	font-size: 14px;
+}
+
+.yn-glossaire-eq__avertissements summary {
+	color: var(--wp--preset--color--avertissement);
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.yn-glossaire-eq__avertissements ul {
+	margin: 8px 0 0;
+	padding-left: 20px;
+	font-size: 14px;
+}
+
+.yn-glossaire-eq__retour:empty {
+	display: none;
+}
+
+.yn-glossaire-eq__table {
+	position: relative; /* ancre les textes masqués des boutons : pas de débordement à 390 px */
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+/* Titres des cartes : même style que les vues Santé, Indicateurs et Réglages. */
+.yn-team--glossaire .yn-team__carte h2,
+.yn-team--glossaire .yn-team__carte .yn-team__section-tete > h2 {
+	font-size: 20px;
+}
+
+/* Liens dans le texte : soulignés (WCAG 1.4.1). */
+.yn-glossaire-eq__oeuvres a {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+.yn-glossaire-eq__table table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+.yn-glossaire-eq__table th,
+.yn-glossaire-eq__table td {
+	padding: 8px 10px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	text-align: left;
+	vertical-align: top;
+}
+
+.yn-glossaire-eq__table th {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.yn-glossaire-eq__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.yn-glossaire-eq__actions form {
+	margin: 0;
+}
+
+.yn-glossaire-eq__oeuvres {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-glossaire-eq__route {
+	display: inline-block;
+	max-width: 100%;
+	padding: 6px 10px;
+	border-radius: 6px;
+	background: var(--wp--preset--color--bande);
+	overflow-wrap: anywhere;
+	white-space: normal;
+}

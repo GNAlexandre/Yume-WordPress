@@ -1,0 +1,17 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/calendrier",
+	"title": "Calendrier des sorties",
+	"category": "yume",
+	"icon": "calendar",
+	"description": "Vue mensuelle des sorties : programmées, prévues (dates indicatives) et parues ; navigation par mois, abonnement ICS.",
+	"keywords": [ "calendrier", "sorties", "planning", "ics" ],
+	"textdomain": "yume-core",
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css"
+}

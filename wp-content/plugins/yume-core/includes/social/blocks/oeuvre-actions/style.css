@@ -262,6 +262,85 @@
 	border-inline-start-color: var(--wp--preset--color--erreur);
 }
 
+/* Listes de lecture (listes.php) : cases des listes, création rapide. */
+.yn-oeuvre-actions__listes-choix {
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yn-oeuvre-actions__listes-choix legend {
+	margin: 0 0 8px;
+	padding: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.yn-oeuvre-actions__listes-liste {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 260px;
+	margin: 0;
+	padding: 0;
+	overflow-y: auto;
+	list-style: none;
+}
+
+.yn-oeuvre-actions .yn-oeuvre-actions__liste {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 32px;
+	cursor: pointer;
+}
+
+.yn-oeuvre-actions__liste input {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: var(--wp--preset--color--accent);
+}
+
+.yn-oeuvre-actions__nouvelle {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding-top: 12px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-oeuvre-actions__nouvelle label {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-oeuvre-actions__nouvelle-ligne {
+	display: flex;
+	gap: 8px;
+}
+
+.yn-oeuvre-actions__nouvelle-ligne input {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 36px;
+	padding: 4px 10px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--fond);
+	color: inherit;
+	font: inherit;
+}
+
+.yn-oeuvre-actions__gerer {
+	align-self: center;
+	font-size: 13px;
+}
+
 @media (max-width: 599.98px) {
 	.yn-oeuvre-actions__lire {
 		flex: 1 1 100%;

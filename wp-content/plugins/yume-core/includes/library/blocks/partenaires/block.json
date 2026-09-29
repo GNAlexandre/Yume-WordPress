@@ -5,7 +5,7 @@
 	"title": "Partenaires",
 	"category": "yume",
 	"icon": "groups",
-	"description": "Section « Nos partenaires » : logo, nom et description de chaque partenaire (liste réglée dans Yume → Réglages → Partenaires).",
+	"description": "Section « Nos partenaires » : logo, nom et description de chaque partenaire, ou variante en ligne (noms liés séparés par « · ») ; liste réglée dans Yume → Réglages → Partenaires.",
 	"keywords": [
 		"partenaires",
 		"accueil",
@@ -17,6 +17,12 @@
 			"type": "string",
 			"default": "Nos partenaires",
 			"label": "Titre"
+		},
+		"variante": {
+			"type": "string",
+			"enum": [ "cartes", "en-ligne" ],
+			"default": "cartes",
+			"label": "Présentation"
 		}
 	},
 	"supports": {

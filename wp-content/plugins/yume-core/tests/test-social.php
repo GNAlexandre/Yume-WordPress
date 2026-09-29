@@ -1193,7 +1193,7 @@ yume_test(
 );
 
 yume_test(
-	'bloc account (membre) : sept rubriques en h2, favoris, alertes, suppression selon le profil',
+	'bloc account (membre) : dix rubriques en h2 (dont Mes statistiques), favoris, alertes, suppression selon le profil',
 	function () {
 		$s = yume_ts_oeuvre( 1 );
 		$u = yume_ts_membre();
@@ -1201,11 +1201,12 @@ yume_test(
 		wp_set_current_user( $u );
 		$html = yume_render_block( 'yume/account' );
 		wp_set_current_user( 0 );
-		foreach ( array( 'yn-lecture', 'yn-favoris', 'yn-notes', 'yn-reglages', 'yn-alertes', 'yn-profil', 'yn-donnees' ) as $ancre ) {
+		// Dix rubriques depuis le lot P3-D (Mes listes, Notifications).
+		foreach ( array( 'yn-lecture', 'yn-stats', 'yn-favoris', 'yn-listes', 'yn-notifications', 'yn-notes', 'yn-reglages', 'yn-alertes', 'yn-profil', 'yn-donnees' ) as $ancre ) {
 			yume_assert_contains( 'id="' . $ancre . '"', $html );
 			yume_assert_contains( 'href="#' . $ancre . '"', $html );
 		}
-		yume_assert_same( 7, substr_count( $html, '<h2 ' ) );
+		yume_assert_same( 10, substr_count( $html, '<h2 ' ) );
 		yume_assert_not_contains( '<h1', $html );
 		yume_assert_contains( 'Favoris et alertes (1)', $html );
 		yume_assert_contains( 'data-yn-frequence', $html );
@@ -1974,5 +1975,20 @@ yume_test(
 
 		update_option( 'comment_registration', $avant );
 		update_option( 'users_can_register', $ouvert );
+	}
+);
+
+yume_test(
+	'Page compte : les formulaires ne répètent pas id="_yn_nonce" (identifiants uniques)',
+	function () {
+		$avant = get_current_user_id();
+		wp_set_current_user( yume_factory_user( 'subscriber' ) );
+		try {
+			$html = yume_render_block( 'yume/account' );
+			yume_assert_true( substr_count( $html, 'name="_yn_nonce"' ) > 1, 'plusieurs formulaires rendus' );
+			yume_assert_not_contains( 'id="_yn_nonce"', $html );
+		} finally {
+			wp_set_current_user( $avant );
+		}
 	}
 );

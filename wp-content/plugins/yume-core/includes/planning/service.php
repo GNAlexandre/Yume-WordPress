@@ -2,8 +2,9 @@
 /**
  * Écritures du planning, partagées par la REST, les formulaires sans JavaScript de l'espace
  * équipe et les écouteurs d'événements : mise à jour du planning d'un tome (validation,
- * journal par champ, date de mise à jour, action yume_planning_mis_a_jour) et ajout d'un tome
- * au planning.
+ * journal par champ, date de mise à jour, action yume_planning_mis_a_jour), ajout d'un tome
+ * au planning, retrait, et mise en pause ou reprise d'un tome (méta yume_pause : un tome en
+ * pause n'est jamais « en retard » et ne reçoit aucun rappel ; réservé à l'équipe).
  *
  * @package Yume\Core
  */
@@ -730,4 +731,111 @@ function retirer_tome( int $tome_id, int $user_id ) {
 		$user_id
 	);
 	return true;
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * Pause d'un tome (BUG-10, AMEL-09)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Pause d'un tome : depuis (GMT) et auteur, ou null si le tome n'est pas en pause.
+ *
+ * @param int $tome_id Tome.
+ * @return array{depuis:string,par:int}|null
+ */
+function infos_pause( int $tome_id ): ?array {
+	$pause = get_post_meta( $tome_id, 'yume_pause', true );
+	if ( ! is_array( $pause ) || '' === (string) ( $pause['depuis'] ?? '' ) ) {
+		return null;
+	}
+	return array(
+		'depuis' => (string) $pause['depuis'],
+		'par'    => (int) ( $pause['par'] ?? 0 ),
+	);
+}
+
+/**
+ * Le tome est-il en pause ?
+ *
+ * @param int $tome_id Tome.
+ */
+function est_en_pause( int $tome_id ): bool {
+	return null !== infos_pause( $tome_id );
+}
+
+/**
+ * Un tome en pause n'est jamais « en retard » (yume_planning_etat) : il sort des retards de
+ * l'espace équipe, du récapitulatif et des rappels. Bloqué et publié restent inchangés.
+ *
+ * @param string $etat    État calculé.
+ * @param int    $tome_id Tome.
+ */
+function etat_hors_pause( $etat, $tome_id = 0 ) {
+	return 'en_retard' === $etat && est_en_pause( (int) $tome_id ) ? 'a_lheure' : $etat;
+}
+add_filter( 'yume_planning_etat', __NAMESPACE__ . '\\etat_hors_pause', 5, 2 );
+
+/**
+ * Met un tome en pause ou le reprend (« Mettre en pause » / « Reprendre » du planning
+ * complet) : méta yume_pause, ligne « pause » au journal de l'équipe (jamais publique). La
+ * reprise compte comme une mise à jour (date de dernière mise à jour) : le tome ne retombe pas
+ * aussitôt en retard « sans nouvelles ».
+ *
+ * @param int  $tome_id Tome.
+ * @param bool $pause   Vrai : mettre en pause ; faux : reprendre.
+ * @param int  $user_id Auteur (capacité yume_maj_planning_tous).
+ * @return array{pause:bool,changement:bool}|\WP_Error
+ */
+function basculer_pause( int $tome_id, bool $pause, int $user_id ) {
+	$post = get_post( $tome_id );
+	if ( ! $post || 'yume_tome' !== $post->post_type || in_array( $post->post_status, array( 'trash', 'auto-draft', 'inherit' ), true ) ) {
+		return erreur( 'yume_tome_introuvable', __( 'Tome introuvable.', 'yume-core' ), 404 );
+	}
+	if ( ! user_can( $user_id, 'yume_maj_planning_tous' ) ) {
+		return erreur( 'yume_pause_interdite', __( 'Seuls les éditeurs et les gérants peuvent mettre un tome en pause.', 'yume-core' ), 403 );
+	}
+	$avant = est_en_pause( $tome_id );
+	if ( $pause && ! $avant && 'publie' === donnees_tome( $tome_id )['etape'] ) {
+		return erreur( 'yume_pause_impossible', __( 'Ce tome est déjà publié : il n’y a rien à mettre en pause.', 'yume-core' ), 409 );
+	}
+	if ( $avant === $pause ) {
+		return array(
+			'pause'      => $pause,
+			'changement' => false,
+		);
+	}
+	if ( $pause ) {
+		update_post_meta(
+			$tome_id,
+			'yume_pause',
+			array(
+				'depuis' => gmt(),
+				'par'    => max( 0, $user_id ),
+			)
+		);
+	} else {
+		delete_post_meta( $tome_id, 'yume_pause' );
+		update_post_meta( $tome_id, 'yume_derniere_maj', gmt() );
+		update_post_meta( $tome_id, 'yume_maj_par', max( 0, $user_id ) );
+	}
+	en_service( true );
+	try {
+		journaliser( $tome_id, $user_id, 'pause', $avant, $pause, false );
+	} finally {
+		en_service( false );
+	}
+	/**
+	 * Un tome vient d'être mis en pause ou repris.
+	 *
+	 * @param int  $tome_id Tome.
+	 * @param bool $pause   Vrai : mis en pause ; faux : repris.
+	 * @param int  $user_id Auteur.
+	 */
+	do_action( 'yume_planning_pause', $tome_id, $pause, $user_id );
+	return array(
+		'pause'      => $pause,
+		'changement' => true,
+	);
 }

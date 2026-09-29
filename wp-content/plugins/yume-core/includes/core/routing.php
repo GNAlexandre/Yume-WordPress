@@ -4,6 +4,8 @@
  *
  *   /oeuvres/{oeuvre}/                            œuvre (réécriture native du type, archive /oeuvres/)
  *   /oeuvres/{oeuvre}/{slug-tome}/                tome
+ *   /oeuvres/{oeuvre}/{onglet}/                   sous-page de l'œuvre déclarée par le filtre
+ *                                                 yume_sous_pages_oeuvre (actualités, glossaire…)
  *   /lire/{oeuvre}/{slug-tome}/{numero|slug}/     chapitre (numéro pour les chapitres, slug pour
  *                                                 les spéciaux : prologue, postface…)
  *   /lire/{oeuvre}/{slug-tome}/illustrations/     page Illustrations du tome (illustrations.php),
@@ -29,6 +31,9 @@ const QV_TOME     = 'yume_route_tome';
 const QV_CHAPITRE = 'yume_route_chapitre';
 const QV_LIRE     = 'yume_route_lire';
 
+/** Variable de requête publique : sous-page de l'œuvre (onglets_oeuvre()). */
+const QV_ONGLET = 'yume_onglet';
+
 /** Variable de requête privée : l'URL demandée n'est pas le permalien canonique. */
 const QV_NON_CANONIQUE = 'yume_non_canonique';
 
@@ -50,6 +55,68 @@ function segments_reserves(): array {
 function slug_reserve( string $slug ): bool {
 	return in_array( $slug, segments_reserves(), true ) || (bool) preg_match( '/^comment-page-[0-9]+$/', $slug );
 }
+
+/**
+ * Sous-pages d'une œuvre (/oeuvres/{oeuvre}/{onglet}/), déclarées par les modules avec le filtre
+ * yume_sous_pages_oeuvre (liste de slugs). Un tome ne peut pas prendre l'un de ces slugs.
+ *
+ * @return string[]
+ */
+function onglets_oeuvre(): array {
+	/**
+	 * Filtre les sous-pages d'une œuvre.
+	 *
+	 * @param string[] $slugs Slugs (minuscules, chiffres et tirets ; pas uniquement des chiffres).
+	 */
+	$slugs  = (array) apply_filters( 'yume_sous_pages_oeuvre', array() );
+	$retenu = array();
+	foreach ( $slugs as $slug ) {
+		$slug = sanitize_title( (string) $slug );
+		if ( '' !== $slug && ! preg_match( '/^[0-9]+$/', $slug ) && ! slug_reserve( $slug ) ) {
+			$retenu[] = $slug;
+		}
+	}
+	$retenu = array_values( array_unique( $retenu ) );
+	sort( $retenu );
+	return $retenu;
+}
+
+/**
+ * Sous-page de l'œuvre affichée ('' sur la fiche elle-même ou ailleurs).
+ */
+function onglet_oeuvre(): string {
+	$onglet = (string) get_query_var( QV_ONGLET );
+	return '' !== $onglet && is_singular( CPT_OEUVRE ) && in_array( $onglet, onglets_oeuvre(), true ) ? $onglet : '';
+}
+
+/**
+ * Adresse d'une sous-page d'œuvre ('' si l'œuvre n'a pas de permalien ou l'onglet est inconnu).
+ *
+ * @param int    $oeuvre_id Œuvre.
+ * @param string $onglet    Slug déclaré par yume_sous_pages_oeuvre.
+ */
+function url_onglet_oeuvre( int $oeuvre_id, string $onglet ): string {
+	$lien = get_permalink( $oeuvre_id );
+	if ( ! is_string( $lien ) || '' === $lien || ! in_array( $onglet, onglets_oeuvre(), true ) ) {
+		return '';
+	}
+	return user_trailingslashit( trailingslashit( $lien ) . $onglet );
+}
+
+/**
+ * Gabarit d'une sous-page : single-yume_oeuvre-{onglet} (thème), puis ceux de la fiche.
+ *
+ * @param string[] $gabarits Hiérarchie.
+ * @return string[]
+ */
+function gabarit_onglet_oeuvre( $gabarits ) {
+	$onglet = onglet_oeuvre();
+	if ( '' !== $onglet && is_array( $gabarits ) ) {
+		array_unshift( $gabarits, 'single-' . CPT_OEUVRE . '-' . $onglet . '.php' );
+	}
+	return $gabarits;
+}
+add_filter( 'single_template_hierarchy', __NAMESPACE__ . '\gabarit_onglet_oeuvre' );
 
 /**
  * Règles de réécriture des tomes et chapitres (motif => requête), dans l'ordre d'évaluation.
@@ -74,7 +141,7 @@ function regles_reecriture(): array {
 	$chap      = $racine . 'lire/' . $seg . '/' . $seg . '/' . $seg;
 	$chap_qv   = 'index.php?' . QV_OEUVRE . '=$matches[1]&' . QV_TOME . '=$matches[2]&' . QV_CHAPITRE . '=$matches[3]';
 
-	return array(
+	$regles = array(
 		// Œuvre : segments réservés.
 		$oeuvre . '/feed/' . $flux . '/?$'            => $oeuvre_qv . '&feed=$matches[2]',
 		$oeuvre . '/' . $flux . '/?$'                 => $oeuvre_qv . '&feed=$matches[2]',
@@ -101,6 +168,14 @@ function regles_reecriture(): array {
 		$tome . '/comment-page-([0-9]{1,})/?$'        => $tome_qv . '&cpage=$matches[3]',
 		$tome . '(?:/([0-9]+))?/?$'                   => $tome_qv . '&page=$matches[3]',
 	);
+
+	// Sous-pages de l'œuvre : avant les tomes (même forme d'adresse).
+	$onglets = onglets_oeuvre();
+	if ( $onglets ) {
+		$motif  = $oeuvre . '/(' . implode( '|', array_map( 'preg_quote', $onglets ) ) . ')/?$';
+		$regles = array_merge( array( $motif => $oeuvre_qv . '&' . QV_ONGLET . '=$matches[2]' ), $regles );
+	}
+	return $regles;
 }
 
 /**
@@ -113,7 +188,7 @@ function ajouter_regles_reecriture(): void {
 	}
 	// Déclaration directe : url_to_postid() filtre sur $wp->public_query_vars sans appliquer query_vars.
 	if ( $wp instanceof \WP ) {
-		foreach ( array( QV_OEUVRE, QV_TOME, QV_CHAPITRE, QV_LIRE ) as $qv ) {
+		foreach ( array( QV_OEUVRE, QV_TOME, QV_CHAPITRE, QV_LIRE, QV_ONGLET ) as $qv ) {
 			$wp->add_query_var( $qv );
 		}
 	}
@@ -126,7 +201,7 @@ function ajouter_regles_reecriture(): void {
  * @return string[]
  */
 function filtre_query_vars( array $vars ): array {
-	return array_values( array_unique( array_merge( $vars, array( QV_OEUVRE, QV_TOME, QV_CHAPITRE, QV_LIRE ) ) ) );
+	return array_values( array_unique( array_merge( $vars, array( QV_OEUVRE, QV_TOME, QV_CHAPITRE, QV_LIRE, QV_ONGLET ) ) ) );
 }
 add_filter( 'query_vars', __NAMESPACE__ . '\\filtre_query_vars' );
 
@@ -203,15 +278,34 @@ function numero_segment( \WP_Post $chapitre ): ?string {
  * @return array<int,string>
  */
 function segments_tome( int $tome_id ): array {
-	static $cache = array();
-	$cle          = $tome_id . ':' . wp_cache_get_last_changed( 'posts' );
-	if ( isset( $cache[ $cle ] ) ) {
-		return $cache[ $cle ];
+	$cache = &cache_segments();
+	$cle   = $tome_id . ':' . wp_cache_get_last_changed( 'posts' );
+	if ( ! isset( $cache[ $cle ] ) ) {
+		$cache[ $cle ] = calculer_segments( $tome_id > 0 ? ids_par_meta( CPT_CHAPITRE, 'yume_tome_id', $tome_id, statuts_actifs() ) : array() );
 	}
+	return $cache[ $cle ];
+}
+
+/**
+ * Cache (requête en cours) des segments d'URL par tome : « tome:last_changed » => segments.
+ *
+ * @return array<string,array<int,string>>
+ */
+function &cache_segments(): array {
+	static $cache = array();
 	if ( count( $cache ) > 200 ) {
 		$cache = array();
 	}
-	$ids = $tome_id > 0 ? ids_par_meta( CPT_CHAPITRE, 'yume_tome_id', $tome_id, statuts_actifs() ) : array();
+	return $cache;
+}
+
+/**
+ * Segments d'URL d'une liste ordonnée (menu_order, ID) de chapitres d'un même tome.
+ *
+ * @param int[] $ids Chapitres.
+ * @return array<int,string>
+ */
+function calculer_segments( array $ids ): array {
 	if ( $ids ) {
 		_prime_post_caches( $ids, false, true );
 	}
@@ -247,8 +341,43 @@ function segments_tome( int $tome_id ): array {
 			$ordonnes[ $id ] = $segments[ $id ];
 		}
 	}
-	$cache[ $cle ] = $ordonnes;
 	return $ordonnes;
+}
+
+/**
+ * Calcule en une requête (et un amorçage des caches) les segments d'URL de plusieurs tomes,
+ * avant l'affichage d'une liste de liens vers leurs chapitres (fiche d'œuvre, accueil) : sans
+ * cela, chaque premier permalien de chapitre d'un tome coûte une requête et un amorçage.
+ *
+ * @param int[] $tome_ids Tomes.
+ */
+function amorcer_segments( array $tome_ids ): void {
+	global $wpdb;
+	$cache    = &cache_segments();
+	$version  = wp_cache_get_last_changed( 'posts' );
+	$tome_ids = array_values(
+		array_filter(
+			array_unique( array_map( 'intval', $tome_ids ) ),
+			static fn( int $id ): bool => $id > 0 && ! isset( $cache[ $id . ':' . $version ] )
+		)
+	);
+	if ( ! $tome_ids ) {
+		return;
+	}
+	$statuts = statuts_actifs();
+	$sql     = "SELECT p.ID, m.meta_value AS tome FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'yume_tome_id'"
+		. ' WHERE p.post_type = %s AND m.meta_value IN (' . implode( ', ', array_fill( 0, count( $tome_ids ), '%s' ) ) . ')'
+		. ' AND p.post_status IN (' . implode( ', ', array_fill( 0, count( $statuts ), '%s' ) ) . ') ORDER BY p.menu_order ASC, p.ID ASC';
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	$lignes   = (array) $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( CPT_CHAPITRE ), array_map( 'strval', $tome_ids ), $statuts ) ), ARRAY_A );
+	$par_tome = array_fill_keys( $tome_ids, array() );
+	foreach ( $lignes as $ligne ) {
+		$par_tome[ (int) $ligne['tome'] ][] = (int) $ligne['ID'];
+	}
+	_prime_post_caches( array_map( 'intval', wp_list_pluck( $lignes, 'ID' ) ), false, true );
+	foreach ( $par_tome as $tome_id => $ids ) {
+		$cache[ $tome_id . ':' . $version ] = calculer_segments( array_values( array_unique( $ids ) ) );
+	}
 }
 
 /**
@@ -728,7 +857,7 @@ function slug_autorise( string $slug, string $post_type ): string {
 	if ( preg_match( '/^[0-9]+$/', $slug ) ) {
 		return ( CPT_TOME === $post_type ? 'tome-' : 'chapitre-' ) . $slug;
 	}
-	if ( slug_reserve( $slug ) ) {
+	if ( slug_reserve( $slug ) || ( CPT_TOME === $post_type && in_array( $slug, onglets_oeuvre(), true ) ) ) {
 		return $slug . '-2';
 	}
 	return $slug;

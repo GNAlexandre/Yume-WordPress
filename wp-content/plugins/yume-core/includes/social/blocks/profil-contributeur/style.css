@@ -1,0 +1,215 @@
+/**
+ * yume/profil-contributeur — structure seulement (couleurs : variables et classes du thème).
+ * Profil (/contributeurs/{pseudo}/), liste des profils (/contributeurs/, page « L'équipe ») et
+ * rubrique « Profil public » de la page compte.
+ */
+.yn-contributeur,
+.yn-contributeurs {
+	display: grid;
+	gap: 20px;
+}
+
+.yn-contributeurs {
+	margin-block: 32px 0;
+}
+
+.yn-contributeur__ariane {
+	font-size: 14px;
+}
+
+.yn-contributeur__entete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 18px;
+}
+
+.yn-contributeur__avatar {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 18px;
+	font-weight: 700;
+}
+
+.yn-contributeur__avatar--grand {
+	width: 88px;
+	height: 88px;
+	font-size: 32px;
+}
+
+.yn-contributeur__identite {
+	min-width: 0;
+}
+
+.yn-contributeur__identite .yn-label,
+.yn-contributeurs__entete .yn-label {
+	margin: 0;
+}
+
+.yn-contributeur__nom,
+.yn-contributeurs__titre {
+	margin: 4px 0 8px;
+	overflow-wrap: anywhere;
+}
+
+.yn-contributeurs__entete p {
+	margin: 0;
+}
+
+.yn-contributeur__meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin: 0;
+	font-size: 14px;
+}
+
+.yn-contributeur__bio p {
+	margin: 0 0 10px;
+	font-size: 17px;
+	line-height: 1.65;
+}
+
+.yn-contributeur__liens {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-contributeur__liens li {
+	margin: 0;
+}
+
+.yn-contributeur__travaux h2 {
+	margin: 0 0 6px;
+}
+
+.yn-contributeur__travaux > p {
+	margin: 0 0 14px;
+}
+
+.yn-contributeur__oeuvres {
+	display: grid;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-contributeur__oeuvre {
+	margin: 0;
+	padding: 16px 18px;
+}
+
+.yn-contributeur__oeuvre h3 {
+	margin: 0 0 8px;
+	font-size: 18px;
+}
+
+.yn-contributeur__tomes {
+	display: grid;
+	gap: 4px;
+	margin: 0;
+	padding-left: 1.2em;
+	font-size: 15px;
+}
+
+.yn-contributeur__retour {
+	margin: 0;
+}
+
+.yn-contributeurs__liste {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-contributeurs__carte {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	margin: 0;
+	padding: 14px 16px;
+}
+
+.yn-contributeurs__texte {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	gap: 2px;
+}
+
+.yn-contributeurs__nom {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+/* Toute la carte est cliquable (lien étendu). */
+.yn-contributeurs__nom::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+}
+
+.yn-contributeurs__role,
+.yn-contributeurs__tomes {
+	font-size: 13px;
+}
+
+.yn-contributeurs__vide {
+	margin: 0;
+	padding: 16px 18px;
+}
+
+.yn-contributeurs__rejoindre {
+	margin: 20px 0 0;
+}
+
+/* Rubrique « Profil public » de la page compte. */
+.yn-profil-public__explication ul {
+	margin: 0 0 10px;
+	padding-left: 1.2em;
+}
+
+.yn-profil-public__explication p {
+	margin: 0 0 10px;
+}
+
+.yn-profil-public__bio textarea,
+.yn-profil-public input[type="month"] {
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.yn-profil-public input[type="month"] {
+	min-height: 40px;
+	padding: 6px 10px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--fond);
+	color: var(--wp--preset--color--texte-fort);
+	font: inherit;
+}
+
+/* Modèle « yume-contributeur » du thème (pas de bande de titre). */
+.yn-page-contributeurs {
+	padding-top: clamp(28px, 4vw, 44px);
+}

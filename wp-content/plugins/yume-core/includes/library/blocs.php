@@ -31,6 +31,9 @@ function noms_blocs(): array {
 		'chapter-nav',
 		'tome-illustrations',
 		'partenaires',
+		'recherche',
+		'oeuvre-onglets',
+		'oeuvre-news',
 	);
 }
 
