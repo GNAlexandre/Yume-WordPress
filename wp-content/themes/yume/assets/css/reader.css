@@ -140,12 +140,27 @@
 	font-style: italic;
 }
 
-/* Dialogues : décalés comme les pensées, tiret cadratin en retrait suspendu (les lignes
-   suivantes s'alignent sur le texte après le tiret). */
+/* Dialogues : décalés comme les pensées. Le tiret de tête est isolé au rendu dans une boîte
+   de largeur fixe suspendue à gauche (.yn-tiret, includes/reader/tiret.php) : la première
+   lettre de la réplique s'aligne exactement sur celle des pensées, quelle que soit la police.
+   Repli sans boîte (tiret non reconnu) : retrait suspendu approché. */
 .yn-dialogue,
 .yn-reader .yn-dialogue {
 	padding-left: 2.2em;
-	text-indent: -1.1em;
+	text-indent: -1.3em;
+}
+
+.yn-dialogue.yn-dialogue--tiret,
+.yn-reader .yn-dialogue.yn-dialogue--tiret {
+	text-indent: 0;
+}
+
+.yn-tiret {
+	display: inline-block;
+	width: 1.3em;
+	margin-left: -1.3em;
+	text-indent: 0;
+	white-space: nowrap;
 }
 
 /* Pensées : italique, retrait à gauche. */
@@ -285,7 +300,7 @@ figure.yn-illustration figcaption,
 	.yn-dialogue,
 	.yn-reader .yn-dialogue {
 		padding-left: 1.4em;
-		text-indent: -0.8em;
+		text-indent: -1.3em;
 	}
 
 	.yn-thought,

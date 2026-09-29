@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1-dev.3 — 2026-09-29
+
+- Lecture : première lettre des dialogues alignée exactement sur celle des pensées (tiret isolé au rendu dans une boîte suspendue, quelle que soit la police).
+
 ## 2.0.1-dev.2 — 2026-09-29
 
 - Lecture : dialogues décalés comme les pensées (tiret cadratin en retrait suspendu).
