@@ -13,13 +13,19 @@
 
 use function Yume\Core\Planning\creer_oeuvre;
 use function Yume\Core\Planning\formulaire_ajout;
+use function Yume\Core\Planning\modifier_oeuvre;
 use function Yume\Core\Planning\navigation_equipe;
+use function Yume\Core\Planning\nettoyer_synopsis;
 use function Yume\Core\Planning\oeuvres_equipe;
 use function Yume\Core\Planning\rendu_vue_oeuvres;
+use function Yume\Core\Planning\valeurs_oeuvre;
 use function Yume\Core\Planning\saisie_oeuvre;
 use function Yume\Core\Planning\synopsis_en_blocs;
+use function Yume\Core\Planning\synopsis_texte;
+use function Yume\Core\Planning\traiter_genre;
 use function Yume\Core\Planning\traiter_formulaire_oeuvre;
 use function Yume\Core\Planning\traiter_publication_oeuvre;
+use function Yume\Core\Planning\url_vue_equipe;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -128,7 +134,7 @@ yume_toe_test(
 		yume_assert_not_contains( 'vue=oeuvres', navigation_equipe( 'tableau' ) );
 		$html = rendu_vue_oeuvres();
 		yume_assert_contains( 'Seuls les rôles « Éditeur Yume » et « Gérant »', $html );
-		yume_assert_not_contains( 'yn-nouvelle-oeuvre-form', $html );
+		yume_assert_not_contains( 'id="yn-oeuvre-form"', $html );
 		$refus = creer_oeuvre( saisie_oeuvre( wp_slash( array( 'titre' => 'Interdite' ) ) ), null, $traducteur );
 		yume_assert_true( is_wp_error( $refus ) );
 		yume_assert_same( 'yume_oeuvre_interdit', $refus->get_error_code() );
@@ -139,7 +145,7 @@ yume_toe_test(
 		foreach ( array( 'yume_editeur', 'yume_gerant', 'administrator' ) as $role ) {
 			wp_set_current_user( yume_factory_user( $role ) );
 			yume_assert_contains( 'vue=oeuvres', navigation_equipe( 'tableau' ), $role );
-			yume_assert_contains( 'yn-nouvelle-oeuvre-form', rendu_vue_oeuvres(), $role );
+			yume_assert_contains( 'id="yn-oeuvre-form"', rendu_vue_oeuvres(), $role );
 		}
 	}
 );
@@ -179,7 +185,7 @@ yume_toe_test(
 		$contenu = (string) get_post_field( 'post_content', $id );
 		yume_assert_same( 2, substr_count( $contenu, '<!-- wp:paragraph -->' ) );
 		yume_assert_contains( 'Ils se réveillent dans le noir.<br>', $contenu );
-		yume_assert_contains( '<p>Ils doivent survivre.</p>', $contenu, 'balises retirées' );
+		yume_assert_contains( '<p>Ils doivent <b>survivre</b>.</p>', $contenu, 'gras conservé' );
 		yume_assert_same( array( 'Hai to Gensō no Grimgar', '灰と幻想のグリムガル' ), get_post_meta( $id, 'yume_titres_alt', true ) );
 		yume_assert_same( 'Ao Jyumonji', get_post_meta( $id, 'yume_auteur', true ) );
 		yume_assert_same( 'Eiri Shirai', get_post_meta( $id, 'yume_illustrateur', true ) );
@@ -266,7 +272,7 @@ yume_toe_test(
 				yume_toe_post(
 					array(
 						'titre'           => 'Sans nouveaux genres',
-						'nouveaux_genres' => 'Isekai',
+						'nouveaux_genres' => 'Cultivation',
 						'publier'         => '1',
 					)
 				),
@@ -278,7 +284,7 @@ yume_toe_test(
 		}
 		yume_assert_same( 'ok', $retour['type'] );
 		yume_assert_contains( 'Nouveaux genres ignorés', $retour['message'] );
-		yume_assert_false( (bool) term_exists( 'Isekai', 'yume_genre' ) );
+		yume_assert_false( (bool) term_exists( 'Cultivation', 'yume_genre' ) );
 	}
 );
 
@@ -397,8 +403,8 @@ yume_toe_test(
 		yume_assert_contains( 'name="oeuvre_id" value="' . $brouillon . '"', $html );
 		yume_assert_not_contains( 'name="oeuvre_id" value="' . $publiee . '"', $html, 'pas de « Publier » pour une œuvre publiée' );
 		yume_assert_contains( esc_url( (string) get_permalink( $publiee ) ), $html );
-		yume_assert_contains( 'Compléter la fiche', $html );
-		yume_assert_contains( esc_url( (string) get_edit_post_link( $brouillon ) ), $html );
+		yume_assert_contains( '>Modifier<', $html );
+		yume_assert_contains( esc_url( url_vue_equipe( 'oeuvres', array( 'modifier' => $brouillon ) ) ), $html );
 		yume_assert_contains( 'oeuvre_ajout=' . $brouillon, $html );
 		yume_assert_contains( esc_url( add_query_arg( 'oeuvre', $brouillon, yume_url_page( 'publier' ) ) ), $html );
 		yume_assert_contains( 'enctype="multipart/form-data"', $html );
@@ -412,9 +418,218 @@ yume_toe_test(
 );
 
 yume_test(
-	'Synopsis : paragraphes séparés par une ligne vide, sauts de ligne conservés, HTML échappé',
+	'Synopsis : paragraphes séparés par une ligne vide, sauts de ligne, gras et italique conservés, le reste retiré ; texte relu depuis la fiche',
 	static function () {
-		yume_assert_same( '', synopsis_en_blocs( "  \n\n " ) );
-		yume_assert_same( "<!-- wp:paragraph -->\n<p>Un<br>\ndeux</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>&lt;i&gt;trois&lt;/i&gt;</p>\n<!-- /wp:paragraph -->", synopsis_en_blocs( "Un\ndeux\n\n\n<i>trois</i>" ) );
+		yume_assert_same( '', synopsis_en_blocs( nettoyer_synopsis( "  \n\n " ) ) );
+		yume_assert_same( "<!-- wp:paragraph -->\n<p>Un<br>\ndeux</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p><i>trois</i> alert(1)</p>\n<!-- /wp:paragraph -->", synopsis_en_blocs( nettoyer_synopsis( "Un\r\ndeux\n\n\n<i>trois</i> <script>alert(1)</script>" ) ) );
+		$id = yume_factory_post(
+			array(
+				'post_type'    => 'yume_oeuvre',
+				'post_title'   => 'Relue',
+				'post_content' => "<!-- wp:paragraph -->\n<p><strong>Monica</strong> vit seule &amp; cachée.<br>Loin.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list --><ul><li>Un point</li></ul><!-- /wp:list -->",
+			)
+		);
+		yume_assert_same( "<strong>Monica</strong> vit seule & cachée.\nLoin.\n\nUn point", synopsis_texte( $id ) );
+	}
+);
+
+yume_toe_test(
+	'Modifier une œuvre : formulaire prérempli (?modifier=ID), fiche détaillée, synopsis d\'origine conservé s\'il n\'est pas modifié, couverture remplacée',
+	static function ( $ctx ) {
+		$editeur = yume_factory_user( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$id = yume_factory_post(
+			array(
+				'post_type'    => 'yume_oeuvre',
+				'post_title'   => 'Silent Witch',
+				'post_content' => "<!-- wp:paragraph -->\n<p><strong>Monica</strong> a des secrets.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list --><ul><li>Liste d'origine</li></ul><!-- /wp:list -->",
+				'meta_input'   => array(
+					'yume_auteur'       => 'Isora Matsuri',
+					'yume_liens'        => array(
+						array(
+							'label' => 'Novel-Index',
+							'url'   => 'https://novel-index.com/silent-witch',
+						),
+					),
+					'yume_jours_sortie' => array( 'lundi' ),
+				),
+			)
+		);
+		wp_set_object_terms( $id, 'web-novel', 'yume_type' );
+
+		$_GET['modifier'] = (string) $id;
+		$html             = rendu_vue_oeuvres();
+		yume_assert_contains( 'Modifier « Silent Witch »', $html );
+		yume_assert_contains( 'value="yume_oeuvre_modifier"', $html );
+		yume_assert_contains( 'name="oeuvre_id" value="' . $id . '"', $html );
+		yume_assert_contains( 'value="Isora Matsuri"', $html );
+		yume_assert_contains( 'value="https://novel-index.com/silent-witch"', $html );
+		yume_assert_contains( '<option value="web-novel" selected=\'selected\'>', $html );
+		yume_assert_contains( 'value="lundi" checked=\'checked\'', $html );
+		yume_assert_contains( '&lt;strong&gt;Monica&lt;/strong&gt; a des secrets.', $html, 'synopsis prérempli avec son gras' );
+		yume_assert_contains( '<details class="yn-team__details" open>', $html, 'fiche détaillée ouverte quand elle est remplie' );
+		yume_assert_not_contains( 'id="yn-oeuvres-liste"', $html, 'formulaire seul' );
+
+		// Enregistrement sans toucher au synopsis : contenu d'origine intact (liste comprise).
+		$post   = valeurs_oeuvre( $id );
+		$envoi  = array(
+			'action'            => 'yume_oeuvre_modifier',
+			'oeuvre_id'         => (string) $id,
+			'_yume_nonce'       => wp_create_nonce( 'yume_oeuvre_modifier_' . $id ),
+			'titre'             => 'Secrets of the Silent Witch',
+			'type'              => 'light-novel',
+			'avancement'        => 'terminee',
+			'auteur'            => 'Matsuri Isora',
+			'synopsis'          => $post['synopsis'],
+			'synopsis_origine'  => $post['synopsis_origine'],
+			'statut_vo'         => 'termine',
+			'nb_tomes_vo'       => '16',
+			'source_traduction' => 'Kadokawa',
+			'jours_sortie'      => array( 'mardi', 'jeudi' ),
+			'equipe'            => array( 'traduction' => 'Pizzflc' ),
+			'liens'             => array(
+				array(
+					'label' => 'Novel-Index',
+					'url'   => 'https://novel-index.com/silent-witch',
+				),
+				array(
+					'label' => 'Sans adresse',
+					'url'   => '',
+				),
+			),
+		);
+		$retour = traiter_formulaire_oeuvre( wp_slash( $envoi ), array( 'couverture' => yume_toe_image( $ctx ) ), $editeur );
+		yume_assert_same( 'ok', $retour['type'], $retour['message'] );
+		yume_assert_contains( 'est enregistrée', $retour['message'] );
+		yume_assert_same( 'Secrets of the Silent Witch', get_post_field( 'post_title', $id ) );
+		yume_assert_contains( "<ul><li>Liste d'origine</li></ul>", (string) get_post_field( 'post_content', $id ), 'synopsis non modifié : contenu intact' );
+		yume_assert_same( 'Matsuri Isora', get_post_meta( $id, 'yume_auteur', true ) );
+		yume_assert_same( 'termine', get_post_meta( $id, 'yume_statut_vo', true ) );
+		yume_assert_same( 16, (int) get_post_meta( $id, 'yume_nb_tomes_vo', true ) );
+		yume_assert_same( array( 'mardi', 'jeudi' ), get_post_meta( $id, 'yume_jours_sortie', true ) );
+		yume_assert_same( 'Pizzflc', get_post_meta( $id, 'yume_equipe', true )['traduction'] );
+		yume_assert_same( 1, count( get_post_meta( $id, 'yume_liens', true ) ), 'ligne sans adresse ignorée' );
+		yume_assert_same( array( 'light-novel' ), wp_get_object_terms( $id, 'yume_type', array( 'fields' => 'slugs' ) ) );
+		yume_assert_same( array( 'terminee' ), wp_get_object_terms( $id, 'yume_statut', array( 'fields' => 'slugs' ) ) );
+		yume_assert_true( (int) get_post_thumbnail_id( $id ) > 0, 'couverture' );
+		yume_assert_same( 'publish', get_post_status( $id ), 'statut de publication inchangé' );
+
+		// Synopsis modifié : réécrit en paragraphes ; champs vidés : méta supprimées.
+		$envoi['synopsis']     = "Nouveau <em>synopsis</em>.\n\nDeuxième paragraphe.";
+		$envoi['jours_sortie'] = array();
+		$envoi['equipe']       = array();
+		$envoi['liens']        = array();
+		$envoi['type']         = '';
+		$retour                = traiter_formulaire_oeuvre( wp_slash( $envoi ), array(), $editeur );
+		yume_assert_same( 'ok', $retour['type'], $retour['message'] );
+		yume_assert_same( "<!-- wp:paragraph -->\n<p>Nouveau <em>synopsis</em>.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Deuxième paragraphe.</p>\n<!-- /wp:paragraph -->", (string) get_post_field( 'post_content', $id ) );
+		yume_assert_false( metadata_exists( 'post', $id, 'yume_jours_sortie' ), 'yume_jours_sortie supprimée' );
+		yume_assert_false( metadata_exists( 'post', $id, 'yume_equipe' ), 'yume_equipe supprimée' );
+		yume_assert_false( metadata_exists( 'post', $id, 'yume_liens' ), 'yume_liens supprimée' );
+		yume_assert_same( array(), wp_get_object_terms( $id, 'yume_type', array( 'fields' => 'slugs' ) ) );
+
+		// Titre d'une autre œuvre refusé ; son propre titre accepté ; saisie reprise dans le formulaire.
+		yume_factory_post(
+			array(
+				'post_type'  => 'yume_oeuvre',
+				'post_title' => 'Grimgar',
+			)
+		);
+		$envoi['titre'] = 'grimgar';
+		$refus          = traiter_formulaire_oeuvre( wp_slash( $envoi ), array(), $editeur );
+		yume_assert_same( 'erreur', $refus['type'] );
+		yume_assert_same( $id, $refus['modifier'] );
+		yume_assert_contains( 'existe déjà', $refus['message'] );
+		set_transient( 'yume_planning_retour_' . $editeur, $refus, 60 );
+		$html = rendu_vue_oeuvres();
+		yume_assert_contains( 'value="grimgar"', $html, 'saisie reprise' );
+		yume_assert_contains( 'existe déjà', $html );
+
+		// Nonce, droits.
+		$envoi['titre']       = 'Secrets of the Silent Witch';
+		$envoi['_yume_nonce'] = wp_create_nonce( 'yume_oeuvre_creer' );
+		yume_assert_contains( 'session a expiré', traiter_formulaire_oeuvre( wp_slash( $envoi ), array(), $editeur )['message'] );
+		$traducteur = yume_factory_user( 'yume_traducteur' );
+		yume_assert_true( is_wp_error( modifier_oeuvre( $id, saisie_oeuvre( wp_slash( $envoi ) ), null, $traducteur ) ) );
+		wp_set_current_user( $traducteur );
+		$_GET['modifier'] = (string) $id;
+		yume_assert_not_contains( 'value="yume_oeuvre_modifier"', rendu_vue_oeuvres() );
+	}
+);
+
+yume_toe_test(
+	'Genres : genres proposés d\'office (une seule fois), ajout (sans doublon, casse ignorée) et suppression depuis la vue',
+	static function () {
+		yume_assert_true( (bool) get_option( 'yume_genres_proposes' ) );
+		foreach ( array( 'Action', 'Isekai', 'Romance', 'Slice of life', 'Shōnen' ) as $nom ) {
+			yume_assert_true( (bool) term_exists( $nom, 'yume_genre' ), $nom );
+		}
+		$isekai = get_term_by( 'name', 'Isekai', 'yume_genre' );
+		wp_delete_term( $isekai->term_id, 'yume_genre' );
+		\Yume\Core\Core\installer_genres();
+		yume_assert_false( (bool) term_exists( 'Isekai', 'yume_genre' ), 'un genre supprimé ne revient pas' );
+
+		$gerant = yume_factory_user( 'yume_gerant' );
+		wp_set_current_user( $gerant );
+		$post  = static function ( array $champs ): array {
+			return wp_slash( array_merge( array( '_yume_nonce' => wp_create_nonce( 'yume_genre_equipe' ) ), $champs ) );
+		};
+		$ajout = traiter_genre(
+			$post(
+				array(
+					'op'  => 'ajouter',
+					'nom' => 'Cultivation, romance',
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'ok', $ajout['type'], $ajout['message'] );
+		yume_assert_contains( 'Cultivation, Romance', $ajout['message'], 'genre existant retrouvé, casse ignorée' );
+		yume_assert_same(
+			1,
+			count(
+				get_terms(
+					array(
+						'taxonomy'   => 'yume_genre',
+						'hide_empty' => false,
+						'name'       => 'Romance',
+					)
+				)
+			)
+		);
+
+		$html = rendu_vue_oeuvres();
+		yume_assert_contains( 'id="yn-genres"', $html );
+		yume_assert_contains( 'value="yume_genre_equipe"', $html );
+		yume_assert_contains( 'Cultivation <span class="yn-muted">0 œuvre', $html );
+		yume_assert_contains( 'id="yn-oeuvre-genre-cultivation"', $html, 'proposé dans le formulaire' );
+
+		$terme = get_term_by( 'name', 'Cultivation', 'yume_genre' );
+		$suppr = traiter_genre(
+			$post(
+				array(
+					'op'    => 'supprimer',
+					'genre' => (string) $terme->term_id,
+				)
+			),
+			$gerant
+		);
+		yume_assert_same( 'ok', $suppr['type'], $suppr['message'] );
+		yume_assert_false( (bool) term_exists( 'Cultivation', 'yume_genre' ) );
+
+		$traducteur = yume_factory_user( 'yume_traducteur' );
+		wp_set_current_user( $traducteur );
+		$refus = traiter_genre(
+			$post(
+				array(
+					'op'  => 'ajouter',
+					'nom' => 'Interdit',
+				)
+			),
+			$traducteur
+		);
+		yume_assert_same( 'erreur', $refus['type'] );
+		yume_assert_false( (bool) term_exists( 'Interdit', 'yume_genre' ) );
+		yume_assert_contains( 'session a expiré', traiter_genre( array( 'op' => 'ajouter' ), $gerant )['message'] );
 	}
 );

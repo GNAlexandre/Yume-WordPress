@@ -42,6 +42,7 @@ function declarer_vue( $vues ) {
 	$vues['glossaire'] = array(
 		'libelle'  => __( 'Glossaires', 'yume-core' ),
 		'capacite' => CAPACITE,
+		'groupe'   => 'catalogue',
 		'rendu'    => __NAMESPACE__ . '\\rendu_vue_glossaire',
 	);
 	return $vues;

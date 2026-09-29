@@ -39,6 +39,7 @@ function declarer_vue_sante( $vues ): array {
 	$vues['sante'] = array(
 		'libelle'  => __( 'Santé du site', 'yume-core' ),
 		'capacite' => CAPACITE_SANTE,
+		'groupe'   => 'site',
 		'rendu'    => __NAMESPACE__ . '\\rendu_vue_sante',
 	);
 	return $vues;

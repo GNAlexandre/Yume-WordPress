@@ -244,14 +244,27 @@ yume_te_test(
 		};
 		$nav      = navigation_equipe( 'tableau', 2 );
 		$toutes   = array_column( yume_te_nav( $nav ), 0 );
-		yume_assert_same( array_merge( $ajoutees, array( 'Réglages' ) ), array_slice( $toutes, -1 - count( $ajoutees ) ), 'vues ajoutées avant « Réglages »' );
+		$du_site  = array_column(
+			array_filter(
+				\Yume\Core\Planning\vues_equipe_ajoutees(),
+				static fn( $v ) => 'site' === $v['groupe']
+			),
+			'libelle'
+		);
+		yume_assert_same( array_merge( $du_site, array( 'Réglages' ) ), array_slice( $toutes, -1 - count( $du_site ) ), 'vues du menu « Site » avant « Réglages »' );
+		// Menus repliables : Catalogue, Planning, Équipe, Site ; aucun ouvert sur le tableau de bord.
+		yume_assert_same( 4, substr_count( $nav, '<li class="yn-team__groupe"><details>' ) );
+		foreach ( array( 'Catalogue', 'Planning', 'Équipe', 'Site' ) as $menu ) {
+			yume_assert_contains( '<summary>' . $menu . '</summary>', $nav );
+		}
+		yume_assert_contains( '<details open><summary>Catalogue</summary>', navigation_equipe( 'tomes' ), 'menu de la page affichée ouvert' );
 		$entrees  = $de_base( yume_te_nav( $nav ) );
 		$libelles = array_column( $entrees, 0 );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Œuvres', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Publier un tome', 'Lecture à compléter', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
 		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[9][1], 'réglages dans l’espace équipe' );
-		yume_assert_same( url_vue_equipe( 'lecture' ), $entrees[3][1], 'lecture à compléter dans l’espace équipe' );
+		yume_assert_same( url_vue_equipe( 'lecture' ), $entrees[5][1], 'lecture à compléter dans l’espace équipe' );
 		yume_assert_not_contains( 'page=yume-reglages', $nav, 'plus la page de l’administration' );
-		yume_assert_same( url_vue_equipe( 'oeuvres' ), $entrees[5][1], 'œuvres dans l’espace équipe' );
+		yume_assert_same( url_vue_equipe( 'oeuvres' ), $entrees[2][1], 'œuvres dans l’espace équipe' );
 		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[6][1] );
 		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[7][1] );
 		yume_assert_contains( 'vue=planning', $entrees[6][1] );
@@ -265,9 +278,10 @@ yume_te_test(
 		foreach ( array(
 			'planning' => 6,
 			'journal'  => 7,
-			'publier'  => 2,
-			'lecture'  => 3,
-			'oeuvres'  => 5,
+			'publier'  => 4,
+			'lecture'  => 5,
+			'oeuvres'  => 2,
+			'tomes'    => 3,
 			'membres'  => 8,
 			'reglages' => 9,
 			'taches'   => 1,
@@ -1164,8 +1178,8 @@ yume_te_test(
 		yume_assert_contains( 'name="vue" value="lecture"', $html, 'filtre GET' );
 		yume_assert_contains( '>Grimgar (1)</option>', $html );
 		$nav = yume_te_nav( $html );
-		yume_assert_same( 'Lecture à compléter', $nav[3][0] );
-		yume_assert_same( ' aria-current="page"', $nav[3][2], 'entrée active' );
+		yume_assert_same( 'Lecture à compléter', $nav[5][0] );
+		yume_assert_same( ' aria-current="page"', $nav[5][2], 'entrée active' );
 		yume_assert_same( 1, substr_count( $html, 'aria-current' ) );
 
 		// Filtre par œuvre.

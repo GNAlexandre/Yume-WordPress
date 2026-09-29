@@ -370,7 +370,7 @@ yume_tte_test(
 			yume_assert_same( url_vue_equipe( 'tomes' ), $nav['Tous les tomes'][0] ?? '', $role . ' : entrée vers la vue' );
 			yume_assert_same( '', $nav['Tous les tomes'][1], 'pas courante sur le tableau de bord' );
 			$libelles = array_keys( $nav );
-			yume_assert_same( array_search( 'Lecture à compléter', $libelles, true ) + 1, array_search( 'Tous les tomes', $libelles, true ), 'juste après « Lecture à compléter »' );
+			yume_assert_same( array_search( 'Œuvres', $libelles, true ) + 1, array_search( 'Tous les tomes', $libelles, true ), 'menu « Catalogue », juste après « Œuvres »' );
 		}
 		$html = yume_tte_rendu( $id, array( 'vue' => 'tomes' ) );
 		yume_assert_same( ' aria-current="page"', yume_tte_nav( $html )['Tous les tomes'][1], 'entrée courante sur la vue' );

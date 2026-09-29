@@ -671,6 +671,10 @@ function acces_equipe( string $titre, string $message, string $lien ): string {
 function nom_role( \WP_User $user ): string {
 	$roles = wp_roles()->roles;
 	foreach ( (array) $user->roles as $role ) {
+		if ( 'administrator' === $role ) {
+			// Libellé court : le paquet de langue récent dit « Administrateur/administratrice ».
+			return __( 'Administrateur', 'yume-core' );
+		}
 		if ( isset( $roles[ $role ]['name'] ) ) {
 			return translate_user_role( $roles[ $role ]['name'] );
 		}
@@ -701,10 +705,11 @@ function url_vue_equipe( string $vue = '', array $args = array() ): string {
 /**
  * Vues ajoutées à l'espace équipe par les autres fichiers (filtre yume_vues_equipe), limitées à
  * celles que le compte courant peut voir : clé => array{libelle: string, capacite: string,
- * rendu: callable(): string}. Chaque vue a son entrée dans la navigation (avant « Réglages ») et
+ * groupe: string, rendu: callable(): string}. Chaque vue a son entrée dans le menu « groupe »
+ * de la navigation (groupes_navigation_equipe() ; « site » par défaut, avant « Réglages ») et
  * s'affiche par ?vue=<clé>.
  *
- * @return array<string,array{libelle:string,capacite:string,rendu:callable}>
+ * @return array<string,array{libelle:string,capacite:string,groupe:string,rendu:callable}>
  */
 function vues_equipe_ajoutees(): array {
 	/**
@@ -724,9 +729,11 @@ function vues_equipe_ajoutees(): array {
 		}
 		$capacite = (string) ( $vue['capacite'] ?? 'yume_voir_equipe' );
 		if ( current_user_can( $capacite ) ) {
+			$groupe         = sanitize_key( (string) ( $vue['groupe'] ?? 'site' ) );
 			$retenu[ $cle ] = array(
 				'libelle'  => (string) $vue['libelle'],
 				'capacite' => $capacite,
+				'groupe'   => isset( groupes_navigation_equipe()[ $groupe ] ) ? $groupe : 'site',
 				'rendu'    => $vue['rendu'],
 			);
 		}
@@ -748,14 +755,75 @@ function vue_equipe(): string {
 }
 
 /**
+ * Menus de la navigation de l'espace équipe : clé => libellé, dans l'ordre d'affichage.
+ *
+ * @return array<string,string>
+ */
+function groupes_navigation_equipe(): array {
+	return array(
+		'catalogue' => __( 'Catalogue', 'yume-core' ),
+		'planning'  => __( 'Planning', 'yume-core' ),
+		'equipe'    => __( 'Équipe', 'yume-core' ),
+		'site'      => __( 'Site', 'yume-core' ),
+	);
+}
+
+/**
+ * Entrées de la navigation de l'espace équipe visibles pour le compte courant, par menu :
+ * groupe => liste de array{cle, libelle, url}.
+ *
+ * @return array<string,array<int,array{cle:string,libelle:string,url:string}>>
+ */
+function entrees_navigation_equipe(): array {
+	$groupes = array_fill_keys( array_keys( groupes_navigation_equipe() ), array() );
+	$ajouter = static function ( string $groupe, string $cle, string $libelle, string $url ) use ( &$groupes ): void {
+		$groupes[ $groupe ][] = array(
+			'cle'     => $cle,
+			'libelle' => $libelle,
+			'url'     => $url,
+		);
+	};
+	if ( current_user_can( CAPACITE_OEUVRES ) ) {
+		$ajouter( 'catalogue', 'oeuvres', __( 'Œuvres', 'yume-core' ), url_vue_equipe( 'oeuvres' ) );
+	}
+	if ( current_user_can( 'yume_publier' ) ) {
+		// Tout le catalogue, publiés compris (la section du tableau de bord ne liste que les
+		// tomes en préparation) : retrouver un tome paru pour remplacer sa lecture en ligne.
+		$ajouter( 'catalogue', 'tomes', __( 'Tous les tomes', 'yume-core' ), url_vue_equipe( 'tomes' ) );
+		$ajouter( 'catalogue', 'publier', __( 'Publier un tome', 'yume-core' ), yume_url_page( 'publier' ) );
+		$ajouter( 'catalogue', 'lecture', __( 'Lecture à compléter', 'yume-core' ), url_vue_equipe( 'lecture' ) );
+	}
+	// Vue de gestion de tout le planning (le planning public reste accessible par le bouton
+	// « Voir le planning public »).
+	$ajouter( 'planning', 'planning', __( 'Planning complet', 'yume-core' ), url_vue_equipe( 'planning' ) );
+	$ajouter( 'planning', 'journal', __( 'Journal', 'yume-core' ), url_vue_equipe( 'journal' ) );
+	$membres = url_membres();
+	if ( '' !== $membres ) {
+		$ajouter( 'equipe', 'membres', __( 'Membres et rôles', 'yume-core' ), $membres );
+	}
+	foreach ( vues_equipe_ajoutees() as $cle => $ajoutee ) {
+		$ajouter( $ajoutee['groupe'], $cle, $ajoutee['libelle'], url_vue_equipe( $cle ) );
+	}
+	if ( current_user_can( 'yume_reglages' ) ) {
+		$ajouter( 'site', 'reglages', __( 'Réglages', 'yume-core' ), url_vue_equipe( 'reglages' ) );
+	}
+	return array_filter( $groupes );
+}
+
+/**
  * Navigation latérale de l'espace équipe, partagée par le tableau de bord (yume/team-dashboard),
- * ses vues « Planning complet », « Journal » et « Réglages », la page « Membres et rôles » (yume/team-members)
- * et le formulaire de publication : mêmes entrées, même ordre et mêmes cibles (WCAG 3.2.3).
- * Sur le tableau de bord, son entrée est une ancre ; « Mes tâches » mène toujours à la vue ?vue=taches.
+ * toutes ses vues, la page « Membres et rôles » (yume/team-members) et le formulaire de
+ * publication : mêmes entrées, même ordre et mêmes cibles (WCAG 3.2.3).
+ *
+ * « Tableau de bord » et « Mes tâches » en tête, puis des menus repliables (<details>, sans
+ * JavaScript) : Catalogue, Planning, Équipe, Site (groupes_navigation_equipe()). Le menu de la
+ * page affichée est ouvert. Sur le tableau de bord, son entrée est une ancre ; « Mes tâches »
+ * mène toujours à la vue ?vue=taches.
  *
  * @param string $actif   Page affichée : 'tableau', 'planning' (gestion du planning), 'journal',
  *                        'publier', 'lecture' (lecture en ligne à compléter), 'tomes' (tous les tomes),
- *                        'taches' (mes tâches), 'oeuvres' (œuvres), 'membres' ou 'reglages'.
+ *                        'taches' (mes tâches), 'oeuvres' (œuvres), 'membres', 'reglages' ou la clé
+ *                        d'une vue ajoutée.
  * @param int    $retards Nombre de mes retards (pastille de « Mes tâches »).
  */
 function navigation_equipe( string $actif, int $retards = 0 ): string {
@@ -765,38 +833,22 @@ function navigation_equipe( string $actif, int $retards = 0 ): string {
 	$courant = static function ( string $cle ) use ( $actif ): string {
 		return $cle === $actif ? ' aria-current="page"' : '';
 	};
-	$html    = '<nav class="yn-team__nav" aria-label="' . esc_attr__( 'Espace équipe', 'yume-core' ) . '"><ul>';
+	$html    = '<nav class="yn-team__nav" aria-label="' . esc_attr__( 'Espace équipe', 'yume-core' ) . '"><ul class="yn-team__menu">';
 	$html   .= '<li><a href="' . esc_url( $tableau ? '#yn-team' : $equipe ) . '"' . ( $tableau ? ' aria-current="true"' : '' ) . '>' . esc_html__( 'Tableau de bord', 'yume-core' ) . '</a></li>';
 	$html   .= '<li><a href="' . esc_url( url_vue_equipe( 'taches' ) ) . '"' . $courant( 'taches' ) . '>' . esc_html__( 'Mes tâches', 'yume-core' );
 	if ( $retards ) {
 		/* translators: %d : retards */
 		$html .= ' <span class="yn-chip yn-chip--warn"><span aria-hidden="true">' . $retards . '</span><span class="yn-visually-hidden">' . esc_html( sprintf( _n( '%d en retard', '%d en retard', $retards, 'yume-core' ), $retards ) ) . '</span></span>';
 	}
-	$html .= '</a></li>';
-	if ( current_user_can( 'yume_publier' ) ) {
-		$html .= '<li><a href="' . esc_url( yume_url_page( 'publier' ) ) . '"' . $courant( 'publier' ) . '>' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a></li>';
-		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'lecture' ) ) . '"' . $courant( 'lecture' ) . '>' . esc_html__( 'Lecture à compléter', 'yume-core' ) . '</a></li>';
-		// Tout le catalogue, publiés compris (la section du tableau de bord ne liste que les
-		// tomes en préparation) : retrouver un tome paru pour remplacer sa lecture en ligne.
-		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'tomes' ) ) . '"' . $courant( 'tomes' ) . '>' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</a></li>';
-	}
-	if ( current_user_can( CAPACITE_OEUVRES ) ) {
-		// Catalogue des œuvres et création d'une nouvelle œuvre (oeuvres-equipe.php).
-		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'oeuvres' ) ) . '"' . $courant( 'oeuvres' ) . '>' . esc_html__( 'Œuvres', 'yume-core' ) . '</a></li>';
-	}
-	// Vue de gestion de tout le planning (le planning public reste accessible par le bouton
-	// « Voir le planning public »).
-	$html   .= '<li><a href="' . esc_url( url_vue_equipe( 'planning' ) ) . '"' . $courant( 'planning' ) . '>' . esc_html__( 'Planning complet', 'yume-core' ) . '</a></li>';
-	$html   .= '<li><a href="' . esc_url( url_vue_equipe( 'journal' ) ) . '"' . $courant( 'journal' ) . '>' . esc_html__( 'Journal', 'yume-core' ) . '</a></li>';
-	$membres = url_membres();
-	if ( '' !== $membres ) {
-		$html .= '<li><a href="' . esc_url( $membres ) . '"' . $courant( 'membres' ) . '>' . esc_html__( 'Membres et rôles', 'yume-core' ) . '</a></li>';
-	}
-	foreach ( vues_equipe_ajoutees() as $cle => $ajoutee ) {
-		$html .= '<li><a href="' . esc_url( url_vue_equipe( $cle ) ) . '"' . $courant( $cle ) . '>' . esc_html( $ajoutee['libelle'] ) . '</a></li>';
-	}
-	if ( current_user_can( 'yume_reglages' ) ) {
-		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'reglages' ) ) . '"' . $courant( 'reglages' ) . '>' . esc_html__( 'Réglages', 'yume-core' ) . '</a></li>';
+	$html    .= '</a></li>';
+	$libelles = groupes_navigation_equipe();
+	foreach ( entrees_navigation_equipe() as $groupe => $entrees ) {
+		$ouvert = in_array( $actif, wp_list_pluck( $entrees, 'cle' ), true );
+		$html  .= '<li class="yn-team__groupe"><details' . ( $ouvert ? ' open' : '' ) . '><summary>' . esc_html( $libelles[ $groupe ] ) . '</summary><ul>';
+		foreach ( $entrees as $entree ) {
+			$html .= '<li><a href="' . esc_url( $entree['url'] ) . '"' . $courant( $entree['cle'] ) . '>' . esc_html( $entree['libelle'] ) . '</a></li>';
+		}
+		$html .= '</ul></details></li>';
 	}
 	$html .= '</ul><div class="yn-team__moi"><span class="yn-team__avatar" aria-hidden="true">' . esc_html( mb_strtoupper( mb_substr( (string) $user->display_name, 0, 1 ) ) ) . '</span>';
 	$html .= '<span><span class="yn-team__nom">' . esc_html( $user->display_name ) . '</span><span class="yn-label">' . esc_html( nom_role( $user ) ) . '</span></span></div>';

@@ -1650,8 +1650,8 @@ yume_test(
 		yume_assert_same( add_query_arg( 'type', 'manga', yume_url_page( 'bibliotheque' ) ), get_term_link( $manga ) );
 		$statut = get_term_by( 'slug', 'en-cours', 'yume_statut' );
 		yume_assert_same( add_query_arg( 'statut', 'en-cours', yume_url_page( 'bibliotheque' ) ), get_term_link( $statut ) );
-		$genre = wp_insert_term( 'Fantasy', 'yume_genre' );
-		yume_assert_same( add_query_arg( 'genre', 'fantasy', yume_url_page( 'bibliotheque' ) ), get_term_link( (int) $genre['term_id'], 'yume_genre' ) );
+		$genre = wp_insert_term( 'Cape et épée', 'yume_genre' );
+		yume_assert_same( add_query_arg( 'genre', 'cape-et-epee', yume_url_page( 'bibliotheque' ) ), get_term_link( (int) $genre['term_id'], 'yume_genre' ) );
 	}
 );
 

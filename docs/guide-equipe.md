@@ -54,7 +54,7 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- les liens **Publier un tome**, **Lecture à compléter**, **Tous les tomes** et **Œuvres** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
+- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Publier un tome, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; pour les gérants
   **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
@@ -63,24 +63,34 @@ Sous chaque tâche (et chaque tome de *Tomes en préparation*, la liste du plann
 tome, inutile de ressaisir œuvre, nature et numéro), **Modifier dans l'administration**, **Voir la
 fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans le planning complet**.
 
-### Œuvres et nouvelle œuvre (`/equipe/?vue=oeuvres`, éditeurs et gérants)
+### Œuvres, nouvelle œuvre et genres (`/equipe/?vue=oeuvres`, éditeurs et gérants)
 
 Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut ou par titre. Pour
-chaque œuvre : **Voir** (publiée) ou **Publier** (brouillon), **Compléter la fiche** (éditeur
-complet), **Ajouter un tome au planning** (le formulaire du tableau de bord s'ouvre avec l'œuvre
-déjà choisie) et **Publier un tome**.
+chaque œuvre : **Voir** (publiée) ou **Publier** (brouillon), **Modifier**, **Ajouter un tome au
+planning** (le formulaire du tableau de bord s'ouvre avec l'œuvre déjà choisie) et **Publier un
+tome**.
 
 **Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » sous
-« Ajouter un tome au planning ») : titre, type, statut de la traduction, auteur, illustrateur,
-éditeur VO, titres alternatifs (un par ligne), genres (cases à cocher ; « Autres genres » en crée
-de nouveaux), synopsis (une ligne vide sépare deux paragraphes) et couverture (JPG, PNG ou WebP).
+« Ajouter un tome au planning ») et **Modifier** utilisent le même formulaire : titre, type, statut
+de la traduction, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), genres
+(cases à cocher, ou « Ajouter des genres absents de la liste »), synopsis (une ligne vide sépare
+deux paragraphes ; `<strong>gras</strong>` et `<em>italique</em>` sont conservés) et couverture
+(JPG, PNG ou WebP). La partie repliable **Fiche détaillée** contient le statut et le nombre de tomes
+de la VO, la source de la traduction, les jours de sortie, l'équipe affichée et les liens externes.
 
 - **Créer en brouillon** : l'œuvre reste invisible du public ; on peut déjà lui ajouter des tomes au
   planning, puis la publier d'un clic depuis la liste.
 - **Créer et publier** : la fiche est tout de suite visible dans la bibliothèque. Publier une œuvre
   n'envoie aucune annonce (seuls les tomes sont annoncés).
-- Un titre déjà pris (même en brouillon) est refusé, pour éviter les doublons.
-- Liens externes, bannière, jours de sortie et équipe affichée sur la fiche : **Compléter la fiche**.
+- **Modifier** ne change pas le statut (publiée ou brouillon). Le synopsis n'est réécrit que si
+  vous le modifiez : sinon sa mise en forme d'origine (listes, liens…) reste telle quelle. Pour une
+  mise en forme avancée, un lien mène à l'éditeur WordPress.
+- Un titre déjà pris par une autre œuvre (même en brouillon) est refusé, pour éviter les doublons.
+
+**Genres** (en bas de la vue) : une trentaine de genres courants sont proposés d'office (Action,
+Aventure, Isekai, Romance, Slice of life…). Ajoutez-en (plusieurs à la fois, séparés par des
+virgules) ou supprimez-en ; un genre supprimé est retiré des œuvres qui l'avaient et n'est pas
+recréé aux mises à jour.
 
 ### Planning complet (`/equipe/?vue=planning`)
 

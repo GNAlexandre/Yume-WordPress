@@ -76,9 +76,10 @@ if ( $yume_illus && function_exists( 'yume_illustrations_tome' ) ) {
 	$yume_details .= '<span class="yn-reader-tools__rang"> · ' . esc_html( sprintf( _n( '%d planche', '%d planches', $yume_nb_illus, 'yume-core' ), $yume_nb_illus ) ) . '</span>';
 }
 
-// Illustration de l'œuvre en arrière-plan (réglage « Opacité du fond »).
-$yume_banniere = $yume_oeuvre ? (int) get_post_meta( $yume_oeuvre, 'yume_banniere_id', true ) : 0;
-$yume_fond     = $yume_banniere ? wp_get_attachment_image_url( $yume_banniere, 'full' ) : '';
+// Ambiance de couleurs de la couverture du tome en arrière-plan, très floutée (réglage
+// « Opacité du fond ») : plus la bannière de l'œuvre, souvent un logo avec du texte.
+$yume_couv_fond = function_exists( 'yume_get_cover_id' ) ? yume_get_cover_id( $yume_illus ? $yume_illus : $yume_chapitre ) : 0;
+$yume_fond      = $yume_couv_fond ? wp_get_attachment_image_url( $yume_couv_fond, 'medium' ) : '';
 
 $yume_reglages = null !== $yume_config['reglages'] ? $yume_config['reglages'] : defauts_reglages();
 $yume_bornes   = bornes_reglages();

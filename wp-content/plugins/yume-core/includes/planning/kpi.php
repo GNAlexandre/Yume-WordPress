@@ -395,6 +395,7 @@ function declarer_vue_kpi( $vues ): array {
 	$vues['kpi'] = array(
 		'libelle'  => __( 'Indicateurs', 'yume-core' ),
 		'capacite' => CAPACITE_KPI,
+		'groupe'   => 'site',
 		'rendu'    => __NAMESPACE__ . '\\rendu_vue_kpi',
 	);
 	return $vues;
