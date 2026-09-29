@@ -12,13 +12,15 @@
 #                axe-core (WCAG 2.1 A/AA) sur les mêmes pages : aucune violation sérieuse ou critique
 #   archives     dist/yume-core.zip et dist/yume.zip en artefacts téléchargeables
 #
-# Déclenché à chaque push de branche et à chaque pull request ; appelé aussi par release.yml
-# avant toute publication. Documentation : docs/guide-developpeur.md.
+# Une seule exécution par changement : déclenché par les pull requests (ouverture, nouveau push
+# sur la branche, réouverture ; un push plus récent annule l'exécution en cours), pas par les
+# pushes de branche ni par la fusion dans main (le commit de fusion a le contenu déjà testé).
+# release.yml ne le rappelle que si la pull request fusionnée n'a pas été testée sur le contenu
+# exact du tag. Lancement manuel possible (Actions → CI → Run workflow).
+# Documentation : docs/guide-developpeur.md.
 name: CI
 
 on:
-  push:
-    branches: ['**']
   pull_request:
   workflow_dispatch:
   workflow_call:

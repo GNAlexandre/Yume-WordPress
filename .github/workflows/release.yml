@@ -3,7 +3,8 @@
 # Déclenché par un tag vX.Y.Z (ou vX.Y.Z-suffixe pour une préversion) :
 #   1. vérifie le tag : format, versions du plugin (en-tête et YUME_CORE_VERSION) et du thème
 #      identiques au tag, et, pour une version stable, commit présent sur la branche par défaut ;
-#   2. rejoue toute la CI (ci.yml) ;
+#   2. reprend la CI de la pull request fusionnée si elle a réussi sur exactement le même contenu
+#      que le tag (même arbre de fichiers) ; sinon rejoue toute la CI (ci.yml) ;
 #   3. après approbation humaine (environnement protégé « release », relecteurs obligatoires),
 #      construit dist/yume-core.zip et dist/yume.zip, contrôle SHA256SUMS (les deux archives,
 #      noms nus) et crée la release GitHub avec ces deux archives + SHA256SUMS.
@@ -82,16 +83,70 @@ jobs:
             exit 1
           fi
 
+  # La CI a déjà tourné sur la pull request : inutile de la rejouer si le tag porte exactement
+  # le contenu testé (tête de la PR à jour avec main au moment de la fusion).
+  ci_validee:
+    name: CI de la pull request
+    needs: verifier
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    outputs:
+      validee: ${{ steps.pr.outputs.validee }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Pull request fusionnée, même contenu que le tag, CI réussie
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPOT: ${{ github.repository }}
+        run: |
+          validee=false
+          arbre=$(git rev-parse "$GITHUB_SHA^{tree}")
+          for tete in $(gh api "repos/$DEPOT/commits/$GITHUB_SHA/pulls" --jq '.[] | select(.merged_at != null) | .head.sha'); do
+            if ! git cat-file -e "$tete^{commit}" 2>/dev/null; then
+              echo "Tête $tete absente de l'historique (fusion écrasée ?) : ignorée."
+              continue
+            fi
+            if [ "$(git rev-parse "$tete^{tree}")" != "$arbre" ]; then
+              echo "Tête $tete : contenu différent du tag (branche pas à jour avec main à la fusion)."
+              continue
+            fi
+            conclusion=$(gh api "repos/$DEPOT/actions/workflows/ci.yml/runs?head_sha=$tete&event=pull_request&status=completed" \
+              --jq '[.workflow_runs[]] | sort_by(.run_started_at) | last | .conclusion // ""')
+            echo "Tête $tete : même contenu que le tag, CI de la pull request « ${conclusion:-absente} »."
+            if [ "$conclusion" = success ]; then
+              validee=true
+              break
+            fi
+          done
+          echo "validee=$validee" >> "$GITHUB_OUTPUT"
+          if [ "$validee" = true ]; then
+            echo "CI déjà réussie sur ce contenu : pas de nouvelle exécution."
+          else
+            echo "Aucune CI réussie sur ce contenu exact : la CI complète est rejouée."
+          fi
+
   ci:
     name: CI
-    needs: verifier
+    needs: [verifier, ci_validee]
+    if: ${{ needs.ci_validee.outputs.validee != 'true' }}
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
 
   publier:
     name: Release GitHub
-    needs: [verifier, ci]
+    needs: [verifier, ci_validee, ci]
+    # CI rejouée et verte, ou sautée parce que celle de la pull request couvre ce contenu.
+    if: ${{ !cancelled() && needs.verifier.result == 'success' && needs.ci_validee.result == 'success' && (needs.ci.result == 'success' || (needs.ci.result == 'skipped' && needs.ci_validee.outputs.validee == 'true')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     # Environnement protégé : le job attend l'approbation d'un relecteur obligatoire
