@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.2-dev.1 — 2026-09-29
+
+- Migration : journal des catégories réconcilié en fin d'exécution (reprise après un arrêt brutal)
+
 ## 2.1.1 — 2026-09-29
 
 - Version 2.1.1 : œuvres (création, modification, genres, cadrage des couvertures), menu de l'équipe en rubriques, fonds tirés des couvertures, découpage manuel des chapitres à l'import.
