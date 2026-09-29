@@ -548,6 +548,7 @@
 .yn-team__grille {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	align-items: end; /* champs alignés même si un libellé passe sur deux lignes */
 	gap: 12px 16px;
 }
 

@@ -21,6 +21,7 @@ require_once __DIR__ . '/rgpd.php';
 require_once __DIR__ . '/rest.php';
 require_once __DIR__ . '/comptes.php';
 require_once __DIR__ . '/formulaires.php';
+require_once __DIR__ . '/connexion.php';
 require_once __DIR__ . '/alertes.php';
 require_once __DIR__ . '/desabonnement.php';
 require_once __DIR__ . '/blocs.php';

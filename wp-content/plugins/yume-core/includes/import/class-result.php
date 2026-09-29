@@ -6,7 +6,9 @@
  *   'sous_titre' => string, 'blocks' => string (blocs Gutenberg, images par jeton
  *   {{yume-image:<clé>}}), 'nb_mots' => int, 'stats' => array, 'images' => string[]] ;
  * - front_images : clés des images placées avant le premier chapitre (galerie du tome) ;
- * - images : clé => ['nom', 'mime', 'chemin_zip', 'largeur', 'hauteur', 'octets', 'alt'] ;
+ * - images : clé => ['nom', 'mime', 'chemin_zip', 'largeur', 'hauteur', 'octets', 'alt'] (plus
+ *   'conversion' => 'metafichier' pour une image EMF/WMF convertie en PNG à l'extraction ; 'mime'
+ *   est alors le type de l'image produite) ;
  * - warnings : avertissements lisibles, en français ;
  * - stats : chiffres globaux (format, fichier, octets, hash, chapitres, mots, dialogues…).
  *
@@ -76,7 +78,8 @@ final class Result implements \JsonSerializable {
 	}
 
 	/**
-	 * Copie une image de l'archive source vers un fichier (mémoire bornée).
+	 * Copie une image de l'archive source vers un fichier (mémoire bornée). Un métafichier
+	 * EMF/WMF est converti à ce moment (Metafichier::convertir()).
 	 *
 	 * @param string $cle         Clé de l'image.
 	 * @param string $destination Fichier de destination.
@@ -90,7 +93,12 @@ final class Result implements \JsonSerializable {
 		} catch ( Import_Exception $e ) {
 			return false;
 		}
-		$ok = $zip->copier( (string) $this->images[ $cle ]['chemin_zip'], $destination );
+		$entree = (string) $this->images[ $cle ]['chemin_zip'];
+		if ( 'metafichier' === ( $this->images[ $cle ]['conversion'] ?? '' ) ) {
+			$ok = ! isset( Metafichier::convertir( $zip, $entree, $destination )['erreur'] );
+		} else {
+			$ok = $zip->copier( $entree, $destination );
+		}
 		$zip->fermer();
 		return $ok;
 	}

@@ -827,3 +827,85 @@
 		flex-direction: column;
 	}
 }
+
+/* Tome déjà paru avec sa lecture en ligne (?tome=ID) : ce que fait le remplacement. */
+.yn-publish__mode-remplacement {
+	margin-bottom: 20px;
+	padding: 16px 20px;
+	border-left: 4px solid var(--wp--preset--color--avertissement);
+	font-size: 14px;
+}
+
+.yn-publish__mode-remplacement h3 {
+	margin: 0 0 6px;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 17px;
+}
+
+.yn-publish__mode-remplacement p {
+	margin: 0;
+}
+
+.yn-publish__mode-remplacement ul,
+.yn-publish__mode-remplacement ol {
+	margin: 8px 0 0;
+	padding-left: 20px;
+}
+
+.yn-publish__mode-remplacement li + li {
+	margin-top: 4px;
+}
+
+/* Étapes du remplacement, puis version en attente (rapport, aperçus, remplacer / annuler). */
+.yn-publish__etapes-remplacement li::marker {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-publish__remplacement-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 14px !important;
+}
+
+.yn-publish__attente {
+	margin-top: 16px;
+	padding-top: 14px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-publish__attente[hidden] {
+	display: none;
+}
+
+.yn-publish__attente h4 {
+	margin: 0 0 6px;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 15px;
+}
+
+.yn-publish__mode-remplacement .yn-publish__attente-liste {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 6px 18px;
+	max-height: 320px;
+	margin: 10px 0 0;
+	padding: 0;
+	overflow-y: auto;
+	list-style: none;
+}
+
+.yn-publish__mode-remplacement .yn-publish__attente-liste li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 10px;
+	margin: 0;
+}
+
+.yn-publish__attente-titre {
+	flex: 1 1 140px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}

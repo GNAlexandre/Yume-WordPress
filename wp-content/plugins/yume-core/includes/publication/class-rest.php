@@ -5,7 +5,10 @@
  * - POST /yume/v1/publications/analyse          multipart « source » → rapport, rien n'est créé ;
  * - POST /yume/v1/publications                  multipart (source, couverture facultatives) + champs →
  *                                               tome et chapitres en brouillon (ou mis à jour), rapport ;
- * - POST /yume/v1/publications/(?P<id>\d+)/publier  « quand » = maintenant | date ISO.
+ * - POST /yume/v1/publications/(?P<id>\d+)/publier  « quand » = maintenant | date ISO (applique
+ *                                               d'abord un remplacement de lecture en ligne en attente) ;
+ * - DELETE /yume/v1/publications/(?P<id>\d+)/remplacement  annule le remplacement en attente
+ *                                               (versions et images supprimées, rien ne change en ligne).
  *
  * Paramètre booléen « sans_annonce » (création et publication) : ajout au catalogue, sans
  * article d'annonce, ni Discord, ni e-mail (Service::ajouter_au_catalogue()). Absent, il vaut
@@ -86,6 +89,23 @@ final class Rest {
 						'default'     => false,
 					),
 					'sans_annonce'   => self::argument_sans_annonce(),
+				),
+			)
+		);
+		register_rest_route(
+			self::ESPACE,
+			'/publications/(?P<id>\d+)/remplacement',
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => array( self::class, 'annuler_remplacement' ),
+				'permission_callback' => array( self::class, 'peut_modifier_tome' ),
+				'args'                => array(
+					'id' => array(
+						'description' => __( 'Identifiant du tome.', 'yume-core' ),
+						'type'        => 'integer',
+						'minimum'     => 1,
+						'required'    => true,
+					),
 				),
 			)
 		);
@@ -210,6 +230,46 @@ final class Rest {
 			return new \WP_Error( 'rest_forbidden', __( 'Votre compte ne peut pas publier ce tome.', 'yume-core' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 		return true;
+	}
+
+	/**
+	 * Permission : yume_publier et droit de modifier ce tome.
+	 *
+	 * @param \WP_REST_Request $requete Requête.
+	 * @return true|\WP_Error
+	 */
+	public static function peut_modifier_tome( \WP_REST_Request $requete ) {
+		$ok = self::peut_publier();
+		if ( true !== $ok ) {
+			return $ok;
+		}
+		$id = (int) $requete['id'];
+		if ( 'yume_tome' !== get_post_type( $id ) ) {
+			return new \WP_Error( 'rest_post_invalid_id', __( 'Tome introuvable.', 'yume-core' ), array( 'status' => 404 ) );
+		}
+		if ( ! current_user_can( 'edit_post', $id ) ) {
+			return new \WP_Error( 'rest_forbidden', __( 'Votre compte ne peut pas modifier ce tome.', 'yume-core' ), array( 'status' => rest_authorization_required_code() ) );
+		}
+		return true;
+	}
+
+	/**
+	 * DELETE /publications/{id}/remplacement.
+	 *
+	 * @param \WP_REST_Request $requete Requête.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function annuler_remplacement( \WP_REST_Request $requete ) {
+		$id = (int) $requete['id'];
+		if ( ! Remplacement::annuler( $id ) ) {
+			return new \WP_Error( 'yume_remplacement_absent', __( 'Aucun remplacement de la lecture en ligne n’est en attente pour ce tome.', 'yume-core' ), array( 'status' => 404 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'annule'  => true,
+				'message' => Formulaire::message_annulation(),
+			)
+		);
 	}
 
 	/**

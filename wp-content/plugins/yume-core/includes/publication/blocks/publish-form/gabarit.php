@@ -24,12 +24,17 @@ $yume_date_lib  = self::libelle_date( (string) $v['date_sortie'] );
 $yume_import    = is_array( $retour['rapport']['import'] ?? null ) ? $retour['rapport']['import'] : null;
 $yume_avert     = $retour ? (array) ( $retour['rapport']['avertissements'] ?? array() ) : array();
 $yume_planifies = self::tomes_planning( $yume_tome ? (int) $yume_tome->ID : 0 );
+// Tome déjà paru qui a une lecture en ligne : le formulaire sert à la remplacer, en deux temps
+// (version en attente vérifiée, puis remplacement).
+$yume_en_ligne = $yume_tome && 'publish' === $yume_tome->post_status ? count( yume_get_chapitres( (int) $yume_tome->ID ) ) : 0;
+$yume_attente  = $yume_tome ? Remplacement::etat( (int) $yume_tome->ID ) : null;
+$yume_jours    = (int) round( Remplacement::duree() / DAY_IN_SECONDS );
 
 // Libellé d'état (puce en haut à droite).
 if ( $yume_tome ) {
 	$yume_maj  = ! empty( $yume_meta['maj'] ) ? self::date_fr( (int) strtotime( $yume_meta['maj'] . ' UTC' ) ) : '';
 	$yume_etat = 'publish' === $yume_tome->post_status
-		? __( 'Tome publié : les modifications sont en ligne', 'yume-core' )
+		? ( $yume_attente ? __( 'Version en attente : rien n’a changé en ligne', 'yume-core' ) : __( 'Tome publié : les modifications sont en ligne', 'yume-core' ) )
 		: ( 'future' === $yume_tome->post_status
 			/* translators: %s : date */
 			? sprintf( __( 'Sortie programmée le %s', 'yume-core' ), self::date_fr( (int) strtotime( $yume_tome->post_date_gmt . ' UTC' ) ) )
@@ -47,14 +52,12 @@ if ( $yume_tome ) {
 	if ( null !== $yume_nav_equipe ) :
 		echo $yume_nav_equipe; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML échappé par navigation_equipe().
 	else :
-		$yume_nav = array(
+		$yume_nav   = array(
 			array( __( 'Tableau de bord', 'yume-core' ), $yume_equipe, false ),
-			array( __( 'Mes tâches', 'yume-core' ), $yume_equipe . '#yn-mes-taches', false ),
+			array( __( 'Mes tâches', 'yume-core' ), add_query_arg( 'vue', 'taches', $yume_equipe ), false ),
 			array( __( 'Publier un tome', 'yume-core' ), '' !== self::url_page() ? self::url_page() : (string) get_permalink(), true ),
 		);
-		if ( current_user_can( 'yume_maj_planning_tous' ) ) {
-			$yume_nav[] = array( __( 'Tous les tomes', 'yume-core' ), $yume_equipe . '#yn-tous-les-tomes', false );
-		}
+		$yume_nav[] = array( __( 'Tous les tomes', 'yume-core' ), add_query_arg( 'vue', 'tomes', $yume_equipe ), false );
 		$yume_nav[] = array( __( 'Planning complet', 'yume-core' ), $yume_planning, false );
 		$yume_nav[] = array( __( 'Journal', 'yume-core' ), $yume_equipe . '#yn-team-journal', false );
 		// Page « Membres et rôles » de l'espace équipe, sinon la liste des utilisateurs de l'administration.
@@ -100,7 +103,58 @@ if ( $yume_tome ) {
 			<?php endif; ?>
 		</div>
 
-		<form class="yn-publish__formulaire" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" data-yn-formulaire>
+		<?php if ( $yume_en_ligne > 0 || $yume_attente ) : ?>
+			<section class="yn-card yn-publish__mode-remplacement" aria-labelledby="yn-publish-remplacer-titre" data-yn-mode-remplacement>
+				<h3 id="yn-publish-remplacer-titre">
+					<?php
+					/* translators: %d : nombre de chapitres en ligne */
+					echo esc_html( sprintf( _n( 'Remplacer la lecture en ligne (%d chapitre actuel)', 'Remplacer la lecture en ligne (%d chapitres actuels)', $yume_en_ligne, 'yume-core' ), $yume_en_ligne ) );
+					?>
+				</h3>
+				<p><strong><?php esc_html_e( 'Ce tome est déjà paru avec sa lecture en ligne. Rien ne change pour les lecteurs tant que vous n’avez pas cliqué sur « Remplacer la lecture en ligne maintenant ».', 'yume-core' ); ?></strong></p>
+				<ol class="yn-publish__etapes-remplacement">
+					<li><?php esc_html_e( 'Déposez le nouveau DOCX ou EPUB ci-dessous, puis cliquez sur « Vérifier (sans rien changer en ligne) » : le fichier est découpé en une version en attente, visible de l’équipe seulement ;', 'yume-core' ); ?></li>
+					<li><?php esc_html_e( 'contrôlez le rapport et l’aperçu de chaque chapitre ;', 'yume-core' ); ?></li>
+					<li><?php esc_html_e( 'cliquez sur « Remplacer la lecture en ligne maintenant » (ou sur « Annuler le remplacement »).', 'yume-core' ); ?></li>
+				</ol>
+				<ul>
+					<li><?php esc_html_e( 'chaque chapitre est remplacé en place, par numéro : mêmes adresses, commentaires conservés, aucun doublon ; les chapitres nouveaux du fichier sont ajoutés ;', 'yume-core' ); ?></li>
+					<li><?php esc_html_e( 'un chapitre absent du nouveau fichier est signalé dans le rapport ; il reste en ligne, sauf si vous cochez « Mettre en brouillon les chapitres absents » ;', 'yume-core' ); ?></li>
+					<li><?php esc_html_e( 'avec la case « Ajout au catalogue » cochée (par défaut) : aucune nouvelle annonce (ni article, ni Discord, ni e-mail, ni notification aux lecteurs) et la date de sortie du tome ne change pas ;', 'yume-core' ); ?></li>
+					<li>
+						<?php
+						/* translators: %d : nombre de jours */
+						echo esc_html( sprintf( _n( 'un seul remplacement peut attendre par tome ; s’il n’est ni appliqué ni annulé, il est supprimé au bout de %d jour.', 'un seul remplacement peut attendre par tome ; s’il n’est ni appliqué ni annulé, il est supprimé au bout de %d jours.', $yume_jours, 'yume-core' ), $yume_jours ) );
+						?>
+					</li>
+				</ul>
+				<p class="yn-publish__remplacement-actions">
+					<button type="submit" form="yn-publish-formulaire" name="etape" value="verifier" class="yn-btn" data-yn-etape="verifier"><?php esc_html_e( 'Vérifier (sans rien changer en ligne)', 'yume-core' ); ?></button>
+				</p>
+				<div class="yn-publish__attente" data-yn-attente <?php echo $yume_attente ? '' : 'hidden'; ?>>
+					<h4><?php esc_html_e( 'Version en attente : rien n’a changé en ligne', 'yume-core' ); ?></h4>
+					<p data-yn-attente-texte><?php echo esc_html( $yume_attente ? (string) $yume_attente['texte'] : '' ); ?></p>
+					<ul class="yn-publish__attente-liste" data-yn-attente-liste>
+						<?php foreach ( $yume_attente ? (array) $yume_attente['chapitres'] : array() as $yume_v ) : ?>
+							<li>
+								<span class="yn-chip yn-chip--<?php echo 'inchange' === $yume_v['action'] ? 'info' : ( 'cree' === $yume_v['action'] ? 'ok' : 'warn' ); ?>"><?php echo esc_html( (string) $yume_v['etat'] ); ?></span>
+								<span class="yn-publish__attente-titre"><?php echo esc_html( (string) $yume_v['titre'] ); ?></span>
+								<a href="<?php echo esc_url( (string) $yume_v['apercu'] ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Aperçu', 'yume-core' ); ?><span class="yn-visually-hidden"> — <?php echo esc_html( (string) $yume_v['titre'] ); ?></span></a>
+								<?php if ( '' !== (string) $yume_v['lien'] ) : ?>
+									<a href="<?php echo esc_url( (string) $yume_v['lien'] ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Version en ligne', 'yume-core' ); ?><span class="yn-visually-hidden"> — <?php echo esc_html( (string) $yume_v['titre'] ); ?></span></a>
+								<?php endif; ?>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+					<p class="yn-publish__remplacement-actions">
+						<button type="submit" form="yn-publish-formulaire" name="etape" value="remplacer" class="yn-btn yn-btn--primary" data-yn-etape="remplacer"><?php esc_html_e( 'Remplacer la lecture en ligne maintenant', 'yume-core' ); ?></button>
+						<button type="submit" form="yn-publish-formulaire" name="etape" value="annuler_remplacement" class="yn-btn" data-yn-etape="annuler_remplacement" formnovalidate><?php esc_html_e( 'Annuler le remplacement', 'yume-core' ); ?></button>
+					</p>
+				</div>
+			</section>
+		<?php endif; ?>
+
+		<form id="yn-publish-formulaire" class="yn-publish__formulaire" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" data-yn-formulaire>
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
 			<input type="hidden" name="tome_id" value="<?php echo esc_attr( (string) $v['tome_id'] ); ?>" data-yn-tome>
 			<?php wp_nonce_field( self::ACTION, '_yume_nonce' ); ?>
@@ -239,6 +293,9 @@ if ( $yume_tome ) {
 										count( $yume_chaps )
 									)
 								);
+								if ( $yume_en_ligne > 0 ) {
+									echo ' <strong>' . esc_html__( 'Tome déjà paru : le nouveau fichier est d’abord préparé à part ; rien ne change en ligne avant « Remplacer la lecture en ligne maintenant ».', 'yume-core' ) . '</strong>';
+								}
 								?>
 							</p>
 						<?php endif; ?>

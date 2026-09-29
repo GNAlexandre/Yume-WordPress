@@ -1308,12 +1308,13 @@ yume_test(
 			yume_assert_false( is_wp_error( $r ), is_wp_error( $r ) ? $r->get_error_message() : '' );
 			yume_assert_same( 20, count( $r['chapitres'] ) );
 			yume_assert_same( 'Postface', $r['chapitres'][19]['titre'] );
-			yume_assert_same( 6, count( get_post_meta( $r['tome']['id'], 'yume_illustrations', true ) ) );
-			yume_assert_same( 10, count( array_unique( $ctx->medias ) ) );
+			// 16 illustrations, dont 6 images EMF converties (2 dans la galerie, 4 dans les chapitres).
+			yume_assert_same( 8, count( get_post_meta( $r['tome']['id'], 'yume_illustrations', true ) ) );
+			yume_assert_same( 16, count( array_unique( $ctx->medias ) ) );
 			$contenu = implode( '', array_map( static fn( $c ) => get_post( $c['id'] )->post_content, $r['chapitres'] ) );
-			yume_assert_same( 4, substr_count( $contenu, '<!-- wp:image {"id":' ) );
+			yume_assert_same( 8, substr_count( $contenu, '<!-- wp:image {"id":' ) );
 			yume_assert_not_contains( '{{yume-image', $contenu );
-			yume_assert_same( '19 chapitres + postface · 10 illustrations · 6 ornements EMF ignorés', $r['import']['resume'] );
+			yume_assert_same( '19 chapitres + postface · 16 illustrations', $r['import']['resume'] );
 		}
 	)
 );

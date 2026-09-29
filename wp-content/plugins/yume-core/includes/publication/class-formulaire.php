@@ -25,8 +25,12 @@ final class Formulaire {
 	/** Préfixe du transitoire de message de retour (par utilisateur). */
 	public const RETOUR = 'yume_publication_retour_';
 
-	/** Étapes (boutons) du formulaire. */
-	public const ETAPES = array( 'brouillon', 'apercu', 'publier', 'programmer' );
+	/**
+	 * Étapes (boutons) du formulaire. Remplacement de la lecture en ligne d'un tome paru :
+	 * verifier (préparation en attente, rien ne change en ligne, comme brouillon et apercu),
+	 * remplacer (application, comme publier), annuler_remplacement.
+	 */
+	public const ETAPES = array( 'brouillon', 'apercu', 'publier', 'programmer', 'verifier', 'remplacer', 'annuler_remplacement' );
 
 	/**
 	 * Enregistre le bloc yume/publish-form.
@@ -195,6 +199,18 @@ final class Formulaire {
 				wp_die( esc_html__( 'Votre compte n’a pas le droit de publier un tome.', 'yume-core' ), esc_html__( 'Accès refusé', 'yume-core' ), array( 'response' => 403 ) );
 			}
 			$champs = self::champs_post();
+			if ( 'annuler_remplacement' === $etape ) {
+				$tome_id = absint( $champs['tome_id'] ?? 0 );
+				$annule  = $tome_id && 'yume_tome' === get_post_type( $tome_id ) && current_user_can( 'edit_post', $tome_id ) && Remplacement::annuler( $tome_id );
+				self::memoriser(
+					array(
+						'type'    => $annule ? 'succes' : 'erreur',
+						'message' => $annule ? self::message_annulation() : __( 'Aucun remplacement de la lecture en ligne n’est en attente pour ce tome.', 'yume-core' ),
+					)
+				);
+				wp_safe_redirect( self::adresse_retour( $tome_id ) );
+				exit;
+			}
 			if ( 'programmer' === $etape && '' === ( $champs['date_sortie'] ?? '' ) ) {
 				self::memoriser(
 					array(
@@ -222,10 +238,18 @@ final class Formulaire {
 			$message   = '';
 			$type      = 'succes';
 			$confirmer = false;
-			if ( 'publier' === $etape || 'programmer' === $etape ) {
+			$sortie    = null;
+			$attente   = is_array( $rapport['remplacement'] ?? null ) ? $rapport['remplacement'] : null;
+			if ( 'remplacer' === $etape && ! $attente ) {
+				$type    = 'erreur';
+				$message = __( 'Aucun remplacement n’est en attente : déposez le nouveau DOCX ou EPUB, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'yume-core' );
+			} elseif ( 'verifier' === $etape && ! $attente ) {
+				$type    = 'erreur';
+				$message = __( 'Déposez le nouveau DOCX ou EPUB du tome, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'yume-core' );
+			} elseif ( in_array( $etape, array( 'publier', 'programmer', 'remplacer' ), true ) ) {
 				$sortie = Service::publier(
 					$tome_id,
-					'publier' === $etape ? 'maintenant' : (string) $champs['date_sortie'],
+					'programmer' === $etape ? (string) $champs['date_sortie'] : 'maintenant',
 					array(
 						'confirmer_vide' => ! empty( $_POST['confirmer_vide'] ), // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié plus haut.
 						'sans_annonce'   => ! empty( $rapport['sans_annonce'] ),
@@ -247,12 +271,20 @@ final class Formulaire {
 					/* translators: 1: titre du tome, 2: date */
 					$message = sprintf( __( '%1$s sortira le %2$s.', 'yume-core' ), $sortie['tome']['titre'], self::date_fr( ( new \DateTimeImmutable( (string) $sortie['date'], wp_timezone() ) )->getTimestamp(), 'long' ) );
 				}
-			} elseif ( 'apercu' === $etape && ! empty( $rapport['chapitres'][0]['apercu'] ) ) {
-				wp_safe_redirect( (string) $rapport['chapitres'][0]['apercu'] );
+			} elseif ( 'apercu' === $etape && ( ! empty( $attente['chapitres'][0]['apercu'] ) || ! empty( $rapport['chapitres'][0]['apercu'] ) ) ) {
+				// Remplacement en attente : aperçu de la nouvelle version, jamais du chapitre en ligne.
+				wp_safe_redirect( (string) ( $attente['chapitres'][0]['apercu'] ?? $rapport['chapitres'][0]['apercu'] ) );
 				exit;
+			} elseif ( $attente && ( 'verifier' === $etape || null !== $rapport['import'] ) ) {
+				$message = (string) $attente['message'];
 			} else {
 				/* translators: 1: titre du tome, 2: nombre de chapitres */
 				$message = sprintf( _n( 'Brouillon enregistré : %1$s, %2$d chapitre.', 'Brouillon enregistré : %1$s, %2$d chapitres.', count( $rapport['chapitres'] ), 'yume-core' ), $rapport['tome']['titre'], count( $rapport['chapitres'] ) );
+			}
+			$avertissements = (array) $rapport['avertissements'];
+			if ( is_array( $sortie ) && ! empty( $sortie['remplacement_applique'] ) ) {
+				// Remplacement appliqué : les chapitres absents ont été mis en brouillon.
+				$avertissements = str_replace( __( 'Il(s) sera (seront) mis en brouillon au remplacement de la lecture en ligne.', 'yume-core' ), __( 'Il(s) a (ont) été mis en brouillon.', 'yume-core' ), $avertissements );
 			}
 			self::memoriser(
 				array(
@@ -260,7 +292,7 @@ final class Formulaire {
 					'message'   => $message,
 					'confirmer' => $confirmer,
 					'rapport'   => array(
-						'avertissements' => $rapport['avertissements'],
+						'avertissements' => $avertissements,
 						'import'         => $rapport['import'] ? array(
 							'resume'    => $rapport['import']['resume'],
 							'chapitres' => $rapport['import']['chapitres'],
@@ -278,12 +310,34 @@ final class Formulaire {
 	}
 
 	/**
+	 * Message de l'annulation d'un remplacement de lecture en ligne.
+	 */
+	public static function message_annulation(): string {
+		return __( 'Remplacement annulé : la version en attente et ses images sont supprimées, la lecture en ligne n’a pas changé.', 'yume-core' );
+	}
+
+	/**
 	 * Message de succès d'un ajout au catalogue (sans annonce).
 	 *
 	 * @param array<string,mixed> $sortie Résultat de Service::publier().
 	 */
 	public static function message_catalogue( array $sortie ): string {
 		$nb = (int) $sortie['chapitres'];
+		if ( ! empty( $sortie['remplacement'] ) ) {
+			$en_ligne = (int) ( $sortie['en_ligne'] ?? 0 );
+			/* translators: %d : chapitres en ligne */
+			$detail = sprintf( _n( '%d chapitre en ligne', '%d chapitres en ligne', $en_ligne, 'yume-core' ), $en_ligne );
+			if ( $nb > 0 ) {
+				/* translators: %d : nouveaux chapitres (publiés ou programmés) */
+				$detail .= ' ; ' . sprintf( _n( '%d nouveau', '%d nouveaux', $nb, 'yume-core' ), $nb );
+			}
+			return sprintf(
+				/* translators: 1: titre du tome, 2: « 13 chapitres en ligne ; 2 nouveaux » */
+				__( '%1$s : lecture en ligne remplacée (%2$s), sans annonce : ni article, ni Discord, ni e-mail. La date de sortie du tome ne change pas.', 'yume-core' ),
+				$sortie['tome']['titre'],
+				$detail
+			);
+		}
 		if ( 'publish' !== $sortie['statut'] ) {
 			return sprintf(
 				/* translators: 1: titre du tome, 2: date */

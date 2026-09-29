@@ -40,6 +40,15 @@ administrateur du site, **G** = propriétaire du dépôt GitHub.
     codes de secours). L'avis signale un administrateur sans 2FA.
 - [ ] Tester une connexion complète avec la 2FA **avant** de se déconnecter de la session en cours ;
       ranger les codes de secours hors ligne.
+- [ ] Connexion en façade (`/connexion/`, sans wp-login.php) : lecteurs et équipe, gérants compris.
+      Les **administrateurs** y sont refusés et passent par la page de connexion WordPress (lien
+      « Connexion administrateur ») : vérifier, déconnecté, qu'un mauvais mot de passe de lecteur
+      affiche le message sur `/connexion/` (pas de page WordPress.com), qu'un bon mot de passe mène
+      à Mon compte et qu'un administrateur est renvoyé vers la page WordPress. Le formulaire limite
+      lui-même les échecs (5 en 15 min par adresse IP et par compte) et déclenche `wp_login_failed`
+      pour Jetpack Protect. Si l'extension Two-Factor est utilisée pour un gérant, sa 2FA s'applique
+      aussi à `/connexion/` (action `wp_login`) ; la 2FA WordPress.com ne s'applique qu'à la page
+      WordPress.
 
 ## 2. Rôles et comptes (A)
 

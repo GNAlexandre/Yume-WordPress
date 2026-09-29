@@ -2,6 +2,42 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1 — 2026-09-29
+
+- Yume Novel 2.0.1 : correctifs de la recette (Tous les tomes, Mes tâches, remplacement de la lecture en ligne en deux temps, connexion en façade, images EMF, EPUB, dialogues, commentaires, Ko-fi, formulaires).
+
+## 2.0.1-dev.8 — 2026-09-29
+
+- Remplacement de la lecture en ligne en deux temps : vérifier (versions en attente, aperçus réservés à l'équipe, rien ne change en ligne), puis remplacer ou annuler ; nettoyage après 7 jours.
+
+## 2.0.1-dev.7 — 2026-09-29
+
+- Connexion en façade : /connexion/ ne passe plus par wp-login.php (erreurs affichées sur la page, limitation propre, administrateurs renvoyés vers la connexion WordPress).
+
+## 2.0.1-dev.6 — 2026-09-29
+
+- Espace équipe : vues « Tous les tomes » (publiés compris, remplacer la lecture en ligne par un nouveau DOCX ou EPUB) et « Mes tâches » ; remplacement de lecture en ligne annoncé clairement et sans nouvelle annonce.
+
+## 2.0.1-dev.5 — 2026-09-29
+
+- Import : images EMF/WMF des DOCX converties (bitmap extrait), EPUB : italique, gras et centrage lus dans les feuilles de style (pensées détectées), tiret de dialogue reconnu après tout espace.
+
+## 2.0.1-dev.4 — 2026-09-29
+
+- Commentaires : formulaire Jetpack / WordPress.com (Verbum) désactivé, le formulaire du thème Yume reprend sa place.
+
+## 2.0.1-dev.3 — 2026-09-29
+
+- Lecture : première lettre des dialogues alignée exactement sur celle des pensées (tiret isolé au rendu dans une boîte suspendue, quelle que soit la police).
+
+## 2.0.1-dev.2 — 2026-09-29
+
+- Lecture : dialogues décalés comme les pensées (tiret cadratin en retrait suspendu).
+
+## 2.0.1-dev.1 — 2026-09-29
+
+- Recette : bouton Ko-fi de l'en-tête aligné (cœur et texte centrés), champs du formulaire « Ajouter un membre » alignés quand un libellé passe sur deux lignes.
+
 ## 2.0.0 — 2026-09-29
 
 - Yume Novel 2.0.0 : nouveau site (thème Yume, extension Yume Core), migration de l'ancien site, espace équipe, planning, lecture en ligne, glossaires, comptes lecteurs.
