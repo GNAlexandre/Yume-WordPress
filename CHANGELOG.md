@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.2 — 2026-09-29
+
+- Version 2.1.2 : planning à jour pour les visiteurs (cache WordPress.com), commentaires pleine largeur sur les fiches, reprise de migration fiabilisée.
+
 ## 2.1.2-dev.3 — 2026-09-29
 
 - Commentaires des fiches œuvre et tome : pleine largeur de la carte, marges intérieures rétablies
