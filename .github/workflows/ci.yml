@@ -40,7 +40,7 @@ jobs:
       matrix:
         php: ['8.1', '8.2', '8.3', '8.4']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
@@ -78,7 +78,7 @@ jobs:
     # Bloquant : phpcs ne signale plus rien sur le dépôt (erreurs et avertissements). Les écarts
     # apparaissent aussi en annotations sur la pull request. Voir docs/guide-developpeur.md.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -133,7 +133,7 @@ jobs:
       YUME_DB_USER: root
       YUME_DB_PASSWORD: root
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -214,7 +214,7 @@ jobs:
     env:
       YUME_ENV: rendu
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -224,7 +224,7 @@ jobs:
           coverage: none
           tools: wp-cli
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
 
@@ -270,7 +270,7 @@ jobs:
           cat "$RUNNER_TEMP/rendu-serveur.log" 2>/dev/null || true
           cat "$RUNNER_TEMP/localenv/wp/wp-content/debug.log" 2>/dev/null || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
           name: rendu-mesures-${{ matrix.wp }}
@@ -285,9 +285,9 @@ jobs:
     timeout-minutes: 5
     needs: rendu
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: rendu-mesures-*
           path: ${{ runner.temp }}/rendu
@@ -304,7 +304,7 @@ jobs:
     timeout-minutes: 10
     needs: syntaxe
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -318,7 +318,7 @@ jobs:
         run: tools/build/zip.sh
 
       # L'artefact téléchargé est lui-même une archive : la décompresser pour obtenir les deux zips.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: yume-archives-${{ steps.zip.outputs.version_plugin }}-${{ github.run_number }}
           path: |

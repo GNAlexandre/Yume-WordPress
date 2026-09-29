@@ -41,7 +41,7 @@ jobs:
       version: ${{ steps.tag.outputs.version }}
       preversion: ${{ steps.tag.outputs.preversion }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -102,7 +102,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -128,7 +128,7 @@ jobs:
           sha256sum -c SHA256SUMS
 
       - name: Créer la release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: Yume Novel ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
