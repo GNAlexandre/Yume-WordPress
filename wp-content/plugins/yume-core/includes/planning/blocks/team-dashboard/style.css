@@ -1404,9 +1404,7 @@
 
 /* Formulaire d'œuvre : fiche détaillée repliable, couverture actuelle, liens (oeuvres-equipe.php). */
 .yn-team__details {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
+	display: block;
 }
 
 .yn-team__details > summary {
@@ -1444,6 +1442,7 @@
 
 .yn-team__details > summary h2 {
 	margin: 0;
+	font-size: 20px;
 }
 
 .yn-team__details > :not(summary) + :not(summary) {
@@ -1471,15 +1470,15 @@
 	padding: 16px 20px;
 }
 
-.yn-team__genre-ajout {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-end;
+.yn-team .yn-team__genre-ajout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: end;
 	gap: 12px;
+	margin: 0 0 16px;
 }
 
-.yn-team__genre-ajout .yn-team__champ {
-	flex: 1 1 260px;
+.yn-team .yn-team__genre-ajout > * {
 	margin: 0;
 }
 
@@ -1499,6 +1498,34 @@
 	gap: 8px;
 	padding: 6px 0;
 	border-bottom: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-team__genres-liste .yn-muted {
+	white-space: nowrap;
+}
+
+/* Intitulés des groupes de champs (genres, jours de sortie, équipe) détachés de leur contenu. */
+.yn-team__genres > legend {
+	margin-bottom: 10px;
+	padding: 0;
+}
+
+/* Bouton natif du champ fichier aux couleurs du thème. */
+.yn-team input[type="file"]::file-selector-button {
+	min-height: 34px;
+	margin-right: 12px;
+	padding: 0 14px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius);
+	background: transparent;
+	color: var(--wp--preset--color--texte-fort);
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.yn-team input[type="file"]::file-selector-button:hover {
+	background: var(--wp--preset--color--selection);
 }
 
 @media (max-width: 599.98px) {

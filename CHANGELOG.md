@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.1-dev.2 — 2026-09-29
+
+- Vue Œuvres : mise en page de la section Genres, intitulés et bouton de fichier.
+
 ## 2.1.1-dev.1 — 2026-09-29
 
 - Espace équipe : modifier les œuvres, genres, menu en rubriques ; fonds tirés des couvertures ; ligne « Tomes 1 à N » qui disparaît à l'ouverture.
