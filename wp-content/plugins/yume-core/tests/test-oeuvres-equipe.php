@@ -633,3 +633,73 @@ yume_toe_test(
 		yume_assert_contains( 'session a expiré', traiter_genre( array( 'op' => 'ajouter' ), $gerant )['message'] );
 	}
 );
+
+yume_toe_test(
+	'Cadrage de la couverture : enregistré sur l\'image, cartes non rognées positionnées sur le point, centre = retour à la couverture rognée',
+	static function ( $ctx ) {
+		$editeur = yume_factory_user( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$retour = traiter_formulaire_oeuvre(
+			yume_toe_post(
+				array(
+					'titre'     => 'Cadrée',
+					'publier'   => '1',
+					'cadrage_x' => '20',
+					'cadrage_y' => '35',
+				)
+			),
+			array( 'couverture' => yume_toe_image( $ctx ) ),
+			$editeur
+		);
+		yume_assert_same( 'ok', $retour['type'], $retour['message'] );
+		$id    = $retour['oeuvre_id'];
+		$image = (int) get_post_thumbnail_id( $id );
+		yume_assert_same(
+			array(
+				'x' => 20,
+				'y' => 35,
+			),
+			yume_cadrage_couverture( $image )
+		);
+		$html = \Yume\Core\Library\couverture( $image, array( 'alt' => 'Couverture' ) );
+		yume_assert_contains( 'object-position:20% 35%', $html );
+		yume_assert_not_contains( '-480x720', $html, 'taille non rognée' );
+
+		// Formulaire « Modifier » : curseurs aux valeurs enregistrées, aperçu de la couverture.
+		$_GET['modifier'] = (string) $id;
+		$vue              = rendu_vue_oeuvres();
+		yume_assert_contains( 'name="cadrage_x" min="0" max="100" step="1" value="20"', $vue );
+		yume_assert_contains( 'name="cadrage_y" min="0" max="100" step="1" value="35"', $vue );
+		yume_assert_contains( 'data-yn-cadrage-image', $vue );
+
+		// Recentré : méta supprimée, retour à la taille rognée au centre.
+		$valeurs = valeurs_oeuvre( $id );
+		$envoi   = array(
+			'oeuvre_id'        => (string) $id,
+			'_yume_nonce'      => wp_create_nonce( 'yume_oeuvre_modifier_' . $id ),
+			'titre'            => 'Cadrée',
+			'synopsis'         => $valeurs['synopsis'],
+			'synopsis_origine' => $valeurs['synopsis_origine'],
+			'cadrage_x'        => '50',
+			'cadrage_y'        => '50',
+		);
+		yume_assert_same( 'ok', traiter_formulaire_oeuvre( wp_slash( $envoi ), array(), $editeur )['type'] );
+		yume_assert_same( null, yume_cadrage_couverture( $image ) );
+		yume_assert_not_contains( 'object-position', \Yume\Core\Library\couverture( $image ) );
+
+		// Valeurs hors bornes ramenées entre 0 et 100 ; formulaire sans curseurs : cadrage inchangé.
+		$envoi['cadrage_x'] = '140';
+		$envoi['cadrage_y'] = '-5';
+		traiter_formulaire_oeuvre( wp_slash( $envoi ), array(), $editeur );
+		yume_assert_same(
+			array(
+				'x' => 100,
+				'y' => 0,
+			),
+			yume_cadrage_couverture( $image )
+		);
+		unset( $envoi['cadrage_x'], $envoi['cadrage_y'] );
+		traiter_formulaire_oeuvre( wp_slash( $envoi ), array(), $editeur );
+		yume_assert_same( 100, yume_cadrage_couverture( $image )['x'] );
+	}
+);

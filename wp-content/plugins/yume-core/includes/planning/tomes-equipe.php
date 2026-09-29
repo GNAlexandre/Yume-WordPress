@@ -187,7 +187,7 @@ function ligne_tome_equipe( array $tome, string $oeuvre ): string {
 	$contexte   = '<span class="yn-visually-hidden"> — ' . esc_html( $oeuvre . ', ' . $tome['libelle'] ) . '</span>';
 	$html       = '<li class="yn-lecture__tome" id="yn-tomes-' . $id . '">';
 	$html      .= '<span class="yn-lecture__couverture" aria-hidden="true">';
-	$html      .= $couverture ? wp_get_attachment_image( $couverture, 'thumbnail', false, array( 'alt' => '' ) ) : '<span class="yn-lecture__sans-couverture">' . esc_html( mb_strtoupper( mb_substr( $oeuvre, 0, 1 ) ) ) . '</span>';
+	$html      .= $couverture ? yume_image_couverture( $couverture, 'thumbnail', array( 'alt' => '' ) ) : '<span class="yn-lecture__sans-couverture">' . esc_html( mb_strtoupper( mb_substr( $oeuvre, 0, 1 ) ) ) . '</span>';
 	$html      .= '</span><div class="yn-lecture__infos"><p class="yn-lecture__libelle">' . esc_html( (string) $tome['libelle'] ) . '</p><p class="yn-lecture__puces">';
 	$html      .= statut_tome_equipe( $tome );
 	$html      .= $tome['publies'] > 0

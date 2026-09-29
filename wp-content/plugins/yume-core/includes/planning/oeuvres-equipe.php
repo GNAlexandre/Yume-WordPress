@@ -250,6 +250,26 @@ function saisie_oeuvre( array $post ): array {
 		'equipe'            => \Yume\Core\Core\san_trio_textes( champ_post( $post, 'equipe' ) ),
 		'liens'             => \Yume\Core\Core\san_liens( is_array( $liens ) ? array_values( $liens ) : array() ),
 		'publier'           => '1' === ( is_scalar( $publier ) ? (string) $publier : '' ),
+		'cadrage'           => cadrage_saisi( $post ),
+	);
+}
+
+/**
+ * Cadrage de la couverture saisi (curseurs horizontal et vertical, 0 à 100), ou null quand le
+ * formulaire n'en contient pas.
+ *
+ * @param array $post Données POST.
+ * @return array{x:int,y:int}|null
+ */
+function cadrage_saisi( array $post ): ?array {
+	$x = champ_post( $post, 'cadrage_x' );
+	$y = champ_post( $post, 'cadrage_y' );
+	if ( ! is_numeric( $x ) || ! is_numeric( $y ) ) {
+		return null;
+	}
+	return array(
+		'x' => max( 0, min( 100, (int) round( (float) $x ) ) ),
+		'y' => max( 0, min( 100, (int) round( (float) $y ) ) ),
 	);
 }
 
@@ -290,6 +310,7 @@ function valeurs_oeuvre( int $id ): array {
 		'equipe'            => \Yume\Core\Core\san_trio_textes( is_array( $equipe ) ? $equipe : array() ),
 		'liens'             => \Yume\Core\Core\san_liens( (array) $meta( 'yume_liens' ) ),
 		'publier'           => false,
+		'cadrage'           => yume_cadrage_couverture( yume_get_cover_id( $id ) ),
 	);
 }
 
@@ -394,6 +415,10 @@ function enregistrer_champs_oeuvre( int $id, array $saisie, ?array $fichier, int
 		} else {
 			set_post_thumbnail( $id, (int) $cid );
 		}
+	}
+	// Cadrage de la couverture affichée (celle de l'œuvre, ou à défaut celle d'un tome).
+	if ( null !== $saisie['cadrage'] ) {
+		yume_enregistrer_cadrage( yume_get_cover_id( $id ), $saisie['cadrage'] );
 	}
 	return $avert;
 }
@@ -869,15 +894,12 @@ function formulaire_oeuvre( ?array $retour, int $oeuvre_id = 0 ): string {
 	$html .= '<textarea id="yn-oeuvre-synopsis" name="synopsis" rows="7" maxlength="' . SYNOPSIS_MAX . '" aria-describedby="yn-oeuvre-synopsis-aide">' . esc_textarea( $val( 'synopsis' ) ) . '</textarea>';
 	$html .= '<span class="yn-muted" id="yn-oeuvre-synopsis-aide">' . esc_html__( 'Une ligne vide sépare deux paragraphes. Gras : <strong>texte</strong> ; italique : <em>texte</em>.', 'yume-core' ) . '</span></p>';
 
-	$couverture = $oeuvre_id ? (int) get_post_thumbnail_id( $oeuvre_id ) : 0;
-	$html      .= '<div class="yn-team__couverture-champ">';
-	if ( $couverture ) {
-		$html .= '<span class="yn-lecture__couverture" aria-hidden="true">' . wp_get_attachment_image( $couverture, 'thumbnail', false, array( 'alt' => '' ) ) . '</span>';
-	}
-	$html .= '<p class="yn-team__champ"><label class="yn-label" for="yn-oeuvre-couverture">' . esc_html( $couverture ? __( 'Remplacer la couverture (facultatif)', 'yume-core' ) : __( 'Couverture (facultative)', 'yume-core' ) ) . '</label>';
-	$html .= '<input type="file" id="yn-oeuvre-couverture" name="couverture" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-describedby="yn-oeuvre-couverture-aide">';
+	$couverture = $oeuvre_id ? yume_get_cover_id( $oeuvre_id ) : 0;
+	$html      .= '<p class="yn-team__champ"><label class="yn-label" for="yn-oeuvre-couverture">' . esc_html( $couverture ? __( 'Remplacer la couverture (facultatif)', 'yume-core' ) : __( 'Couverture (facultative)', 'yume-core' ) ) . '</label>';
+	$html      .= '<input type="file" id="yn-oeuvre-couverture" name="couverture" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-describedby="yn-oeuvre-couverture-aide" data-yn-cadrage-fichier>';
 	/* translators: %s : taille maximale */
-	$html .= '<span class="yn-muted" id="yn-oeuvre-couverture-aide">' . esc_html( sprintf( __( 'JPG, PNG ou WebP, %s maximum. Portrait (2:3) de préférence.', 'yume-core' ), Fichiers::taille_lisible( $max ) ) ) . '</span></p></div>';
+	$html .= '<span class="yn-muted" id="yn-oeuvre-couverture-aide">' . esc_html( sprintf( __( 'JPG, PNG ou WebP, %s maximum. Portrait (2:3) de préférence.', 'yume-core' ), Fichiers::taille_lisible( $max ) ) ) . '</span></p>';
+	$html .= champ_cadrage( $couverture, is_array( $s['cadrage'] ) ? $s['cadrage'] : null );
 
 	$html .= formulaire_oeuvre_details( $s );
 
@@ -900,6 +922,38 @@ function formulaire_oeuvre( ?array $retour, int $oeuvre_id = 0 ): string {
 		$html .= '<p class="yn-muted">' . esc_html__( 'Publier une œuvre n’envoie aucune annonce (seuls les tomes sont annoncés).', 'yume-core' ) . '</p>';
 	}
 	return $html . '</form>';
+}
+
+/**
+ * Réglage du cadrage de la couverture : aperçu au format des cartes (2:3) et curseurs
+ * horizontal / vertical ; avec JavaScript, un clic dans l'aperçu place le point et une image
+ * choisie dans le champ fichier est prévisualisée avant l'envoi.
+ *
+ * @param int        $couverture Couverture actuelle (0 : aucune).
+ * @param array|null $cadrage    Cadrage actuel ou saisi.
+ */
+function champ_cadrage( int $couverture, ?array $cadrage ): string {
+	$x     = $cadrage ? (int) $cadrage['x'] : 50;
+	$y     = $cadrage ? (int) $cadrage['y'] : 50;
+	$url   = $couverture ? (string) wp_get_attachment_image_url( $couverture, 'medium_large' ) : '';
+	$html  = '<fieldset class="yn-team__genres yn-cadrage" data-yn-cadrage' . ( '' === $url ? ' data-yn-cadrage-vide' : '' ) . ' style="--yn-cadrage-x:' . $x . '%;--yn-cadrage-y:' . $y . '%">';
+	$html .= '<legend class="yn-label">' . esc_html__( 'Cadrage de la couverture', 'yume-core' ) . '</legend>';
+	$html .= '<div class="yn-cadrage__corps">';
+	$html .= '<div class="yn-cadrage__cadre" data-yn-cadrage-apercu aria-hidden="true">';
+	$html .= '' !== $url ? '<img src="' . esc_url( $url ) . '" alt="" data-yn-cadrage-image>' : '<img src="" alt="" data-yn-cadrage-image hidden>';
+	$html .= '<span class="yn-cadrage__point"></span></div>';
+	$html .= '<div class="yn-cadrage__reglages">';
+	$html .= '<p class="yn-muted" id="yn-cadrage-aide">' . esc_html__( 'Les cartes de la bibliothèque montrent la couverture au format portrait. Choisissez la partie de l’image à garder visible : cliquez dans l’aperçu ou réglez les curseurs. Centré par défaut.', 'yume-core' ) . '</p>';
+	$html .= '<p class="yn-team__champ"><label class="yn-label" for="yn-cadrage-x">' . esc_html__( 'Horizontal (gauche → droite)', 'yume-core' ) . '</label>';
+	$html .= '<input type="range" id="yn-cadrage-x" name="cadrage_x" min="0" max="100" step="1" value="' . $x . '" aria-describedby="yn-cadrage-aide" data-yn-cadrage-axe="x"></p>';
+	$html .= '<p class="yn-team__champ"><label class="yn-label" for="yn-cadrage-y">' . esc_html__( 'Vertical (haut → bas)', 'yume-core' ) . '</label>';
+	$html .= '<input type="range" id="yn-cadrage-y" name="cadrage_y" min="0" max="100" step="1" value="' . $y . '" aria-describedby="yn-cadrage-aide" data-yn-cadrage-axe="y"></p>';
+	$html .= '<p><button type="button" class="yn-btn yn-btn--sm" data-yn-cadrage-centrer hidden>' . esc_html__( 'Recentrer', 'yume-core' ) . '</button></p>';
+	$html .= '</div></div>';
+	if ( '' === $url ) {
+		$html .= '<p class="yn-muted yn-cadrage__sans-image">' . esc_html__( 'Choisissez une couverture pour voir l’aperçu.', 'yume-core' ) . '</p>';
+	}
+	return $html . '</fieldset>';
 }
 
 /**
@@ -1048,12 +1102,12 @@ function section_genres( ?array $retour ): string {
 function ligne_oeuvre_equipe( array $oeuvre, ?array $retour ): string {
 	$id         = (int) $oeuvre['id'];
 	$titre      = (string) $oeuvre['titre'];
-	$couverture = (int) get_post_thumbnail_id( $id );
+	$couverture = yume_get_cover_id( $id );
 	$contexte   = '<span class="yn-visually-hidden"> — ' . esc_html( $titre ) . '</span>';
 	$publiee    = in_array( $oeuvre['statut'], array( 'publish', 'private' ), true );
 	$html       = '<li class="yn-lecture__tome" id="yn-oeuvre-' . $id . '">';
 	$html      .= '<span class="yn-lecture__couverture" aria-hidden="true">';
-	$html      .= $couverture ? wp_get_attachment_image( $couverture, 'thumbnail', false, array( 'alt' => '' ) ) : '<span class="yn-lecture__sans-couverture">' . esc_html( mb_strtoupper( mb_substr( $titre, 0, 1 ) ) ) . '</span>';
+	$html      .= $couverture ? yume_image_couverture( $couverture, 'thumbnail', array( 'alt' => '' ) ) : '<span class="yn-lecture__sans-couverture">' . esc_html( mb_strtoupper( mb_substr( $titre, 0, 1 ) ) ) . '</span>';
 	$html      .= '</span><div class="yn-lecture__infos"><p class="yn-lecture__libelle">' . esc_html( $titre ) . '</p><p class="yn-lecture__puces">';
 	$html      .= $publiee
 		? '<span class="yn-chip yn-chip--ok">' . esc_html__( 'Publiée', 'yume-core' ) . '</span>'

@@ -86,6 +86,11 @@ de la VO, la source de la traduction, les jours de sortie, l'équipe affichée e
   vous le modifiez : sinon sa mise en forme d'origine (listes, liens…) reste telle quelle. Pour une
   mise en forme avancée, un lien mène à l'éditeur WordPress.
 - Un titre déjà pris par une autre œuvre (même en brouillon) est refusé, pour éviter les doublons.
+- **Cadrage de la couverture** : les cartes de la bibliothèque montrent la couverture au format
+  portrait (2:3). Si le personnage ou le titre est coupé, cliquez dans l'aperçu sur la partie à
+  garder visible, ou réglez les curseurs horizontal et vertical, puis enregistrez. « Recentrer »
+  revient au cadrage centré par défaut. Le réglage s'applique partout où cette couverture
+  s'affiche (bibliothèque, fiches, compte, reprise de lecture).
 
 **Genres** (en bas de la vue) : une trentaine de genres courants sont proposés d'office (Action,
 Aventure, Isekai, Romance, Slice of life…). Ajoutez-en (plusieurs à la fois, séparés par des

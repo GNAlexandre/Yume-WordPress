@@ -1533,3 +1533,67 @@
 		grid-template-columns: minmax(0, 1fr);
 	}
 }
+
+/* Cadrage de la couverture (formulaire d'œuvre) : aperçu 2:3 comme les cartes, point choisi. */
+.yn-cadrage__corps {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 20px;
+}
+
+.yn-cadrage__cadre {
+	position: relative;
+	flex-shrink: 0;
+	width: 160px;
+	max-width: 100%;
+	aspect-ratio: 2 / 3;
+	overflow: hidden;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+	background: var(--wp--preset--color--bande);
+	cursor: crosshair;
+}
+
+.yn-cadrage__cadre img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	object-fit: cover;
+	object-position: var(--yn-cadrage-x, 50%) var(--yn-cadrage-y, 50%);
+}
+
+.yn-cadrage__point {
+	position: absolute;
+	top: var(--yn-cadrage-y, 50%);
+	left: var(--yn-cadrage-x, 50%);
+	width: 14px;
+	height: 14px;
+	border: 2px solid #fff;
+	border-radius: 50%;
+	box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55);
+	transform: translate(-50%, -50%);
+	pointer-events: none;
+}
+
+.yn-cadrage[data-yn-cadrage-vide] .yn-cadrage__cadre {
+	display: none;
+}
+
+.yn-cadrage__reglages {
+	display: flex;
+	flex: 1 1 260px;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.yn-cadrage__reglages p {
+	margin: 0;
+}
+
+.yn-team__champ input[type="range"] {
+	min-height: 0;
+	padding: 0;
+}
