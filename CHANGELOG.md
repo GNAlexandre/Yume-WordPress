@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.3 — 2026-09-29
+
+- Version 2.1.3 : contenu de la 2.1.2 (planning à jour pour les visiteurs, commentaires pleine largeur, reprise de migration) et relance manuelle de la Release.
+
 ## 2.1.3-dev.1 — 2026-09-29
 
 - Release : relance manuelle sur un tag (Run workflow) si la pose du tag n'a pas créé de run
