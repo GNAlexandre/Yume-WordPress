@@ -108,7 +108,9 @@ Mêmes règles que dans le guide de l'équipe (`docs/guide-equipe.md` §5.1) : s
 chaque chapitre (« Chapitre 1 », « Prologue »…), **Titre 2** juste après pour le sous-titre ou seul
 pour un chapitre spécial (« Postface »), puce « — » (ou tiret en début de paragraphe) pour les
 dialogues, style **Pensée** pour les pensées, `***` / `* * *` / `◇` seuls sur une ligne pour les
-changements de scène. Les images EMF/WMF (ornements Word) sont ignorées et signalées.
+changements de scène. Les images EMF/WMF qui contiennent une image (illustration collée dans
+Word) sont converties en PNG ; seuls les dessins purement vectoriels (ornements) sont ignorés et
+signalés.
 
 ## Fichiers de test
 

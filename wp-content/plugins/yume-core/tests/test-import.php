@@ -141,6 +141,42 @@ if ( ! function_exists( 'yume_timp_docx' ) ) {
 		yume_fx_docx( $fichier, $corps, yume_fx_styles_fr(), '', array() );
 		return $fichier;
 	}
+
+	/**
+	 * Construit un EPUB 3 minimal (un fichier XHTML par page, feuilles de style de
+	 * OEBPS/styles/) dans un fichier temporaire.
+	 *
+	 * @param array<string,array{0:string,1:string}> $pages   Nom → [ajout dans <head>, contenu de <body>].
+	 * @param array<string,string>                   $feuilles Nom → CSS.
+	 * @return string Chemin (à supprimer par l'appelant).
+	 */
+	function yume_timp_epub( array $pages, array $feuilles = array() ): string {
+		$manifeste = '';
+		$spine     = '';
+		$entrees   = array(
+			'mimetype'               => 'application/epub+zip',
+			'META-INF/container.xml' => '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
+		);
+		$i         = 0;
+		foreach ( $feuilles as $nom => $css ) {
+			$manifeste                        .= '<item id="css' . ( ++$i ) . '" href="styles/' . $nom . '" media-type="text/css"/>';
+			$entrees[ 'OEBPS/styles/' . $nom ] = $css;
+		}
+		foreach ( $pages as $nom => $page ) {
+			$manifeste                       .= '<item id="p' . ( ++$i ) . '" href="texte/' . $nom . '" media-type="application/xhtml+xml"/>';
+			$spine                           .= '<itemref idref="p' . $i . '"/>';
+			$entrees[ 'OEBPS/texte/' . $nom ] = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>' . $nom . '</title>' . $page[0] . '</head><body>' . $page[1] . '</body></html>';
+		}
+		$entrees['OEBPS/content.opf'] = '<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">yume-test-css</dc:identifier><dc:title>Styles</dc:title><dc:language>fr</dc:language></metadata><manifest>' . $manifeste . '</manifest><spine>' . $spine . '</spine></package>';
+		$fichier                      = get_temp_dir() . 'yume-test-' . wp_generate_password( 8, false ) . '.epub';
+		$zip                          = new ZipArchive();
+		$zip->open( $fichier, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+		foreach ( $entrees as $nom => $contenu ) {
+			$zip->addFromString( $nom, $contenu );
+		}
+		$zip->close();
+		return $fichier;
+	}
 }
 
 // Inclusion par test-publication.php pour ses seules fonctions d'aide.
@@ -400,7 +436,7 @@ yume_test(
 );
 
 yume_test(
-	'docx : images gardées, EMF ignorées, galerie avant le premier chapitre',
+	'docx : images gardées, EMF sans bitmap ignorées (raison précise), galerie avant le premier chapitre',
 	function () {
 		$r = yume_timp_conversion( 'regles.docx' );
 		yume_assert_same( array( 'couverture', 'couleur' ), $r->front_images );
@@ -419,8 +455,10 @@ yume_test(
 		yume_assert_same( 'image/gif', $r->images['petite']['mime'] );
 		yume_assert_same( 'image/webp', $r->images['photo']['mime'] );
 		yume_assert_same( 2, $r->stats['images_emf'] );
+		yume_assert_same( 0, $r->stats['images_emf_converties'] );
 		yume_assert_same( 5, $r->stats['images_gardees'] );
-		yume_assert_contains( '2 images au format Word EMF/WMF ignorées (format non convertible) : ornement.emf (avant le premier chapitre), ornement.emf (Chapitre 1).', implode( "\n", $r->warnings ) );
+		// ornement.emf de la fixture : faux EMF (en-tête sans signature), jamais converti.
+		yume_assert_contains( '2 images au format Word EMF/WMF ignorées (aucune image convertible) : ornement.emf (avant le premier chapitre : fichier endommagé ou format non reconnu (ni EMF ni WMF)), ornement.emf (Chapitre 1 : fichier endommagé ou format non reconnu (ni EMF ni WMF)).', implode( "\n", $r->warnings ) );
 		$c = yume_timp_chapitre( $r, 'Chapitre 1' );
 		yume_assert_same( array( 'grande', 'petite', 'photo' ), $c['images'] );
 		yume_assert_same( $c['images'], Blocks::cles_images( $c['blocks'] ) );
@@ -610,6 +648,116 @@ yume_test(
 );
 
 yume_test(
+	'epub : italique, gras et centrage lus dans les feuilles de style (lien externe, <style>, p.classe, @media, héritage)',
+	function () {
+		$css    = "@charset \"utf-8\";\n/* Calibre */\n.calibre5 { font-style: italic } /* commentaire { } */\n"
+			. ".calibre6{text-align:center}\n@media amzn-kf8 { .calibre7 { font-weight: bold } }\n@media print { .calibre9 { font-style: italic } }\n"
+			. ".calibre8, .autre { font-style: oblique !important }\nspan.normal { font-style: normal }\n"
+			. "@font-face { font-family: x; src: url(x.ttf) }\n.chap p, p:first-child, p[lang] { font-style: italic }\n* { font-style: normal }\n"
+			. "em { font: inherit }\n@import url(\"autre.css\");";
+		$chemin = yume_timp_epub(
+			array(
+				'c1.xhtml' => array(
+					// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- contenu d'un EPUB de test.
+					'<link rel="stylesheet" type="text/css" href="../styles/stylesheet.css"/><style type="text/css">p.p1 { font-style: italic } span.s1 { font-style: italic } .p2 { text-align: center; } .boite { font-style: italic }</style>',
+					'<h1 class="calibre2">Chapitre 1</h1>'
+					. '<p class="calibre5">Je dois partir, pensa-t-il.</p>'
+					. '<p class="calibre1">Un mot en <span class="calibre5">italique</span> ici.</p>'
+					. '<p class="calibre6">Centré par la feuille.</p>'
+					. '<p class="calibre1">Un <span class="calibre7">gras</span> dans un @media.</p>'
+					. '<p class="calibre8">Oblique entière.</p>'
+					. '<p class="calibre5">Pensée avec un <span class="normal">mot droit</span> au milieu.</p>'
+					. '<p class="calibre9">Italique réservé à l’impression.</p>'
+					. '<p class="p1">Pensée par style interne.</p>'
+					. '<p class="s1">Pas en italique.</p>'
+					. '<p>Un <span class="s1">span</span> et un <em>em</em>.</p>'
+					. '<p class="p2">Centré par style interne.</p>'
+					. '<div class="boite"><p>Hérité du conteneur.</p></div>'
+					. '<div class="chap"><p>Paragraphe normal.</p></div>',
+				),
+			),
+			array(
+				'stylesheet.css' => $css,
+				'autre.css'      => '.importee { font-weight: bold }',
+			)
+		);
+		$r      = Epub_Converter::convert_file( $chemin );
+		wp_delete_file( $chemin );
+		$b = $r->chapters[0]['blocks'];
+		yume_assert_contains( '<p class="yn-thought">Je dois partir, pensa-t-il.</p>', $b, 'Paragraphe entièrement en italique (classe externe) → pensée' );
+		yume_assert_contains( '<p>Un mot en <em>italique</em> ici.</p>', $b, 'Italique partiel → em' );
+		yume_assert_contains( '<p class="has-text-align-center yn-center">Centré par la feuille.</p>', $b );
+		yume_assert_contains( '<p>Un <strong>gras</strong> dans un @media.</p>', $b, '@media aplati' );
+		yume_assert_contains( '<p class="yn-thought">Oblique entière.</p>', $b, 'Sélecteurs multiples, oblique, !important' );
+		yume_assert_contains( '<p class="yn-thought">Pensée avec un <em>mot droit</em> au milieu.</p>', $b, 'font-style: normal dans une pensée → italique inversé' );
+		yume_assert_contains( '<p>Italique réservé à l’impression.</p>', $b, '@media print ignoré' );
+		yume_assert_contains( '<p class="yn-thought">Pensée par style interne.</p>', $b, '<style> et p.classe' );
+		yume_assert_contains( '<p>Pas en italique.</p>', $b, 'span.classe ne s’applique pas à un p' );
+		yume_assert_contains( '<p>Un <em>span</em> et un <em>em</em>.</p>', $b, 'span.classe ; « * » et « em { font: inherit } » ignorés' );
+		yume_assert_contains( '<p class="has-text-align-center yn-center">Centré par style interne.</p>', $b );
+		yume_assert_contains( '<p class="yn-thought">Hérité du conteneur.</p>', $b, 'Italique hérité d’un div' );
+		yume_assert_contains( '<p>Paragraphe normal.</p>', $b, 'Sélecteurs descendants ignorés' );
+	}
+);
+
+yume_test(
+	'epub : tiret de dialogue après espace insécable, cadratin, ancre, dans un span ou une puce Calibre ; guillemets sans règle (comme le DOCX)',
+	function () {
+		$chemin = yume_timp_epub(
+			array(
+				'c1.xhtml' => array(
+					// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- contenu d'un EPUB de test.
+					'<link href="../styles/stylesheet.css" rel="stylesheet" type="text/css"/>',
+					'<h1>Chapitre 1</h1>'
+					// Liste à puces Word convertie par Calibre : bloc div, tiret dans le span de puce.
+					. '<div class="block_7"><span class="bullet_">— </span><span class="calibre6">Réplique en puce Calibre.</span></div>'
+					. '<p class="block_6">Pensée Calibre, <span class="calibre9">en italique</span> par la feuille.</p>'
+					. "<p>\u{00A0}— Réplique après insécable.</p>"
+					. '<p><span class="calibre1">— Réplique dans un span.</span></p>'
+					. '<p><a id="p12"></a>– Réplique après une ancre.</p>'
+					. "<p>\u{2003}\u{FEFF}― Réplique après un cadratin.</p>"
+					. "<p><span class=\"x\">\u{202F}</span><span>-\u{00A0}Réplique au trait d’union.</span></p>"
+					. '<p>« Guillemets » sans tiret.</p>',
+				),
+			),
+			array( 'stylesheet.css' => ".block_6 {\n  display: block;\n  font-style: italic;\n  page-break-inside: avoid\n}\n.calibre9 { font-style: italic }\n.bullet_ { margin-left: -1em }" )
+		);
+		$r      = Epub_Converter::convert_file( $chemin );
+		wp_delete_file( $chemin );
+		$b = $r->chapters[0]['blocks'];
+		yume_assert_contains( '<p class="yn-thought">Pensée Calibre, en italique par la feuille.</p>', $b );
+		foreach ( array( 'en puce Calibre.', 'après insécable.', 'dans un span.', 'après une ancre.', 'après un cadratin.', 'au trait d’union.' ) as $fin ) {
+			yume_assert_contains( "<p class=\"yn-dialogue\">—\u{00A0}Réplique " . $fin . '</p>', $b, $fin );
+		}
+		yume_assert_contains( "<p>«\u{00A0}Guillemets\u{00A0}» sans tiret.</p>", $b );
+		yume_assert_same( 6, $r->chapters[0]['stats']['dialogues'] ?? $r->stats['dialogues'] );
+	}
+);
+
+yume_test(
+	'epub : feuille de style démesurée ignorée avec un avertissement, feuille externe (http) jamais chargée',
+	function () {
+		$chemin = yume_timp_epub(
+			array(
+				'c1.xhtml' => array(
+					// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- contenu d'un EPUB de test.
+					'<link rel="stylesheet" href="../styles/grande.css"/><link rel="stylesheet" href="https://example.test/x.css"/><link rel="alternate stylesheet" href="../styles/alt.css"/>',
+					'<h1>Chapitre 1</h1><p class="a">Texte.</p>',
+				),
+			),
+			array(
+				'grande.css' => str_repeat( '.a { font-style: italic } ', 60000 ),
+				'alt.css'    => '.a { font-style: italic }',
+			)
+		);
+		$r      = Epub_Converter::convert_file( $chemin );
+		wp_delete_file( $chemin );
+		yume_assert_contains( 'Feuille de style « grande.css » trop volumineuse ou illisible : ignorée', implode( "\n", $r->warnings ) );
+		yume_assert_contains( '<p>Texte.</p>', $r->chapters[0]['blocks'], 'Ni la feuille démesurée ni la feuille alternative ne s’appliquent' );
+	}
+);
+
+yume_test(
 	'epub : fichiers refusés',
 	function () {
 		foreach ( array(
@@ -717,15 +865,19 @@ yume_test(
 		yume_assert_same( 1449, $r->stats['dialogues'] );
 		yume_assert_same( 3, $r->stats['listes'] );
 		yume_assert_true( $r->stats['pensees'] >= 305 && $r->stats['pensees'] <= 310, 'Pensées ~307 : ' . $r->stats['pensees'] );
-		yume_assert_same( 10, count( $r->images ) );
-		yume_assert_same( 6, $r->stats['images_emf'] );
+		// 16 images, dont 6 EMF (bitmap 1400 × ~1960 en 32 bits) converties en PNG.
+		yume_assert_same( 16, count( $r->images ) );
+		yume_assert_same( 0, $r->stats['images_emf'] );
+		yume_assert_same( 6, $r->stats['images_emf_converties'] );
+		yume_assert_same( array( 'image/png', 1400, 1978 ), array( $r->images['image1']['mime'], $r->images['image1']['largeur'], $r->images['image1']['hauteur'] ) );
 		yume_assert_same( 2, $r->stats['sauts_de_page'] );
-		yume_assert_same( array( 'image3', 'image4', 'image5', 'image6', 'image7', 'image8' ), $r->front_images );
-		yume_assert_same( 4, array_sum( array_map( static fn( $c ) => count( $c['images'] ), $r->chapters ) ) );
+		yume_assert_same( array( 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'image8' ), $r->front_images );
+		yume_assert_same( 8, array_sum( array_map( static fn( $c ) => count( $c['images'] ), $r->chapters ) ) );
+		yume_assert_same( array( 'image14', 'image15', 'image16' ), yume_timp_chapitre( $r, 'Chapitre 19' )['images'] );
 		$avert = implode( "\n", $r->warnings );
 		yume_assert_contains( 'Chapitre 2 : titre « Chapitre2 » sans espace', $avert );
 		yume_assert_contains( 'Chapitre 13 : titre précédé d’une espace', $avert );
-		yume_assert_contains( '6 images au format Word EMF/WMF ignorées', $avert );
+		yume_assert_not_contains( 'EMF', $avert );
 		foreach ( $r->chapters as $c ) {
 			yume_assert_true( $c['nb_mots'] > 0, $c['titre'] . ' non vide' );
 			yume_timp_blocs_valides( $c['blocks'], 'grimgar ' . $c['titre'] );

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1-dev.5 — 2026-09-29
+
+- Import : images EMF/WMF des DOCX converties (bitmap extrait), EPUB : italique, gras et centrage lus dans les feuilles de style (pensées détectées), tiret de dialogue reconnu après tout espace.
+
 ## 2.0.1-dev.4 — 2026-09-29
 
 - Commentaires : formulaire Jetpack / WordPress.com (Verbum) désactivé, le formulaire du thème Yume reprend sa place.

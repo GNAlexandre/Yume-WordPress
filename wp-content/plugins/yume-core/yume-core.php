@@ -3,7 +3,7 @@
  * Plugin Name:       Yume Core
  * Plugin URI:        https://github.com/GNAlexandre/Yume-WordPress
  * Description:       Bibliothèque Yume Novel : œuvres, tomes, chapitres, lecture en ligne, planning, espace équipe, publication DOCX, comptes lecteurs.
- * Version:           2.0.1-dev.4
+ * Version:           2.0.1-dev.5
  * Requires at least: 6.6
  * Requires PHP:      8.1
  * Author:            Yume Novel
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'YUME_CORE_VERSION', '2.0.1-dev.4' );
+define( 'YUME_CORE_VERSION', '2.0.1-dev.5' );
 define( 'YUME_CORE_FILE', __FILE__ );
 define( 'YUME_CORE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'YUME_CORE_URL', plugin_dir_url( __FILE__ ) );

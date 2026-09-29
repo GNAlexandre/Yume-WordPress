@@ -15,8 +15,9 @@
  * - gras, italique, souligné, exposant, indice, sauts de ligne, liens externes ; runs
  *   contigus fusionnés ; espaces insécables françaises conservées (et ajoutées devant ? ! : ;) ;
  * - notes de bas de page et de fin → appels + liste yn-notes en fin de chapitre ;
- * - images JPG/PNG/WebP/GIF conservées (jeton), EMF/WMF ignorées et signalées ; images
- *   placées avant le premier chapitre → galerie du tome (front_images) ;
+ * - images JPG/PNG/WebP/GIF conservées (jeton) ; EMF/WMF/EMZ/WMZ converties en PNG quand elles
+ *   portent une image bitmap (Metafichier), sinon ignorées et signalées avec leur raison ;
+ *   images placées avant le premier chapitre → galerie du tome (front_images) ;
  * - sauts de page, sections, en-têtes et pieds de page, zones de texte ignorés.
  *
  * Aucune fonction WordPress.
@@ -45,7 +46,7 @@ final class Docx_Converter {
 	/** Types MIME d'images conservées. */
 	public const MIMES_IMAGES = array( 'image/jpeg', 'image/png', 'image/gif', 'image/webp' );
 
-	/** Extensions d'images vectorielles Word non convertibles. */
+	/** Extensions des métafichiers Word (convertis s'ils portent une image bitmap). */
 	private const EXT_WORD = array( 'emf', 'wmf', 'emz', 'wmz' );
 
 	/**
@@ -126,11 +127,25 @@ final class Docx_Converter {
 	private array $images_vues = array();
 
 	/**
-	 * Images ignorées (EMF/WMF) : [nom, position].
+	 * Images EMF/WMF ignorées : [nom, position, raison].
 	 *
-	 * @var array<int,array{0:string,1:string}>
+	 * @var array<int,array{0:string,1:string,2:string}>
 	 */
 	private array $vectorielles = array();
+
+	/**
+	 * Raison du refus de chaque métafichier non converti : chemin dans l'archive => raison.
+	 *
+	 * @var array<string,string>
+	 */
+	private array $raisons_emf = array();
+
+	/**
+	 * Nombre de métafichiers EMF/WMF convertis (fichiers distincts).
+	 *
+	 * @var int
+	 */
+	private int $emf_convertis = 0;
 
 	/**
 	 * Compteurs divers.
@@ -877,9 +892,14 @@ final class Docx_Converter {
 		$nom = basename( $chemin );
 		$ext = strtolower( pathinfo( $chemin, PATHINFO_EXTENSION ) );
 		if ( in_array( $ext, self::EXT_WORD, true ) ) {
-			$this->vectorielles[] = array( $nom, $this->chapitres->en_chapitre() ? $this->position() : 'avant le premier chapitre' );
-			++$this->compteurs['images_ignorees'];
-			return null;
+			if ( ! array_key_exists( $chemin, $this->images_vues ) ) {
+				$this->images_vues[ $chemin ] = $this->metafichier( $chemin, $alt );
+			}
+			if ( null === $this->images_vues[ $chemin ] ) {
+				$this->vectorielles[] = array( $nom, $this->chapitres->en_chapitre() ? $this->position() : 'avant le premier chapitre', $this->raisons_emf[ $chemin ] ?? '' );
+				++$this->compteurs['images_ignorees'];
+			}
+			return $this->images_vues[ $chemin ];
 		}
 		if ( array_key_exists( $chemin, $this->images_vues ) ) {
 			return $this->images_vues[ $chemin ];
@@ -890,6 +910,58 @@ final class Docx_Converter {
 			++$this->compteurs['images_ignorees'];
 		}
 		$this->images_vues[ $chemin ] = $cle;
+		return $cle;
+	}
+
+	/**
+	 * Métafichier Word (EMF, WMF, EMZ, WMZ) : ajouté au Result s'il porte une image bitmap
+	 * convertible (la conversion en PNG a lieu à l'extraction, Result::copier_image()).
+	 *
+	 * @param string $chemin Chemin dans l'archive.
+	 * @param string $alt    Texte alternatif.
+	 * @return string|null Clé, ou null (raison dans $this->raisons_emf).
+	 */
+	private function metafichier( string $chemin, string $alt ): ?string {
+		if ( ! $this->zip->existe( $chemin ) ) {
+			$this->raisons_emf[ $chemin ] = 'introuvable dans le fichier';
+			return null;
+		}
+		$infos = Metafichier::analyser( $this->zip, $chemin );
+		if ( isset( $infos['erreur'] ) ) {
+			$this->raisons_emf[ $chemin ] = (string) $infos['erreur'];
+			return null;
+		}
+		++$this->emf_convertis;
+		return self::enregistrer_image(
+			$this->resultat,
+			array(
+				'nom'        => basename( $chemin ),
+				'mime'       => (string) $infos['mime'],
+				'chemin_zip' => (string) $this->zip->nom_reel( $chemin ),
+				'largeur'    => (int) $infos['largeur'],
+				'hauteur'    => (int) $infos['hauteur'],
+				'octets'     => $this->zip->taille( $chemin ),
+				'alt'        => $alt,
+				'conversion' => 'metafichier',
+			)
+		);
+	}
+
+	/**
+	 * Ajoute une image au Result sous une clé unique tirée de son nom.
+	 *
+	 * @param Result              $resultat Résultat.
+	 * @param array<string,mixed> $image    Description (nom, mime, chemin_zip, largeur, hauteur, octets, alt…).
+	 * @return string Clé.
+	 */
+	private static function enregistrer_image( Result $resultat, array $image ): string {
+		$base = Texte::cle( (string) pathinfo( (string) $image['nom'], PATHINFO_FILENAME ) );
+		$cle  = $base;
+		for ( $i = 2; isset( $resultat->images[ $cle ] ); $i++ ) {
+			$cle = $base . '-' . $i;
+		}
+		$image['alt']             = mb_substr( Texte::espaces( (string) $image['alt'] ), 0, 250, 'UTF-8' );
+		$resultat->images[ $cle ] = $image;
 		return $cle;
 	}
 
@@ -928,21 +1000,18 @@ final class Docx_Converter {
 			);
 			return null;
 		}
-		$base = Texte::cle( (string) pathinfo( $nom, PATHINFO_FILENAME ) );
-		$cle  = $base;
-		for ( $i = 2; isset( $resultat->images[ $cle ] ); $i++ ) {
-			$cle = $base . '-' . $i;
-		}
-		$resultat->images[ $cle ] = array(
-			'nom'        => $nom,
-			'mime'       => $mime,
-			'chemin_zip' => (string) $zip->nom_reel( $chemin ),
-			'largeur'    => (int) $infos[0],
-			'hauteur'    => (int) $infos[1],
-			'octets'     => $octets,
-			'alt'        => mb_substr( Texte::espaces( $alt ), 0, 250, 'UTF-8' ),
+		return self::enregistrer_image(
+			$resultat,
+			array(
+				'nom'        => $nom,
+				'mime'       => $mime,
+				'chemin_zip' => (string) $zip->nom_reel( $chemin ),
+				'largeur'    => (int) $infos[0],
+				'hauteur'    => (int) $infos[1],
+				'octets'     => $octets,
+				'alt'        => $alt,
+			)
 		);
-		return $cle;
 	}
 
 	/**
@@ -1002,14 +1071,14 @@ final class Docx_Converter {
 		if ( $this->vectorielles ) {
 			$details = array();
 			foreach ( $this->vectorielles as $v ) {
-				$details[] = $v[0] . ' (' . $v[1] . ')';
+				$details[] = $v[0] . ' (' . $v[1] . ( '' !== $v[2] ? ' : ' . $v[2] : '' ) . ')';
 			}
 			$n = count( $this->vectorielles );
 			$this->resultat->avertir(
 				sprintf(
 					1 === $n
-						? '%1$d image au format Word EMF/WMF ignorée (format non convertible) : %2$s. Exportez-la en JPG ou PNG et insérez-la à la place pour la publier.'
-						: '%1$d images au format Word EMF/WMF ignorées (format non convertible) : %2$s. Exportez-les en JPG ou PNG et insérez-les à la place pour les publier.',
+						? '%1$d image au format Word EMF/WMF ignorée (aucune image convertible) : %2$s. Dans Word, faites un clic droit sur l’image, « Enregistrer en tant qu’image… » au format PNG ou JPG, puis insérez ce fichier à la place pour la publier.'
+						: '%1$d images au format Word EMF/WMF ignorées (aucune image convertible) : %2$s. Dans Word, faites un clic droit sur chaque image, « Enregistrer en tant qu’image… » au format PNG ou JPG, puis insérez ces fichiers à la place pour les publier.',
 					$n,
 					implode( ', ', $details )
 				)
@@ -1021,18 +1090,19 @@ final class Docx_Converter {
 		if ( $this->compteurs['objets'] > 0 ) {
 			$this->resultat->avertir( sprintf( '%d objet(s) incorporé(s) (formule, graphique…) ignoré(s).', $this->compteurs['objets'] ) );
 		}
-		$stats                    = &$this->resultat->stats;
-		$stats['format']          = 'docx';
-		$stats['fichier']         = basename( $this->chemin );
-		$stats['octets']          = (int) filesize( $this->resultat->source );
-		$stats['hash']            = (string) sha1_file( $this->resultat->source );
-		$stats['images_gardees']  = count( $this->resultat->images );
-		$stats['images_ignorees'] = $this->compteurs['images_ignorees'];
-		$stats['images_emf']      = count( $this->vectorielles );
-		$stats['sauts_de_page']   = $this->compteurs['sauts_de_page'];
-		$stats['sections']        = $this->compteurs['sections'];
-		$stats['zones_de_texte']  = $this->compteurs['zones_de_texte'];
-		$stats['duree_ms']        = (int) round( ( microtime( true ) - $debut ) * 1000 );
-		$stats['memoire_max_mo']  = round( memory_get_peak_usage( true ) / 1048576, 1 );
+		$stats                          = &$this->resultat->stats;
+		$stats['format']                = 'docx';
+		$stats['fichier']               = basename( $this->chemin );
+		$stats['octets']                = (int) filesize( $this->resultat->source );
+		$stats['hash']                  = (string) sha1_file( $this->resultat->source );
+		$stats['images_gardees']        = count( $this->resultat->images );
+		$stats['images_ignorees']       = $this->compteurs['images_ignorees'];
+		$stats['images_emf']            = count( $this->vectorielles );
+		$stats['images_emf_converties'] = $this->emf_convertis;
+		$stats['sauts_de_page']         = $this->compteurs['sauts_de_page'];
+		$stats['sections']              = $this->compteurs['sections'];
+		$stats['zones_de_texte']        = $this->compteurs['zones_de_texte'];
+		$stats['duree_ms']              = (int) round( ( microtime( true ) - $debut ) * 1000 );
+		$stats['memoire_max_mo']        = round( memory_get_peak_usage( true ) / 1048576, 1 );
 	}
 }

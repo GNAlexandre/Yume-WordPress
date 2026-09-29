@@ -33,6 +33,13 @@ final class Texte {
 	public const TIRETS = array( '-', "\u{2010}", "\u{2011}", "\u{2012}", '–', '—', '―', "\u{2212}", "\u{2043}", "\u{F02D}", "\u{F0BE}", "\u{FE58}", "\u{FE63}", "\u{FF0D}" );
 
 	/**
+	 * Blancs ignorés devant et après un tiret de dialogue (expression régulière, classe de
+	 * caractères) : espaces Unicode (insécable, fine, cadratin…) et caractères invisibles
+	 * (espace sans chasse, liant, marque d'ordre des octets).
+	 */
+	private const BLANCS = '[\s\p{Z}\x{200B}-\x{200D}\x{2060}\x{FEFF}]';
+
+	/**
 	 * Nombres écrits en toutes lettres (titres « Chapitre un »).
 	 *
 	 * @var array<string,int>
@@ -160,7 +167,7 @@ final class Texte {
 	 * @param string $texte Texte brut.
 	 */
 	public static function commence_par_tiret( string $texte ): bool {
-		$texte = ltrim( self::espaces( $texte ) );
+		$texte = (string) preg_replace( '/^' . self::BLANCS . '+/u', '', self::espaces( $texte ) );
 		if ( '' === $texte ) {
 			return false;
 		}
@@ -169,7 +176,7 @@ final class Texte {
 			return false;
 		}
 		// « -1 », « --- » ou un tiret seul ne sont pas des répliques.
-		$reste = ltrim( mb_substr( $texte, 1, null, 'UTF-8' ) );
+		$reste = (string) preg_replace( '/^' . self::BLANCS . '+/u', '', mb_substr( $texte, 1, null, 'UTF-8' ) );
 		return '' !== $reste && ! preg_match( '/^[\d\-–—]/u', $reste );
 	}
 
@@ -418,14 +425,14 @@ final class Texte {
 			if ( '<' === $jeton[0] ) {
 				continue;
 			}
-			$sans = ltrim( str_replace( array( self::INSECABLE, self::FINE ), ' ', $jeton ) );
+			$sans = (string) preg_replace( '/^' . self::BLANCS . '+/u', '', $jeton );
 			if ( '' === $sans ) {
 				continue;
 			}
 			$premier = mb_substr( $sans, 0, 1, 'UTF-8' );
 			if ( in_array( $premier, self::TIRETS, true ) ) {
-				$reste        = (string) preg_replace( '/^[\s\x{00A0}\x{202F}]*./u', '', $jeton, 1 );
-				$reste        = (string) preg_replace( '/^[\s\x{00A0}\x{202F}]+/u', '', $reste );
+				$reste        = (string) preg_replace( '/^' . self::BLANCS . '*./u', '', $jeton, 1 );
+				$reste        = (string) preg_replace( '/^' . self::BLANCS . '+/u', '', $reste );
 				$jetons[ $i ] = self::TIRET_DIALOGUE . $reste;
 				return implode( '', $jetons );
 			}

@@ -13,6 +13,9 @@
  * 4. Nettoyage en liste blanche (p, h2, h3, em, strong, br, figure, img, blockquote, hr, sup,
  *    ul, ol, li), classes connues (dialogue, pensee, center…) et heuristiques : un paragraphe
  *    commençant par un tiret → dialogue, un paragraphe entièrement en italique → pensée.
+ *    Italique, gras et centrage sont aussi lus dans les feuilles de style du document
+ *    (<link rel="stylesheet">, <style> ; Epub_Css) : classes génériques de Calibre, Sigil,
+ *    InDesign (« calibre5 », « p1 »…), héritées des conteneurs (div, section…).
  * 5. Images JPG/PNG/WebP/GIF conservées (jeton), avec la couverture en tête de la galerie.
  *
  * Aucune fonction WordPress.
@@ -163,6 +166,27 @@ final class Epub_Converter {
 	private int $ignorees = 0;
 
 	/**
+	 * Feuilles de style du document en cours.
+	 *
+	 * @var Epub_Css
+	 */
+	private Epub_Css $css;
+
+	/**
+	 * Contenu des feuilles de style déjà lues : chemin => CSS.
+	 *
+	 * @var array<string,string>
+	 */
+	private array $feuilles = array();
+
+	/**
+	 * Styles hérités des conteneurs en cours (pile) : clés i, b, c.
+	 *
+	 * @var array<int,array<string,bool>>
+	 */
+	private array $heritage = array();
+
+	/**
 	 * Dernier élément de bloc traité était-il un titre de chapitre (pour le sous-titre) ?
 	 *
 	 * @var bool
@@ -178,6 +202,7 @@ final class Epub_Converter {
 	private function __construct( string $chemin, array $options ) {
 		$this->chemin  = $chemin;
 		$this->options = $options + array( 'typographie' => true );
+		$this->css     = new Epub_Css();
 	}
 
 	/**
@@ -603,6 +628,8 @@ final class Epub_Converter {
 			}
 		}
 		$this->fichier = $chemin;
+		$this->lire_feuilles( $doc, $chemin );
+		$this->heritage = array( $this->style_element( $corps ) );
 
 		// Livre sans <h1> : chaque entrée de la table des matières ouvre un chapitre.
 		if ( ! $this->avec_h1 && ! $this->liminaire ) {
@@ -618,6 +645,111 @@ final class Epub_Converter {
 			}
 		}
 		$this->blocs( $corps, array() );
+	}
+
+	/**
+	 * Lit les feuilles de style d'un document (liens et éléments <style>, dans l'ordre).
+	 *
+	 * @param \DOMDocument $doc    Document.
+	 * @param string       $chemin Chemin du document dans l'archive.
+	 */
+	private function lire_feuilles( \DOMDocument $doc, string $chemin ): void {
+		$this->css = new Epub_Css();
+		$xpath     = new \DOMXPath( $doc );
+		$noeuds    = $xpath->query( '//*[local-name()="link" or local-name()="style"]' );
+		if ( false === $noeuds ) {
+			return;
+		}
+		foreach ( $noeuds as $el ) {
+			if ( ! $el instanceof \DOMElement ) {
+				continue;
+			}
+			if ( 'style' === strtolower( $el->localName ) ) {
+				$type = strtolower( trim( $el->getAttribute( 'type' ) ) );
+				if ( '' === $type || 'text/css' === $type ) {
+					$this->css->ajouter( $el->textContent );
+					foreach ( $this->css->imports as $import ) {
+						$this->feuille( $chemin, $import, 1 );
+					}
+				}
+				continue;
+			}
+			$rel = ' ' . strtolower( (string) preg_replace( '/\s+/', ' ', $el->getAttribute( 'rel' ) ) ) . ' ';
+			if ( str_contains( $rel, ' stylesheet ' ) && ! str_contains( $rel, ' alternate ' ) ) {
+				$this->feuille( $chemin, $el->getAttribute( 'href' ), 0 );
+			}
+		}
+	}
+
+	/**
+	 * Ajoute une feuille de style de l'archive (et celles qu'elle importe).
+	 *
+	 * @param string $base       Fichier qui la référence.
+	 * @param string $href       Lien.
+	 * @param int    $profondeur Niveau d'@import.
+	 */
+	private function feuille( string $base, string $href, int $profondeur ): void {
+		$href = (string) preg_replace( '/[#?].*$/s', '', trim( $href ) );
+		if ( '' === $href || $profondeur > 3 || preg_match( '#^(?:[a-z][a-z0-9+.\-]*:|//)#i', $href ) ) {
+			return; // Feuille externe : jamais chargée.
+		}
+		$chemin = Zip::resoudre( $base, $href );
+		if ( ! array_key_exists( $chemin, $this->feuilles ) ) {
+			$this->feuilles[ $chemin ] = '';
+			try {
+				$this->feuilles[ $chemin ] = (string) $this->zip->lire( $chemin, Epub_Css::TAILLE_MAX );
+			} catch ( Import_Exception $e ) {
+				$this->resultat->avertir( sprintf( 'Feuille de style « %s » trop volumineuse ou illisible : ignorée (italique et centrage définis par classe non repris).', basename( $chemin ) ) );
+			}
+		}
+		$this->css->ajouter( $this->feuilles[ $chemin ] );
+		foreach ( $this->css->imports as $import ) {
+			$this->feuille( $chemin, $import, $profondeur + 1 );
+		}
+	}
+
+	/**
+	 * Style d'un élément : feuilles de style puis attribut style (clés i, b, c).
+	 *
+	 * @param \DOMElement $el Élément.
+	 * @return array<string,bool>
+	 */
+	private function style_element( \DOMElement $el ): array {
+		$style = $this->css->style( strtolower( $el->localName ), trim( self::classes( $el ) ) );
+		return array_merge( $style, Epub_Css::declarations( $el->getAttribute( 'style' ) ) );
+	}
+
+	/**
+	 * Style d'un élément de bloc, hérité des conteneurs (clés i, b, c).
+	 *
+	 * @param \DOMElement $el Élément.
+	 * @return array<string,bool>
+	 */
+	private function forme_bloc( \DOMElement $el ): array {
+		$parent = $this->heritage ? $this->heritage[ count( $this->heritage ) - 1 ] : array();
+		return array_merge( $parent, $this->style_element( $el ) );
+	}
+
+	/**
+	 * Mise en forme de départ du texte d'un bloc (italique et gras hérités).
+	 *
+	 * @param \DOMElement $el Élément.
+	 * @return array<string,bool>
+	 */
+	private function forme_texte( \DOMElement $el ): array {
+		return array_intersect_key( $this->forme_bloc( $el ), array_flip( array( 'i', 'b' ) ) );
+	}
+
+	/**
+	 * Parcourt un conteneur en empilant son style (hérité par ses paragraphes).
+	 *
+	 * @param \DOMElement $el     Conteneur.
+	 * @param string[]    $herite Classes héritées.
+	 */
+	private function conteneur( \DOMElement $el, array $herite ): void {
+		$this->heritage[] = $this->forme_bloc( $el );
+		$this->blocs( $el, array_merge( $herite, array( self::classes( $el ) ) ) );
+		array_pop( $this->heritage );
 	}
 
 	/**
@@ -702,8 +834,9 @@ final class Epub_Converter {
 			return;
 		}
 		$items = array();
+		$f     = $this->heritage ? array_intersect_key( $this->heritage[ count( $this->heritage ) - 1 ], array_flip( array( 'i', 'b' ) ) ) : array();
 		foreach ( $noeuds as $noeud ) {
-			$this->en_ligne( $noeud, array(), $items );
+			$this->en_ligne( $noeud, $f, $items );
 		}
 		$this->emettre( $items, $conteneur, $herite );
 	}
@@ -802,7 +935,7 @@ final class Epub_Converter {
 				if ( self::a_type( $el, self::NOTES ) ) {
 					return;
 				}
-				$this->blocs( $el, array_merge( $herite, array( self::classes( $el ) ) ) );
+				$this->conteneur( $el, $herite );
 				return;
 			case 'table':
 				foreach ( $el->getElementsByTagName( 'tr' ) as $tr ) {
@@ -832,18 +965,19 @@ final class Epub_Converter {
 			case 'caption':
 			case 'address':
 				if ( self::contient_bloc( $el ) ) {
-					$this->blocs( $el, array_merge( $herite, array( self::classes( $el ) ) ) );
+					$this->conteneur( $el, $herite );
 					return;
 				}
 				$items = array();
+				$f     = $this->forme_texte( $el );
 				foreach ( $el->childNodes as $enfant ) {
-					$this->en_ligne( $enfant, array(), $items, 'pre' === $tag );
+					$this->en_ligne( $enfant, $f, $items, 'pre' === $tag );
 				}
 				$this->emettre( $items, $el, $herite, 'figcaption' === $tag || 'caption' === $tag );
 				return;
 			default:
 				// Conteneurs (div, section, article, figure, header, main, li…).
-				$this->blocs( $el, array_merge( $herite, array( self::classes( $el ) ) ) );
+				$this->conteneur( $el, $herite );
 		}
 	}
 
@@ -983,7 +1117,15 @@ final class Epub_Converter {
 				}
 				return;
 		}
-		// Mise en forme portée par une classe ou un style en ligne (span, p…).
+		// Mise en forme portée par une feuille de style ou un style en ligne (font-style: normal
+		// annule l'italique hérité : italique partiel), puis par un nom de classe explicite.
+		$css = $this->style_element( $noeud );
+		if ( isset( $css['i'] ) ) {
+			$f['i'] = $css['i'];
+		}
+		if ( isset( $css['b'] ) ) {
+			$f['b'] = $css['b'];
+		}
 		if ( preg_match( '/\b(italic|italique|ital|emph|em)\b/', $classes ) || str_contains( $style, 'font-style: italic' ) || str_contains( $style, 'font-style:italic' ) ) {
 			$f['i'] = true;
 		}
@@ -1286,7 +1428,7 @@ final class Epub_Converter {
 				$italic += $item['i'] ? $n : 0;
 			}
 		}
-		$centre = $legende || (bool) preg_match( '/\b(center|centre|centered|centree|centr|ctr|text-center|aligncenter|align-center|has-text-align-center)\b/', $classes ) || (bool) preg_match( '/text-align:\s*center/', $style );
+		$centre = $legende || (bool) preg_match( '/\b(center|centre|centered|centree|centr|ctr|text-center|aligncenter|align-center|has-text-align-center)\b/', $classes ) || (bool) preg_match( '/text-align:\s*center/', $style ) || ! empty( $this->forme_bloc( $el )['c'] );
 
 		if ( preg_match( '/\b(dialogue|dialog|tiret|replique|dlg)\b/', $classes ) ) {
 			$this->chapitres->paragraphe( Texte::normaliser_dialogue( $this->html( $items, false ), true ), 'dialogue' );
@@ -1297,7 +1439,10 @@ final class Epub_Converter {
 			return;
 		}
 		$pensee_classe = (bool) preg_match( '/\b(pensee|pense|thought|thoughts|monologue|interieur|inner)\b/', $classes );
-		if ( $pensee_classe || ( $total > 0 && $italic === $total && ! $centre ) ) {
+		// Paragraphe déclaré en italique (feuille de style, style en ligne ou conteneur), même
+		// si un passage y revient au romain : pensée (italique inversé).
+		$bloc_italique = ! empty( $this->forme_bloc( $el )['i'] ) && $italic * 2 >= max( 1, $total );
+		if ( $pensee_classe || ( ! $centre && ( $bloc_italique || ( $total > 0 && $italic === $total ) ) ) ) {
 			$this->chapitres->paragraphe( $this->html( $items, $italic * 2 >= max( 1, $total ) ), 'pensee', $centre );
 			return;
 		}
@@ -1310,16 +1455,17 @@ final class Epub_Converter {
 	 * @param float $debut Horodatage de début.
 	 */
 	private function conclure( float $debut ): void {
-		$stats                    = &$this->resultat->stats;
-		$stats['format']          = 'epub';
-		$stats['fichier']         = basename( $this->chemin );
-		$stats['octets']          = (int) filesize( $this->resultat->source );
-		$stats['hash']            = (string) sha1_file( $this->resultat->source );
-		$stats['images_gardees']  = count( $this->resultat->images );
-		$stats['images_ignorees'] = $this->ignorees;
-		$stats['images_emf']      = 0;
-		$stats['sauts_de_page']   = 0;
-		$stats['duree_ms']        = (int) round( ( microtime( true ) - $debut ) * 1000 );
-		$stats['memoire_max_mo']  = round( memory_get_peak_usage( true ) / 1048576, 1 );
+		$stats                          = &$this->resultat->stats;
+		$stats['format']                = 'epub';
+		$stats['fichier']               = basename( $this->chemin );
+		$stats['octets']                = (int) filesize( $this->resultat->source );
+		$stats['hash']                  = (string) sha1_file( $this->resultat->source );
+		$stats['images_gardees']        = count( $this->resultat->images );
+		$stats['images_ignorees']       = $this->ignorees;
+		$stats['images_emf']            = 0;
+		$stats['images_emf_converties'] = 0;
+		$stats['sauts_de_page']         = 0;
+		$stats['duree_ms']              = (int) round( ( microtime( true ) - $debut ) * 1000 );
+		$stats['memoire_max_mo']        = round( memory_get_peak_usage( true ) / 1048576, 1 );
 	}
 }

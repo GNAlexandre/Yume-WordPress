@@ -310,15 +310,20 @@ final class Zip {
 	 * @param string $entree      Chemin interne.
 	 * @param string $destination Fichier de destination (créé ou écrasé).
 	 * @param int    $max         Taille maximale (octets).
+	 * @param bool   $taux        Contrôler le taux de compression (faux pour un métafichier Word :
+	 *                            un bitmap brut uni se compresse légitimement très bien ; la
+	 *                            taille copiée reste bornée par $max).
 	 * @return bool Vrai si la copie a réussi.
 	 */
-	public function copier( string $entree, string $destination, int $max = self::IMAGE_MAX ): bool {
+	public function copier( string $entree, string $destination, int $max = self::IMAGE_MAX, bool $taux = true ): bool {
 		$nom = $this->nom_reel( $entree );
 		if ( null === $nom || $this->taille( $nom ) > $max ) {
 			return false;
 		}
 		try {
-			$this->controler_taux( $nom );
+			if ( $taux ) {
+				$this->controler_taux( $nom );
+			}
 		} catch ( Import_Exception $e ) {
 			return false; // Image anormalement compressée : ignorée.
 		}
