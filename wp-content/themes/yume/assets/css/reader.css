@@ -140,11 +140,12 @@
 	font-style: italic;
 }
 
-/* Dialogues : tiret cadratin en retrait suspendu. */
+/* Dialogues : décalés comme les pensées, tiret cadratin en retrait suspendu (les lignes
+   suivantes s'alignent sur le texte après le tiret). */
 .yn-dialogue,
 .yn-reader .yn-dialogue {
-	padding-left: 1.4em;
-	text-indent: -1.4em;
+	padding-left: 2.2em;
+	text-indent: -1.1em;
 }
 
 /* Pensées : italique, retrait à gauche. */
@@ -283,8 +284,8 @@ figure.yn-illustration figcaption,
 
 	.yn-dialogue,
 	.yn-reader .yn-dialogue {
-		padding-left: 1.1em;
-		text-indent: -1.1em;
+		padding-left: 1.4em;
+		text-indent: -0.8em;
 	}
 
 	.yn-thought,

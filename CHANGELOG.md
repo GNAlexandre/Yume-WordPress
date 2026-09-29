@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1-dev.2 — 2026-09-29
+
+- Lecture : dialogues décalés comme les pensées (tiret cadratin en retrait suspendu).
+
 ## 2.0.1-dev.1 — 2026-09-29
 
 - Recette : bouton Ko-fi de l'en-tête aligné (cœur et texte centrés), champs du formulaire « Ajouter un membre » alignés quand un libellé passe sur deux lignes.
