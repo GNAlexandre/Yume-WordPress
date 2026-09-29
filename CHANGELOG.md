@@ -2,6 +2,22 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.2 — 2026-09-29
+
+- Version 2.1.2 : planning à jour pour les visiteurs (cache WordPress.com), commentaires pleine largeur sur les fiches, reprise de migration fiabilisée.
+
+## 2.1.2-dev.3 — 2026-09-29
+
+- Commentaires des fiches œuvre et tome : pleine largeur de la carte, marges intérieures rétablies
+
+## 2.1.2-dev.2 — 2026-09-29
+
+- Planning : pages publiques 60 s au plus dans le cache de WordPress.com, purgées à chaque mise à jour
+
+## 2.1.2-dev.1 — 2026-09-29
+
+- Migration : journal des catégories réconcilié en fin d'exécution (reprise après un arrêt brutal)
+
 ## 2.1.1 — 2026-09-29
 
 - Version 2.1.1 : œuvres (création, modification, genres, cadrage des couvertures), menu de l'équipe en rubriques, fonds tirés des couvertures, découpage manuel des chapitres à l'import.

@@ -2994,3 +2994,44 @@ yume_test(
 		}
 	}
 );
+
+if ( ! function_exists( 'batcache_clear_url' ) ) {
+	/**
+	 * Batcache (WordPress.com) simulé : adresses purgées dans $GLOBALS['yume_tests_batcache'].
+	 *
+	 * @param string $url Adresse.
+	 */
+	function batcache_clear_url( $url ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- fonction de WordPress.com simulée.
+		$GLOBALS['yume_tests_batcache'][] = (string) $url;
+	}
+}
+
+yume_tp_test(
+	'cache de pages : planning, prochaines sorties et fiche limités à 60 s ; mise à jour, pause et sortie purgent planning, accueil et fiche',
+	static function () {
+		$oeuvre = yume_tp_oeuvre( 'Œuvre en cache' );
+		$tome   = yume_tp_tome( $oeuvre, 2 );
+		$avant  = $GLOBALS['batcache'] ?? null;
+		try {
+			foreach ( array( 'yume/planning', 'yume/upcoming' ) as $bloc ) {
+				$GLOBALS['batcache'] = (object) array( 'max_age' => 300 ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Batcache simulé.
+				yume_tp_bloc( $bloc );
+				yume_assert_same( 60, $GLOBALS['batcache']->max_age, "bloc $bloc" );
+			}
+			$GLOBALS['batcache'] = (object) array( 'max_age' => 30 ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Batcache simulé.
+			yume_tp_bloc( 'yume/planning' );
+			yume_assert_same( 30, $GLOBALS['batcache']->max_age, 'une durée plus courte est gardée' );
+		} finally {
+			$GLOBALS['batcache'] = $avant; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Batcache simulé.
+		}
+
+		$attendu = array_values( array_unique( array_filter( array( yume_url_page( 'planning' ), home_url( '/' ), get_permalink( $oeuvre ) ) ) ) );
+		foreach ( array( 'yume_planning_mis_a_jour', 'yume_planning_pause', 'yume_tome_publie' ) as $action ) {
+			$GLOBALS['yume_tests_batcache'] = array();
+			do_action( $action, $tome, array(), 0 );
+			foreach ( $attendu as $adresse ) {
+				yume_assert_true( in_array( $adresse, $GLOBALS['yume_tests_batcache'], true ), "$action purge $adresse" );
+			}
+		}
+	}
+);
