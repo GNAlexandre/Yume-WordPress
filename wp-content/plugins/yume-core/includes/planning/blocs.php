@@ -297,6 +297,7 @@ function message_editeur( string $classe, string $message ): string {
  * @param array $attributs Attributs (count).
  */
 function rendu_upcoming( array $attributs ): string {
+	limiter_cache_page();
 	$nombre = max( 1, min( 12, (int) ( $attributs['count'] ?? 3 ) ) );
 	$lignes = array_values(
 		array_filter(
@@ -378,6 +379,55 @@ function filtres_planning(): array {
 		'oeuvre' => $oeuvre && 'yume_oeuvre' === get_post_type( $oeuvre ) && 'publish' === get_post_status( $oeuvre ) ? $oeuvre : 0,
 	);
 }
+
+/** Durée maximale (secondes) d'une page affichant le planning dans le cache Batcache. */
+const CACHE_PAGE_PLANNING = 60;
+
+/**
+ * Page affichant le planning : durée courte dans le cache de pages Batcache (WordPress.com), pour
+ * que les visiteurs anonymes ne voient pas un avancement et des « il y a… » périmés. Sans
+ * Batcache, rien.
+ */
+function limiter_cache_page(): void {
+	global $batcache;
+	if ( is_object( $batcache ) && isset( $batcache->max_age ) && (int) $batcache->max_age > CACHE_PAGE_PLANNING ) {
+		$batcache->max_age = CACHE_PAGE_PLANNING; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- réglage prévu de Batcache.
+	}
+}
+
+/**
+ * Adresses publiques qui affichent le planning d'un tome : page du planning, accueil (prochaines
+ * sorties), fiche de l'œuvre.
+ *
+ * @param int $tome_id Tome (0 : pages communes seulement).
+ * @return string[]
+ */
+function adresses_pages_planning( int $tome_id = 0 ): array {
+	$adresses = array( yume_url_page( 'planning' ), home_url( '/' ) );
+	$oeuvre   = $tome_id ? yume_get_oeuvre_id( $tome_id ) : 0;
+	if ( $oeuvre && 'publish' === get_post_status( $oeuvre ) ) {
+		$adresses[] = (string) get_permalink( $oeuvre );
+	}
+	return array_values( array_unique( array_filter( $adresses ) ) );
+}
+
+/**
+ * Planning modifié (avancement, pause, sortie) : pages concernées purgées de Batcache si
+ * batcache_clear_url() existe ; sinon elles expirent d'elles-mêmes (CACHE_PAGE_PLANNING).
+ *
+ * @param int|mixed $tome_id Tome.
+ */
+function purger_pages_planning( $tome_id = 0 ): void {
+	if ( ! function_exists( 'batcache_clear_url' ) ) {
+		return;
+	}
+	foreach ( adresses_pages_planning( (int) $tome_id ) as $adresse ) {
+		batcache_clear_url( $adresse );
+	}
+}
+add_action( 'yume_planning_mis_a_jour', __NAMESPACE__ . '\\purger_pages_planning' );
+add_action( 'yume_planning_pause', __NAMESPACE__ . '\\purger_pages_planning' );
+add_action( 'yume_tome_publie', __NAMESPACE__ . '\\purger_pages_planning' );
 
 /**
  * Adresse de base de la page du planning (sans filtre).
@@ -479,6 +529,7 @@ function cellule_etape( array $ligne, string $etape ): string {
  * @param array $attributs Attributs (showFilters).
  */
 function rendu_planning( array $attributs ): string {
+	limiter_cache_page();
 	$avec_filtres = ! isset( $attributs['showFilters'] ) || (bool) $attributs['showFilters'];
 	$filtres      = $avec_filtres ? filtres_planning() : array(
 		'type'   => '',
@@ -884,6 +935,7 @@ function liste_evenements( array $evenements ): string {
  * Filtres GET du planning (type, etat, oeuvre) respectés. Le bloc n'a pas d'attribut.
  */
 function rendu_calendrier(): string {
+	limiter_cache_page();
 	$filtres = filtres_planning();
 	$mois    = mois_calendrier();
 	$annee   = (int) substr( $mois, 0, 4 );
@@ -1019,6 +1071,7 @@ function oeuvre_du_contexte( $bloc ): int {
  * @param mixed $bloc      Instance WP_Block.
  */
 function rendu_oeuvre_planning( array $attributs, $bloc = null ): string {
+	limiter_cache_page();
 	$oeuvre_id = oeuvre_du_contexte( $bloc );
 	if ( ! $oeuvre_id ) {
 		return message_editeur( 'yn-oeuvre-planning', __( 'Planning de l’œuvre : s’affiche sur la fiche d’une œuvre.', 'yume-core' ) );

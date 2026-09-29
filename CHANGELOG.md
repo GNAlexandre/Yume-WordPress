@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.2-dev.2 — 2026-09-29
+
+- Planning : pages publiques 60 s au plus dans le cache de WordPress.com, purgées à chaque mise à jour
+
 ## 2.1.2-dev.1 — 2026-09-29
 
 - Migration : journal des catégories réconcilié en fin d'exécution (reprise après un arrêt brutal)
