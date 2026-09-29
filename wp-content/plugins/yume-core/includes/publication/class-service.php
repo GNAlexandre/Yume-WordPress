@@ -1408,7 +1408,9 @@ final class Service {
 	 *   (nouveaux chapitres) sera annoncée comme telle, jamais le contenu ancien comme une nouveauté ;
 	 * - tome déjà paru, publication immédiate : les chapitres prennent la date de sortie du tome
 	 *   (la « dernière sortie » de l'œuvre et les listes de nouveautés ne bougent pas) ;
-	 * - journal de l'équipe : « lecture en ligne ajoutée (sans annonce) » (ligne non publique).
+	 * - journal de l'équipe : « lecture en ligne ajoutée (sans annonce) » (ligne non publique) ;
+	 * - tome paru qui avait déjà des chapitres en ligne : remplacement de la lecture en ligne
+	 *   (résultat remplacement = true, en_ligne = chapitres en ligne après l'opération).
 	 *
 	 * @param \WP_Post                $tome      Tome.
 	 * @param \WP_Post[]              $a_publier Chapitres à publier.
@@ -1422,6 +1424,9 @@ final class Service {
 		$immediat   = null === $date;
 		$statut     = $immediat ? 'publish' : 'future';
 		$deja_sorti = 'publish' === $tome->post_status;
+		// Tome paru qui avait déjà une lecture en ligne : remplacement (chapitres mis à jour en
+		// place par preparer(), seuls les nouveaux chapitres sont publiés ici).
+		$en_ligne = $deja_sorti ? count( yume_get_chapitres( $tome_id ) ) : 0;
 		if ( $deja_sorti && $immediat && '' !== (string) $tome->post_date_gmt && ! str_starts_with( (string) $tome->post_date_gmt, '0000-00-00' ) ) {
 			$local = (string) $tome->post_date;
 			$gmt   = (string) $tome->post_date_gmt;
@@ -1512,6 +1517,8 @@ final class Service {
 			'chapitres'    => $publies,
 			'article'      => null,
 			'sans_annonce' => true,
+			'remplacement' => $en_ligne > 0,
+			'en_ligne'     => count( yume_get_chapitres( $tome_id ) ),
 		);
 	}
 

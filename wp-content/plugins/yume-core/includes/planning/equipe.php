@@ -1,16 +1,18 @@
 <?php
 /**
  * Espace équipe (bloc yume/team-dashboard, maquette TeamDashboard) : chiffres, « Mes tâches »
- * (curseur d'avancement, étape, date cible, blocage, note), « Tous les tomes » et « Ajouter un
- * tome au planning » (yume_maj_planning_tous), retards, rappels récents, journal de l'équipe.
+ * (curseur d'avancement, étape, date cible, blocage, note), « Tomes en préparation » et « Ajouter
+ * un tome au planning » (yume_maj_planning_tous), retards, rappels récents, journal de l'équipe.
  *
  * Vues de la même page (paramètre « vue », sans page supplémentaire) : « Planning complet »
  * (?vue=planning : tous les tomes vivants, filtres œuvre / état / statut / responsable, tri
  * « en retard d'abord », export CSV, formulaire par ligne, raccourcis vers la publication,
  * l'administration et la fiche, « Retirer du planning », « Mettre en pause » / « Reprendre »),
  * « Journal » (?vue=journal : tout le journal, paginé, filtrable par tome) et
- * « Réglages » (?vue=reglages, capacité yume_reglages : voir reglages-equipe.php) et « Lecture à
- * compléter » (?vue=lecture, capacité yume_publier : voir lecture-a-completer.php).
+ * « Réglages » (?vue=reglages, capacité yume_reglages : voir reglages-equipe.php), « Lecture à
+ * compléter » (?vue=lecture, capacité yume_publier : voir lecture-a-completer.php), « Tous les
+ * tomes » (?vue=tomes, capacité yume_publier, publiés compris : voir tomes-equipe.php) et « Mes
+ * tâches » (?vue=taches : voir mes-taches.php).
  *
  * Les formulaires passent par la REST en JavaScript (view.js) et, sans JavaScript, par
  * admin-post.php (actions yume_planning_maj, yume_planning_ajout, yume_planning_retrait et
@@ -368,7 +370,7 @@ function badge_pause( array $l ): string {
 }
 
 /**
- * Ligne dépliable de « Tous les tomes » et du planning complet : formulaire complet
+ * Ligne dépliable de « Tomes en préparation » et du planning complet : formulaire complet
  * (responsables compris), raccourcis et « Retirer du planning ».
  *
  * @param array      $l       Ligne.
@@ -676,7 +678,8 @@ function nom_role( \WP_User $user ): string {
 /**
  * Adresse d'une vue de l'espace équipe (paramètre « vue » de la page équipe, sans nouvelle page) :
  * 'planning' (gestion de tout le planning), 'journal' (tout le journal), 'reglages' (réglages
- * du site) ou 'lecture' (lecture en ligne à compléter) ; '' : tableau de bord.
+ * du site), 'lecture' (lecture en ligne à compléter), 'tomes' (tous les tomes, publiés compris)
+ * ou 'taches' (mes tâches) ; '' : tableau de bord.
  *
  * @param string $vue  Vue.
  * @param array  $args Paramètres supplémentaires (valeurs vides ignorées).
@@ -710,7 +713,7 @@ function vues_equipe_ajoutees(): array {
 	$retenu = array();
 	foreach ( $vues as $cle => $vue ) {
 		$cle = sanitize_key( (string) $cle );
-		if ( '' === $cle || in_array( $cle, array( 'planning', 'journal', 'reglages', 'lecture' ), true ) || ! is_array( $vue ) ) {
+		if ( '' === $cle || in_array( $cle, array( 'planning', 'journal', 'reglages', 'lecture', 'tomes', 'taches' ), true ) || ! is_array( $vue ) ) {
 			continue;
 		}
 		if ( ! isset( $vue['libelle'], $vue['rendu'] ) || ! is_callable( $vue['rendu'] ) ) {
@@ -730,7 +733,7 @@ function vues_equipe_ajoutees(): array {
 
 /**
  * Vue demandée de l'espace équipe (paramètre GET « vue ») : 'planning', 'journal', 'reglages',
- * 'lecture', une vue ajoutée (vues_equipe_ajoutees()) ou ''.
+ * 'lecture', 'tomes', 'taches', une vue ajoutée (vues_equipe_ajoutees()) ou ''.
  */
 function vue_equipe(): string {
 	if ( est_apercu_editeur() ) {
@@ -738,17 +741,18 @@ function vue_equipe(): string {
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- choix d'affichage en lecture seule.
 	$vue = isset( $_GET['vue'] ) && is_string( $_GET['vue'] ) ? sanitize_key( wp_unslash( $_GET['vue'] ) ) : '';
-	return in_array( $vue, array( 'planning', 'journal', 'reglages', 'lecture' ), true ) || isset( vues_equipe_ajoutees()[ $vue ] ) ? $vue : '';
+	return in_array( $vue, array( 'planning', 'journal', 'reglages', 'lecture', 'tomes', 'taches' ), true ) || isset( vues_equipe_ajoutees()[ $vue ] ) ? $vue : '';
 }
 
 /**
  * Navigation latérale de l'espace équipe, partagée par le tableau de bord (yume/team-dashboard),
  * ses vues « Planning complet », « Journal » et « Réglages », la page « Membres et rôles » (yume/team-members)
  * et le formulaire de publication : mêmes entrées, même ordre et mêmes cibles (WCAG 3.2.3).
- * Sur le tableau de bord, les entrées de la page sont des ancres.
+ * Sur le tableau de bord, son entrée est une ancre ; « Mes tâches » mène toujours à la vue ?vue=taches.
  *
  * @param string $actif   Page affichée : 'tableau', 'planning' (gestion du planning), 'journal',
- *                        'publier', 'lecture' (lecture en ligne à compléter), 'membres' ou 'reglages'.
+ *                        'publier', 'lecture' (lecture en ligne à compléter), 'tomes' (tous les tomes),
+ *                        'taches' (mes tâches), 'membres' ou 'reglages'.
  * @param int    $retards Nombre de mes retards (pastille de « Mes tâches »).
  */
 function navigation_equipe( string $actif, int $retards = 0 ): string {
@@ -760,7 +764,7 @@ function navigation_equipe( string $actif, int $retards = 0 ): string {
 	};
 	$html    = '<nav class="yn-team__nav" aria-label="' . esc_attr__( 'Espace équipe', 'yume-core' ) . '"><ul>';
 	$html   .= '<li><a href="' . esc_url( $tableau ? '#yn-team' : $equipe ) . '"' . ( $tableau ? ' aria-current="true"' : '' ) . '>' . esc_html__( 'Tableau de bord', 'yume-core' ) . '</a></li>';
-	$html   .= '<li><a href="' . esc_url( $equipe . '#yn-mes-taches' ) . '">' . esc_html__( 'Mes tâches', 'yume-core' );
+	$html   .= '<li><a href="' . esc_url( url_vue_equipe( 'taches' ) ) . '"' . $courant( 'taches' ) . '>' . esc_html__( 'Mes tâches', 'yume-core' );
 	if ( $retards ) {
 		/* translators: %d : retards */
 		$html .= ' <span class="yn-chip yn-chip--warn"><span aria-hidden="true">' . $retards . '</span><span class="yn-visually-hidden">' . esc_html( sprintf( _n( '%d en retard', '%d en retard', $retards, 'yume-core' ), $retards ) ) . '</span></span>';
@@ -769,9 +773,9 @@ function navigation_equipe( string $actif, int $retards = 0 ): string {
 	if ( current_user_can( 'yume_publier' ) ) {
 		$html .= '<li><a href="' . esc_url( yume_url_page( 'publier' ) ) . '"' . $courant( 'publier' ) . '>' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a></li>';
 		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'lecture' ) ) . '"' . $courant( 'lecture' ) . '>' . esc_html__( 'Lecture à compléter', 'yume-core' ) . '</a></li>';
-	}
-	if ( current_user_can( 'yume_maj_planning_tous' ) ) {
-		$html .= '<li><a href="' . esc_url( $equipe . '#yn-tous-les-tomes' ) . '">' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</a></li>';
+		// Tout le catalogue, publiés compris (la section du tableau de bord ne liste que les
+		// tomes en préparation) : retrouver un tome paru pour remplacer sa lecture en ligne.
+		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'tomes' ) ) . '"' . $courant( 'tomes' ) . '>' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</a></li>';
 	}
 	// Vue de gestion de tout le planning (le planning public reste accessible par le bouton
 	// « Voir le planning public »).
@@ -1301,6 +1305,12 @@ function rendu_team_dashboard(): string {
 	if ( 'lecture' === $vue ) {
 		return rendu_vue_lecture();
 	}
+	if ( 'tomes' === $vue ) {
+		return rendu_vue_tomes();
+	}
+	if ( 'taches' === $vue ) {
+		return rendu_vue_taches();
+	}
 	$ajoutees = vues_equipe_ajoutees();
 	if ( isset( $ajoutees[ $vue ] ) ) {
 		return (string) call_user_func( $ajoutees[ $vue ]['rendu'] );
@@ -1430,7 +1440,7 @@ function rendu_team_dashboard(): string {
 	$html .= '</section>';
 
 	if ( $tous ) {
-		$html .= '<section class="yn-team__section" id="yn-tous-les-tomes" aria-labelledby="yn-tous-titre"><div class="yn-team__section-tete"><h2 id="yn-tous-titre">' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</h2>';
+		$html .= '<section class="yn-team__section" id="yn-tous-les-tomes" aria-labelledby="yn-tous-titre"><div class="yn-team__section-tete"><h2 id="yn-tous-titre">' . esc_html__( 'Tomes en préparation', 'yume-core' ) . '</h2>';
 		$html .= '<a href="' . esc_url( url_vue_equipe( 'planning' ) ) . '">' . esc_html__( 'Planning complet (publiés, programmés…)', 'yume-core' ) . ' <span aria-hidden="true">→</span></a></div>';
 		$html .= '<div id="yn-gestion-retour">' . zone_retour( $retour_pour( 'yn-gestion-retour' ) ) . '</div>';
 		if ( $lignes ) {

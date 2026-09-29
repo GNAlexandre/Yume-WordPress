@@ -24,6 +24,8 @@ $yume_date_lib  = self::libelle_date( (string) $v['date_sortie'] );
 $yume_import    = is_array( $retour['rapport']['import'] ?? null ) ? $retour['rapport']['import'] : null;
 $yume_avert     = $retour ? (array) ( $retour['rapport']['avertissements'] ?? array() ) : array();
 $yume_planifies = self::tomes_planning( $yume_tome ? (int) $yume_tome->ID : 0 );
+// Tome déjà paru qui a une lecture en ligne : le formulaire sert à la remplacer.
+$yume_en_ligne = $yume_tome && 'publish' === $yume_tome->post_status ? count( yume_get_chapitres( (int) $yume_tome->ID ) ) : 0;
 
 // Libellé d'état (puce en haut à droite).
 if ( $yume_tome ) {
@@ -47,14 +49,12 @@ if ( $yume_tome ) {
 	if ( null !== $yume_nav_equipe ) :
 		echo $yume_nav_equipe; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML échappé par navigation_equipe().
 	else :
-		$yume_nav = array(
+		$yume_nav   = array(
 			array( __( 'Tableau de bord', 'yume-core' ), $yume_equipe, false ),
-			array( __( 'Mes tâches', 'yume-core' ), $yume_equipe . '#yn-mes-taches', false ),
+			array( __( 'Mes tâches', 'yume-core' ), add_query_arg( 'vue', 'taches', $yume_equipe ), false ),
 			array( __( 'Publier un tome', 'yume-core' ), '' !== self::url_page() ? self::url_page() : (string) get_permalink(), true ),
 		);
-		if ( current_user_can( 'yume_maj_planning_tous' ) ) {
-			$yume_nav[] = array( __( 'Tous les tomes', 'yume-core' ), $yume_equipe . '#yn-tous-les-tomes', false );
-		}
+		$yume_nav[] = array( __( 'Tous les tomes', 'yume-core' ), add_query_arg( 'vue', 'tomes', $yume_equipe ), false );
 		$yume_nav[] = array( __( 'Planning complet', 'yume-core' ), $yume_planning, false );
 		$yume_nav[] = array( __( 'Journal', 'yume-core' ), $yume_equipe . '#yn-team-journal', false );
 		// Page « Membres et rôles » de l'espace équipe, sinon la liste des utilisateurs de l'administration.
@@ -99,6 +99,23 @@ if ( $yume_tome ) {
 				</div>
 			<?php endif; ?>
 		</div>
+
+		<?php if ( $yume_en_ligne > 0 ) : ?>
+			<section class="yn-card yn-publish__mode-remplacement" aria-labelledby="yn-publish-remplacer-titre" data-yn-mode-remplacement>
+				<h3 id="yn-publish-remplacer-titre">
+					<?php
+					/* translators: %d : nombre de chapitres en ligne */
+					echo esc_html( sprintf( _n( 'Remplacer la lecture en ligne (%d chapitre actuel)', 'Remplacer la lecture en ligne (%d chapitres actuels)', $yume_en_ligne, 'yume-core' ), $yume_en_ligne ) );
+					?>
+				</h3>
+				<p><?php esc_html_e( 'Ce tome est déjà paru avec sa lecture en ligne. Déposez le nouveau DOCX ou EPUB puis cliquez sur « Publier maintenant » :', 'yume-core' ); ?></p>
+				<ul>
+					<li><?php esc_html_e( 'chaque chapitre est remplacé en place, par numéro : mêmes adresses, commentaires conservés, aucun doublon ; les chapitres nouveaux du fichier sont ajoutés ;', 'yume-core' ); ?></li>
+					<li><?php esc_html_e( 'un chapitre absent du nouveau fichier est signalé après l’envoi ; il reste en ligne, sauf si vous cochez « Mettre en brouillon les chapitres absents » ;', 'yume-core' ); ?></li>
+					<li><?php esc_html_e( 'avec la case « Ajout au catalogue » cochée (par défaut) : aucune nouvelle annonce (ni article, ni Discord, ni e-mail, ni notification aux lecteurs) et la date de sortie du tome ne change pas.', 'yume-core' ); ?></li>
+				</ul>
+			</section>
+		<?php endif; ?>
 
 		<form class="yn-publish__formulaire" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" data-yn-formulaire>
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">

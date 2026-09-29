@@ -1402,7 +1402,7 @@ yume_tp_test(
 				yume_assert_same( 'Rappel planning : Secrets of the Silent Witch — Arc 7', $mails[0]->sujet );
 				yume_assert_contains( 'est dépassée de 3 jours', $mails[0]->html );
 				yume_assert_contains( 'Bonjour Angeloids', $mails[0]->html );
-				yume_assert_contains( '#yn-tache-' . $d['arc7'], $mails[0]->html );
+				yume_assert_contains( 'vue=taches#yn-tache-' . $d['arc7'], $mails[0]->html, 'carte de la tâche dans la vue « Mes tâches »' );
 				yume_assert_contains( 'n’a pas été mis à jour depuis 20 jours', $mails[1]->html );
 				yume_assert_same( 1, count( $requetes ), 'un seul message Discord groupé' );
 				$texte = json_decode( $requetes[0]['args']['body'], true )['content'];
@@ -2219,7 +2219,7 @@ yume_tp_test(
 		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles' ), $ajoutees, array( 'Réglages' ) ), $libelles );
 		$equipe = esc_url( yume_url_page( 'equipe' ) );
 		yume_assert_same( $equipe, $liens[0][1] );
-		yume_assert_same( $equipe . '#yn-mes-taches', $liens[1][1] );
+		yume_assert_same( esc_url( \Yume\Core\Planning\url_vue_equipe( 'taches' ) ), $liens[1][1] );
 		yume_assert_same( esc_url( get_permalink( $page ) ), $liens[7][1] );
 		yume_assert_same( ' aria-current="page"', $liens[7][2] );
 		yume_assert_same( 1, substr_count( $m[0], 'aria-current' ) );

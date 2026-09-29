@@ -827,3 +827,30 @@
 		flex-direction: column;
 	}
 }
+
+/* Tome déjà paru avec sa lecture en ligne (?tome=ID) : ce que fait le remplacement. */
+.yn-publish__mode-remplacement {
+	margin-bottom: 20px;
+	padding: 16px 20px;
+	border-left: 4px solid var(--wp--preset--color--avertissement);
+	font-size: 14px;
+}
+
+.yn-publish__mode-remplacement h3 {
+	margin: 0 0 6px;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 17px;
+}
+
+.yn-publish__mode-remplacement p {
+	margin: 0;
+}
+
+.yn-publish__mode-remplacement ul {
+	margin: 8px 0 0;
+	padding-left: 20px;
+}
+
+.yn-publish__mode-remplacement li + li {
+	margin-top: 4px;
+}

@@ -284,6 +284,21 @@ final class Formulaire {
 	 */
 	public static function message_catalogue( array $sortie ): string {
 		$nb = (int) $sortie['chapitres'];
+		if ( ! empty( $sortie['remplacement'] ) ) {
+			$en_ligne = (int) ( $sortie['en_ligne'] ?? 0 );
+			/* translators: %d : chapitres en ligne */
+			$detail = sprintf( _n( '%d chapitre en ligne', '%d chapitres en ligne', $en_ligne, 'yume-core' ), $en_ligne );
+			if ( $nb > 0 ) {
+				/* translators: %d : nouveaux chapitres (publiés ou programmés) */
+				$detail .= ' ; ' . sprintf( _n( '%d nouveau', '%d nouveaux', $nb, 'yume-core' ), $nb );
+			}
+			return sprintf(
+				/* translators: 1: titre du tome, 2: « 13 chapitres en ligne ; 2 nouveaux » */
+				__( '%1$s : lecture en ligne remplacée (%2$s), sans annonce : ni article, ni Discord, ni e-mail. La date de sortie du tome ne change pas.', 'yume-core' ),
+				$sortie['tome']['titre'],
+				$detail
+			);
+		}
 		if ( 'publish' !== $sortie['statut'] ) {
 			return sprintf(
 				/* translators: 1: titre du tome, 2: date */

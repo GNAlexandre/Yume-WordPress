@@ -575,7 +575,11 @@
 					return sortir( !! ( confirmerVide && confirmerVide.checked ) ).then( function ( sortie ) {
 						var dateSortie = new Date( sortie.date ).toLocaleString( 'fr-FR', { dateStyle: 'full', timeStyle: 'short' } );
 						var texteSortie;
-						if ( sortie.sans_annonce ) {
+						if ( sortie.sans_annonce && sortie.remplacement ) {
+							texteSortie = sortie.tome.titre + ' : lecture en ligne remplacée (' + sortie.en_ligne + ( sortie.en_ligne > 1 ? ' chapitres' : ' chapitre' ) + ' en ligne'
+								+ ( sortie.chapitres > 0 ? ' ; ' + sortie.chapitres + ( sortie.chapitres > 1 ? ' nouveaux' : ' nouveau' ) : '' )
+								+ '), sans annonce : ni article, ni Discord, ni e-mail. La date de sortie du tome ne change pas.';
+						} else if ( sortie.sans_annonce ) {
 							texteSortie = sortie.statut === 'publish'
 								? sortie.tome.titre + ' : lecture en ligne ajoutée (' + sortie.chapitres + ( sortie.chapitres > 1 ? ' chapitres' : ' chapitre' ) + '), sans annonce : ni article, ni Discord, ni e-mail.'
 								: sortie.tome.titre + ' : lecture en ligne programmée le ' + dateSortie + ', sans annonce (ni article, ni Discord, ni e-mail).';
@@ -588,7 +592,7 @@
 						}
 						if ( etat ) {
 							etat.textContent = sortie.sans_annonce
-								? ( sortie.statut === 'publish' ? 'Lecture en ligne ajoutée' : 'Lecture en ligne programmée' )
+								? ( sortie.remplacement ? 'Lecture en ligne remplacée' : ( sortie.statut === 'publish' ? 'Lecture en ligne ajoutée' : 'Lecture en ligne programmée' ) )
 								: ( sortie.statut === 'publish' ? 'Tome publié' : 'Sortie programmée' );
 						}
 						annoncer(

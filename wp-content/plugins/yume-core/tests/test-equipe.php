@@ -3,7 +3,7 @@
  * Tests de l'espace équipe (façade) : navigation partagée (vues, « Publier », déconnexion),
  * vue « Planning complet » (?vue=planning : tous les tomes vivants, filtres, formulaire par
  * ligne, raccourcis, « Retirer du planning », erreur affichée sur la ligne), raccourcis de
- * « Mes tâches » et de « Tous les tomes », vue « Journal » (?vue=journal : pagination, filtre
+ * « Mes tâches » et de « Tomes en préparation », vue « Journal » (?vue=journal : pagination, filtre
  * par tome), vue « Réglages » (?vue=reglages : champs selon les capacités, enregistrement par
  * admin-post.php avec l'assainissement de la page d'administration), avertissements de la page
  * « Membres et rôles » et passerelle du planning public.
@@ -268,13 +268,14 @@ yume_te_test(
 			'lecture'  => 3,
 			'membres'  => 7,
 			'reglages' => 8,
+			'taches'   => 1,
 		) as $cle => $index ) {
 			$html    = navigation_equipe( $cle );
 			$entrees = $de_base( yume_te_nav( $html ) );
 			yume_assert_same( ' aria-current="page"', $entrees[ $index ][2], $cle );
 			yume_assert_same( 1, substr_count( $html, 'aria-current' ), $cle . ' : une seule entrée active' );
 			yume_assert_same( url_vue_equipe(), $entrees[0][1], $cle . ' : adresse complète du tableau de bord' );
-			yume_assert_same( url_vue_equipe() . '#yn-mes-taches', $entrees[1][1] );
+			yume_assert_same( url_vue_equipe( 'taches' ), $entrees[1][1], '« Mes tâches » : vue ?vue=taches' );
 		}
 
 		// Traducteur : ni publier, ni tous les tomes, ni membres ; les vues restent proposées.
@@ -550,7 +551,7 @@ yume_te_test(
  */
 
 yume_te_test(
-	'tableau de bord : raccourcis sur « Mes tâches » et « Tous les tomes », liens vers les vues',
+	'tableau de bord : raccourcis sur « Mes tâches » et « Tomes en préparation », liens vers les vues',
 	function () {
 		$d = yume_te_jeu();
 		update_post_meta(
@@ -570,7 +571,8 @@ yume_te_test(
 		yume_assert_contains( 'Gérer dans le planning complet', $carte[0] );
 		yume_assert_not_contains( '<form', substr( $carte[0], 5 ), 'pas de formulaire imbriqué' );
 		yume_assert_contains( 'id="yn-tous-les-tomes"', $html );
-		yume_assert_contains( 'value="yume_planning_retrait"', $html, 'retrait depuis « Tous les tomes »' );
+		yume_assert_contains( '<h2 id="yn-tous-titre">Tomes en préparation</h2>', $html, 'section du planning à venir (la vue « Tous les tomes » liste tout le catalogue)' );
+		yume_assert_contains( 'value="yume_planning_retrait"', $html, 'retrait depuis « Tomes en préparation »' );
 		yume_assert_contains( esc_url( url_vue_equipe( 'planning' ) ), $html );
 		yume_assert_contains( esc_url( url_vue_equipe( 'journal' ) ) . '">Tout le journal', $html );
 

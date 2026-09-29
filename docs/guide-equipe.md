@@ -43,11 +43,11 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- les liens **Publier un tome** et **Lecture à compléter** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
+- les liens **Publier un tome**, **Lecture à compléter** et **Tous les tomes** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
   **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
-Sous chaque tâche (et chaque tome de *Tous les tomes*), des raccourcis mènent directement au bon
+Sous chaque tâche (et chaque tome de *Tomes en préparation*, la liste du planning à venir), des raccourcis mènent directement au bon
 écran : **Publier ce tome** (éditeurs : le formulaire de publication s'ouvre déjà rempli pour ce
 tome, inutile de ressaisir œuvre, nature et numéro), **Modifier dans l'administration**, **Voir la
 fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans le planning complet**.
@@ -140,7 +140,9 @@ travail, à l'adresse `/contributeurs/{votre-pseudo}/`. Elle est **désactivée 
 Le planning public (`/planning/`) montre aux lecteurs où en est chaque tome. Il se met à jour
 **uniquement** à partir de ce que l'équipe saisit : pensez-y à chaque avancée.
 
-Dans **Mes tâches**, pour chaque tome :
+Dans **Mes tâches** (lien du menu de l'espace équipe, `/equipe/?vue=taches` : toutes vos tâches,
+**en retard d'abord**, avec le nombre de retards en pastille ; la même liste figure aussi sur le
+tableau de bord), pour chaque tome :
 
 1. **Avancement** : faites glisser le curseur (0 à 100 %) de votre étape.
 2. **Étape** : *À faire → Traduction → Relecture → Édition → Publié*. Passez à l'étape suivante
@@ -181,7 +183,8 @@ actualités.
 
 Chaque jour vers **9 h (heure de Paris)**, le site vérifie le planning :
 
-- date cible dépassée → e-mail au responsable + message sur le Discord de l'équipe ;
+- date cible dépassée → e-mail au responsable (son bouton ouvre la tâche dans **Mes tâches**) +
+  message sur le Discord de l'équipe ;
 - aucune mise à jour depuis **14 jours** → rappel « mets ton planning à jour » ;
 - chaque **lundi** → récapitulatif aux gérants (état global, retards, sorties de la semaine).
 
@@ -296,6 +299,36 @@ quand même un tome déjà paru, décochez la case avant de publier.
 En ligne de commande : `docx2chapters.php publish … --publier maintenant --sans-annonce`
 (`--avec-annonce` pour forcer l'annonce ; sans l'une ni l'autre, le site choisit comme le
 formulaire). Voir `tools/docx2chapters/README.md`.
+
+### 5.4 bis Remplacer la lecture en ligne d'un tome déjà publié
+
+Pour refaire la lecture en ligne d'un tome paru (nouvelle traduction, corrections en masse, DOCX
+refait) :
+
+1. Espace équipe → **Tous les tomes** (`/equipe/?vue=tomes`, éditeurs et gérants) : tous les tomes,
+   **publiés compris** (la section « Tomes en préparation » du tableau de bord ne montre que le
+   planning à venir). Filtrez par œuvre, par statut (publiés, programmés, brouillons) ou tapez une
+   partie du titre.
+2. Sur la ligne du tome : **Remplacer la lecture en ligne** (le tome a déjà des chapitres en ligne)
+   ou **Lecture en ligne : ajouter le DOCX/EPUB** (il n'en a aucun). **Voir** ouvre la fiche publique,
+   **Modifier** l'administration.
+3. Le formulaire de publication s'ouvre déjà rempli. En haut, l'encadré **« Remplacer la lecture en
+   ligne (N chapitres actuels) »** rappelle ce qui va se passer. Déposez le nouveau DOCX ou EPUB,
+   vérifiez les chapitres détectés, laissez cochée la case **« Ajout au catalogue »**, puis
+   **Publier maintenant**.
+
+Ce qui se passe :
+
+- chaque chapitre est **remplacé en place, par numéro** : même adresse, mêmes commentaires, aucun
+  doublon ; les chapitres nouveaux du fichier sont ajoutés (datés de la sortie du tome) ;
+- un chapitre **absent du nouveau fichier** est signalé dans le message ; il reste en ligne, sauf si
+  vous avez coché **« Mettre en brouillon les chapitres absents »** ;
+- **aucune annonce** : ni article, ni Discord, ni e-mail, ni notification aux lecteurs, et la **date
+  de sortie du tome ne change pas**. Le message final l'indique : « lecture en ligne remplacée
+  (N chapitres en ligne) ».
+
+Attention : dès l'envoi du fichier (même avec **Enregistrer en brouillon**), les chapitres déjà en
+ligne sont remplacés. Vérifiez l'aperçu des chapitres détectés avant d'envoyer.
 
 ### 5.5 Actualités d'une œuvre (onglet « Actualités » de la fiche)
 
