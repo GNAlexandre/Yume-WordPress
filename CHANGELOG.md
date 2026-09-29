@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.0 — 2026-09-29
+
+- Yume Novel 2.0.0 : nouveau site (thème Yume, extension Yume Core), migration de l'ancien site, espace équipe, planning, lecture en ligne, glossaires, comptes lecteurs.
+
 ## 2.0.0-dev.14 — 2026-09-28
 
 - Dernières corrections : vue Glossaires (liens soulignés, plus de débordement à 390 px, titres alignés sur les autres vues, repère nommé), identifiants _yn_nonce uniques dans les formulaires du compte.
