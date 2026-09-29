@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1-dev.1 — 2026-09-29
+
+- Recette : bouton Ko-fi de l'en-tête aligné (cœur et texte centrés), champs du formulaire « Ajouter un membre » alignés quand un libellé passe sur deux lignes.
+
 ## 2.0.0 — 2026-09-29
 
 - Yume Novel 2.0.0 : nouveau site (thème Yume, extension Yume Core), migration de l'ancien site, espace équipe, planning, lecture en ligne, glossaires, comptes lecteurs.
