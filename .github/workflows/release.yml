@@ -1,6 +1,7 @@
 # Publication d'une version de Yume Novel.
 #
-# Déclenché par un tag vX.Y.Z (ou vX.Y.Z-suffixe pour une préversion) :
+# Déclenché par un tag vX.Y.Z (ou vX.Y.Z-suffixe pour une préversion), ou relancé à la main sur ce
+# tag (Actions → Release → Run workflow) si sa pose n'a pas créé de run :
 #   1. vérifie le tag : format, versions du plugin (en-tête et YUME_CORE_VERSION) et du thème
 #      identiques au tag, et, pour une version stable, commit présent sur la branche par défaut ;
 #   2. reprend la CI de la pull request fusionnée si elle a réussi sur exactement le même contenu
@@ -25,6 +26,9 @@ name: Release
 on:
   push:
     tags: ['v*']
+  # Relance manuelle (Actions → Release → Run workflow, « Use workflow from » : le tag vX.Y.Z),
+  # si la pose du tag n'a pas déclenché de run. Mêmes contrôles, même CI, même approbation.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -52,6 +56,14 @@ jobs:
           extensions: zip
           coverage: none
           tools: none
+
+      - name: Lancé sur un tag
+        if: ${{ github.ref_type != 'tag' }}
+        env:
+          REF: ${{ github.ref_name }}
+        run: |
+          echo "::error::Run lancé sur « $REF » : choisir le tag vX.Y.Z dans « Use workflow from » (onglet Tags), pas une branche."
+          exit 1
 
       - name: Format du tag
         id: tag
