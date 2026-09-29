@@ -29,6 +29,7 @@ require_once __DIR__ . '/reglages-equipe.php';
 require_once __DIR__ . '/lecture-a-completer.php';
 require_once __DIR__ . '/tomes-equipe.php';
 require_once __DIR__ . '/mes-taches.php';
+require_once __DIR__ . '/oeuvres-equipe.php';
 require_once __DIR__ . '/kpi.php';
 require_once __DIR__ . '/sante-equipe.php';
 require_once __DIR__ . '/membres.php';

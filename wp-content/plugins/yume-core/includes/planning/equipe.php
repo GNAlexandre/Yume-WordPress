@@ -11,8 +11,9 @@
  * « Journal » (?vue=journal : tout le journal, paginé, filtrable par tome) et
  * « Réglages » (?vue=reglages, capacité yume_reglages : voir reglages-equipe.php), « Lecture à
  * compléter » (?vue=lecture, capacité yume_publier : voir lecture-a-completer.php), « Tous les
- * tomes » (?vue=tomes, capacité yume_publier, publiés compris : voir tomes-equipe.php) et « Mes
- * tâches » (?vue=taches : voir mes-taches.php).
+ * tomes » (?vue=tomes, capacité yume_publier, publiés compris : voir tomes-equipe.php), « Mes
+ * tâches » (?vue=taches : voir mes-taches.php) et « Œuvres » (?vue=oeuvres, capacité
+ * edit_yume_oeuvres : œuvres du catalogue et formulaire « Nouvelle œuvre », voir oeuvres-equipe.php).
  *
  * Les formulaires passent par la REST en JavaScript (view.js) et, sans JavaScript, par
  * admin-post.php (actions yume_planning_maj, yume_planning_ajout, yume_planning_retrait et
@@ -600,7 +601,9 @@ function formulaire_ajout( array $membres, ?array $retour ): string {
 	$html    = '<form class="yn-card yn-team__ajout" id="yn-ajouter-tome-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-yn-planning-ajout aria-labelledby="yn-ajouter-tome">';
 	$html   .= '<input type="hidden" name="action" value="yume_planning_ajout">' . wp_nonce_field( 'yume_planning_ajout', '_yume_nonce', true, false );
 	$html   .= '<div class="yn-team__grille">';
-	$html   .= champ_select( 'yn-ajout-oeuvre', 'oeuvre_id', __( 'Œuvre', 'yume-core' ), $oeuvres, '', array( 'required' => true ) );
+	// Œuvre présélectionnée depuis la vue « Œuvres » (?oeuvre_ajout=ID).
+	$choisie = get_entier( 'oeuvre_ajout' );
+	$html   .= champ_select( 'yn-ajout-oeuvre', 'oeuvre_id', __( 'Œuvre', 'yume-core' ), $oeuvres, isset( $oeuvres[ (string) $choisie ] ) ? (string) $choisie : '', array( 'required' => true ) );
 	$html   .= champ_select( 'yn-ajout-nature', 'nature', __( 'Nature', 'yume-core' ), yume_natures_tome(), 'tome' );
 	$html   .= champ_saisie(
 		'yn-ajout-numero',
@@ -679,7 +682,7 @@ function nom_role( \WP_User $user ): string {
  * Adresse d'une vue de l'espace équipe (paramètre « vue » de la page équipe, sans nouvelle page) :
  * 'planning' (gestion de tout le planning), 'journal' (tout le journal), 'reglages' (réglages
  * du site), 'lecture' (lecture en ligne à compléter), 'tomes' (tous les tomes, publiés compris)
- * ou 'taches' (mes tâches) ; '' : tableau de bord.
+ * 'taches' (mes tâches) ou 'oeuvres' (œuvres et nouvelle œuvre) ; '' : tableau de bord.
  *
  * @param string $vue  Vue.
  * @param array  $args Paramètres supplémentaires (valeurs vides ignorées).
@@ -713,7 +716,7 @@ function vues_equipe_ajoutees(): array {
 	$retenu = array();
 	foreach ( $vues as $cle => $vue ) {
 		$cle = sanitize_key( (string) $cle );
-		if ( '' === $cle || in_array( $cle, array( 'planning', 'journal', 'reglages', 'lecture', 'tomes', 'taches' ), true ) || ! is_array( $vue ) ) {
+		if ( '' === $cle || in_array( $cle, array( 'planning', 'journal', 'reglages', 'lecture', 'tomes', 'taches', 'oeuvres' ), true ) || ! is_array( $vue ) ) {
 			continue;
 		}
 		if ( ! isset( $vue['libelle'], $vue['rendu'] ) || ! is_callable( $vue['rendu'] ) ) {
@@ -733,7 +736,7 @@ function vues_equipe_ajoutees(): array {
 
 /**
  * Vue demandée de l'espace équipe (paramètre GET « vue ») : 'planning', 'journal', 'reglages',
- * 'lecture', 'tomes', 'taches', une vue ajoutée (vues_equipe_ajoutees()) ou ''.
+ * 'lecture', 'tomes', 'taches', 'oeuvres', une vue ajoutée (vues_equipe_ajoutees()) ou ''.
  */
 function vue_equipe(): string {
 	if ( est_apercu_editeur() ) {
@@ -741,7 +744,7 @@ function vue_equipe(): string {
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- choix d'affichage en lecture seule.
 	$vue = isset( $_GET['vue'] ) && is_string( $_GET['vue'] ) ? sanitize_key( wp_unslash( $_GET['vue'] ) ) : '';
-	return in_array( $vue, array( 'planning', 'journal', 'reglages', 'lecture', 'tomes', 'taches' ), true ) || isset( vues_equipe_ajoutees()[ $vue ] ) ? $vue : '';
+	return in_array( $vue, array( 'planning', 'journal', 'reglages', 'lecture', 'tomes', 'taches', 'oeuvres' ), true ) || isset( vues_equipe_ajoutees()[ $vue ] ) ? $vue : '';
 }
 
 /**
@@ -752,7 +755,7 @@ function vue_equipe(): string {
  *
  * @param string $actif   Page affichée : 'tableau', 'planning' (gestion du planning), 'journal',
  *                        'publier', 'lecture' (lecture en ligne à compléter), 'tomes' (tous les tomes),
- *                        'taches' (mes tâches), 'membres' ou 'reglages'.
+ *                        'taches' (mes tâches), 'oeuvres' (œuvres), 'membres' ou 'reglages'.
  * @param int    $retards Nombre de mes retards (pastille de « Mes tâches »).
  */
 function navigation_equipe( string $actif, int $retards = 0 ): string {
@@ -776,6 +779,10 @@ function navigation_equipe( string $actif, int $retards = 0 ): string {
 		// Tout le catalogue, publiés compris (la section du tableau de bord ne liste que les
 		// tomes en préparation) : retrouver un tome paru pour remplacer sa lecture en ligne.
 		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'tomes' ) ) . '"' . $courant( 'tomes' ) . '>' . esc_html__( 'Tous les tomes', 'yume-core' ) . '</a></li>';
+	}
+	if ( current_user_can( CAPACITE_OEUVRES ) ) {
+		// Catalogue des œuvres et création d'une nouvelle œuvre (oeuvres-equipe.php).
+		$html .= '<li><a href="' . esc_url( url_vue_equipe( 'oeuvres' ) ) . '"' . $courant( 'oeuvres' ) . '>' . esc_html__( 'Œuvres', 'yume-core' ) . '</a></li>';
 	}
 	// Vue de gestion de tout le planning (le planning public reste accessible par le bouton
 	// « Voir le planning public »).
@@ -1311,6 +1318,9 @@ function rendu_team_dashboard(): string {
 	if ( 'taches' === $vue ) {
 		return rendu_vue_taches();
 	}
+	if ( 'oeuvres' === $vue ) {
+		return rendu_vue_oeuvres();
+	}
 	$ajoutees = vues_equipe_ajoutees();
 	if ( isset( $ajoutees[ $vue ] ) ) {
 		return (string) call_user_func( $ajoutees[ $vue ]['rendu'] );
@@ -1454,6 +1464,9 @@ function rendu_team_dashboard(): string {
 		}
 		$html .= '</section>';
 		$html .= '<section class="yn-team__section" id="yn-ajouter-tome-section" aria-labelledby="yn-ajouter-tome"><h2 id="yn-ajouter-tome">' . esc_html__( 'Ajouter un tome au planning', 'yume-core' ) . '</h2>';
+		if ( current_user_can( CAPACITE_OEUVRES ) ) {
+			$html .= '<p class="yn-muted">' . esc_html__( 'L’œuvre n’existe pas encore ?', 'yume-core' ) . ' <a href="' . esc_url( url_vue_equipe( 'oeuvres' ) . '#yn-nouvelle-oeuvre-section' ) . '">' . esc_html__( 'Créer une nouvelle œuvre', 'yume-core' ) . '</a></p>';
+		}
 		$html .= formulaire_ajout( $membres, $retour_pour( 'yn-ajouter-tome-form' ) ) . '</section>';
 	}
 	$html .= '</div><div class="yn-team__droite"><h2>' . esc_html__( 'Rappels et journal', 'yume-core' ) . '</h2>';

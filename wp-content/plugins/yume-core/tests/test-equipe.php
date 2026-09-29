@@ -247,14 +247,15 @@ yume_te_test(
 		yume_assert_same( array_merge( $ajoutees, array( 'Réglages' ) ), array_slice( $toutes, -1 - count( $ajoutees ) ), 'vues ajoutées avant « Réglages »' );
 		$entrees  = $de_base( yume_te_nav( $nav ) );
 		$libelles = array_column( $entrees, 0 );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
-		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[8][1], 'réglages dans l’espace équipe' );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Œuvres', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
+		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[9][1], 'réglages dans l’espace équipe' );
 		yume_assert_same( url_vue_equipe( 'lecture' ), $entrees[3][1], 'lecture à compléter dans l’espace équipe' );
 		yume_assert_not_contains( 'page=yume-reglages', $nav, 'plus la page de l’administration' );
-		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[5][1] );
-		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[6][1] );
-		yume_assert_contains( 'vue=planning', $entrees[5][1] );
-		yume_assert_true( yume_url_page( 'planning' ) !== $entrees[5][1], 'plus le planning public' );
+		yume_assert_same( url_vue_equipe( 'oeuvres' ), $entrees[5][1], 'œuvres dans l’espace équipe' );
+		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[6][1] );
+		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[7][1] );
+		yume_assert_contains( 'vue=planning', $entrees[6][1] );
+		yume_assert_true( yume_url_page( 'planning' ) !== $entrees[6][1], 'plus le planning public' );
 		yume_assert_same( '#yn-team', $entrees[0][1], 'ancres sur le tableau de bord' );
 		yume_assert_same( ' aria-current="true"', $entrees[0][2] );
 		yume_assert_contains( '2 en retard', $nav, 'signature historique conservée' );
@@ -262,12 +263,13 @@ yume_te_test(
 		yume_assert_contains( esc_url( wp_logout_url( home_url( '/' ) ) ), $nav );
 
 		foreach ( array(
-			'planning' => 5,
-			'journal'  => 6,
+			'planning' => 6,
+			'journal'  => 7,
 			'publier'  => 2,
 			'lecture'  => 3,
-			'membres'  => 7,
-			'reglages' => 8,
+			'oeuvres'  => 5,
+			'membres'  => 8,
+			'reglages' => 9,
 			'taches'   => 1,
 		) as $cle => $index ) {
 			$html    = navigation_equipe( $cle );

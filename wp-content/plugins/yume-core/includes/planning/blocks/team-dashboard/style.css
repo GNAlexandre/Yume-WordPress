@@ -403,7 +403,9 @@
 
 .yn-team__action {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: flex-end;
+	gap: 8px;
 }
 
 .yn-team__blocage {
@@ -1299,4 +1301,41 @@
 		justify-content: center;
 		text-align: center;
 	}
+}
+
+/* Vue « Œuvres » : formulaire « Nouvelle œuvre » (oeuvres-equipe.php). */
+.yn-team__genres {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yn-team__cases {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 10px 16px;
+}
+
+.yn-team__champ input[type="file"] {
+	min-height: 0;
+	padding-block: 4px;
+}
+
+.yn-team__champ .yn-muted {
+	display: block;
+	margin-top: 4px;
+	font-size: 13px;
+}
+
+.yn-team__form-bouton {
+	display: contents;
+}
+
+.yn-team__champ textarea.yn-team__court {
+	min-height: 0;
+	height: auto;
 }

@@ -54,7 +54,7 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- les liens **Publier un tome**, **Lecture à compléter** et **Tous les tomes** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
+- les liens **Publier un tome**, **Lecture à compléter**, **Tous les tomes** et **Œuvres** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
   **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
@@ -62,6 +62,25 @@ Sous chaque tâche (et chaque tome de *Tomes en préparation*, la liste du plann
 écran : **Publier ce tome** (éditeurs : le formulaire de publication s'ouvre déjà rempli pour ce
 tome, inutile de ressaisir œuvre, nature et numéro), **Modifier dans l'administration**, **Voir la
 fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans le planning complet**.
+
+### Œuvres et nouvelle œuvre (`/equipe/?vue=oeuvres`, éditeurs et gérants)
+
+Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut ou par titre. Pour
+chaque œuvre : **Voir** (publiée) ou **Publier** (brouillon), **Compléter la fiche** (éditeur
+complet), **Ajouter un tome au planning** (le formulaire du tableau de bord s'ouvre avec l'œuvre
+déjà choisie) et **Publier un tome**.
+
+**Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » sous
+« Ajouter un tome au planning ») : titre, type, statut de la traduction, auteur, illustrateur,
+éditeur VO, titres alternatifs (un par ligne), genres (cases à cocher ; « Autres genres » en crée
+de nouveaux), synopsis (une ligne vide sépare deux paragraphes) et couverture (JPG, PNG ou WebP).
+
+- **Créer en brouillon** : l'œuvre reste invisible du public ; on peut déjà lui ajouter des tomes au
+  planning, puis la publier d'un clic depuis la liste.
+- **Créer et publier** : la fiche est tout de suite visible dans la bibliothèque. Publier une œuvre
+  n'envoie aucune annonce (seuls les tomes sont annoncés).
+- Un titre déjà pris (même en brouillon) est refusé, pour éviter les doublons.
+- Liens externes, bannière, jours de sortie et équipe affichée sur la fiche : **Compléter la fiche**.
 
 ### Planning complet (`/equipe/?vue=planning`)
 

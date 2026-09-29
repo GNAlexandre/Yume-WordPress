@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.0 — 2026-09-29
+
+- Espace équipe : vue « Œuvres » et formulaire « Nouvelle œuvre ».
+
 ## 2.0.2 — 2026-09-29
 
 - Version 2.0.2 : correctifs de la recette (menus de l'œuvre, règles de réécriture, CI unique).
