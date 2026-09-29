@@ -209,6 +209,9 @@ final class Migration_Executor extends Migration_Moteur {
 	 * Fin de l'exécution.
 	 */
 	protected function finir(): void {
+		// Une reprise peut commencer après l'étape des catégories (état enregistré en cours de
+		// lot) : le journal des catégories est donc aussi réconcilié à la fin.
+		$this->reconcilier_categories();
 		// Empreinte des contenus créés : une relance ou une annulation reconnaîtra ceux que l'équipe
 		// aura modifiés depuis.
 		foreach ( array( 'oeuvre', 'tome', 'chapitre', 'page' ) as $type ) {

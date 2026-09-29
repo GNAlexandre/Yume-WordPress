@@ -13,6 +13,17 @@
  * - article d'annonce en brouillon ;
  * - le fichier source téléversé est supprimé du serveur, même en cas d'erreur.
  *
+ * Tome déjà paru qui a une lecture en ligne (Remplacement::mode()) : un nouveau fichier n'est PAS
+ * appliqué aux chapitres en ligne à la préparation. Il devient une préparation en attente (versions
+ * des chapitres au statut interne yume_remplacement, voir Remplacement) : « Enregistrer en
+ * brouillon », « Vérifier » et « Prévisualiser » ne changent rien pour les lecteurs ; publier()
+ * l'applique en place avant la sortie.
+ *
+ * Découpage manuel (plan()) : l'équipe choisit elle-même les débuts de chapitre après l'analyse.
+ * Le fichier source n'est jamais conservé entre deux requêtes : le découpage est renvoyé AVEC le
+ * même fichier (analyse, préparation, remplacement) et appliqué à la conversion
+ * (Chapter_Builder). Il n'est pas enregistré sur le tome.
+ *
  * Sortie (publier()) : yume_publication_en_cours, puis chapitres, tome et annonce publiés (ou programmés
  * à la date donnée), puis yume_tome_publie une seule fois pour une publication immédiate. Plusieurs
  * chapitres ajoutés d'un coup à un tome déjà en ligne forment UNE sortie (annoncer_groupe()),
@@ -31,6 +42,7 @@
 namespace Yume\Core\Publication;
 
 use Yume\Core\Import\Blocks;
+use Yume\Core\Import\Chapter_Builder;
 use Yume\Core\Import\Docx_Converter;
 use Yume\Core\Import\Epub_Converter;
 use Yume\Core\Import\Import_Exception;
@@ -81,13 +93,118 @@ final class Service {
 		}
 	}
 
+	/** Taille maximale du découpage manuel reçu en JSON (octets). */
+	public const PLAN_OCTETS_MAX = 1048576;
+
+	/**
+	 * Contrôle strict d'un découpage manuel reçu (champ « plan » : JSON ou tableau) :
+	 * {"debuts": [{"ancre": "e12-3fa9c1", "nature": "chapitre", "titre": "…", "numero": 3}, …],
+	 * "garder_avant": false}. Au plus Chapter_Builder::PLAN_MAX débuts, ancres au format
+	 * e{rang}-{6 hexadécimaux}, natures connues (Texte::LIBELLES), titres en texte brut
+	 * (sanitize_text_field, 200 caractères au plus), numéro facultatif ; deux débuts ne peuvent
+	 * pas porter la même ancre ni donner la même clé nature + numéro (rapprochement des chapitres).
+	 *
+	 * @param mixed $valeur Valeur reçue.
+	 * @return array<string,mixed>|null|\WP_Error Découpage normalisé, null si aucun (détection
+	 *                                             automatique), erreur 400 sinon.
+	 */
+	public static function plan( $valeur ) {
+		if ( null === $valeur || '' === $valeur || false === $valeur ) {
+			return null;
+		}
+		$erreur = static function ( string $message ): \WP_Error {
+			return new \WP_Error( 'yume_plan_invalide', $message, array( 'status' => 400 ) );
+		};
+		if ( is_string( $valeur ) ) {
+			if ( strlen( $valeur ) > self::PLAN_OCTETS_MAX ) {
+				return $erreur( __( 'Découpage manuel refusé : il est trop volumineux.', 'yume-core' ) );
+			}
+			$valeur = json_decode( $valeur, true, 8 );
+		}
+		if ( ! is_array( $valeur ) || ! isset( $valeur['debuts'] ) || ! is_array( $valeur['debuts'] ) || array_values( $valeur['debuts'] ) !== $valeur['debuts'] ) {
+			return $erreur( __( 'Découpage manuel illisible : relancez l’analyse du fichier et refaites le découpage.', 'yume-core' ) );
+		}
+		$nb = count( $valeur['debuts'] );
+		if ( 0 === $nb ) {
+			return $erreur( __( 'Le découpage manuel ne contient aucun début de chapitre : cochez au moins un début, ou revenez au découpage automatique.', 'yume-core' ) );
+		}
+		if ( $nb > Chapter_Builder::PLAN_MAX ) {
+			/* translators: %s : nombre maximal de chapitres */
+			return $erreur( sprintf( __( 'Découpage manuel refusé : au plus %s débuts de chapitre.', 'yume-core' ), number_format_i18n( Chapter_Builder::PLAN_MAX ) ) );
+		}
+		$debuts = array();
+		$ancres = array();
+		foreach ( $valeur['debuts'] as $i => $entree ) {
+			/* translators: %d : rang du début de chapitre dans le découpage */
+			$ou    = sprintf( __( 'début n° %d', 'yume-core' ), $i + 1 );
+			$ancre = is_array( $entree ) && is_string( $entree['ancre'] ?? null ) ? $entree['ancre'] : '';
+			if ( ! preg_match( Chapter_Builder::MOTIF_ANCRE, $ancre ) ) {
+				/* translators: %s : début de chapitre concerné */
+				return $erreur( sprintf( __( 'Découpage manuel refusé (%s) : repère de début de chapitre invalide.', 'yume-core' ), $ou ) );
+			}
+			if ( isset( $ancres[ $ancre ] ) ) {
+				/* translators: %s : repère */
+				return $erreur( sprintf( __( 'Découpage manuel refusé : le début « %s » figure deux fois.', 'yume-core' ), $ancre ) );
+			}
+			$ancres[ $ancre ] = true;
+			$nature           = $entree['nature'] ?? 'chapitre';
+			if ( ! is_string( $nature ) || ! isset( Texte::LIBELLES[ $nature ] ) ) {
+				/* translators: %s : début de chapitre concerné */
+				return $erreur( sprintf( __( 'Découpage manuel refusé (%s) : nature de chapitre inconnue.', 'yume-core' ), $ou ) );
+			}
+			$titre = $entree['titre'] ?? '';
+			if ( ! is_scalar( $titre ) ) {
+				/* translators: %s : début de chapitre concerné */
+				return $erreur( sprintf( __( 'Découpage manuel refusé (%s) : titre invalide.', 'yume-core' ), $ou ) );
+			}
+			$titre = sanitize_text_field( (string) $titre );
+			if ( mb_strlen( $titre, 'UTF-8' ) > Chapter_Builder::TITRE_MAX ) {
+				/* translators: 1: début de chapitre concerné, 2: longueur maximale */
+				return $erreur( sprintf( __( 'Découpage manuel refusé (%1$s) : titre trop long (%2$d caractères au plus).', 'yume-core' ), $ou, Chapter_Builder::TITRE_MAX ) );
+			}
+			$numero = null;
+			if ( isset( $entree['numero'] ) && '' !== $entree['numero'] ) {
+				$numero = is_scalar( $entree['numero'] ) ? self::numero( (string) $entree['numero'] ) : null;
+				if ( null === $numero || $numero >= 100000 ) {
+					/* translators: %s : début de chapitre concerné */
+					return $erreur( sprintf( __( 'Découpage manuel refusé (%s) : numéro invalide.', 'yume-core' ), $ou ) );
+				}
+			}
+			$debuts[] = array(
+				'ancre'  => $ancre,
+				'nature' => $nature,
+				'titre'  => $titre,
+				'numero' => $numero,
+			);
+		}
+		// Clés de rapprochement des chapitres (nature + numéro) : jamais deux fois la même.
+		$cles = array();
+		foreach ( Chapter_Builder::numeroter( $debuts ) as $i => $n ) {
+			if ( null === $n['numero'] ) {
+				continue;
+			}
+			$cle = $debuts[ $i ]['nature'] . ':' . Texte::numero_url( (float) $n['numero'] );
+			if ( isset( $cles[ $cle ] ) ) {
+				/* translators: %s : libellé du chapitre (« Chapitre 3 ») */
+				return $erreur( sprintf( __( 'Découpage manuel refusé : deux chapitres porteraient le même numéro (%s). Corrigez la nature ou le numéro.', 'yume-core' ), $n['titre'] ) );
+			}
+			$cles[ $cle ] = true;
+		}
+		return array(
+			'debuts'       => $debuts,
+			// Texte d'ouverture conservé : seulement sur une valeur vraie explicite.
+			'garder_avant' => in_array( $valeur['garder_avant'] ?? false, array( true, 1, '1', 'true', 'on' ), true ),
+		);
+	}
+
 	/**
 	 * Convertit un fichier source contrôlé (Fichiers::source()).
 	 *
-	 * @param array<string,mixed> $source Fichier source.
+	 * @param array<string,mixed>      $source Fichier source.
+	 * @param array<string,mixed>|null $plan   Découpage manuel contrôlé (plan()), ou null.
 	 * @return Result|\WP_Error
 	 */
-	public static function convertir( array $source ) {
+	public static function convertir( array $source, ?array $plan = null ) {
 		/**
 		 * Options du convertisseur (typographie…).
 		 *
@@ -95,6 +212,9 @@ final class Service {
 		 * @param array<string,mixed> $source  Fichier source.
 		 */
 		$options = (array) apply_filters( 'yume_publication_options_import', array(), $source );
+		if ( null !== $plan ) {
+			$options['plan'] = $plan;
+		}
 		try {
 			return 'epub' === $source['format']
 				? Epub_Converter::convert_file( (string) $source['chemin'], $options )
@@ -180,20 +300,26 @@ final class Service {
 	}
 
 	/**
-	 * Analyse un fichier téléversé sans rien créer (le fichier est ensuite supprimé).
+	 * Analyse un fichier téléversé sans rien créer (le fichier est ensuite supprimé). Le rapport
+	 * contient les débuts de chapitre possibles (candidats) et les découpages rapides.
 	 *
 	 * @param array<string,mixed> $fichier Entrée de $_FILES.
-	 * @param array<string,mixed> $champs  oeuvre_id, nature, numero (facultatifs : tome existant).
+	 * @param array<string,mixed> $champs  oeuvre_id, nature, numero (facultatifs : tome existant),
+	 *                                     plan (découpage manuel à essayer, voir plan()).
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function analyser( array $fichier, array $champs = array() ) {
 		self::relever_limites();
 		try {
+			$plan = self::plan( $champs['plan'] ?? null );
+			if ( is_wp_error( $plan ) ) {
+				return $plan;
+			}
 			$source = Fichiers::source( $fichier );
 			if ( is_wp_error( $source ) ) {
 				return $source;
 			}
-			$resultat = self::convertir( $source );
+			$resultat = self::convertir( $source, $plan );
 			if ( is_wp_error( $resultat ) ) {
 				return $resultat;
 			}
@@ -387,6 +513,9 @@ final class Service {
 			'pending' => __( 'En attente', 'yume-core' ),
 			'private' => __( 'Privé', 'yume-core' ),
 		);
+		if ( Remplacement::STATUT === $post->post_status ) {
+			$statuts[ Remplacement::STATUT ] = __( 'Version en attente', 'yume-core' );
+		}
 		return array(
 			'id'      => (int) $post->ID,
 			'titre'   => self::titre_texte( $post ),
@@ -582,14 +711,20 @@ final class Service {
 	/**
 	 * Crée ou met à jour les chapitres du tome depuis le Result.
 	 *
+	 * En préparation séparée ($attente, tome en mode remplacement) : chaque chapitre du fichier
+	 * devient une version en attente (Remplacement::STATUT) liée au chapitre existant de même clé
+	 * (Remplacement::META_DE) ; aucun chapitre existant n'est modifié, les images nouvelles sont
+	 * versées sans rattachement et les absents seulement signalés.
+	 *
 	 * @param int                 $tome_id  Tome.
 	 * @param Result              $resultat Résultat.
 	 * @param array<string,mixed> $champs   Champs.
 	 * @param array<string,int>   $cache    Images déjà versées (modifié).
 	 * @param string[]            $avert    Avertissements (modifié).
+	 * @param bool                $attente  Préparation séparée (remplacement d'une lecture en ligne).
 	 * @return array{chapitres:array<int,array<string,mixed>>,disparus:array<int,array<string,mixed>>}
 	 */
-	private static function enregistrer_chapitres( int $tome_id, Result $resultat, array $champs, array &$cache, array &$avert ): array {
+	private static function enregistrer_chapitres( int $tome_id, Result $resultat, array $champs, array &$cache, array &$avert, bool $attente = false ): array {
 		$existants = array();
 		$rangs     = array();
 		foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $post ) {
@@ -635,7 +770,34 @@ final class Service {
 			if ( $credits ) {
 				$meta['yume_credits'] = $credits;
 			}
-			if ( null === $post ) {
+			if ( $attente ) {
+				$id = wp_insert_post(
+					wp_slash(
+						array(
+							'post_type'    => 'yume_chapitre',
+							'post_status'  => Remplacement::STATUT,
+							'post_title'   => $titre,
+							'post_name'    => self::slug_chapitre( $chapitre ),
+							'post_content' => '',
+							'menu_order'   => $i + 1,
+							'post_author'  => get_current_user_id(),
+							'meta_input'   => array(
+								'yume_tome_id'        => $tome_id,
+								'yume_nature'         => (string) $chapitre['nature'],
+								Remplacement::META_DE => $post ? (int) $post->ID : 0,
+							) + ( null !== $numero ? array( 'yume_numero' => $numero ) : array() ),
+						)
+					),
+					true
+				);
+				if ( is_wp_error( $id ) ) {
+					/* translators: 1: chapitre, 2: erreur */
+					$avert[] = sprintf( __( '%1$s non créé : %2$s', 'yume-core' ), $titre, $id->get_error_message() );
+					continue;
+				}
+				$id     = (int) $id;
+				$action = $post ? 'maj' : 'cree';
+			} elseif ( null === $post ) {
 				$id = wp_insert_post(
 					wp_slash(
 						array(
@@ -668,7 +830,8 @@ final class Service {
 			$alt = $prefixe . ', ' . $libelle . ' — ' . __( 'illustration', 'yume-core' );
 			$ids = array();
 			foreach ( (array) $chapitre['images'] as $cle_image ) {
-				$ids[ $cle_image ] = self::image( $resultat, (string) $cle_image, $id, $tome_id, $alt, $cache, $avert );
+				// Préparation séparée : aucune image (même réutilisée) n'est rattachée avant l'application.
+				$ids[ $cle_image ] = self::image( $resultat, (string) $cle_image, $attente ? 0 : $id, $tome_id, $alt, $cache, $avert );
 			}
 			$contenu = Blocks::remplacer_images(
 				(string) $chapitre['blocks'],
@@ -686,6 +849,10 @@ final class Service {
 			$enregistre = wp_unslash( (string) apply_filters( 'content_save_pre', wp_slash( $contenu ) ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtre du cœur.
 			if ( $post && $post->post_content === $enregistre && $post->post_title === $titre && (int) $post->menu_order === $i + 1 ) {
 				$action = 'inchange';
+			}
+			if ( $attente ) {
+				$meta[ Remplacement::META_ACTION ] = $action;
+				$meta[ Remplacement::META_MEDIAS ] = array_values( array_filter( array_map( 'intval', $ids ) ) );
 			}
 			$maj = wp_update_post(
 				wp_slash(
@@ -708,9 +875,16 @@ final class Service {
 				delete_post_meta( $id, 'yume_numero' );
 			}
 			delete_post_meta( $id, self::META_RETIRE );
-			$vus[ $id ] = true;
-			$ligne      = array_merge(
-				self::resume_contenu( get_post( $id ) ),
+			$vus[ $post && $attente ? (int) $post->ID : $id ] = true;
+			$resume = self::resume_contenu( get_post( $id ) );
+			if ( $attente ) {
+				// Version en attente : aperçu réservé à l'équipe, jamais ouverte dans l'éditeur.
+				$resume['lien']     = $post && 'publish' === $post->post_status ? (string) get_permalink( $post ) : '';
+				$resume['edition']  = '';
+				$resume['remplace'] = $post ? (int) $post->ID : 0;
+			}
+			$ligne    = array_merge(
+				$resume,
 				array(
 					'numero'     => $numero,
 					'nature'     => (string) $chapitre['nature'],
@@ -720,7 +894,7 @@ final class Service {
 					'action'     => $action,
 				)
 			);
-			$lignes[]   = $ligne;
+			$lignes[] = $ligne;
 		}
 
 		// Chapitres du tome absents du nouveau fichier.
@@ -730,7 +904,7 @@ final class Service {
 				continue;
 			}
 			$retire = false;
-			if ( ! empty( $champs['retirer_absents'] ) ) {
+			if ( ! empty( $champs['retirer_absents'] ) && ! $attente ) {
 				if ( in_array( $post->post_status, array( 'publish', 'future', 'pending', 'private' ), true ) ) {
 					wp_update_post(
 						array(
@@ -749,7 +923,9 @@ final class Service {
 				/* translators: %d : nombre de chapitres */
 				_n( '%d chapitre du tome est absent du nouveau fichier.', '%d chapitres du tome sont absents du nouveau fichier.', count( $disparus ), 'yume-core' ),
 				count( $disparus )
-			) . ' ' . ( ! empty( $champs['retirer_absents'] ) ? __( 'Il(s) a (ont) été mis en brouillon.', 'yume-core' ) : __( 'Il(s) reste(nt) en ligne : cochez « Mettre en brouillon les chapitres absents » pour les retirer.', 'yume-core' ) );
+			) . ' ' . ( ! empty( $champs['retirer_absents'] )
+				? ( $attente ? __( 'Il(s) sera (seront) mis en brouillon au remplacement de la lecture en ligne.', 'yume-core' ) : __( 'Il(s) a (ont) été mis en brouillon.', 'yume-core' ) )
+				: __( 'Il(s) reste(nt) en ligne : cochez « Mettre en brouillon les chapitres absents » pour les retirer.', 'yume-core' ) );
 		}
 		return array(
 			'chapitres' => $lignes,
@@ -764,10 +940,16 @@ final class Service {
 	 *                                      lien_pdf, lien_epub, credits{traduction,relecture,edition},
 	 *                                      couverture_id, retirer_absents, tome_id, sans_annonce
 	 *                                      (null ou absent : sans_annonce_par_defaut() ; vrai :
-	 *                                      aucun article d'annonce créé ni mis à jour).
+	 *                                      aucun article d'annonce créé ni mis à jour), plan
+	 *                                      (découpage manuel du fichier source, voir plan()).
 	 * @param array<string,mixed> $fichiers Fichiers ($_FILES) : source (DOCX/EPUB), couverture.
 	 * @return array<string,mixed>|\WP_Error Rapport : tome, chapitres, disparus, article, import,
-	 *                                      avertissements, sans_annonce.
+	 *                                      avertissements, sans_annonce, remplacement (préparation
+	 *                                      en attente : Remplacement::etat(), sinon null). Tome paru
+	 *                                      avec sa lecture en ligne : chapitres = versions en attente
+	 *                                      (aperçus), rien n'est modifié en ligne ; 409
+	 *                                      yume_remplacement_en_attente si un autre membre a déjà
+	 *                                      un remplacement en attente pour ce tome.
 	 */
 	public static function preparer( array $brut, array $fichiers = array() ) {
 		self::relever_limites();
@@ -776,6 +958,10 @@ final class Service {
 			$champs = self::champs( $brut );
 			if ( is_wp_error( $champs ) ) {
 				return $champs;
+			}
+			$plan = self::plan( $brut['plan'] ?? null );
+			if ( is_wp_error( $plan ) ) {
+				return $plan;
 			}
 			$oeuvre = $champs['oeuvre_id'] ? get_post( $champs['oeuvre_id'] ) : null;
 			if ( ! $oeuvre || 'yume_oeuvre' !== $oeuvre->post_type || 'trash' === $oeuvre->post_status ) {
@@ -788,7 +974,7 @@ final class Service {
 				if ( is_wp_error( $source ) ) {
 					return $source;
 				}
-				$resultat = self::convertir( $source );
+				$resultat = self::convertir( $source, $plan );
 				if ( is_wp_error( $resultat ) ) {
 					return $resultat;
 				}
@@ -802,13 +988,27 @@ final class Service {
 			}
 
 			$avert = $resultat ? $resultat->warnings : array();
-			$tome  = self::trouver_tome( (int) $oeuvre->ID, $champs['nature'], $champs['numero'] );
+			if ( null !== $plan && ! $resultat ) {
+				$avert[] = __( 'Découpage manuel ignoré : il s’applique au fichier DOCX ou EPUB, à déposer à nouveau avec lui.', 'yume-core' );
+			}
+			$tome = self::trouver_tome( (int) $oeuvre->ID, $champs['nature'], $champs['numero'] );
 			if ( ! $tome && $champs['tome_id'] && 'yume_tome' === get_post_type( $champs['tome_id'] ) && 'trash' !== get_post_status( $champs['tome_id'] ) && current_user_can( 'edit_post', $champs['tome_id'] ) ) {
 				$tome = get_post( $champs['tome_id'] );
 			}
 			$reutilise    = null !== $tome;
 			$sans_annonce = null === $champs['sans_annonce'] ? self::sans_annonce_par_defaut( $tome ) : (bool) $champs['sans_annonce'];
-			$tome_id      = self::enregistrer_tome( $tome, $champs, $oeuvre );
+			// Tome paru avec sa lecture en ligne : le nouveau fichier attend l'application.
+			$attente = $resultat && $tome && Remplacement::mode( $tome );
+			if ( $tome ) {
+				Remplacement::nettoyer_si_expiree( (int) $tome->ID );
+			}
+			if ( $attente ) {
+				$verrou = Remplacement::verrou( (int) $tome->ID );
+				if ( $verrou ) {
+					return $verrou;
+				}
+			}
+			$tome_id = self::enregistrer_tome( $tome, $champs, $oeuvre );
 			if ( is_wp_error( $tome_id ) ) {
 				return $tome_id;
 			}
@@ -831,22 +1031,55 @@ final class Service {
 				'disparus'  => array(),
 			);
 			if ( $resultat ) {
-				$galerie = array();
-				$alt     = sprintf( /* translators: %s : titre du tome */ __( 'Illustration — %s', 'yume-core' ), get_the_title( $tome_id ) );
-				foreach ( $resultat->front_images as $cle ) {
-					$id = self::image( $resultat, (string) $cle, $tome_id, $tome_id, $alt, $cache, $avert );
-					if ( $id ) {
-						$galerie[] = $id;
+				// Préparation séparée : images versées suivies (supprimées à l'annulation).
+				$medias = $attente ? Remplacement::debuter( $tome_id ) : array();
+				$suivre = static function ( $id ) use ( &$medias ) {
+					$medias[] = (int) $id;
+				};
+				if ( $attente ) {
+					add_action( 'add_attachment', $suivre );
+				}
+				try {
+					$galerie = array();
+					$alt     = sprintf( /* translators: %s : titre du tome */ __( 'Illustration — %s', 'yume-core' ), get_the_title( $tome_id ) );
+					foreach ( $resultat->front_images as $cle ) {
+						$id = self::image( $resultat, (string) $cle, $attente ? 0 : $tome_id, $tome_id, $alt, $cache, $avert );
+						if ( $id ) {
+							$galerie[] = $id;
+						}
 					}
+					if ( $galerie && ! $attente ) {
+						update_post_meta( $tome_id, 'yume_illustrations', $galerie );
+					}
+					$cle_couv  = (string) ( $resultat->stats['couverture'] ?? '' );
+					$couv_epub = '' !== $cle_couv && ! empty( $cache[ $cle_couv ] ) && ! has_post_thumbnail( $tome_id ) ? (int) $cache[ $cle_couv ] : 0;
+					if ( $couv_epub && ! $attente ) {
+						set_post_thumbnail( $tome_id, $couv_epub );
+					}
+					$chapitres = self::enregistrer_chapitres( $tome_id, $resultat, $champs, $cache, $avert, $attente );
+				} finally {
+					remove_action( 'add_attachment', $suivre );
 				}
-				if ( $galerie ) {
-					update_post_meta( $tome_id, 'yume_illustrations', $galerie );
+				if ( $attente ) {
+					Remplacement::terminer(
+						$tome_id,
+						array(
+							'fichier'         => $source ? array(
+								'nom'    => (string) $source['nom'],
+								'format' => (string) $source['format'],
+								'octets' => (int) $source['octets'],
+								'hash'   => (string) ( $resultat->stats['hash'] ?? '' ),
+							) : array(),
+							'resume'          => self::resume( $resultat ),
+							'galerie'         => $galerie ? $galerie : null,
+							'couverture'      => $couv_epub,
+							'retirer_absents' => ! empty( $champs['retirer_absents'] ),
+							'absents'         => array_map( 'intval', array_column( $chapitres['disparus'], 'id' ) ),
+						),
+						$medias,
+						array_values( $cache )
+					);
 				}
-				$cle_couv = (string) ( $resultat->stats['couverture'] ?? '' );
-				if ( '' !== $cle_couv && ! empty( $cache[ $cle_couv ] ) && ! has_post_thumbnail( $tome_id ) ) {
-					set_post_thumbnail( $tome_id, $cache[ $cle_couv ] );
-				}
-				$chapitres = self::enregistrer_chapitres( $tome_id, $resultat, $champs, $cache, $avert );
 			} else {
 				if ( ! $reutilise ) {
 					$avert[] = __( 'Aucun fichier DOCX ou EPUB : le tome est créé sans chapitres de lecture en ligne.', 'yume-core' );
@@ -920,7 +1153,7 @@ final class Service {
 					'par'         => get_current_user_id(),
 				)
 			);
-			if ( $resultat && $source ) {
+			if ( $resultat && $source && ! $attente ) {
 				$meta['fichier'] = array(
 					'nom'    => (string) $source['nom'],
 					'format' => (string) $source['format'],
@@ -951,11 +1184,15 @@ final class Service {
 				'import'         => $resultat && $source ? self::rapport_analyse( $resultat, $source ) : null,
 				'avertissements' => array_values( array_unique( $avert ) ),
 				'sans_annonce'   => $sans_annonce,
+				// Remplacement en attente (tome paru avec sa lecture en ligne), sinon null.
+				'remplacement'   => Remplacement::etat( $tome_id ),
 			);
 			if ( null !== $rapport['import'] ) {
 				foreach ( $rapport['import']['chapitres'] as $i => $c ) {
 					unset( $rapport['import']['chapitres'][ $i ]['stats'] );
 				}
+				// Débuts possibles : utiles à l'analyse seulement (le fichier n'est pas conservé).
+				unset( $rapport['import']['candidats'], $rapport['import']['decoupages'] );
 			}
 			/**
 			 * Une publication vient d'être préparée (tome et chapitres en brouillon ou mis à jour).
@@ -1250,6 +1487,9 @@ final class Service {
 	 *
 	 * Option sans_annonce (défaut false) : ajout au catalogue, voir ajouter_au_catalogue().
 	 *
+	 * Remplacement de lecture en ligne en attente (Remplacement) : appliqué en place d'abord
+	 * (résultat « remplacement_applique » : remplaces, inchanges, nouveaux, retires).
+	 *
 	 * @param int                 $tome_id Tome.
 	 * @param string              $quand   « maintenant » ou date ISO.
 	 * @param array<string,mixed> $options confirmer_vide (bool, défaut false), sans_annonce
@@ -1278,6 +1518,9 @@ final class Service {
 		}
 		$statut     = $immediat ? 'publish' : 'future';
 		$deja_sorti = 'publish' === $tome->post_status;
+		// Seule une sortie applique un remplacement préparé (les chapitres en ligne changent ici).
+		Remplacement::nettoyer_si_expiree( $tome_id );
+		$applique = Remplacement::appliquer( $tome_id );
 		if ( ! $deja_sorti && empty( $options['confirmer_vide'] ) && self::tome_vide( $tome_id ) ) {
 			return new \WP_Error(
 				'yume_tome_vide',
@@ -1291,11 +1534,15 @@ final class Service {
 		$a_publier = array_values(
 			array_filter(
 				yume_get_chapitres( $tome_id, array( 'status' => array( 'draft', 'pending', 'future' ) ) ),
-				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true )
+				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true ) && ! metadata_exists( 'post', $c->ID, Remplacement::META_DE )
 			)
 		);
 		if ( ! empty( $options['sans_annonce'] ) ) {
-			return self::ajouter_au_catalogue( $tome, $a_publier, $date, $local, $gmt );
+			$resultat = self::ajouter_au_catalogue( $tome, $a_publier, $date, $local, $gmt );
+			if ( is_array( $resultat ) ) {
+				$resultat['remplacement_applique'] = $applique;
+			}
+			return $resultat;
 		}
 		// Tome déjà en ligne qui reçoit plusieurs chapitres d'un coup (tome migré avec ses seuls
 		// PDF/EPUB mis en lecture en ligne, nouveaux chapitres en bloc) : une seule sortie, et
@@ -1385,12 +1632,13 @@ final class Service {
 		);
 		$tome = get_post( $tome_id );
 		return array(
-			'tome'         => array_merge( self::resume_contenu( $tome ), array( 'libelle' => yume_libelle_tome( $tome_id ) ) ),
-			'statut'       => $tome->post_status,
-			'date'         => mysql_to_rfc3339( $tome->post_date ),
-			'chapitres'    => $publies,
-			'article'      => $article_id ? self::resume_contenu( get_post( $article_id ) ) : null,
-			'sans_annonce' => false,
+			'tome'                  => array_merge( self::resume_contenu( $tome ), array( 'libelle' => yume_libelle_tome( $tome_id ) ) ),
+			'statut'                => $tome->post_status,
+			'date'                  => mysql_to_rfc3339( $tome->post_date ),
+			'chapitres'             => $publies,
+			'article'               => $article_id ? self::resume_contenu( get_post( $article_id ) ) : null,
+			'sans_annonce'          => false,
+			'remplacement_applique' => $applique,
 		);
 	}
 
@@ -1408,7 +1656,9 @@ final class Service {
 	 *   (nouveaux chapitres) sera annoncée comme telle, jamais le contenu ancien comme une nouveauté ;
 	 * - tome déjà paru, publication immédiate : les chapitres prennent la date de sortie du tome
 	 *   (la « dernière sortie » de l'œuvre et les listes de nouveautés ne bougent pas) ;
-	 * - journal de l'équipe : « lecture en ligne ajoutée (sans annonce) » (ligne non publique).
+	 * - journal de l'équipe : « lecture en ligne ajoutée (sans annonce) » (ligne non publique) ;
+	 * - tome paru qui avait déjà des chapitres en ligne : remplacement de la lecture en ligne
+	 *   (résultat remplacement = true, en_ligne = chapitres en ligne après l'opération).
 	 *
 	 * @param \WP_Post                $tome      Tome.
 	 * @param \WP_Post[]              $a_publier Chapitres à publier.
@@ -1422,6 +1672,9 @@ final class Service {
 		$immediat   = null === $date;
 		$statut     = $immediat ? 'publish' : 'future';
 		$deja_sorti = 'publish' === $tome->post_status;
+		// Tome paru qui avait déjà une lecture en ligne : remplacement (chapitres mis à jour en
+		// place par preparer(), seuls les nouveaux chapitres sont publiés ici).
+		$en_ligne = $deja_sorti ? count( yume_get_chapitres( $tome_id ) ) : 0;
 		if ( $deja_sorti && $immediat && '' !== (string) $tome->post_date_gmt && ! str_starts_with( (string) $tome->post_date_gmt, '0000-00-00' ) ) {
 			$local = (string) $tome->post_date;
 			$gmt   = (string) $tome->post_date_gmt;
@@ -1512,6 +1765,8 @@ final class Service {
 			'chapitres'    => $publies,
 			'article'      => null,
 			'sans_annonce' => true,
+			'remplacement' => $en_ligne > 0,
+			'en_ligne'     => count( yume_get_chapitres( $tome_id ) ),
 		);
 	}
 

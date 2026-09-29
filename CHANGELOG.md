@@ -2,13 +2,101 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.1 — 2026-09-29
+
+- Easter egg WordEnd : mini-jeu caché (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) où Chtholly repousse des vagues de Timeres ; planches de sprites découpées depuis les planches générées (tools/wordend), Timeres restylés en pixel art vert.
+
+## 2.1.3 — 2026-09-29
+
+- Version 2.1.3 : contenu de la 2.1.2 (planning à jour pour les visiteurs, commentaires pleine largeur, reprise de migration) et relance manuelle de la Release.
+
+## 2.1.3-dev.1 — 2026-09-29
+
+- Release : relance manuelle sur un tag (Run workflow) si la pose du tag n'a pas créé de run
+
+## 2.1.2 — 2026-09-29
+
+- Version 2.1.2 : planning à jour pour les visiteurs (cache WordPress.com), commentaires pleine largeur sur les fiches, reprise de migration fiabilisée.
+
+## 2.1.2-dev.3 — 2026-09-29
+
+- Commentaires des fiches œuvre et tome : pleine largeur de la carte, marges intérieures rétablies
+
+## 2.1.2-dev.2 — 2026-09-29
+
+- Planning : pages publiques 60 s au plus dans le cache de WordPress.com, purgées à chaque mise à jour
+
+## 2.1.2-dev.1 — 2026-09-29
+
+- Migration : journal des catégories réconcilié en fin d'exécution (reprise après un arrêt brutal)
+
+## 2.1.1 — 2026-09-29
+
+- Version 2.1.1 : œuvres (création, modification, genres, cadrage des couvertures), menu de l'équipe en rubriques, fonds tirés des couvertures, découpage manuel des chapitres à l'import.
+
+## 2.1.1-dev.4 — 2026-09-29
+
+- Import : découpage manuel des chapitres, étiquettes DOCX (Prologue, 1, Bonus…), ouvertures illustrées
+
+## 2.1.1-dev.3 — 2026-09-29
+
+- Couvertures : cadrage réglable à la création et sur les œuvres existantes.
+
+## 2.1.1-dev.2 — 2026-09-29
+
+- Vue Œuvres : mise en page de la section Genres, intitulés et bouton de fichier.
+
+## 2.1.1-dev.1 — 2026-09-29
+
+- Espace équipe : modifier les œuvres, genres, menu en rubriques ; fonds tirés des couvertures ; ligne « Tomes 1 à N » qui disparaît à l'ouverture.
+
+## 2.1.0 — 2026-09-29
+
+- Espace équipe : vue « Œuvres » et formulaire « Nouvelle œuvre ».
+
+## 2.0.2 — 2026-09-29
+
+- Version 2.0.2 : correctifs de la recette (menus de l'œuvre, règles de réécriture, CI unique).
+
+## 2.0.2-dev.1 — 2026-09-29
+
+- Menus de la fiche œuvre visibles sous la bannière ; règles de réécriture rétablies si un vidage les a effacées ; CI une seule fois par changement.
+
+## 2.0.1 — 2026-09-29
+
+- Yume Novel 2.0.1 : correctifs de la recette (Tous les tomes, Mes tâches, remplacement de la lecture en ligne en deux temps, connexion en façade, images EMF, EPUB, dialogues, commentaires, Ko-fi, formulaires).
+
+## 2.0.1-dev.8 — 2026-09-29
+
+- Remplacement de la lecture en ligne en deux temps : vérifier (versions en attente, aperçus réservés à l'équipe, rien ne change en ligne), puis remplacer ou annuler ; nettoyage après 7 jours.
+
+## 2.0.1-dev.7 — 2026-09-29
+
+- Connexion en façade : /connexion/ ne passe plus par wp-login.php (erreurs affichées sur la page, limitation propre, administrateurs renvoyés vers la connexion WordPress).
+
+## 2.0.1-dev.6 — 2026-09-29
+
+- Espace équipe : vues « Tous les tomes » (publiés compris, remplacer la lecture en ligne par un nouveau DOCX ou EPUB) et « Mes tâches » ; remplacement de lecture en ligne annoncé clairement et sans nouvelle annonce.
+
+## 2.0.1-dev.5 — 2026-09-29
+
+- Import : images EMF/WMF des DOCX converties (bitmap extrait), EPUB : italique, gras et centrage lus dans les feuilles de style (pensées détectées), tiret de dialogue reconnu après tout espace.
+
+## 2.0.1-dev.4 — 2026-09-29
+
+- Commentaires : formulaire Jetpack / WordPress.com (Verbum) désactivé, le formulaire du thème Yume reprend sa place.
+
+## 2.0.1-dev.3 — 2026-09-29
+
+- Lecture : première lettre des dialogues alignée exactement sur celle des pensées (tiret isolé au rendu dans une boîte suspendue, quelle que soit la police).
+
 ## 2.0.1-dev.2 — 2026-09-29
 
-- WordEnd : Timeres en sprites (planche restylée en pixel art vert : repos, marche, course, fouet, morsure, dégâts, mort), quatre types (petit, normal, coureur, grand) qui mordent ou fouettent au lieu de blesser au contact.
+- Lecture : dialogues décalés comme les pensées (tiret cadratin en retrait suspendu).
 
 ## 2.0.1-dev.1 — 2026-09-29
 
-- Easter egg WordEnd : mini-jeu caché (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) où Chtholly repousse des vagues de Timeres provisoires ; planche de sprites découpée depuis la planche Gemini (tools/wordend).
+- Recette : bouton Ko-fi de l'en-tête aligné (cœur et texte centrés), champs du formulaire « Ajouter un membre » alignés quand un libellé passe sur deux lignes.
 
 ## 2.0.0 — 2026-09-29
 

@@ -1650,8 +1650,8 @@ yume_test(
 		yume_assert_same( add_query_arg( 'type', 'manga', yume_url_page( 'bibliotheque' ) ), get_term_link( $manga ) );
 		$statut = get_term_by( 'slug', 'en-cours', 'yume_statut' );
 		yume_assert_same( add_query_arg( 'statut', 'en-cours', yume_url_page( 'bibliotheque' ) ), get_term_link( $statut ) );
-		$genre = wp_insert_term( 'Fantasy', 'yume_genre' );
-		yume_assert_same( add_query_arg( 'genre', 'fantasy', yume_url_page( 'bibliotheque' ) ), get_term_link( (int) $genre['term_id'], 'yume_genre' ) );
+		$genre = wp_insert_term( 'Cape et épée', 'yume_genre' );
+		yume_assert_same( add_query_arg( 'genre', 'cape-et-epee', yume_url_page( 'bibliotheque' ) ), get_term_link( (int) $genre['term_id'], 'yume_genre' ) );
 	}
 );
 
@@ -2635,6 +2635,56 @@ yume_test(
 		yume_core_install();
 		$autoload = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", YUME_CORE_DB_VERSION_OPTION ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		yume_assert_true( in_array( $autoload, array( 'yes', 'on', 'auto-on' ), true ), 'autoload : ' . $autoload );
+	}
+);
+
+yume_test(
+	'Règles de réécriture : signature enregistrée seulement après le vidage réel (requête arrêtée avant wp_loaded)',
+	function () {
+		global $wp_actions;
+		$options = array( 'yume_core_regles', \Yume\Core\Social\OPTION_REGLES_LISTES, \Yume\Core\Social\OPTION_REGLES_CONTRIBUTEURS );
+		foreach ( $options as $option ) {
+			delete_option( $option );
+		}
+		delete_option( 'rewrite_rules' );
+		$charge = $wp_actions['wp_loaded'] ?? 0;
+		unset( $wp_actions['wp_loaded'] ); // Comme pendant init d'une requête.
+		try {
+			\Yume\Core\Core\verifier_regles();
+			\Yume\Core\Social\verifier_regles_listes();
+			\Yume\Core\Social\verifier_regles_contributeurs();
+			foreach ( $options as $option ) {
+				yume_assert_false( get_option( $option ), "$option : pas de signature avant le vidage" );
+			}
+			yume_assert_same( 99, has_action( 'wp_loaded', 'Yume\\Core\\Core\\enregistrer_signatures_regles' ) );
+		} finally {
+			$wp_actions['wp_loaded'] = $charge;
+			remove_action( 'wp_loaded', 'Yume\\Core\\Core\\enregistrer_signatures_regles', 99 );
+		}
+		// La requête suivante (arrivée jusqu'à wp_loaded) vide les règles puis signe.
+		\Yume\Core\Core\verifier_regles();
+		\Yume\Core\Social\verifier_regles_listes();
+		\Yume\Core\Social\verifier_regles_contributeurs();
+		foreach ( $options as $option ) {
+			yume_assert_true( is_string( get_option( $option ) ), "$option signée" );
+		}
+		$regles = (array) get_option( 'rewrite_rules' );
+		yume_assert_true( isset( $regles['^listes/([a-z][a-z0-9]{11,15})(?:-([^/]*))?/?$'] ), 'règle des listes' );
+		yume_assert_true( (bool) preg_grep( '/yume_contributeur/', $regles ), 'règles des contributeurs' );
+		yume_assert_true( (bool) preg_grep( '/yume_/', $regles ), 'règles des œuvres' );
+
+		// Règles effacées par un vidage fait sans l'extension (premier chargement après un
+		// changement de thème) : signatures inchangées, mais les règles sont réécrites.
+		$signatures = array_map( 'get_option', $options );
+		update_option( 'rewrite_rules', array_filter( $regles, static fn( $requete ) => ! str_contains( $requete, 'yume_' ) ) );
+		\Yume\Core\Core\verifier_regles();
+		\Yume\Core\Social\verifier_regles_listes();
+		\Yume\Core\Social\verifier_regles_contributeurs();
+		$regles = (array) get_option( 'rewrite_rules' );
+		yume_assert_true( isset( $regles['^listes/([a-z][a-z0-9]{11,15})(?:-([^/]*))?/?$'] ), 'règle des listes rétablie' );
+		yume_assert_true( (bool) preg_grep( '/yume_contributeur/', $regles ), 'règles des contributeurs rétablies' );
+		yume_assert_true( (bool) preg_grep( '/yume_route_/', $regles ), 'règles des œuvres rétablies' );
+		yume_assert_same( $signatures, array_map( 'get_option', $options ) );
 	}
 );
 

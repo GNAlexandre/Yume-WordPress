@@ -22,3 +22,4 @@ require_once __DIR__ . '/rest.php';
 require_once __DIR__ . '/lecteur.php';
 require_once __DIR__ . '/statistiques.php';
 require_once __DIR__ . '/pwa.php';
+require_once __DIR__ . '/tiret.php';

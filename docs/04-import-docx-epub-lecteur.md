@@ -33,7 +33,7 @@ Implémentation PHP native (`ZipArchive` + `DOMDocument`/`XMLReader`), sans PHPW
 | `w:type="page"` (saut de page) | ignoré | |
 | Note de bas de page | `<sup class="yn-note">n</sup>` + liste en fin de chapitre | (absentes dans Grimgar, présentes ailleurs) |
 | `<a:blip r:embed>` JPG/PNG/WebP | `<figure class="yn-illustration"><img …></figure>` ; fichier versé dans la médiathèque, rattaché au chapitre | redimension max 1600 px, WebP |
-| `<a:blip>` EMF/WMF | **ignoré** (ornements Word non convertibles) ; consigné dans le rapport d'import | |
+| `<a:blip>` EMF/WMF/EMZ/WMZ | **converti en PNG** quand le métafichier porte une image bitmap (`Metafichier` : plus grand bitmap de `EMR_STRETCHDIBITS`, `EMR_BITBLT`, `EMR_STRETCHBLT`, `EMR_SETDIBITSTODEVICE`… ou `META_STRETCHDIB`, `META_DIBSTRETCHBLT`, `META_DIBBITBLT` en WMF ; EMZ/WMZ décompressés) puis traité comme une image PNG (galerie ou position dans le chapitre, WebP) ; dessin purement vectoriel ou fichier invalide : **ignoré** avec sa raison dans le rapport d'import | DIB 1/4/8/16/24/32 bits `BI_RGB`/`BI_BITFIELDS` via GD ; `BI_JPEG`/`BI_PNG` extraits tels quels ; limites : 12 000 px de côté, 60 Mpx, largeur × hauteur × 4 ≤ 256 Mo, tailles déclarées confrontées à la taille réelle |
 | Images avant le premier `Titre1` | Galerie du tome (`illustrations`), pas un chapitre | couverture, pages couleur |
 | En-têtes / pieds de page / sections | ignorés | |
 
@@ -43,8 +43,9 @@ classes ci-dessus).
 
 ### 2.2 Résultat sur Grimgar T.7
 
-19 chapitres + « PostFace », 1 453 dialogues, 307 pensées, 10 illustrations importées, 6 EMF ignorés,
-2 sauts de page ignorés. Un rapport d'import est joint à la publication (nombre de mots par chapitre,
+19 chapitres + « PostFace », 1 453 dialogues, 307 pensées, 16 illustrations importées (dont 6 EMF
+convertis en PNG : 2 dans la galerie, 4 dans les chapitres 11 et 19 ; avant la version 2.0.1 ces 6 EMF
+étaient ignorés), 2 sauts de page ignorés. Un rapport d'import est joint à la publication (nombre de mots par chapitre,
 avertissements) et l'éditeur peut **prévisualiser chaque chapitre** avant de publier.
 
 ## 3. Conversion EPUB → chapitres
@@ -54,9 +55,23 @@ avertissements) et l'éditeur peut **prévisualiser chaque chapitre** avant de p
 3. Titre du chapitre : `<h1>` (ou entrée du `toc.ncx` / `nav.xhtml`), sous-titre : `<h2>` suivant.
 4. Nettoyage HTML (liste blanche : `p, h2, h3, em, strong, br, figure, img, blockquote, hr, sup, ul, ol, li`),
    mapping des classes connues (`dialogue`, `pensee`, `center`) et heuristique : un paragraphe commençant
-   par « — » → `yn-dialogue`, un paragraphe entièrement en italique → `yn-thought`.
-5. Images importées dans la médiathèque, `src` réécrits.
-6. Pages liminaires (couverture, colophon, table des matières) exclues via le `guide`/`landmarks`.
+   par un tiret (`—`, `–`, `-`…, même précédé d'espaces insécables, cadratins, caractères invisibles,
+   d'une ancre `<a id>`, placé dans un `<span>`, ou puce de liste Word convertie par Calibre :
+   `<div class="block_7"><span class="bullet_">— </span>…</div>`) → `yn-dialogue` ; un paragraphe entièrement en
+   italique, ou déclaré en italique par son style → `yn-thought` (italique inversé) ; italique partiel
+   → `<em>`. Les guillemets « » en tête de paragraphe ne font pas une réplique (même règle que le DOCX).
+5. **Feuilles de style lues** (`Epub_Css`) : fichiers liés par `<link rel="stylesheet">` (et leurs
+   `@import`) et éléments `<style>` du document. Les EPUB de Calibre, Sigil ou InDesign portent
+   l'italique dans des classes génériques (`.calibre5`, `p.p1`, `span.char-style-override-3`) : on en
+   extrait `font-style` (italic, oblique, normal), `font-weight`, le raccourci `font` et
+   `text-align: center`, pour les sélecteurs simples (`.classe`, `p.classe`, `span.a.b`, `em`, `i`,
+   listes séparées par des virgules) ; cascade par spécificité puis ordre, style en ligne prioritaire,
+   héritage des conteneurs (`div`, `section`…). Commentaires retirés, `@media`/`@supports` aplatis
+   (sauf `@media print`), autres règles `@` et sélecteurs complexes (descendants, attributs,
+   pseudo-classes, `*`) ignorés ; feuilles externes (http) jamais chargées ; 1 Mo par feuille (au-delà :
+   feuille ignorée avec un avertissement) et 20 000 règles au plus par document.
+6. Images importées dans la médiathèque, `src` réécrits.
+7. Pages liminaires (couverture, colophon, table des matières) exclues via le `guide`/`landmarks`.
 
 ## 4. Rendu du lecteur
 

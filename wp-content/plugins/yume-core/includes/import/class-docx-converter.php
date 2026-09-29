@@ -15,9 +15,11 @@
  * - gras, italique, souligné, exposant, indice, sauts de ligne, liens externes ; runs
  *   contigus fusionnés ; espaces insécables françaises conservées (et ajoutées devant ? ! : ;) ;
  * - notes de bas de page et de fin → appels + liste yn-notes en fin de chapitre ;
- * - images JPG/PNG/WebP/GIF conservées (jeton), EMF/WMF ignorées et signalées ; images
- *   placées avant le premier chapitre → galerie du tome (front_images) ;
- * - sauts de page, sections, en-têtes et pieds de page, zones de texte ignorés.
+ * - images JPG/PNG/WebP/GIF conservées (jeton) ; EMF/WMF/EMZ/WMZ converties en PNG quand elles
+ *   portent une image bitmap (Metafichier), sinon ignorées et signalées avec leur raison ;
+ *   images placées avant le premier chapitre → galerie du tome (front_images) ;
+ * - sauts de page et de section relevés (débuts de chapitre possibles du découpage manuel),
+ *   en-têtes et pieds de page, zones de texte ignorés.
  *
  * Aucune fonction WordPress.
  *
@@ -45,7 +47,7 @@ final class Docx_Converter {
 	/** Types MIME d'images conservées. */
 	public const MIMES_IMAGES = array( 'image/jpeg', 'image/png', 'image/gif', 'image/webp' );
 
-	/** Extensions d'images vectorielles Word non convertibles. */
+	/** Extensions des métafichiers Word (convertis s'ils portent une image bitmap). */
 	private const EXT_WORD = array( 'emf', 'wmf', 'emz', 'wmz' );
 
 	/**
@@ -126,11 +128,25 @@ final class Docx_Converter {
 	private array $images_vues = array();
 
 	/**
-	 * Images ignorées (EMF/WMF) : [nom, position].
+	 * Images EMF/WMF ignorées : [nom, position, raison].
 	 *
-	 * @var array<int,array{0:string,1:string}>
+	 * @var array<int,array{0:string,1:string,2:string}>
 	 */
 	private array $vectorielles = array();
+
+	/**
+	 * Raison du refus de chaque métafichier non converti : chemin dans l'archive => raison.
+	 *
+	 * @var array<string,string>
+	 */
+	private array $raisons_emf = array();
+
+	/**
+	 * Nombre de métafichiers EMF/WMF convertis (fichiers distincts).
+	 *
+	 * @var int
+	 */
+	private int $emf_convertis = 0;
 
 	/**
 	 * Compteurs divers.
@@ -153,6 +169,14 @@ final class Docx_Converter {
 	private array $champs = array();
 
 	/**
+	 * Étiquette de chapitre en attente (« Prologue », « 1 », « Bonus »… centrée ou en gras) :
+	 * arguments de paragraphe_contenu(), pour l'émettre telle quelle si aucun titre ne la suit.
+	 *
+	 * @var array<string,mixed>|null
+	 */
+	private ?array $etiquette = null;
+
+	/**
 	 * Constructeur.
 	 *
 	 * @param string              $chemin  Fichier DOCX.
@@ -170,7 +194,8 @@ final class Docx_Converter {
 	 * @param array<string,mixed> $options typographie (bool, défaut true) : espaces insécables
 	 *                                     ajoutées devant ? ! : ; et dans les guillemets ;
 	 *                                     volume_max (int, octets) : texte converti maximal
-	 *                                     (défaut Chapter_Builder::VOLUME_MAX).
+	 *                                     (défaut Chapter_Builder::VOLUME_MAX) ; plan (array) :
+	 *                                     découpage manuel (Chapter_Builder::normaliser_plan()).
 	 * @throws Import_Exception Fichier illisible ou qui n'est pas un DOCX.
 	 */
 	public static function convert_file( string $path, array $options = array() ): Result {
@@ -194,8 +219,9 @@ final class Docx_Converter {
 			$this->styles    = new Docx_Styles( $this->xml_relation( 'styles' ), $this->xml_relation( 'numbering' ) );
 			$this->lire_notes( 'footnotes', 'footnote' );
 			$this->lire_notes( 'endnotes', 'endnote' );
-			$this->chapitres = new Chapter_Builder( $this->resultat, (int) ( $this->options['volume_max'] ?? Chapter_Builder::VOLUME_MAX ) );
+			$this->chapitres = new Chapter_Builder( $this->resultat, (int) ( $this->options['volume_max'] ?? Chapter_Builder::VOLUME_MAX ), is_array( $this->options['plan'] ?? null ) ? $this->options['plan'] : null );
 			$this->parcourir();
+			$this->vider_etiquette();
 			$this->chapitres->terminer();
 		} finally {
 			$this->zip->fermer();
@@ -392,6 +418,9 @@ final class Docx_Converter {
 	 * @param \DOMElement $el Élément.
 	 */
 	private function bloc( \DOMElement $el ): void {
+		if ( 'p' !== $el->localName && 'sectPr' !== $el->localName ) {
+			$this->vider_etiquette();
+		}
 		switch ( $el->localName ) {
 			case 'p':
 				$this->paragraphe( $el );
@@ -477,17 +506,77 @@ final class Docx_Converter {
 			'car_total'  => 0,
 			'car_pensee' => 0,
 			'car_italic' => 0,
+			'car_gras'   => 0,
 			'ignorees'   => 0,
+			'saut'       => '', // Saut de page : « avant » ou « apres » le texte du paragraphe.
 		);
 		$this->champs = array();
 		$this->contenu( $p, $props['rpr'], $etat, '' );
 		$items = $etat['items'];
 
+		// Saut de page (début de chapitre possible) : avant le paragraphe, ou après lui (saut
+		// placé après son texte, fin d'une section « page suivante »).
+		$avant_para = Docx_Styles::enfant( $ppr, 'pageBreakBefore' );
+		if ( $avant_para && ! in_array( (string) Docx_Styles::attr( $avant_para ), array( '0', 'false', 'off' ), true ) ) {
+			$etat['saut'] = 'avant';
+		}
+		$section = Docx_Styles::enfant( $ppr, 'sectPr' );
+		$apres   = $section && 'continuous' !== (string) Docx_Styles::attr( Docx_Styles::enfant( $section, 'type' ) );
+		if ( 'avant' === $etat['saut'] ) {
+			$this->chapitres->indice( 'saut_page' );
+		}
+		$apres = $apres || 'apres' === $etat['saut'];
+		$this->paragraphe_contenu( $etat, $role, $niveau, $jc, $ppr );
+		if ( $apres ) {
+			$this->chapitres->indice( 'saut_page' );
+		}
+	}
+
+	/**
+	 * Émet le contenu d'un paragraphe lu (titre, ligne vide, texte et images).
+	 *
+	 * @param array<string,mixed>      $etat   Segments et compteurs du paragraphe.
+	 * @param string|null              $role   Rôle du style.
+	 * @param array<string,mixed>|null $niveau Niveau de liste.
+	 * @param string|null              $jc     Alignement.
+	 * @param \DOMElement|null         $ppr    Propriétés du paragraphe.
+	 * @param bool                     $etiquettes Reconnaître une étiquette de chapitre.
+	 */
+	private function paragraphe_contenu( array $etat, ?string $role, ?array $niveau, ?string $jc, ?\DOMElement $ppr, bool $etiquettes = true ): void {
+		$items = $etat['items'];
+
 		$texte  = Texte::espaces( Inline::texte_brut( array_filter( $items, static fn( $i ) => 'image' !== $i['type'] ) ) );
 		$images = array_values( array_filter( $items, static fn( $i ) => 'image' === $i['type'] ) );
 
+		// Étiquette de chapitre (« Prologue », « 1 », « Bonus »…) sur sa propre ligne, centrée ou
+		// en gras, juste avant le titre : elle donne sa nature et son numéro au chapitre.
+		if ( null !== $this->etiquette ) {
+			if ( '' === $texte && ! $images ) {
+				return; // Ligne vide entre l'étiquette et le titre.
+			}
+			if ( '' === $texte || ! in_array( $role, array( 'titre1', 'titre2' ), true ) ) {
+				$this->vider_etiquette();
+			}
+		} elseif ( $etiquettes && $this->est_etiquette( $texte, $images, $role, $niveau, $jc, $etat ) ) {
+			$this->etiquette = array(
+				'etat'   => $etat,
+				'role'   => $role,
+				'niveau' => $niveau,
+				'jc'     => $jc,
+				'ppr'    => $ppr,
+				'texte'  => $texte,
+			);
+			return;
+		}
+
 		if ( '' !== $texte && in_array( $role, array( 'titre1', 'titre2', 'titre3' ), true ) ) {
-			$this->titre( $role, Inline::texte_brut( array_filter( $items, static fn( $i ) => 'texte' === $i['type'] || 'br' === $i['type'] ) ) );
+			$brut = Inline::texte_brut( array_filter( $items, static fn( $i ) => 'texte' === $i['type'] || 'br' === $i['type'] ) );
+			if ( null !== $this->etiquette ) {
+				$brut            = self::titre_etiquete( (string) $this->etiquette['texte'], $brut );
+				$role            = 'titre1';
+				$this->etiquette = null;
+			}
+			$this->titre( $role, $brut );
 			foreach ( $images as $image ) {
 				$this->chapitres->image( (string) $image['cle'] );
 			}
@@ -522,6 +611,58 @@ final class Docx_Converter {
 	}
 
 	/**
+	 * Paragraphe d'étiquette de chapitre : texte seul « Prologue », « Épilogue », « Interlude »,
+	 * « Bonus », « Postface », « Chapitre 3 », un nombre (« 1 ») ou un chiffre romain, centré ou
+	 * entièrement en gras, hors liste, dialogue et pensée.
+	 *
+	 * @param string                   $texte  Texte du paragraphe.
+	 * @param array                    $images Images du paragraphe.
+	 * @param string|null              $role   Rôle du style.
+	 * @param array<string,mixed>|null $niveau Niveau de liste.
+	 * @param string|null              $jc     Alignement.
+	 * @param array<string,mixed>      $etat   Compteurs de caractères.
+	 */
+	private function est_etiquette( string $texte, array $images, ?string $role, ?array $niveau, ?string $jc, array $etat ): bool {
+		if ( '' === $texte || $images || null !== $niveau || null !== $role || mb_strlen( $texte ) > 40 ) {
+			return false;
+		}
+		$gras = (int) $etat['car_total'] > 0 && (int) $etat['car_gras'] >= (int) $etat['car_total'];
+		if ( 'center' !== $jc && ! $gras ) {
+			return false;
+		}
+		return (bool) preg_match( '/^(?:\d{1,3}|[IVXLC]{1,6}|(?:chapitre|chapter)\s+\S+|prologue|[ée]pilogue|interlude(?:\s+\S+)?|bonus(?:\s+\S+)?|histoire\s+bonus|postface|extra)$/iu', $texte );
+	}
+
+	/**
+	 * Titre complété par son étiquette : « 1 » + « Le Début… » → « Chapitre 1 : Le Début… »,
+	 * « Bonus » + « L’Histoire d’Ira » → « Bonus : L’Histoire d’Ira ». Un titre qui porte
+	 * déjà son numéro ou sa nature (« Chapitre 3 : … ») reste tel quel.
+	 *
+	 * @param string $etiquette Texte de l'étiquette.
+	 * @param string $titre     Texte brut du titre.
+	 */
+	private static function titre_etiquete( string $etiquette, string $titre ): string {
+		$premiere = (string) ( explode( "\n", ltrim( $titre, "\n" ) )[0] ?? '' );
+		if ( 'inconnu' !== Texte::analyser_titre( $premiere )['motif'] ) {
+			return $titre;
+		}
+		$libelle = preg_match( '/^(?:\d{1,3}|[IVXLC]{1,6})$/u', $etiquette ) ? 'Chapitre ' . $etiquette : $etiquette;
+		return $libelle . ' : ' . ltrim( $titre, "\n" );
+	}
+
+	/**
+	 * Émet l'étiquette en attente comme un paragraphe ordinaire (aucun titre ne la suit).
+	 */
+	private function vider_etiquette(): void {
+		if ( null === $this->etiquette ) {
+			return;
+		}
+		$e               = $this->etiquette;
+		$this->etiquette = null;
+		$this->paragraphe_contenu( $e['etat'], $e['role'], $e['niveau'], $e['jc'], $e['ppr'], false );
+	}
+
+	/**
 	 * Émet la partie texte d'un paragraphe selon sa nature.
 	 *
 	 * @param array<int,array<string,mixed>> $items  Segments.
@@ -539,7 +680,11 @@ final class Docx_Converter {
 			$this->chapitres->separateur();
 			return;
 		}
-		$total   = max( 1, (int) $etat['car_total'] );
+		$total = max( 1, (int) $etat['car_total'] );
+		// Paragraphe entièrement en gras : début de chapitre possible (titre sans style).
+		if ( (int) $etat['car_gras'] >= (int) $etat['car_total'] && (int) $etat['car_total'] > 0 ) {
+			$this->chapitres->indice( 'gras' );
+		}
 		$pensee  = 'pensee' === $role || ( null === $niveau && (int) $etat['car_pensee'] * 2 >= $total && (int) $etat['car_pensee'] > 0 );
 		$inverse = $pensee && (int) $etat['car_italic'] * 2 >= $total;
 		$html    = Inline::html( $items, $inverse );
@@ -709,6 +854,7 @@ final class Docx_Converter {
 			$etat['car_total']  += $longueur;
 			$etat['car_pensee'] += $pensee ? $longueur : 0;
 			$etat['car_italic'] += $f['i'] ? $longueur : 0;
+			$etat['car_gras']   += $f['b'] ? $longueur : 0;
 			$texte               = '';
 		};
 		for ( $n = $r->firstChild; null !== $n; $n = $n->nextSibling ) {
@@ -733,6 +879,9 @@ final class Docx_Converter {
 					$genre = (string) Docx_Styles::attr( $n, 'type' );
 					if ( 'page' === $genre ) {
 						++$this->compteurs['sauts_de_page'];
+						if ( '' === $etat['saut'] ) {
+							$etat['saut'] = $etat['car_total'] > 0 || '' !== trim( $texte ) ? 'apres' : 'avant';
+						}
 						$texte .= ' ';
 					} elseif ( 'column' === $genre ) {
 						$texte .= ' ';
@@ -877,9 +1026,14 @@ final class Docx_Converter {
 		$nom = basename( $chemin );
 		$ext = strtolower( pathinfo( $chemin, PATHINFO_EXTENSION ) );
 		if ( in_array( $ext, self::EXT_WORD, true ) ) {
-			$this->vectorielles[] = array( $nom, $this->chapitres->en_chapitre() ? $this->position() : 'avant le premier chapitre' );
-			++$this->compteurs['images_ignorees'];
-			return null;
+			if ( ! array_key_exists( $chemin, $this->images_vues ) ) {
+				$this->images_vues[ $chemin ] = $this->metafichier( $chemin, $alt );
+			}
+			if ( null === $this->images_vues[ $chemin ] ) {
+				$this->vectorielles[] = array( $nom, $this->chapitres->en_chapitre() ? $this->position() : 'avant le premier chapitre', $this->raisons_emf[ $chemin ] ?? '' );
+				++$this->compteurs['images_ignorees'];
+			}
+			return $this->images_vues[ $chemin ];
 		}
 		if ( array_key_exists( $chemin, $this->images_vues ) ) {
 			return $this->images_vues[ $chemin ];
@@ -890,6 +1044,58 @@ final class Docx_Converter {
 			++$this->compteurs['images_ignorees'];
 		}
 		$this->images_vues[ $chemin ] = $cle;
+		return $cle;
+	}
+
+	/**
+	 * Métafichier Word (EMF, WMF, EMZ, WMZ) : ajouté au Result s'il porte une image bitmap
+	 * convertible (la conversion en PNG a lieu à l'extraction, Result::copier_image()).
+	 *
+	 * @param string $chemin Chemin dans l'archive.
+	 * @param string $alt    Texte alternatif.
+	 * @return string|null Clé, ou null (raison dans $this->raisons_emf).
+	 */
+	private function metafichier( string $chemin, string $alt ): ?string {
+		if ( ! $this->zip->existe( $chemin ) ) {
+			$this->raisons_emf[ $chemin ] = 'introuvable dans le fichier';
+			return null;
+		}
+		$infos = Metafichier::analyser( $this->zip, $chemin );
+		if ( isset( $infos['erreur'] ) ) {
+			$this->raisons_emf[ $chemin ] = (string) $infos['erreur'];
+			return null;
+		}
+		++$this->emf_convertis;
+		return self::enregistrer_image(
+			$this->resultat,
+			array(
+				'nom'        => basename( $chemin ),
+				'mime'       => (string) $infos['mime'],
+				'chemin_zip' => (string) $this->zip->nom_reel( $chemin ),
+				'largeur'    => (int) $infos['largeur'],
+				'hauteur'    => (int) $infos['hauteur'],
+				'octets'     => $this->zip->taille( $chemin ),
+				'alt'        => $alt,
+				'conversion' => 'metafichier',
+			)
+		);
+	}
+
+	/**
+	 * Ajoute une image au Result sous une clé unique tirée de son nom.
+	 *
+	 * @param Result              $resultat Résultat.
+	 * @param array<string,mixed> $image    Description (nom, mime, chemin_zip, largeur, hauteur, octets, alt…).
+	 * @return string Clé.
+	 */
+	private static function enregistrer_image( Result $resultat, array $image ): string {
+		$base = Texte::cle( (string) pathinfo( (string) $image['nom'], PATHINFO_FILENAME ) );
+		$cle  = $base;
+		for ( $i = 2; isset( $resultat->images[ $cle ] ); $i++ ) {
+			$cle = $base . '-' . $i;
+		}
+		$image['alt']             = mb_substr( Texte::espaces( (string) $image['alt'] ), 0, 250, 'UTF-8' );
+		$resultat->images[ $cle ] = $image;
 		return $cle;
 	}
 
@@ -928,21 +1134,18 @@ final class Docx_Converter {
 			);
 			return null;
 		}
-		$base = Texte::cle( (string) pathinfo( $nom, PATHINFO_FILENAME ) );
-		$cle  = $base;
-		for ( $i = 2; isset( $resultat->images[ $cle ] ); $i++ ) {
-			$cle = $base . '-' . $i;
-		}
-		$resultat->images[ $cle ] = array(
-			'nom'        => $nom,
-			'mime'       => $mime,
-			'chemin_zip' => (string) $zip->nom_reel( $chemin ),
-			'largeur'    => (int) $infos[0],
-			'hauteur'    => (int) $infos[1],
-			'octets'     => $octets,
-			'alt'        => mb_substr( Texte::espaces( $alt ), 0, 250, 'UTF-8' ),
+		return self::enregistrer_image(
+			$resultat,
+			array(
+				'nom'        => $nom,
+				'mime'       => $mime,
+				'chemin_zip' => (string) $zip->nom_reel( $chemin ),
+				'largeur'    => (int) $infos[0],
+				'hauteur'    => (int) $infos[1],
+				'octets'     => $octets,
+				'alt'        => $alt,
+			)
 		);
-		return $cle;
 	}
 
 	/**
@@ -971,7 +1174,9 @@ final class Docx_Converter {
 				'car_total'  => 0,
 				'car_pensee' => 0,
 				'car_italic' => 0,
+				'car_gras'   => 0,
 				'ignorees'   => 0,
+				'saut'       => '',
 			);
 			$champs       = $this->champs;
 			$this->champs = array();
@@ -1002,14 +1207,14 @@ final class Docx_Converter {
 		if ( $this->vectorielles ) {
 			$details = array();
 			foreach ( $this->vectorielles as $v ) {
-				$details[] = $v[0] . ' (' . $v[1] . ')';
+				$details[] = $v[0] . ' (' . $v[1] . ( '' !== $v[2] ? ' : ' . $v[2] : '' ) . ')';
 			}
 			$n = count( $this->vectorielles );
 			$this->resultat->avertir(
 				sprintf(
 					1 === $n
-						? '%1$d image au format Word EMF/WMF ignorée (format non convertible) : %2$s. Exportez-la en JPG ou PNG et insérez-la à la place pour la publier.'
-						: '%1$d images au format Word EMF/WMF ignorées (format non convertible) : %2$s. Exportez-les en JPG ou PNG et insérez-les à la place pour les publier.',
+						? '%1$d image au format Word EMF/WMF ignorée (aucune image convertible) : %2$s. Dans Word, faites un clic droit sur l’image, « Enregistrer en tant qu’image… » au format PNG ou JPG, puis insérez ce fichier à la place pour la publier.'
+						: '%1$d images au format Word EMF/WMF ignorées (aucune image convertible) : %2$s. Dans Word, faites un clic droit sur chaque image, « Enregistrer en tant qu’image… » au format PNG ou JPG, puis insérez ces fichiers à la place pour les publier.',
 					$n,
 					implode( ', ', $details )
 				)
@@ -1021,18 +1226,19 @@ final class Docx_Converter {
 		if ( $this->compteurs['objets'] > 0 ) {
 			$this->resultat->avertir( sprintf( '%d objet(s) incorporé(s) (formule, graphique…) ignoré(s).', $this->compteurs['objets'] ) );
 		}
-		$stats                    = &$this->resultat->stats;
-		$stats['format']          = 'docx';
-		$stats['fichier']         = basename( $this->chemin );
-		$stats['octets']          = (int) filesize( $this->resultat->source );
-		$stats['hash']            = (string) sha1_file( $this->resultat->source );
-		$stats['images_gardees']  = count( $this->resultat->images );
-		$stats['images_ignorees'] = $this->compteurs['images_ignorees'];
-		$stats['images_emf']      = count( $this->vectorielles );
-		$stats['sauts_de_page']   = $this->compteurs['sauts_de_page'];
-		$stats['sections']        = $this->compteurs['sections'];
-		$stats['zones_de_texte']  = $this->compteurs['zones_de_texte'];
-		$stats['duree_ms']        = (int) round( ( microtime( true ) - $debut ) * 1000 );
-		$stats['memoire_max_mo']  = round( memory_get_peak_usage( true ) / 1048576, 1 );
+		$stats                          = &$this->resultat->stats;
+		$stats['format']                = 'docx';
+		$stats['fichier']               = basename( $this->chemin );
+		$stats['octets']                = (int) filesize( $this->resultat->source );
+		$stats['hash']                  = (string) sha1_file( $this->resultat->source );
+		$stats['images_gardees']        = count( $this->resultat->images );
+		$stats['images_ignorees']       = $this->compteurs['images_ignorees'];
+		$stats['images_emf']            = count( $this->vectorielles );
+		$stats['images_emf_converties'] = $this->emf_convertis;
+		$stats['sauts_de_page']         = $this->compteurs['sauts_de_page'];
+		$stats['sections']              = $this->compteurs['sections'];
+		$stats['zones_de_texte']        = $this->compteurs['zones_de_texte'];
+		$stats['duree_ms']              = (int) round( ( microtime( true ) - $debut ) * 1000 );
+		$stats['memoire_max_mo']        = round( memory_get_peak_usage( true ) / 1048576, 1 );
 	}
 }

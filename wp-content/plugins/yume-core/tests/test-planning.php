@@ -1402,7 +1402,7 @@ yume_tp_test(
 				yume_assert_same( 'Rappel planning : Secrets of the Silent Witch — Arc 7', $mails[0]->sujet );
 				yume_assert_contains( 'est dépassée de 3 jours', $mails[0]->html );
 				yume_assert_contains( 'Bonjour Angeloids', $mails[0]->html );
-				yume_assert_contains( '#yn-tache-' . $d['arc7'], $mails[0]->html );
+				yume_assert_contains( 'vue=taches#yn-tache-' . $d['arc7'], $mails[0]->html, 'carte de la tâche dans la vue « Mes tâches »' );
 				yume_assert_contains( 'n’a pas été mis à jour depuis 20 jours', $mails[1]->html );
 				yume_assert_same( 1, count( $requetes ), 'un seul message Discord groupé' );
 				$texte = json_decode( $requetes[0]['args']['body'], true )['content'];
@@ -2206,7 +2206,7 @@ yume_tp_test(
 		wp_set_current_user( $gerant );
 		$html = yume_render_block( 'yume/team-members' );
 		// Vues ajoutées par le filtre yume_vues_equipe (« Indicateurs »…), placées avant « Réglages ».
-		$ajoutees = array_column( \Yume\Core\Planning\vues_equipe_ajoutees(), 'libelle' );
+		$ajoutees = \Yume\Core\Planning\vues_equipe_ajoutees();
 		wp_set_current_user( 0 );
 		yume_assert_contains( 'class="yn-team yn-team--membres wp-block-yume-team-members" id="yn-team"', $html );
 		yume_assert_contains( '<h2 class="yn-team__bonjour">Membres et rôles</h2>', $html );
@@ -2216,12 +2216,15 @@ yume_tp_test(
 		yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
 		preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0], $liens, PREG_SET_ORDER );
 		$libelles = array_map( static fn( $l ) => html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), $liens );
-		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles' ), $ajoutees, array( 'Réglages' ) ), $libelles );
-		$equipe = esc_url( yume_url_page( 'equipe' ) );
+		$du_menu  = static fn( string $groupe ): array => array_column( array_filter( $ajoutees, static fn( $v ) => $groupe === $v['groupe'] ), 'libelle' );
+		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Publier un tome', 'Lecture à compléter' ), $du_menu( 'catalogue' ), array( 'Planning complet', 'Journal', 'Membres et rôles' ), $du_menu( 'equipe' ), $du_menu( 'site' ), array( 'Réglages' ) ), $libelles );
+		$equipe   = esc_url( yume_url_page( 'equipe' ) );
 		yume_assert_same( $equipe, $liens[0][1] );
-		yume_assert_same( $equipe . '#yn-mes-taches', $liens[1][1] );
-		yume_assert_same( esc_url( get_permalink( $page ) ), $liens[7][1] );
-		yume_assert_same( ' aria-current="page"', $liens[7][2] );
+		yume_assert_same( esc_url( \Yume\Core\Planning\url_vue_equipe( 'taches' ) ), $liens[1][1] );
+		$membres = array_search( 'Membres et rôles', $libelles, true );
+		yume_assert_same( esc_url( get_permalink( $page ) ), $liens[ $membres ][1] );
+		yume_assert_same( ' aria-current="page"', $liens[ $membres ][2] );
+		yume_assert_contains( '<details open><summary>Équipe</summary>', $m[0], 'menu « Équipe » ouvert' );
 		yume_assert_same( 1, substr_count( $m[0], 'aria-current' ) );
 
 		// Membres : chacun avec son rôle ; lecteur absent de la liste.
@@ -2988,6 +2991,47 @@ yume_test(
 			unset( $_GET['vue'] );
 			remove_filter( 'yume_vues_equipe', $ajout );
 			wp_set_current_user( $avant );
+		}
+	}
+);
+
+if ( ! function_exists( 'batcache_clear_url' ) ) {
+	/**
+	 * Batcache (WordPress.com) simulé : adresses purgées dans $GLOBALS['yume_tests_batcache'].
+	 *
+	 * @param string $url Adresse.
+	 */
+	function batcache_clear_url( $url ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- fonction de WordPress.com simulée.
+		$GLOBALS['yume_tests_batcache'][] = (string) $url;
+	}
+}
+
+yume_tp_test(
+	'cache de pages : planning, prochaines sorties et fiche limités à 60 s ; mise à jour, pause et sortie purgent planning, accueil et fiche',
+	static function () {
+		$oeuvre = yume_tp_oeuvre( 'Œuvre en cache' );
+		$tome   = yume_tp_tome( $oeuvre, 2 );
+		$avant  = $GLOBALS['batcache'] ?? null;
+		try {
+			foreach ( array( 'yume/planning', 'yume/upcoming' ) as $bloc ) {
+				$GLOBALS['batcache'] = (object) array( 'max_age' => 300 ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Batcache simulé.
+				yume_tp_bloc( $bloc );
+				yume_assert_same( 60, $GLOBALS['batcache']->max_age, "bloc $bloc" );
+			}
+			$GLOBALS['batcache'] = (object) array( 'max_age' => 30 ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Batcache simulé.
+			yume_tp_bloc( 'yume/planning' );
+			yume_assert_same( 30, $GLOBALS['batcache']->max_age, 'une durée plus courte est gardée' );
+		} finally {
+			$GLOBALS['batcache'] = $avant; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Batcache simulé.
+		}
+
+		$attendu = array_values( array_unique( array_filter( array( yume_url_page( 'planning' ), home_url( '/' ), get_permalink( $oeuvre ) ) ) ) );
+		foreach ( array( 'yume_planning_mis_a_jour', 'yume_planning_pause', 'yume_tome_publie' ) as $action ) {
+			$GLOBALS['yume_tests_batcache'] = array();
+			do_action( $action, $tome, array(), 0 );
+			foreach ( $attendu as $adresse ) {
+				yume_assert_true( in_array( $adresse, $GLOBALS['yume_tests_batcache'], true ), "$action purge $adresse" );
+			}
 		}
 	}
 );

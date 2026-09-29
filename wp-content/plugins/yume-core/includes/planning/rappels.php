@@ -230,8 +230,10 @@ function email_rappel( array $ligne, int $user_id, bool $vers_gerants ): string 
 	} else {
 		$html .= '<p>' . esc_html__( 'Mettez le planning à jour (même un petit pourcentage compte) ou indiquez une nouvelle date cible. Si le tome ne peut plus avancer, marquez-le bloqué en précisant la raison.', 'yume-core' ) . '</p>';
 	}
-	$ancre = ( $vers_gerants ? '#yn-tome-' : '#yn-tache-' ) . (int) $ligne['tome_id'];
-	$html .= bouton_email( yume_url_page( 'equipe' ) . $ancre, __( 'Mettre à jour le planning', 'yume-core' ) );
+	// Gérants : ligne du tome dans « Tomes en préparation » (responsables) ; responsable : sa
+	// carte dans la vue « Mes tâches ».
+	$lien  = $vers_gerants ? yume_url_page( 'equipe' ) . '#yn-tome-' : url_vue_equipe( 'taches' ) . '#yn-tache-';
+	$html .= bouton_email( $lien . (int) $ligne['tome_id'], __( 'Mettre à jour le planning', 'yume-core' ) );
 	return $html;
 }
 
@@ -329,7 +331,10 @@ function executer_rappels(): array {
 			/* translators: %s : raison */
 			$html .= '<p>' . esc_html( sprintf( __( 'Raison indiquée : %s', 'yume-core' ), $ligne['bloque_raison'] ) ) . '</p>';
 		}
-		$html .= bouton_email( yume_url_page( 'equipe' ) . '#yn-tous-les-tomes', __( 'Attribuer les responsables', 'yume-core' ) );
+		// Ligne du tome dans « Tomes en préparation » du tableau de bord (formulaire des
+		// responsables), comme le rappel d'un retard sans responsable ; la vue « Tous les tomes »
+		// (?vue=tomes) ne gère que la lecture en ligne.
+		$html .= bouton_email( yume_url_page( 'equipe' ) . '#yn-tome-' . $tome_id, __( 'Attribuer les responsables', 'yume-core' ) );
 		foreach ( $gerants as $uid ) {
 			mettre_en_file( $uid, $sujet, $html, 'signalement' );
 		}

@@ -288,6 +288,69 @@ function yume_get_cover_id( int $post_id ): int {
 }
 
 /**
+ * Cadrage d'une image de couverture : point à garder visible quand la couverture est rognée
+ * au format 2:3 (pourcentages horizontal et vertical, 0 = gauche/haut), ou null (centre).
+ *
+ * @param int $image_id Pièce jointe.
+ * @return array{x:int,y:int}|null
+ */
+function yume_cadrage_couverture( int $image_id ): ?array {
+	$cadrage = $image_id > 0 ? get_post_meta( $image_id, 'yume_cadrage', true ) : '';
+	if ( ! is_array( $cadrage ) || ! isset( $cadrage['x'], $cadrage['y'] ) ) {
+		return null;
+	}
+	return array(
+		'x' => max( 0, min( 100, (int) $cadrage['x'] ) ),
+		'y' => max( 0, min( 100, (int) $cadrage['y'] ) ),
+	);
+}
+
+/**
+ * Enregistre le cadrage d'une couverture ; le centre (50, 50) ou null le supprime.
+ *
+ * @param int        $image_id Pièce jointe.
+ * @param array|null $cadrage  array{x:int,y:int} ou null.
+ */
+function yume_enregistrer_cadrage( int $image_id, ?array $cadrage ): void {
+	if ( $image_id <= 0 || 'attachment' !== get_post_type( $image_id ) ) {
+		return;
+	}
+	$x = null !== $cadrage ? max( 0, min( 100, (int) ( $cadrage['x'] ?? 50 ) ) ) : 50;
+	$y = null !== $cadrage ? max( 0, min( 100, (int) ( $cadrage['y'] ?? 50 ) ) ) : 50;
+	if ( 50 === $x && 50 === $y ) {
+		delete_post_meta( $image_id, 'yume_cadrage' );
+		return;
+	}
+	update_post_meta(
+		$image_id,
+		'yume_cadrage',
+		array(
+			'x' => $x,
+			'y' => $y,
+		)
+	);
+}
+
+/**
+ * Balise img d'une couverture (wp_get_attachment_image) qui respecte son cadrage : la taille
+ * yume-couverture est rognée au centre dès le téléversement ; une couverture cadrée utilise
+ * donc une taille non rognée, positionnée sur son point de cadrage (object-position).
+ *
+ * @param int    $image_id Pièce jointe.
+ * @param string $taille   Taille WordPress (yume-couverture par défaut).
+ * @param array  $attrs    Attributs de wp_get_attachment_image().
+ */
+function yume_image_couverture( int $image_id, string $taille = 'yume-couverture', array $attrs = array() ): string {
+	$cadrage = yume_cadrage_couverture( $image_id );
+	if ( $cadrage ) {
+		$taille         = 'medium_large';
+		$style          = trim( (string) ( $attrs['style'] ?? '' ) );
+		$attrs['style'] = ( '' !== $style ? rtrim( $style, ';' ) . ';' : '' ) . 'object-position:' . $cadrage['x'] . '% ' . $cadrage['y'] . '%';
+	}
+	return (string) wp_get_attachment_image( $image_id, $taille, false, $attrs );
+}
+
+/**
  * Libellé d'un tome : « Tome 9 », « Arc 7 », « Tome EX 2 », « Bonus 1 »… ;
  * forme courte : « T.9 », « A.7 », « EX.2 », « B.1 », « Ch.3 ».
  *

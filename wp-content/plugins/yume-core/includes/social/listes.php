@@ -1362,12 +1362,7 @@ function verifier_regles_listes(): void {
 	if ( ! $wp_rewrite instanceof \WP_Rewrite || ! $wp_rewrite->using_permalinks() ) {
 		return;
 	}
-	$signature = md5( (string) wp_json_encode( regles_listes() ) . '|listes|' . YUME_CORE_VERSION );
-	if ( get_option( OPTION_REGLES_LISTES ) === $signature ) {
-		return;
-	}
-	flush_rewrite_rules( false );
-	update_option( OPTION_REGLES_LISTES, $signature, true );
+	\Yume\Core\Core\vider_regles_si_changees( OPTION_REGLES_LISTES, regles_listes(), 'listes' );
 }
 add_action( 'init', __NAMESPACE__ . '\\verifier_regles_listes', 101 );
 

@@ -73,6 +73,26 @@ function enregistrer_script_debut_lecture(): void {
 add_action( 'init', __NAMESPACE__ . '\\enregistrer_script_debut_lecture', 5 );
 
 /**
+ * Script de la ligne « Tomes 1 à 4 » (tomes précédents repliés, yume/tome-list) : à l'ouverture,
+ * la ligne disparaît et le focus passe au premier tome affiché. Sans JavaScript, la ligne
+ * disparaît aussi (CSS).
+ */
+function enregistrer_script_tomes_anciens(): void {
+	$fichier = __DIR__ . '/assets/tomes-anciens.js';
+	wp_register_script(
+		'yume-tomes-anciens',
+		plugins_url( 'assets/tomes-anciens.js', __FILE__ ),
+		array(),
+		( defined( 'YUME_CORE_VERSION' ) ? YUME_CORE_VERSION : '2' ) . '.' . ( is_readable( $fichier ) ? (string) filemtime( $fichier ) : '0' ),
+		array(
+			'in_footer' => true,
+			'strategy'  => 'defer',
+		)
+	);
+}
+add_action( 'init', __NAMESPACE__ . '\\enregistrer_script_tomes_anciens', 5 );
+
+/**
  * Enregistre les blocs du module.
  */
 function enregistrer_blocs(): void {

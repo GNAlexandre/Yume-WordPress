@@ -89,8 +89,11 @@
 	isolation: isolate;
 }
 
+/* Pas d'overflow: hidden ici : la bannière se découpe elle-même (.yn-fiche-banniere) et les
+   menus déroulants de l'œuvre (Noter, Alerte, Listes) doivent pouvoir dépasser de la bande.
+   z-index 1 : la bande (contexte isolé) passe au-dessus du contenu qui suit, menus compris. */
 .yn-fiche__entete:has(.yn-fiche-banniere) {
-	overflow: hidden;
+	z-index: 1;
 }
 
 /* Dans la bande du thème, c'est la bande entière (et non le bloc) qui porte la bannière. */
@@ -115,6 +118,14 @@
 	max-width: none;
 	object-fit: cover;
 	object-position: center 30%;
+}
+
+/* Ambiance : la couverture très floutée et agrandie ne laisse que ses couleurs (ni texte ni
+   logo lisible) ; l'agrandissement cache les bords transparents du flou. */
+.yn-fiche-banniere--ambiance .yn-fiche-banniere__image {
+	object-position: center;
+	filter: blur(48px) saturate(1.4);
+	transform: scale(1.35);
 }
 
 .yn-fiche-banniere::after {

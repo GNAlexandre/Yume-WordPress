@@ -4,7 +4,8 @@
  *   Début / Fin, adresse synchronisée avec l'ancre) ; sans JavaScript, sections empilées ;
  * - alertes par œuvre enregistrées dès le choix (PUT /moi/alertes/{oeuvre}) ;
  * - « Retirer » un favori sans recharger (DELETE /moi/favoris/{oeuvre}) ;
- * - « Mot de passe oublié ? » ouvert quand l'adresse vise #yn-oubli.
+ * - « Mot de passe oublié ? » ouvert quand l'adresse vise #yn-oubli ;
+ * - message d'échec de connexion ([data-yn-focus], role="alert") focalisé au chargement.
  * En cas d'échec d'un appel REST, le formulaire est envoyé normalement (admin-post).
  *
  * JavaScript sans étape de build (ES2019), sans dépendance.
@@ -52,6 +53,12 @@
 			}
 			return reponse.json();
 		} );
+	}
+
+	/* Message d'échec de connexion : focalisé pour être lu et visible. */
+	const aFocaliser = racine.querySelector( '[data-yn-focus]' );
+	if ( aFocaliser ) {
+		aFocaliser.focus();
 	}
 
 	/* Mot de passe oublié. */

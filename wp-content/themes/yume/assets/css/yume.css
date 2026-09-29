@@ -809,8 +809,12 @@ html[data-yn-theme="sepia"] .yn-theme-toggle__icone--soleil {
 }
 
 .yn-nav .yn-lien-kofi > .wp-block-navigation-item__content {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35em;
 	min-height: 36px;
 	padding: 0 12px;
+	line-height: 1;
 	border: 1px solid var(--wp--preset--color--accent-2);
 	color: var(--wp--preset--color--accent-2);
 	font-size: 13px;

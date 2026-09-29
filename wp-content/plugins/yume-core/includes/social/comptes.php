@@ -4,9 +4,9 @@
  * wp-admin redirigé vers la page compte (sauf admin-ajax.php et admin-post.php), redirection
  * après connexion vers la page d'origine ou le compte, liens d'inscription et de mot de passe
  * oublié vers la façade, formulaires d'inscription et de mot de passe oublié du cœur
- * (wp-login.php) protégés comme ceux de la façade (SEC-02), retour en façade après un échec de
- * connexion et confirmation d'un changement d'adresse e-mail (avis à l'ancienne adresse et
- * autres sessions fermées, SEC-11).
+ * (wp-login.php) protégés comme ceux de la façade (SEC-02) et confirmation d'un changement
+ * d'adresse e-mail (avis à l'ancienne adresse et autres sessions fermées, SEC-11). La connexion
+ * en façade (sans wp-login.php) est dans connexion.php.
  *
  * @package Yume\Core
  */
@@ -211,41 +211,6 @@ function url_oubli( $url, $retour = '' ): string {
 	return url_connexion( (string) $retour ) . '#yn-oubli';
 }
 add_filter( 'lostpassword_url', __NAMESPACE__ . '\\url_oubli', 10, 2 );
-
-/**
- * Formulaire de connexion en façade : champ caché signalant l'origine (pour revenir en façade
- * après un échec) et lien vers « Mot de passe oublié ».
- *
- * @param string $contenu Contenu ajouté au milieu du formulaire.
- * @param array  $args    Arguments de wp_login_form().
- */
-function champ_origine_connexion( $contenu, $args ): string {
-	if ( ! is_array( $args ) || 'yn-connexion' !== ( $args['form_id'] ?? '' ) ) {
-		return (string) $contenu;
-	}
-	$page = url_courante();
-	return (string) $contenu
-		. '<input type="hidden" name="yn_origine" value="' . esc_url( $page ) . '">';
-}
-add_filter( 'login_form_middle', __NAMESPACE__ . '\\champ_origine_connexion', 10, 2 );
-
-/**
- * Échec de connexion depuis la façade : retour au formulaire avec un message, sans révéler
- * si l'identifiant existe.
- */
-function echec_connexion(): void {
-	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- formulaire de connexion de WordPress (sans nonce).
-	$origine = isset( $_POST['yn_origine'] ) ? esc_url_raw( wp_unslash( $_POST['yn_origine'] ) ) : '';
-	if ( '' === $origine ) {
-		return;
-	}
-	$origine = wp_validate_redirect( $origine, '' );
-	if ( '' === $origine ) {
-		return;
-	}
-	rediriger( $origine, 'connexion-echec', 'yn-connexion' );
-}
-add_action( 'wp_login_failed', __NAMESPACE__ . '\\echec_connexion', 20 );
 
 /**
  * Confirmation d'un changement d'adresse e-mail (lien ?yn-email=clé envoyé à la nouvelle

@@ -22,9 +22,20 @@ voir tous les menus.
 
 ## 2. Se connecter
 
-- Cliquer sur **Connexion** en haut à droite du site (page `/connexion/`), saisir son identifiant ou
-  son e-mail et son mot de passe. « Mot de passe oublié ? » envoie un lien de réinitialisation par
-  e-mail.
+- **Lecteurs et équipe** (traducteurs, relecteurs, graphistes, éditeurs, gérants) : cliquer sur
+  **Connexion** en haut à droite du site (page `/connexion/`), saisir son pseudo ou son e-mail et
+  son mot de passe ; cocher « Se souvenir de moi » sur un appareil personnel. On arrive sur la page
+  d'où l'on venait (ou sur **Mon compte**, ou l'espace équipe pour un traducteur, un relecteur ou
+  un graphiste). En cas d'erreur, le message « Identifiant ou mot de passe incorrect. » s'affiche
+  au-dessus du formulaire, l'identifiant reste rempli : on corrige et on recommence, sans passer
+  par une page WordPress. Après 5 erreurs en 15 minutes (même compte ou même connexion), le
+  formulaire est bloqué 15 minutes (« Trop de tentatives, réessayez dans N minutes. ») : attendre,
+  ou utiliser « Mot de passe oublié ? », qui envoie un lien de réinitialisation par e-mail.
+- **Administrateurs** : ils se connectent par la **page de connexion WordPress** (connexion
+  WordPress.com et validation en deux étapes), via le petit lien **Connexion administrateur** sous
+  le formulaire de `/connexion/`. Le formulaire de `/connexion/` refuse un compte administrateur,
+  même avec le bon mot de passe, et affiche ce lien. La page WordPress sert aussi aux personnes
+  invitées par l'administrateur à créer leur compte.
 - Une fois connecté, le menu du compte affiche **Mon compte** et, pour les membres de l'équipe,
   **Espace équipe** (page `/equipe/`). **Se déconnecter** est à côté, dans le menu du site.
 - Traducteurs, relecteurs et graphistes travaillent uniquement dans l'espace équipe : s'ils ouvrent
@@ -43,14 +54,48 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- les liens **Publier un tome** et **Lecture à compléter** (éditeurs), **Planning complet**, **Journal**, et pour les gérants
+- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Publier un tome, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; pour les gérants
   **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
-Sous chaque tâche (et chaque tome de *Tous les tomes*), des raccourcis mènent directement au bon
+Sous chaque tâche (et chaque tome de *Tomes en préparation*, la liste du planning à venir), des raccourcis mènent directement au bon
 écran : **Publier ce tome** (éditeurs : le formulaire de publication s'ouvre déjà rempli pour ce
 tome, inutile de ressaisir œuvre, nature et numéro), **Modifier dans l'administration**, **Voir la
 fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans le planning complet**.
+
+### Œuvres, nouvelle œuvre et genres (`/equipe/?vue=oeuvres`, éditeurs et gérants)
+
+Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut ou par titre. Pour
+chaque œuvre : **Voir** (publiée) ou **Publier** (brouillon), **Modifier**, **Ajouter un tome au
+planning** (le formulaire du tableau de bord s'ouvre avec l'œuvre déjà choisie) et **Publier un
+tome**.
+
+**Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » sous
+« Ajouter un tome au planning ») et **Modifier** utilisent le même formulaire : titre, type, statut
+de la traduction, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), genres
+(cases à cocher, ou « Ajouter des genres absents de la liste »), synopsis (une ligne vide sépare
+deux paragraphes ; `<strong>gras</strong>` et `<em>italique</em>` sont conservés) et couverture
+(JPG, PNG ou WebP). La partie repliable **Fiche détaillée** contient le statut et le nombre de tomes
+de la VO, la source de la traduction, les jours de sortie, l'équipe affichée et les liens externes.
+
+- **Créer en brouillon** : l'œuvre reste invisible du public ; on peut déjà lui ajouter des tomes au
+  planning, puis la publier d'un clic depuis la liste.
+- **Créer et publier** : la fiche est tout de suite visible dans la bibliothèque. Publier une œuvre
+  n'envoie aucune annonce (seuls les tomes sont annoncés).
+- **Modifier** ne change pas le statut (publiée ou brouillon). Le synopsis n'est réécrit que si
+  vous le modifiez : sinon sa mise en forme d'origine (listes, liens…) reste telle quelle. Pour une
+  mise en forme avancée, un lien mène à l'éditeur WordPress.
+- Un titre déjà pris par une autre œuvre (même en brouillon) est refusé, pour éviter les doublons.
+- **Cadrage de la couverture** : les cartes de la bibliothèque montrent la couverture au format
+  portrait (2:3). Si le personnage ou le titre est coupé, cliquez dans l'aperçu sur la partie à
+  garder visible, ou réglez les curseurs horizontal et vertical, puis enregistrez. « Recentrer »
+  revient au cadrage centré par défaut. Le réglage s'applique partout où cette couverture
+  s'affiche (bibliothèque, fiches, compte, reprise de lecture).
+
+**Genres** (en bas de la vue) : une trentaine de genres courants sont proposés d'office (Action,
+Aventure, Isekai, Romance, Slice of life…). Ajoutez-en (plusieurs à la fois, séparés par des
+virgules) ou supprimez-en ; un genre supprimé est retiré des œuvres qui l'avaient et n'est pas
+recréé aux mises à jour.
 
 ### Planning complet (`/equipe/?vue=planning`)
 
@@ -140,7 +185,9 @@ travail, à l'adresse `/contributeurs/{votre-pseudo}/`. Elle est **désactivée 
 Le planning public (`/planning/`) montre aux lecteurs où en est chaque tome. Il se met à jour
 **uniquement** à partir de ce que l'équipe saisit : pensez-y à chaque avancée.
 
-Dans **Mes tâches**, pour chaque tome :
+Dans **Mes tâches** (lien du menu de l'espace équipe, `/equipe/?vue=taches` : toutes vos tâches,
+**en retard d'abord**, avec le nombre de retards en pastille ; la même liste figure aussi sur le
+tableau de bord), pour chaque tome :
 
 1. **Avancement** : faites glisser le curseur (0 à 100 %) de votre étape.
 2. **Étape** : *À faire → Traduction → Relecture → Édition → Publié*. Passez à l'étape suivante
@@ -181,7 +228,8 @@ actualités.
 
 Chaque jour vers **9 h (heure de Paris)**, le site vérifie le planning :
 
-- date cible dépassée → e-mail au responsable + message sur le Discord de l'équipe ;
+- date cible dépassée → e-mail au responsable (son bouton ouvre la tâche dans **Mes tâches**) +
+  message sur le Discord de l'équipe ;
 - aucune mise à jour depuis **14 jours** → rappel « mets ton planning à jour » ;
 - chaque **lundi** → récapitulatif aux gérants (état global, retards, sorties de la semaine).
 
@@ -215,9 +263,11 @@ il suffit d'utiliser les bons styles :
 | Image JPG, PNG ou WebP dans le texte | Illustration pleine largeur |
 | Images placées avant le premier Titre 1 | Galerie d'illustrations du tome (pas un chapitre) |
 | Notes de bas de page | Appels de note et liste de notes en fin de chapitre |
+| Paragraphe seul « [chapitre] Titre », « [bonus] Titre », « [prologue] »… | Début de chapitre forcé (le marqueur n'est pas publié, voir 5.2 bis) |
 
-Les ornements Word au format EMF/WMF, les en-têtes, pieds de page et sauts de page sont ignorés (et
-signalés dans le rapport). Un EPUB est accepté en dépannage, mais le DOCX reste la référence.
+Les ornements Word au format EMF/WMF, les en-têtes et pieds de page sont ignorés (et signalés dans
+le rapport). Les sauts de page ne changent rien au texte, mais ils sont proposés comme débuts de
+chapitre possibles (5.2 bis). Un EPUB est accepté en dépannage, mais le DOCX reste la référence.
 
 ### 5.2 Remplir le formulaire
 
@@ -233,8 +283,46 @@ signalés dans le rapport). Un EPUB est accepté en dépannage, mais le DOCX res
    - les **avertissements** (par exemple un titre mal formé corrigé automatiquement, des images
      ignorées) ;
    - un bouton pour **prévisualiser** un chapitre.
-   Si le découpage est faux, corrigez les styles dans Word et déposez à nouveau le fichier.
+   Si le découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez les
+   styles dans Word et déposez à nouveau le fichier.
 5. **Crédits** : traduction, relecture, édition / couverture (affichés sur le tome et les chapitres).
+
+### 5.2 bis Délimiter les chapitres soi-même
+
+Quand la détection automatique se trompe (roman sans styles de titre, chapitres séparés par une
+illustration ou un saut de page, histoire bonus placée avant le premier chapitre et ignorée…),
+l'encadré **« Délimiter les chapitres moi-même »** apparaît sous les chapitres détectés, dès que le
+fichier est analysé :
+
+1. le tableau liste les **débuts de chapitre possibles** trouvés dans le fichier : titres,
+   illustrations, sauts de page, lignes courtes, centrées ou en gras, paragraphe qui suit un
+   séparateur, début du fichier. Les débuts retenus par la détection automatique sont déjà cochés ;
+   les lignes **surlignées** sont placées avant le premier début coché ;
+2. cochez **« Début de chapitre »** sur chaque ligne où un chapitre commence, choisissez sa
+   **nature** (chapitre, prologue, interlude, épilogue, postface, bonus, illustrations) et, si
+   besoin, son **titre** (sinon, le titre trouvé à cet endroit). Les chapitres sont numérotés à la
+   suite à partir du **premier numéro** indiqué ; plusieurs bonus deviennent « Bonus 1 », « Bonus 2 » ;
+3. raccourcis : **« Couper à chaque illustration »** (romans dont chaque chapitre commence par une
+   illustration), **« Couper à chaque saut de page »**, **« Revenir à la détection automatique »** ;
+4. **« Conserver le texte d'ouverture »** : le texte placé avant le premier début coché (préface,
+   histoire bonus…) rejoint le premier chapitre ; sinon il n'est pas publié, comme aujourd'hui.
+   Pour en faire un chapitre à part, cochez simplement sa première ligne ;
+5. le nombre de chapitres obtenus s'affiche en direct ; **« Vérifier ce découpage »** montre la liste
+   des chapitres et les avertissements sans rien enregistrer ;
+6. cochez **« Utiliser ce découpage »** (automatique dès que vous modifiez le tableau), puis
+   enregistrez, vérifiez ou publiez comme d'habitude : le découpage part **avec le fichier**.
+
+**Le fichier n'est pas conservé sur le site** : le découpage n'est pas enregistré non plus. Pour
+redécouper plus tard (ou remplacer la lecture en ligne, 5.4 bis), choisissez à nouveau le fichier et
+refaites le découpage. Si le fichier a changé depuis l'analyse, le rapport signale « Début de
+chapitre manuel introuvable ».
+
+**Sans JavaScript** (ou pour un découpage écrit une fois pour toutes dans le document) : ajoutez à
+chaque début de chapitre un paragraphe seul `[chapitre]` ou `[chapitre] Titre`, `[prologue]`,
+`[interlude] Titre`, `[bonus] Titre`, `[épilogue]` ou `[postface]` (majuscules et accents
+indifférents). Il force le début d'un chapitre de cette nature, avec ce titre, et n'est jamais
+publié. Une histoire bonus précédée de `[bonus]` n'est plus ignorée, même avant le premier
+chapitre.
 
 ### 5.3 Publier
 
@@ -296,6 +384,58 @@ quand même un tome déjà paru, décochez la case avant de publier.
 En ligne de commande : `docx2chapters.php publish … --publier maintenant --sans-annonce`
 (`--avec-annonce` pour forcer l'annonce ; sans l'une ni l'autre, le site choisit comme le
 formulaire). Voir `tools/docx2chapters/README.md`.
+
+### 5.4 bis Remplacer la lecture en ligne d'un tome déjà publié
+
+Pour refaire la lecture en ligne d'un tome paru (nouvelle traduction, corrections en masse, DOCX
+refait) :
+
+1. Espace équipe → **Tous les tomes** (`/equipe/?vue=tomes`, éditeurs et gérants) : tous les tomes,
+   **publiés compris** (la section « Tomes en préparation » du tableau de bord ne montre que le
+   planning à venir). Filtrez par œuvre, par statut (publiés, programmés, brouillons) ou tapez une
+   partie du titre.
+2. Sur la ligne du tome : **Remplacer la lecture en ligne** (le tome a déjà des chapitres en ligne)
+   ou **Lecture en ligne : ajouter le DOCX/EPUB** (il n'en a aucun). **Voir** ouvre la fiche publique,
+   **Modifier** l'administration.
+3. Le formulaire de publication s'ouvre déjà rempli. En haut, l'encadré **« Remplacer la lecture en
+   ligne (N chapitres actuels) »** rappelle ce qui va se passer. **Rien ne change pour les lecteurs
+   tant que vous n'avez pas cliqué sur « Remplacer la lecture en ligne maintenant ».**
+4. Déposez le nouveau DOCX ou EPUB, puis cliquez sur **Vérifier (sans rien changer en ligne)** (dans
+   l'encadré). Le fichier est découpé en une **version en attente**, visible de l'équipe seulement :
+   le message indique le bilan (« 13 chapitres prêts (3 modifiés, 10 nouveaux) ; 1 chapitre en ligne
+   absent du fichier, laissé en ligne ») et l'encadré liste chaque chapitre (**Nouveau**, **Modifié**
+   ou **Inchangé**) avec son lien **Aperçu** (la nouvelle version, jamais montrée aux lecteurs ni aux
+   moteurs de recherche) et **Version en ligne** pour comparer. **Enregistrer en brouillon** et
+   **Prévisualiser le chapitre 1** font de même : ils ne touchent jamais aux chapitres en ligne.
+5. Si tout est bon, laissez cochée la case **« Ajout au catalogue »** et cliquez sur **Remplacer la
+   lecture en ligne maintenant** (ou **Publier maintenant**, qui fait la même chose). Sinon, corrigez
+   le fichier et vérifiez-le à nouveau (la nouvelle vérification remplace la précédente), ou cliquez
+   sur **Annuler le remplacement** : la version en attente et ses images sont supprimées, rien n'a
+   changé en ligne.
+
+Ce qui se passe au remplacement :
+
+- chaque chapitre est **remplacé en place, par numéro** : même adresse, mêmes commentaires, même
+  date, aucun doublon ; les chapitres nouveaux du fichier sont ajoutés (datés de la sortie du tome) ;
+- un chapitre **absent du nouveau fichier** est signalé dès la vérification ; il reste en ligne, sauf
+  si vous avez coché **« Mettre en brouillon les chapitres absents »** (il est alors mis en brouillon
+  au moment du remplacement) ;
+- **aucune annonce** : ni article, ni Discord, ni e-mail, ni notification aux lecteurs, et la **date
+  de sortie du tome ne change pas**. Le message final l'indique : « *Titre du tome* : lecture en
+  ligne remplacée (N chapitres en ligne ; M nouveaux), sans annonce : ni article, ni Discord, ni
+  e-mail. La date de sortie du tome ne change pas. »
+
+À savoir :
+
+- **un seul remplacement peut attendre par tome** : si un autre membre en a déjà préparé un, votre
+  vérification est refusée avec son nom et sa date ; appliquez-le ou annulez-le d'abord (les boutons
+  sont dans l'encadré) ;
+- une version en attente **ni appliquée ni annulée est supprimée au bout de 7 jours**, avec ses
+  images ;
+- les champs du tome lui-même (titre, liens PDF / EPUB, crédits, couverture téléversée) sont
+  enregistrés dès l'envoi, comme avant ; seule la lecture en ligne attend le remplacement ;
+- un tome **en brouillon ou programmé** n'a pas de version en attente : ses chapitres sont mis à jour
+  directement (ils ne sont pas encore visibles des lecteurs).
 
 ### 5.5 Actualités d'une œuvre (onglet « Actualités » de la fiche)
 

@@ -170,7 +170,11 @@ l'implémenter. Ne jamais redéclarer une fonction `yume_*` d'un autre module.
 
 ## 6. Intégration continue
 
-`.github/workflows/ci.yml` tourne sur chaque push de branche et chaque pull request :
+`.github/workflows/ci.yml` tourne **une fois par changement**, sur les pull requests (ouverture,
+nouveau push sur la branche : l'exécution précédente est annulée). Ni les pushes de branche sans
+pull request ni la fusion dans `main` ne la relancent ; la release ne la rejoue que si le tag ne
+porte pas exactement le contenu testé sur la pull request (voir « Publier une version »). Lancement
+manuel : Actions → CI → *Run workflow*.
 
 | Job | Contenu |
 | --- | --- |
@@ -264,13 +268,19 @@ Pour WordPress 6.6 : `tools/localenv/setup.sh --dossier /tmp/yume-66 --version 6
    git push origin v2.1.0
    ```
 5. **`release.yml`** vérifie le tag (format `vX.Y.Z`, versions identiques au tag, commit présent sur
-   la branche par défaut), rejoue toute la CI, puis **attend l'approbation** d'un relecteur de
+   la branche par défaut), reprend la CI de la pull request fusionnée si elle a réussi sur le même
+   contenu que le tag (sinon rejoue toute la CI : tenir la branche à jour avec `main` avant de
+   fusionner l'évite), puis **attend l'approbation** d'un relecteur de
    l'environnement protégé `release` (*Actions →* l'exécution → *Review deployments → Approve*).
    Une fois approuvé, il construit les archives, contrôle `SHA256SUMS` (exactement `yume-core.zip`
    et `yume.zip`, noms nus, `sha256sum -c`) et crée la release GitHub « Yume Novel v2.1.0 » avec
    `yume-core.zip`, `yume.zip`, `SHA256SUMS` et des notes de version générées (modifiables ensuite
    sur GitHub : elles s'affichent dans « Voir les détails » de la mise à jour). **Ne jamais
    remplacer un asset à la main** : le site refuserait l'archive.
+   **Aucun run « Release » après la pose du tag** (événement du tag non transmis par GitHub) :
+   *Actions → Release → Run workflow*, choisir le tag dans « Use workflow from » (onglet *Tags*),
+   puis *Run workflow*. Mêmes contrôles, même CI et même approbation ; un run lancé sur une
+   branche est refusé. Possible pour les tags posés à partir de la 2.1.3.
 6. **Sur le site** : le plugin interroge la dernière release **toutes les 12 heures** (ou tout de
    suite avec le lien « Vérifier les mises à jour » sous Yume Core dans *Extensions*). La nouvelle
    version apparaît dans *Tableau de bord → Mises à jour* ; si *Yume → Réglages → Mises à jour
@@ -316,7 +326,7 @@ php tools/build/version.php --suivante "Ce que change le commit, en une phrase"
 - **Hook git** (refuse un commit sans nouvelle version) : `git config core.hooksPath .githooks`,
   une fois par clone (fait par `tools/localenv/setup.sh`).
 - **CI** : l'étape « Version cohérente et augmentée » du job Syntaxe échoue si la version n'a pas
-  augmenté depuis le commit précédent (push) ou depuis la branche cible (pull request).
+  augmenté depuis la branche cible (pull request) ou depuis le commit précédent (lancement manuel).
 
 Préversion : un tag `v2.1.0-beta.1` (autorisé depuis n'importe quelle branche) crée une release
 marquée « pre-release » que les sites **ignorent** ; pratique pour faire tester l'archive. Seules les

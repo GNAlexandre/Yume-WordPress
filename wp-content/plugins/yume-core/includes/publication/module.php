@@ -10,7 +10,11 @@
  * - Medias        : versement des images dans la médiathèque (≤ 1600 px, WebP) ;
  * - Annonce       : article d'annonce en brouillon (catégorie « Sorties ») ;
  *                   remise en brouillon si le tome est dépublié, republiée à son retour ;
- * - Rest          : POST /yume/v1/publications/analyse, /publications, /publications/{id}/publier ;
+ * - Remplacement  : nouveau fichier d'un tome paru avec sa lecture en ligne préparé à part
+ *                   (versions en attente, statut interne yume_remplacement), appliqué en place
+ *                   seulement à la sortie, annulable, nettoyé après 7 jours ;
+ * - Rest          : POST /yume/v1/publications/analyse, /publications, /publications/{id}/publier,
+ *                   DELETE /publications/{id}/remplacement ;
  * - Formulaire    : bloc yume/publish-form, envoi sans JavaScript (admin-post.php), menu d'administration.
  *
  * Au chargement, le module n'appelle aucun autre module : il accroche ses hooks.
@@ -25,6 +29,7 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-fichiers.php';
 require_once __DIR__ . '/class-medias.php';
 require_once __DIR__ . '/class-annonce.php';
+require_once __DIR__ . '/class-remplacement.php';
 require_once __DIR__ . '/class-service.php';
 require_once __DIR__ . '/class-rest.php';
 require_once __DIR__ . '/class-formulaire.php';
@@ -36,6 +41,10 @@ if ( ! class_exists( '\Yume\Core\Import\Docx_Converter' ) && is_readable( dirnam
 
 add_action( 'rest_api_init', array( Rest::class, 'enregistrer_routes' ) );
 add_action( 'init', array( Formulaire::class, 'enregistrer_bloc' ) );
+add_action( 'init', array( Remplacement::class, 'enregistrer_statut' ) );
+add_action( Remplacement::HOOK_NETTOYAGE, array( Remplacement::class, 'nettoyer' ) );
+add_filter( 'wp_robots', array( Remplacement::class, 'robots' ), 20 );
+add_action( 'template_redirect', array( Remplacement::class, 'sans_cache' ) );
 add_action( 'admin_menu', array( Formulaire::class, 'menu' ), 20 );
 add_action( 'admin_post_yume_publication', array( Formulaire::class, 'traiter' ) );
 add_action( 'admin_post_nopriv_yume_publication', array( Formulaire::class, 'traiter_anonyme' ) );

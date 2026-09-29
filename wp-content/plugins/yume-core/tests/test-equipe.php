@@ -3,7 +3,7 @@
  * Tests de l'espace équipe (façade) : navigation partagée (vues, « Publier », déconnexion),
  * vue « Planning complet » (?vue=planning : tous les tomes vivants, filtres, formulaire par
  * ligne, raccourcis, « Retirer du planning », erreur affichée sur la ligne), raccourcis de
- * « Mes tâches » et de « Tous les tomes », vue « Journal » (?vue=journal : pagination, filtre
+ * « Mes tâches » et de « Tomes en préparation », vue « Journal » (?vue=journal : pagination, filtre
  * par tome), vue « Réglages » (?vue=reglages : champs selon les capacités, enregistrement par
  * admin-post.php avec l'assainissement de la page d'administration), avertissements de la page
  * « Membres et rôles » et passerelle du planning public.
@@ -244,17 +244,31 @@ yume_te_test(
 		};
 		$nav      = navigation_equipe( 'tableau', 2 );
 		$toutes   = array_column( yume_te_nav( $nav ), 0 );
-		yume_assert_same( array_merge( $ajoutees, array( 'Réglages' ) ), array_slice( $toutes, -1 - count( $ajoutees ) ), 'vues ajoutées avant « Réglages »' );
+		$du_site  = array_column(
+			array_filter(
+				\Yume\Core\Planning\vues_equipe_ajoutees(),
+				static fn( $v ) => 'site' === $v['groupe']
+			),
+			'libelle'
+		);
+		yume_assert_same( array_merge( $du_site, array( 'Réglages' ) ), array_slice( $toutes, -1 - count( $du_site ) ), 'vues du menu « Site » avant « Réglages »' );
+		// Menus repliables : Catalogue, Planning, Équipe, Site ; aucun ouvert sur le tableau de bord.
+		yume_assert_same( 4, substr_count( $nav, '<li class="yn-team__groupe"><details>' ) );
+		foreach ( array( 'Catalogue', 'Planning', 'Équipe', 'Site' ) as $menu ) {
+			yume_assert_contains( '<summary>' . $menu . '</summary>', $nav );
+		}
+		yume_assert_contains( '<details open><summary>Catalogue</summary>', navigation_equipe( 'tomes' ), 'menu de la page affichée ouvert' );
 		$entrees  = $de_base( yume_te_nav( $nav ) );
 		$libelles = array_column( $entrees, 0 );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Publier un tome', 'Lecture à compléter', 'Tous les tomes', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
-		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[8][1], 'réglages dans l’espace équipe' );
-		yume_assert_same( url_vue_equipe( 'lecture' ), $entrees[3][1], 'lecture à compléter dans l’espace équipe' );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Publier un tome', 'Lecture à compléter', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
+		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[9][1], 'réglages dans l’espace équipe' );
+		yume_assert_same( url_vue_equipe( 'lecture' ), $entrees[5][1], 'lecture à compléter dans l’espace équipe' );
 		yume_assert_not_contains( 'page=yume-reglages', $nav, 'plus la page de l’administration' );
-		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[5][1] );
-		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[6][1] );
-		yume_assert_contains( 'vue=planning', $entrees[5][1] );
-		yume_assert_true( yume_url_page( 'planning' ) !== $entrees[5][1], 'plus le planning public' );
+		yume_assert_same( url_vue_equipe( 'oeuvres' ), $entrees[2][1], 'œuvres dans l’espace équipe' );
+		yume_assert_same( url_vue_equipe( 'planning' ), $entrees[6][1] );
+		yume_assert_same( url_vue_equipe( 'journal' ), $entrees[7][1] );
+		yume_assert_contains( 'vue=planning', $entrees[6][1] );
+		yume_assert_true( yume_url_page( 'planning' ) !== $entrees[6][1], 'plus le planning public' );
 		yume_assert_same( '#yn-team', $entrees[0][1], 'ancres sur le tableau de bord' );
 		yume_assert_same( ' aria-current="true"', $entrees[0][2] );
 		yume_assert_contains( '2 en retard', $nav, 'signature historique conservée' );
@@ -262,19 +276,22 @@ yume_te_test(
 		yume_assert_contains( esc_url( wp_logout_url( home_url( '/' ) ) ), $nav );
 
 		foreach ( array(
-			'planning' => 5,
-			'journal'  => 6,
-			'publier'  => 2,
-			'lecture'  => 3,
-			'membres'  => 7,
-			'reglages' => 8,
+			'planning' => 6,
+			'journal'  => 7,
+			'publier'  => 4,
+			'lecture'  => 5,
+			'oeuvres'  => 2,
+			'tomes'    => 3,
+			'membres'  => 8,
+			'reglages' => 9,
+			'taches'   => 1,
 		) as $cle => $index ) {
 			$html    = navigation_equipe( $cle );
 			$entrees = $de_base( yume_te_nav( $html ) );
 			yume_assert_same( ' aria-current="page"', $entrees[ $index ][2], $cle );
 			yume_assert_same( 1, substr_count( $html, 'aria-current' ), $cle . ' : une seule entrée active' );
 			yume_assert_same( url_vue_equipe(), $entrees[0][1], $cle . ' : adresse complète du tableau de bord' );
-			yume_assert_same( url_vue_equipe() . '#yn-mes-taches', $entrees[1][1] );
+			yume_assert_same( url_vue_equipe( 'taches' ), $entrees[1][1], '« Mes tâches » : vue ?vue=taches' );
 		}
 
 		// Traducteur : ni publier, ni tous les tomes, ni membres ; les vues restent proposées.
@@ -550,7 +567,7 @@ yume_te_test(
  */
 
 yume_te_test(
-	'tableau de bord : raccourcis sur « Mes tâches » et « Tous les tomes », liens vers les vues',
+	'tableau de bord : raccourcis sur « Mes tâches » et « Tomes en préparation », liens vers les vues',
 	function () {
 		$d = yume_te_jeu();
 		update_post_meta(
@@ -570,7 +587,8 @@ yume_te_test(
 		yume_assert_contains( 'Gérer dans le planning complet', $carte[0] );
 		yume_assert_not_contains( '<form', substr( $carte[0], 5 ), 'pas de formulaire imbriqué' );
 		yume_assert_contains( 'id="yn-tous-les-tomes"', $html );
-		yume_assert_contains( 'value="yume_planning_retrait"', $html, 'retrait depuis « Tous les tomes »' );
+		yume_assert_contains( '<h2 id="yn-tous-titre">Tomes en préparation</h2>', $html, 'section du planning à venir (la vue « Tous les tomes » liste tout le catalogue)' );
+		yume_assert_contains( 'value="yume_planning_retrait"', $html, 'retrait depuis « Tomes en préparation »' );
 		yume_assert_contains( esc_url( url_vue_equipe( 'planning' ) ), $html );
 		yume_assert_contains( esc_url( url_vue_equipe( 'journal' ) ) . '">Tout le journal', $html );
 
@@ -1160,8 +1178,8 @@ yume_te_test(
 		yume_assert_contains( 'name="vue" value="lecture"', $html, 'filtre GET' );
 		yume_assert_contains( '>Grimgar (1)</option>', $html );
 		$nav = yume_te_nav( $html );
-		yume_assert_same( 'Lecture à compléter', $nav[3][0] );
-		yume_assert_same( ' aria-current="page"', $nav[3][2], 'entrée active' );
+		yume_assert_same( 'Lecture à compléter', $nav[5][0] );
+		yume_assert_same( ' aria-current="page"', $nav[5][2], 'entrée active' );
 		yume_assert_same( 1, substr_count( $html, 'aria-current' ) );
 
 		// Filtre par œuvre.

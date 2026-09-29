@@ -796,7 +796,8 @@ yume_tl_test(
 		yume_assert_contains( 'OVERLAP · 22 tomes (en cours)', $html );
 		yume_assert_contains( '2 tomes · sorties : dimanche', $html );
 		yume_assert_contains( 'Quand Haruhiro se réveille', $html, 'synopsis' );
-		yume_assert_contains( 'class="yn-fiche-banniere" aria-hidden="true"', $html, 'bannière de l’œuvre en fond' );
+		yume_assert_contains( 'class="yn-fiche-banniere yn-fiche-banniere--ambiance" aria-hidden="true"', $html, 'ambiance de la couverture en fond' );
+		yume_assert_contains( 'grimgar.jpg" class="yn-fiche-banniere__image" alt=""', $html, 'couverture de l’œuvre, pas la bannière' );
 		yume_assert_contains( 'alt="Couverture : Grimgar of Fantasy and Ash"', $html );
 
 		// Le contexte d'un tome ou d'un chapitre mène à son œuvre.
@@ -897,6 +898,8 @@ yume_tl_test(
 		yume_assert_contains( '<details class="yn-tome-list__anciens">', $html );
 		yume_assert_contains( '>Tomes 1 à 3<', $html, 'libellé du groupe replié' );
 		yume_assert_contains( 'Afficher les 3 tomes précédents', $html );
+		yume_assert_not_contains( 'Masquer', $html, 'une fois ouverte, la ligne disparaît (pas de « Masquer »)' );
+		yume_assert_true( wp_script_is( 'yume-tomes-anciens', 'enqueued' ), 'script du focus à l’ouverture' );
 		yume_assert_true( strpos( $html, '<details' ) < strpos( $html, '>Tome 3<' ) && strpos( $html, '>Tome 4<' ) < strpos( $html, '<details' ), 'tomes 1 à 3 dans le <details>' );
 		yume_assert_contains( '2 chapitres + postface · ', $html, 'chapitres publiés seulement' );
 		yume_assert_contains( ' mots · ~', $html );
@@ -1821,8 +1824,9 @@ yume_tl_test(
 			$wp_query->set( 's', '' );
 			yume_assert_same( 'Recherche', apply_filters( 'document_title_parts', array( 'title' => 'x' ) )['title'] );
 
-			yume_assert_same( 'Administrateur', translate_user_role( 'Administrator' ) );
-			yume_assert_same( 'Éditeur', translate_user_role( 'Editor' ) );
+			// Le paquet de langue fr_FR récent dit « Administrateur/administratrice » : il est gardé.
+			yume_assert_true( str_starts_with( translate_user_role( 'Administrator' ), 'Administrateur' ), translate_user_role( 'Administrator' ) );
+			yume_assert_true( str_starts_with( translate_user_role( 'Editor' ), 'Éditeur' ), translate_user_role( 'Editor' ) );
 			yume_assert_same( 'Lecteur', translate_user_role( 'Subscriber' ), 'nom de l’extension conservé' );
 			yume_assert_same( 'Traducteur', translate_user_role( 'Traducteur' ), 'rôle Yume inchangé' );
 

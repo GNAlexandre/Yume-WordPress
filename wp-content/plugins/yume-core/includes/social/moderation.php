@@ -272,6 +272,7 @@ function vue_moderation( $vues ) {
 		/* translators: %d : commentaires à modérer */
 		'libelle'  => $nombre ? sprintf( __( 'Commentaires (%d)', 'yume-core' ), $nombre ) : __( 'Commentaires', 'yume-core' ),
 		'capacite' => 'moderate_comments',
+		'groupe'   => 'equipe',
 		'rendu'    => __NAMESPACE__ . '\\rendu_vue_commentaires',
 	);
 	return $vues;

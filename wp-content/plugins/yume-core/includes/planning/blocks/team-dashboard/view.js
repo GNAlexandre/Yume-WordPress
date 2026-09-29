@@ -9,11 +9,70 @@
  * - Confirmation (data-yn-confirmer sur le formulaire ou le bouton) : « Retirer du planning »,
  *   « Retirer de l’équipe » d'un membre encore responsable de tomes.
  * - Lien direct vers une ligne (#yn-tome-ID) : la ligne est dépliée.
+ * - Cadrage de la couverture (formulaire d'œuvre) : aperçu mis à jour par les curseurs, clic
+ *   dans l'aperçu pour placer le point, aperçu de l'image choisie avant l'envoi, « Recentrer ».
  *
  * Sans JavaScript, les mêmes formulaires sont envoyés à admin-post.php.
  */
 ( function () {
 	'use strict';
+
+	document.querySelectorAll( '[data-yn-cadrage]' ).forEach( function ( zone ) {
+		var apercu = zone.querySelector( '[data-yn-cadrage-apercu]' );
+		var image = zone.querySelector( '[data-yn-cadrage-image]' );
+		var curseurs = {
+			x: zone.querySelector( '[data-yn-cadrage-axe="x"]' ),
+			y: zone.querySelector( '[data-yn-cadrage-axe="y"]' ),
+		};
+		var centrer = zone.querySelector( '[data-yn-cadrage-centrer]' );
+		var formulaire = zone.closest( 'form' );
+		var fichier = formulaire ? formulaire.querySelector( '[data-yn-cadrage-fichier]' ) : null;
+		var adresse = null;
+		if ( ! apercu || ! curseurs.x || ! curseurs.y ) {
+			return;
+		}
+		function appliquer() {
+			zone.style.setProperty( '--yn-cadrage-x', curseurs.x.value + '%' );
+			zone.style.setProperty( '--yn-cadrage-y', curseurs.y.value + '%' );
+		}
+		curseurs.x.addEventListener( 'input', appliquer );
+		curseurs.y.addEventListener( 'input', appliquer );
+		apercu.addEventListener( 'click', function ( evenement ) {
+			var cadre = apercu.getBoundingClientRect();
+			if ( ! cadre.width || ! cadre.height ) {
+				return;
+			}
+			curseurs.x.value = String( Math.round( Math.min( 1, Math.max( 0, ( evenement.clientX - cadre.left ) / cadre.width ) ) * 100 ) );
+			curseurs.y.value = String( Math.round( Math.min( 1, Math.max( 0, ( evenement.clientY - cadre.top ) / cadre.height ) ) * 100 ) );
+			appliquer();
+		} );
+		if ( centrer ) {
+			centrer.hidden = false;
+			centrer.addEventListener( 'click', function () {
+				curseurs.x.value = '50';
+				curseurs.y.value = '50';
+				appliquer();
+			} );
+		}
+		if ( fichier && image ) {
+			fichier.addEventListener( 'change', function () {
+				var choisi = fichier.files && fichier.files[ 0 ];
+				if ( ! choisi || ! /^image\//.test( choisi.type ) ) {
+					return;
+				}
+				if ( adresse ) {
+					URL.revokeObjectURL( adresse );
+				}
+				adresse = URL.createObjectURL( choisi );
+				image.src = adresse;
+				image.hidden = false;
+				zone.removeAttribute( 'data-yn-cadrage-vide' );
+				curseurs.x.value = '50';
+				curseurs.y.value = '50';
+				appliquer();
+			} );
+		}
+	} );
 
 	document.addEventListener(
 		'submit',

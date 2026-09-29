@@ -1308,12 +1308,13 @@ yume_test(
 			yume_assert_false( is_wp_error( $r ), is_wp_error( $r ) ? $r->get_error_message() : '' );
 			yume_assert_same( 20, count( $r['chapitres'] ) );
 			yume_assert_same( 'Postface', $r['chapitres'][19]['titre'] );
-			yume_assert_same( 6, count( get_post_meta( $r['tome']['id'], 'yume_illustrations', true ) ) );
-			yume_assert_same( 10, count( array_unique( $ctx->medias ) ) );
+			// 16 illustrations, dont 6 images EMF converties (2 dans la galerie, 4 dans les chapitres).
+			yume_assert_same( 8, count( get_post_meta( $r['tome']['id'], 'yume_illustrations', true ) ) );
+			yume_assert_same( 16, count( array_unique( $ctx->medias ) ) );
 			$contenu = implode( '', array_map( static fn( $c ) => get_post( $c['id'] )->post_content, $r['chapitres'] ) );
-			yume_assert_same( 4, substr_count( $contenu, '<!-- wp:image {"id":' ) );
+			yume_assert_same( 8, substr_count( $contenu, '<!-- wp:image {"id":' ) );
 			yume_assert_not_contains( '{{yume-image', $contenu );
-			yume_assert_same( '19 chapitres + postface · 10 illustrations · 6 ornements EMF ignorés', $r['import']['resume'] );
+			yume_assert_same( '19 chapitres + postface · 16 illustrations', $r['import']['resume'] );
 		}
 	)
 );
@@ -2103,4 +2104,213 @@ yume_test(
 		yume_assert_same( 'Le tome 1 de L’Attaque des Titans', Annonce::elision( 'Le tome 1 de L’Attaque des Titans' ) );
 		yume_assert_same( 'Le tome 5 du monde de Lesley', Annonce::elision( 'Le tome 5 du monde de Lesley' ) );
 	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Découpage manuel en chapitres (le fichier n'est jamais conservé : le découpage est
+ * renvoyé avec lui)
+ * -----------------------------------------------------------------------------
+ */
+
+if ( ! function_exists( 'yume_tpub_plan' ) ) {
+	/**
+	 * Découpage manuel à partir des débuts possibles d'une analyse : extrait => nature.
+	 *
+	 * @param array<int,array<string,mixed>> $candidats Débuts possibles (rapport d'analyse).
+	 * @param array<string,string>           $debuts    Début de l'extrait => nature.
+	 * @param bool                           $garder    Conserver le texte d'ouverture.
+	 * @return array<string,mixed>
+	 * @throws Yume_Test_Failure Début absent.
+	 */
+	function yume_tpub_plan( array $candidats, array $debuts, bool $garder = false ): array {
+		$plan = array(
+			'debuts'       => array(),
+			'garder_avant' => $garder,
+		);
+		foreach ( $debuts as $extrait => $nature ) {
+			$trouve = null;
+			foreach ( $candidats as $c ) {
+				if ( str_starts_with( (string) $c['extrait'], (string) $extrait ) ) {
+					$trouve = $c;
+					break;
+				}
+			}
+			if ( null === $trouve ) {
+				throw new Yume_Test_Failure( 'Début possible absent : ' . $extrait );
+			}
+			$plan['debuts'][] = array(
+				'ancre'  => $trouve['ancre'],
+				'nature' => $nature,
+				'titre'  => (string) $trouve['titre'],
+			);
+		}
+		return $plan;
+	}
+}
+
+yume_test(
+	'découpage : l’analyse renvoie les débuts possibles et accepte un découpage ; préparation avec découpage (service, REST, sans JavaScript)',
+	yume_tpub(
+		function ( $ctx ) {
+			$editeur = yume_factory_user( 'yume_editeur' );
+			$oeuvre  = yume_tpub_oeuvre();
+			$analyse = yume_rest( 'POST', '/yume/v1/publications/analyse', array(), $editeur, array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) ) );
+			yume_assert_same( 200, $analyse->get_status() );
+			$data = $analyse->get_data();
+			yume_assert_true( count( $data['candidats'] ) > 20, 'débuts possibles' );
+			yume_assert_same( array( 'images', 'ouvertures', 'sauts' ), array_keys( $data['decoupages'] ) );
+			yume_assert_same( 13, count( array_filter( $data['candidats'], static fn( $c ) => $c['auto'] ) ), 'un début automatique par chapitre' );
+			$plan = yume_tpub_plan(
+				$data['candidats'],
+				array(
+					'Prologue'   => 'prologue',
+					'Chapitre 1' => 'chapitre',
+				)
+			);
+
+			// Analyse avec le découpage (JSON), même fichier renvoyé.
+			$essai = yume_rest( 'POST', '/yume/v1/publications/analyse', array( 'plan' => wp_json_encode( $plan ) ), $editeur, array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) ) );
+			yume_assert_same( 200, $essai->get_status() );
+			yume_assert_same( array( 'Prologue', 'Chapitre 1 — La Crête Brumeuse' ), array_column( $essai->get_data()['chapitres'], 'libelle' ) );
+			yume_assert_true( $essai->get_data()['stats']['decoupage_manuel'] );
+
+			// Découpage invalide : 400, fichier supprimé quand même.
+			$fichier = yume_tpub_fichier( $ctx, 'regles.docx' );
+			$refus   = yume_rest( 'POST', '/yume/v1/publications/analyse', array( 'plan' => '{"debuts":[{"ancre":"<script>","nature":"chapitre"}]}' ), $editeur, array( 'source' => $fichier ) );
+			yume_assert_same( 400, $refus->get_status() );
+			yume_assert_same( 'rest_invalid_param', $refus->get_data()['code'] );
+			$fichier = yume_tpub_fichier( $ctx, 'regles.docx' );
+			$refus   = Service::analyser( $fichier, array( 'plan' => array( 'debuts' => array() ) ) );
+			yume_assert_same( 'yume_plan_invalide', $refus->get_error_code() );
+			yume_assert_false( file_exists( $fichier['tmp_name'] ), 'source supprimée malgré l’erreur' );
+
+			// Service : préparation avec découpage (tableau).
+			wp_set_current_user( $editeur );
+			$r = yume_tpub_preparer( $ctx, $oeuvre, array( 'plan' => $plan ) );
+			yume_assert_same( 2, count( $r['chapitres'] ) );
+			yume_assert_same( array( 'prologue', 'chapitre' ), array_column( $r['chapitres'], 'nature' ) );
+			yume_assert_false( isset( $r['import']['candidats'] ), 'débuts possibles absents du rapport de préparation' );
+			$chapitres = yume_get_chapitres( (int) $r['tome']['id'], array( 'status' => 'any' ) );
+			yume_assert_same( 2, count( $chapitres ) );
+			yume_assert_contains( 'Texte de l’épilogue.', $chapitres[1]->post_content, 'tout le texte dans le chapitre 1' );
+			yume_assert_contains( '<h2 class="wp-block-heading">Chapitre 5</h2>', $chapitres[1]->post_content, 'titre détecté devenu intertitre' );
+			yume_assert_same( 'La Crête Brumeuse', get_post_meta( $chapitres[1]->ID, 'yume_sous_titre', true ) );
+			// Aucun découpage enregistré sur le tome.
+			yume_assert_false( isset( get_post_meta( (int) $r['tome']['id'], Service::META, true )['plan'] ) );
+			// Sans fichier : découpage ignoré, signalé.
+			$sans = Service::preparer(
+				array(
+					'oeuvre_id' => $oeuvre,
+					'nature'    => 'tome',
+					'numero'    => '10',
+					'plan'      => $plan,
+				)
+			);
+			yume_assert_contains( 'Découpage manuel ignoré', implode( "\n", $sans['avertissements'] ) );
+
+			// REST : création avec le découpage en JSON.
+			$cree = yume_rest(
+				'POST',
+				'/yume/v1/publications',
+				array(
+					'oeuvre_id' => $oeuvre,
+					'nature'    => 'tome',
+					'numero'    => '11',
+					'plan'      => wp_json_encode( $plan ),
+				),
+				$editeur,
+				array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) )
+			);
+			yume_assert_same( 201, $cree->get_status() );
+			yume_assert_same( 2, count( $cree->get_data()['chapitres'] ) );
+
+			// Sans JavaScript : champ caché « plan » envoyé avec le fichier.
+			wp_set_current_user( $editeur );
+			$redirige = static function ( $url ) {
+				throw new RuntimeException( 'redirection:' . $url );
+			};
+			add_filter( 'wp_redirect', $redirige, 1 );
+			$_POST  = wp_slash(
+				array(
+					'action'      => 'yume_publication',
+					'_yume_nonce' => wp_create_nonce( 'yume_publication' ),
+					'etape'       => 'brouillon',
+					'oeuvre_id'   => (string) $oeuvre,
+					'nature'      => 'tome',
+					'numero'      => '12',
+					'plan'        => wp_json_encode( array_merge( $plan, array( 'garder_avant' => true ) ) ),
+				)
+			);
+			$_FILES = array( 'source' => yume_tpub_fichier( $ctx, 'regles.docx' ) );
+			try {
+				Formulaire::traiter();
+			} catch ( RuntimeException $e ) {
+				yume_assert_contains( 'redirection:', $e->getMessage() );
+			} finally {
+				remove_filter( 'wp_redirect', $redirige, 1 );
+				$_POST  = array();
+				$_FILES = array();
+			}
+			$retour = get_transient( Formulaire::RETOUR . $editeur );
+			yume_assert_same( 'succes', $retour['type'], (string) $retour['message'] );
+			yume_assert_contains( '2 chapitres', $retour['message'] );
+			$tome     = Service::trouver_tome( $oeuvre, 'tome', 12.0 );
+			$prologue = yume_get_chapitres( $tome->ID, array( 'status' => 'any' ) )[0];
+			yume_assert_contains( 'équipe Yume</p>', $prologue->post_content, 'texte d’ouverture conservé' );
+		}
+	)
+);
+
+yume_test(
+	'découpage : remplacement d’une lecture en ligne (version en attente) avec découpage, appliqué à la publication',
+	yume_tpub(
+		function ( $ctx ) {
+			$editeur = yume_factory_user( 'yume_editeur' );
+			wp_set_current_user( $editeur );
+			$oeuvre = yume_tpub_oeuvre();
+			$r      = yume_tpub_preparer( $ctx, $oeuvre );
+			$tome   = (int) $r['tome']['id'];
+			Service::publier( $tome, 'maintenant', array( 'sans_annonce' => true ) );
+			yume_assert_true( \Yume\Core\Publication\Remplacement::mode( $tome ), 'tome en ligne' );
+			$en_ligne = array();
+			foreach ( yume_get_chapitres( $tome ) as $c ) {
+				$en_ligne[ $c->ID ] = $c->post_content;
+			}
+			yume_assert_same( 13, count( $en_ligne ) );
+
+			$analyse = Service::analyser( yume_tpub_fichier( $ctx, 'regles.docx' ) );
+			$plan    = yume_tpub_plan(
+				$analyse['candidats'],
+				array(
+					'Prologue'   => 'prologue',
+					'Chapitre 1' => 'chapitre',
+					'Chapitre2'  => 'chapitre',
+				)
+			);
+			// « Vérifier » : version en attente découpée selon le plan, rien ne change en ligne.
+			wp_set_current_user( $editeur );
+			$v = yume_tpub_preparer( $ctx, $oeuvre, array( 'plan' => $plan ) );
+			yume_assert_true( is_array( $v['remplacement'] ), 'remplacement en attente' );
+			yume_assert_same( 3, count( $v['remplacement']['chapitres'] ) );
+			yume_assert_same( 10, $v['remplacement']['absents'] );
+			foreach ( yume_get_chapitres( $tome ) as $c ) {
+				yume_assert_same( $en_ligne[ $c->ID ], get_post( $c->ID )->post_content, 'chapitre en ligne inchangé' );
+			}
+			// Application à la publication : le chapitre 2 (jusqu'à la fin du fichier) remplacé en
+			// place (même adresse), le chapitre 1 inchangé.
+			$sortie = Service::publier( $tome, 'maintenant', array( 'sans_annonce' => true ) );
+			yume_assert_false( is_wp_error( $sortie ), is_wp_error( $sortie ) ? $sortie->get_error_message() : '' );
+			$par_adresse = array();
+			foreach ( yume_get_chapitres( $tome ) as $c ) {
+				$par_adresse[ $c->post_name ] = get_post( $c->ID );
+			}
+			$chapitre1 = $par_adresse['chapitre-1'];
+			$chapitre2 = $par_adresse['chapitre-2'];
+			yume_assert_same( $en_ligne[ $chapitre1->ID ], $chapitre1->post_content, 'chapitre 1 inchangé' );
+			yume_assert_true( isset( $en_ligne[ $chapitre2->ID ] ), 'même chapitre 2' );
+			yume_assert_contains( 'Texte de l’épilogue.', $chapitre2->post_content, 'chapitre 2 remplacé' );
+			yume_assert_true( $en_ligne[ $chapitre2->ID ] !== $chapitre2->post_content );
+		}
+	)
 );

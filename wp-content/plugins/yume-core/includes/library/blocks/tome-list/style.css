@@ -163,8 +163,8 @@
 	outline-offset: -2px;
 }
 
-.yn-tome-list__anciens:not([open]) .yn-tome-list__masquer,
-.yn-tome-list__anciens[open] .yn-tome-list__afficher {
+/* Ouverte : la ligne « Tomes 1 à 4 » laisse la place aux tomes précédents (pas de « Masquer »). */
+.yn-tome-list__anciens[open] > summary {
 	display: none;
 }
 

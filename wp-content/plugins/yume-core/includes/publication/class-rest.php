@@ -5,7 +5,14 @@
  * - POST /yume/v1/publications/analyse          multipart « source » → rapport, rien n'est créé ;
  * - POST /yume/v1/publications                  multipart (source, couverture facultatives) + champs →
  *                                               tome et chapitres en brouillon (ou mis à jour), rapport ;
- * - POST /yume/v1/publications/(?P<id>\d+)/publier  « quand » = maintenant | date ISO.
+ * - POST /yume/v1/publications/(?P<id>\d+)/publier  « quand » = maintenant | date ISO (applique
+ *                                               d'abord un remplacement de lecture en ligne en attente) ;
+ * - DELETE /yume/v1/publications/(?P<id>\d+)/remplacement  annule le remplacement en attente
+ *                                               (versions et images supprimées, rien ne change en ligne).
+ *
+ * Paramètre « plan » (analyse et création) : découpage manuel en chapitres, en JSON ou en objet
+ * (Service::plan()), appliqué au fichier « source » envoyé dans la même requête : le fichier n'est
+ * jamais conservé entre deux requêtes.
  *
  * Paramètre booléen « sans_annonce » (création et publication) : ajout au catalogue, sans
  * article d'annonce, ni Discord, ni e-mail (Service::ajouter_au_catalogue()). Absent, il vaut
@@ -47,6 +54,7 @@ final class Rest {
 					'oeuvre_id' => $champs['oeuvre_id'],
 					'nature'    => $champs['nature'],
 					'numero'    => $champs['numero'],
+					'plan'      => $champs['plan'],
 				),
 			)
 		);
@@ -86,6 +94,23 @@ final class Rest {
 						'default'     => false,
 					),
 					'sans_annonce'   => self::argument_sans_annonce(),
+				),
+			)
+		);
+		register_rest_route(
+			self::ESPACE,
+			'/publications/(?P<id>\d+)/remplacement',
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => array( self::class, 'annuler_remplacement' ),
+				'permission_callback' => array( self::class, 'peut_modifier_tome' ),
+				'args'                => array(
+					'id' => array(
+						'description' => __( 'Identifiant du tome.', 'yume-core' ),
+						'type'        => 'integer',
+						'minimum'     => 1,
+						'required'    => true,
+					),
 				),
 			)
 		);
@@ -160,6 +185,17 @@ final class Rest {
 				'default'     => false,
 			),
 			'sans_annonce'    => self::argument_sans_annonce(),
+			'plan'            => array(
+				'description'       => __( 'Découpage manuel du fichier source (JSON ou objet) : {"debuts": [{"ancre": "e12-3fa9c1", "nature": "chapitre", "titre": "…", "numero": 3 (facultatif)}], "garder_avant": false}. Les repères viennent de l’analyse du même fichier.', 'yume-core' ),
+				// Contrôle strict par Service::plan() (erreur 400 lisible) ; valeur transmise telle quelle.
+				'validate_callback' => static function ( $valeur ) {
+					$plan = Service::plan( $valeur );
+					return is_wp_error( $plan ) ? $plan : true;
+				},
+				'sanitize_callback' => static function ( $valeur ) {
+					return is_array( $valeur ) || is_string( $valeur ) ? $valeur : null;
+				},
+			),
 		);
 	}
 
@@ -213,6 +249,46 @@ final class Rest {
 	}
 
 	/**
+	 * Permission : yume_publier et droit de modifier ce tome.
+	 *
+	 * @param \WP_REST_Request $requete Requête.
+	 * @return true|\WP_Error
+	 */
+	public static function peut_modifier_tome( \WP_REST_Request $requete ) {
+		$ok = self::peut_publier();
+		if ( true !== $ok ) {
+			return $ok;
+		}
+		$id = (int) $requete['id'];
+		if ( 'yume_tome' !== get_post_type( $id ) ) {
+			return new \WP_Error( 'rest_post_invalid_id', __( 'Tome introuvable.', 'yume-core' ), array( 'status' => 404 ) );
+		}
+		if ( ! current_user_can( 'edit_post', $id ) ) {
+			return new \WP_Error( 'rest_forbidden', __( 'Votre compte ne peut pas modifier ce tome.', 'yume-core' ), array( 'status' => rest_authorization_required_code() ) );
+		}
+		return true;
+	}
+
+	/**
+	 * DELETE /publications/{id}/remplacement.
+	 *
+	 * @param \WP_REST_Request $requete Requête.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function annuler_remplacement( \WP_REST_Request $requete ) {
+		$id = (int) $requete['id'];
+		if ( ! Remplacement::annuler( $id ) ) {
+			return new \WP_Error( 'yume_remplacement_absent', __( 'Aucun remplacement de la lecture en ligne n’est en attente pour ce tome.', 'yume-core' ), array( 'status' => 404 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'annule'  => true,
+				'message' => Formulaire::message_annulation(),
+			)
+		);
+	}
+
+	/**
 	 * Fichier téléversé d'une requête.
 	 *
 	 * @param \WP_REST_Request $requete Requête.
@@ -232,7 +308,7 @@ final class Rest {
 	 */
 	private static function champs( \WP_REST_Request $requete ): array {
 		$champs = array();
-		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'credits', 'couverture_id', 'retirer_absents', 'sans_annonce', 'credits_traduction', 'credits_relecture', 'credits_edition' ) as $cle ) {
+		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'credits', 'couverture_id', 'retirer_absents', 'sans_annonce', 'credits_traduction', 'credits_relecture', 'credits_edition', 'plan' ) as $cle ) {
 			if ( null !== $requete->get_param( $cle ) ) {
 				$champs[ $cle ] = $requete->get_param( $cle );
 			}

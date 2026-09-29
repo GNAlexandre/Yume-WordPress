@@ -789,3 +789,30 @@ yume_test(
 		yume_assert_contains( '1 sur 3', yume_tr_sur( $s['chapitres'][0], static fn() => yume_render_block( 'yume/reader-tools' ) ) );
 	}
 );
+
+yume_test(
+	'Dialogues : tiret de tête isolé dans une boîte suspendue (première lettre alignée sur les pensées, chapitres existants compris)',
+	function () {
+		$f = '\Yume\Core\Reader\isoler_tiret_dialogue';
+		yume_assert_same(
+			'<p class="yn-dialogue--tiret yn-dialogue"><span class="yn-tiret">—</span>Tu as vu ?</p>',
+			$f( "<p class=\"yn-dialogue\">—\u{00A0}Tu as vu ?</p>" )
+		);
+		yume_assert_same(
+			'<p class="yn-dialogue--tiret wp-block-paragraph yn-dialogue"><span class="yn-tiret">—</span><em>Chut</em>.</p>',
+			$f( '<p class="wp-block-paragraph yn-dialogue">&mdash;&nbsp;<em>Chut</em>.</p>' )
+		);
+		// Tiret à l'intérieur d'une balise en ligne : la boîte passe devant, la balise reste.
+		yume_assert_same(
+			'<p class="yn-dialogue--tiret yn-dialogue"><span class="yn-tiret">—</span><strong>Non !</strong></p>',
+			$f( '<p class="yn-dialogue"><strong>— Non !</strong></p>' )
+		);
+		// Pas de dialogue, pas de tiret, déjà traité : inchangé.
+		foreach ( array( '<p>— Narration</p>', '<p class="yn-dialogue">Sans tiret</p>', '<p class="yn-dialogue--tiret yn-dialogue"><span class="yn-tiret">—</span>x</p>' ) as $html ) {
+			yume_assert_same( $html, $f( $html ) );
+		}
+		// Rendu d'un bloc paragraphe.
+		$rendu = do_blocks( "<!-- wp:paragraph {\"className\":\"yn-dialogue\"} -->\n<p class=\"yn-dialogue\">—\u{00A0}Bonsoir.</p>\n<!-- /wp:paragraph -->" );
+		yume_assert_contains( '<span class="yn-tiret">—</span>Bonsoir.', $rendu );
+	}
+);
