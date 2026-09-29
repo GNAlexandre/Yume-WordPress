@@ -6,7 +6,7 @@
  * - Connecté : navigation par rubriques (onglets accessibles avec JavaScript, sections
  *   empilées et ancres sans JavaScript) : Lecture en cours, Mes statistiques, Favoris et alertes, Mes
  *   listes (listes.php), Notifications (notifications-lecteur.php), Notes et commentaires, Réglages de lecture, Alertes, Profil et sécurité, Données et suppression.
- * - Déconnecté : connexion (wp_login_form), mot de passe oublié et inscription en façade.
+ * - Déconnecté : connexion (formulaire propre, connexion.php), mot de passe oublié et inscription en façade.
  *
  * @package Yume\Core
  */
@@ -662,8 +662,8 @@ function section_donnees( \WP_User $user ): string {
  */
 function compte_visiteur(): string {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- adresse de retour validée.
-	$demandee = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : '';
-	$retour   = '' !== $demandee ? wp_validate_redirect( $demandee, url_compte() ) : url_compte();
+	$demandee = isset( $_GET['redirect_to'] ) && is_string( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : '';
+	$demandee = '' !== $demandee ? wp_validate_redirect( $demandee, '' ) : '';
 	$action   = esc_url( admin_url( 'admin-post.php' ) );
 	$ici      = url_courante();
 
@@ -680,24 +680,7 @@ function compte_visiteur(): string {
 	// Connexion.
 	$html .= '<section class="yn-card yn-account__bloc" id="yn-bloc-connexion" aria-labelledby="yn-connexion-titre" tabindex="-1">'
 		. '<h2 class="yn-account__titre" id="yn-connexion-titre">' . esc_html__( 'Se connecter', 'yume-core' ) . '</h2>'
-		. wp_login_form(
-			array(
-				'echo'              => false,
-				'redirect'          => $retour,
-				'form_id'           => 'yn-connexion',
-				'id_username'       => 'yn-identifiant',
-				'id_password'       => 'yn-mot-de-passe',
-				'id_remember'       => 'yn-se-souvenir',
-				'id_submit'         => 'yn-se-connecter',
-				'label_username'    => __( 'Pseudo ou adresse e-mail', 'yume-core' ),
-				'label_password'    => __( 'Mot de passe', 'yume-core' ),
-				'label_remember'    => __( 'Rester connecté', 'yume-core' ),
-				'label_log_in'      => __( 'Se connecter', 'yume-core' ),
-				'remember'          => true,
-				'required_username' => true,
-				'required_password' => true,
-			)
-		);
+		. formulaire_connexion( $demandee );
 	$html .= '<details class="yn-account__oubli" id="yn-oubli"><summary>' . esc_html__( 'Mot de passe oublié ?', 'yume-core' ) . '</summary>'
 		. '<form class="yn-account__formulaire" method="post" action="' . $action . '">'
 		. '<input type="hidden" name="action" value="yume_oubli">'
@@ -706,7 +689,9 @@ function compte_visiteur(): string {
 		. '<p class="yn-account__champ"><label for="yn-oubli-identifiant">' . esc_html__( 'Pseudo ou adresse e-mail', 'yume-core' ) . '</label>'
 		. '<input type="text" id="yn-oubli-identifiant" name="yn_identifiant" required autocomplete="username"></p>'
 		. '<div class="yn-account__boutons"><button type="submit" class="yn-btn">' . esc_html__( 'Recevoir un lien de réinitialisation', 'yume-core' ) . '</button></div>'
-		. '</form></details></section>';
+		. '</form></details>'
+		. lien_connexion_administrateur( $demandee )
+		. '</section>';
 
 	// Inscription.
 	$html .= '<section class="yn-card yn-account__bloc" id="yn-inscription" aria-labelledby="yn-inscription-titre" tabindex="-1">'

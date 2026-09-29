@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1-dev.7 — 2026-09-29
+
+- Connexion en façade : /connexion/ ne passe plus par wp-login.php (erreurs affichées sur la page, limitation propre, administrateurs renvoyés vers la connexion WordPress).
+
 ## 2.0.1-dev.6 — 2026-09-29
 
 - Espace équipe : vues « Tous les tomes » (publiés compris, remplacer la lecture en ligne par un nouveau DOCX ou EPUB) et « Mes tâches » ; remplacement de lecture en ligne annoncé clairement et sans nouvelle annonce.

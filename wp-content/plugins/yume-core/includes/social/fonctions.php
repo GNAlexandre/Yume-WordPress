@@ -705,7 +705,8 @@ function url_compte_sure(): string {
 
 /**
  * URL de la page de connexion en façade (page « connexion », sinon « compte », sinon
- * wp-login.php), avec la page d'origine en redirect_to.
+ * wp-login.php), avec la page d'origine en redirect_to. wp_login_url() y mène aussi hors de
+ * l'administration (filtre_url_connexion(), connexion.php).
  *
  * @param string $retour Page où revenir après la connexion.
  */
@@ -737,7 +738,7 @@ function url_courante(): string {
 		$hote .= ':' . $port;
 	}
 	$url = $hote . $uri;
-	return remove_query_arg( array( 'yn-msg', 'yn-email', '_wpnonce' ), $url );
+	return remove_query_arg( array( 'yn-msg', 'yn-email', '_wpnonce', 'yn-identifiant', 'yn-minutes' ), $url );
 }
 
 /**
@@ -768,7 +769,6 @@ function messages(): array {
 		'email-pris'               => array( 'erreur', __( 'Cette adresse e-mail est déjà associée à un compte.', 'yume-core' ) ),
 		'trop-de-tentatives'       => array( 'erreur', __( 'Trop de tentatives depuis votre connexion. Réessayez dans une heure.', 'yume-core' ) ),
 		'formulaire-expire'        => array( 'erreur', __( 'Le formulaire a expiré. Rechargez la page et recommencez.', 'yume-core' ) ),
-		'connexion-echec'          => array( 'erreur', __( 'Identifiant ou mot de passe incorrect.', 'yume-core' ) ),
 		'oubli-envoye'             => array( 'succes', __( 'Si un compte correspond, un e-mail de réinitialisation vient d’être envoyé.', 'yume-core' ) ),
 		'oubli-vide'               => array( 'erreur', __( 'Indiquez votre pseudo ou votre adresse e-mail.', 'yume-core' ) ),
 		'profil-ok'                => array( 'succes', __( 'Profil mis à jour.', 'yume-core' ) ),
