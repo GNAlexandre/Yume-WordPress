@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.0.1-dev.2 — 2026-09-29
+
+- WordEnd : Timeres en sprites (planche restylée en pixel art vert : repos, marche, course, fouet, morsure, dégâts, mort), quatre types (petit, normal, coureur, grand) qui mordent ou fouettent au lieu de blesser au contact.
+
 ## 2.0.1-dev.1 — 2026-09-29
 
 - Easter egg WordEnd : mini-jeu caché (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) où Chtholly repousse des vagues de Timeres provisoires ; planche de sprites découpée depuis la planche Gemini (tools/wordend).

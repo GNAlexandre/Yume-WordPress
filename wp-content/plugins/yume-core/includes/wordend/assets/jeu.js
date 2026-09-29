@@ -10,7 +10,9 @@
  *   de 1/60 s, pause quand l'onglet est masqué ou la fenêtre perd le focus.
  * - Chtholly : repos, marche, course (Maj), coup d'épée (J/X), charge magique (K/C maintenu
  *   puis relâché : onde qui traverse les Timeres), dégâts (invincibilité), mort.
- * - Timeres provisoires dessinés en code (rampant, sauteur, volant), par vagues croissantes.
+ * - Timeres (planche timere.png, même format que celle de Chtholly) : petit, normal, coureur,
+ *   grand ; approche, morsure ou coup de fouet (touche sur les images « coup »), dégâts, mort ;
+ *   par vagues croissantes.
  * - Meilleur score dans localStorage['yn.wordend'] (try/catch).
  * - Mouvement réduit (prefers-reduced-motion ou html[data-yn-animations="reduites"]) : ni
  *   secousse ni clignotement, moins de particules.
@@ -44,10 +46,13 @@
 	var DUREE_MORT = 2.2;
 
 	var TYPES = {
-		rampant: { l: 34, h: 20, pv: 2, vitesse: 38, points: 10 },
-		sauteur: { l: 24, h: 24, pv: 1, vitesse: 52, points: 15 },
-		volant: { l: 30, h: 18, pv: 1, vitesse: 66, points: 20 },
+		petit: { taille: 0.72, pv: 1, vitesse: 54, points: 10, attaques: [ 'morsure' ] },
+		normal: { taille: 0.95, pv: 2, vitesse: 38, points: 15, attaques: [ 'morsure', 'fouet' ] },
+		coureur: { taille: 0.85, pv: 1, vitesse: 112, points: 20, attaques: [ 'morsure' ], course: true },
+		grand: { taille: 1.3, pv: 5, vitesse: 28, points: 40, attaques: [ 'fouet' ], stoique: true },
 	};
+	var PORTEE = { morsure: 30, fouet: 54 }; // Devant l'ancre, à la taille 1 (px logiques).
+	var DUREE_FONDU = 0.6;
 
 	var TOUCHES = {
 		ArrowLeft: 'gauche',
@@ -77,6 +82,8 @@
 	var ouvert = false;
 	var planche = null;
 	var meta = null;
+	var plancheTimere = null;
+	var metaTimere = null;
 	var ressources = null;
 	var palette = {};
 	var police = 'sans-serif';
@@ -180,11 +187,8 @@
 	/* Ressources                                                          */
 	/* ------------------------------------------------------------------ */
 
-	function chargerRessources() {
-		if ( ressources ) {
-			return ressources;
-		}
-		var image = new Promise( function ( resoudre, rejeter ) {
+	function chargerImage( url ) {
+		return new Promise( function ( resoudre, rejeter ) {
 			var img = new Image();
 			img.onload = function () {
 				resoudre( img );
@@ -192,18 +196,34 @@
 			img.onerror = function () {
 				rejeter( new Error( 'planche introuvable' ) );
 			};
-			img.src = config.planche;
+			img.src = url;
 		} );
-		var donnees = window.fetch( config.meta, { credentials: 'same-origin' } ).then( function ( reponse ) {
+	}
+
+	function chargerJson( url ) {
+		return window.fetch( url, { credentials: 'same-origin' } ).then( function ( reponse ) {
 			if ( ! reponse.ok ) {
 				throw new Error( 'métadonnées introuvables' );
 			}
 			return reponse.json();
 		} );
-		ressources = Promise.all( [ image, donnees ] ).then(
+	}
+
+	function chargerRessources() {
+		if ( ressources ) {
+			return ressources;
+		}
+		ressources = Promise.all( [
+			chargerImage( config.planche ),
+			chargerJson( config.meta ),
+			chargerImage( config.timere ),
+			chargerJson( config.timereMeta ),
+		] ).then(
 			function ( resultats ) {
 				planche = resultats[ 0 ];
 				meta = resultats[ 1 ];
+				plancheTimere = resultats[ 2 ];
+				metaTimere = resultats[ 3 ];
 			},
 			function ( erreur ) {
 				ressources = null;
@@ -579,37 +599,36 @@
 
 	function faireApparaitre() {
 		var n = vague.numero;
-		var choix = [ 'rampant', 'rampant', 'sauteur' ];
+		var choix = [ 'petit', 'petit', 'normal', 'normal' ];
 		if ( n >= 2 ) {
-			choix.push( 'sauteur' );
+			choix.push( 'coureur', 'normal' );
 		}
-		if ( n >= 3 ) {
-			choix.push( 'volant', 'volant' );
+		if ( n >= 3 && ! timeres.some( function ( t ) {
+			return t.type === 'grand' && t.etat !== 'mort';
+		} ) ) {
+			choix.push( 'grand' );
 		}
 		var type = choix[ Math.floor( Math.random() * choix.length ) ];
 		var modele = TYPES[ type ];
 		var gauche = Math.random() < 0.5;
-		var t = {
+		timeres.push( {
 			id: prochainId++,
 			type: type,
-			x: gauche ? -modele.l - 4 : LARGEUR + 4,
-			y: type === 'volant' ? hasard( 140, 175 ) : SOL_Y - modele.h,
-			l: modele.l,
-			h: modele.h,
-			vx: 0,
-			vy: 0,
-			pv: modele.pv + ( n >= 5 && type === 'rampant' ? 1 : 0 ),
-			vitesse: modele.vitesse * ( 1 + Math.min( 0.6, n * 0.05 ) ),
+			modele: modele,
+			taille: modele.taille * hasard( 0.94, 1.06 ),
+			x: gauche ? -50 : LARGEUR + 50,
+			dir: gauche ? 1 : -1,
+			etat: modele.course ? 'course' : 'marche',
+			t: hasard( 0, 1 ),
+			attaque: '',
+			pv: modele.pv + ( n >= 6 && type === 'normal' ? 1 : 0 ),
+			vitesse: modele.vitesse * ( 1 + Math.min( 0.5, n * 0.04 ) ),
 			points: modele.points,
+			recharge: hasard( 0.2, 0.8 ),
 			flash: 0,
 			recul: 0,
-			saut: hasard( 0.6, 1.4 ),
-			base: 0,
-			graine: Math.random() * 10,
-			t: 0,
-		};
-		t.base = t.y;
-		timeres.push( t );
+			touche: false,
+		} );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -725,27 +744,76 @@
 
 	function frapper( boite, degats, dejaTouches ) {
 		timeres.forEach( function ( t ) {
-			if ( t.pv > 0 && dejaTouches.indexOf( t.id ) === -1 && chevauche( boite, t ) ) {
+			if ( t.etat !== 'mort' && dejaTouches.indexOf( t.id ) === -1 && chevauche( boite, boiteTimere( t ) ) ) {
 				dejaTouches.push( t.id );
-				blesserTimere( t, degats, boite.x + boite.l / 2 < t.x + t.l / 2 ? 1 : -1 );
+				blesserTimere( t, degats, boite.x + boite.l / 2 < t.x ? 1 : -1 );
 			}
 		} );
 	}
 
+	/* Corps d'un Timere (ancre au sol, au milieu des pattes). */
+	function boiteTimere( t ) {
+		var l = 38 * t.taille;
+		var h = 42 * t.taille;
+		return { x: t.x - l / 2, y: SOL_Y - h, l: l, h: h };
+	}
+
+	/* Zone touchée par l'attaque en cours d'un Timere. */
+	function boiteAttaque( t ) {
+		var portee = PORTEE[ t.attaque ] * t.taille;
+		var debut = 6 * t.taille;
+		var h = ( t.attaque === 'fouet' ? 58 : 34 ) * t.taille;
+		return {
+			x: t.dir > 0 ? t.x + debut : t.x - debut - portee,
+			y: SOL_Y - h - 4 * t.taille,
+			l: portee,
+			h: h,
+		};
+	}
+
+	function animationTimere( nom ) {
+		return metaTimere.animations[ nom ];
+	}
+
+	function imageTimere( nom, t ) {
+		var anim = animationTimere( nom );
+		var n = anim.images.length;
+		var i = Math.floor( t * anim.ips );
+		return anim.boucle ? i % n : Math.min( n - 1, i );
+	}
+
+	function dureeTimere( nom ) {
+		var anim = animationTimere( nom );
+		return anim.images.length / anim.ips;
+	}
+
+	function etatTimere( t, etat ) {
+		t.etat = etat;
+		t.t = 0;
+	}
+
 	function blesserTimere( t, degats, sens ) {
+		var centre = SOL_Y - 22 * t.taille;
 		t.pv -= degats;
 		t.flash = 0.1;
-		t.recul = sens * 160;
 		var n = mouvementReduit ? 2 : 6;
 		for ( var i = 0; i < n; i++ ) {
-			particule( t.x + t.l / 2, t.y + t.h / 2, sens * hasard( 20, 120 ), hasard( -120, -20 ), 0.4, '#bfe6ff', 2 );
+			particule( t.x, centre, sens * hasard( 20, 120 ), hasard( -120, -20 ), 0.4, '#bfe6ff', 2 );
 		}
 		if ( t.pv <= 0 ) {
 			score += t.points;
-			var m = mouvementReduit ? 4 : 14;
+			etatTimere( t, 'mort' );
+			t.recul = sens * 90;
+			var m = mouvementReduit ? 4 : 12;
 			for ( var k = 0; k < m; k++ ) {
-				particule( t.x + hasard( 0, t.l ), t.y + hasard( 0, t.h ), hasard( -60, 60 ), hasard( -110, -10 ), hasard( 0.4, 0.9 ), k % 3 ? '#140a24' : palette.accent, hasard( 2, 4 ) );
+				particule( t.x + hasard( -16, 16 ) * t.taille, centre + hasard( -14, 14 ) * t.taille, hasard( -60, 60 ), hasard( -110, -10 ), hasard( 0.4, 0.9 ), k % 3 ? '#36502a' : '#eae26e', hasard( 2, 3 ) );
 			}
+			return;
+		}
+		// Le grand Timere ne recule que sous l'onde magique.
+		if ( ! t.modele.stoique || degats > 1 ) {
+			t.recul = sens * 170;
+			etatTimere( t, 'degats' );
 		}
 	}
 
@@ -755,42 +823,73 @@
 		timeres.forEach( function ( t ) {
 			t.t += dt;
 			t.flash = Math.max( 0, t.flash - dt );
-			var centre = t.x + t.l / 2;
-			var sens = j.x > centre ? 1 : -1;
-			if ( j.etat === 'mort' ) {
-				sens = centre < LARGEUR / 2 ? -1 : 1; // Ils repartent.
-			}
+			t.recharge = Math.max( 0, t.recharge - dt );
 			t.recul *= 0.86;
-			if ( t.type === 'rampant' ) {
-				t.vx = sens * t.vitesse * ( 0.75 + 0.25 * Math.sin( t.t * 5 + t.graine ) );
-			} else if ( t.type === 'sauteur' ) {
-				var auSol = t.y >= SOL_Y - t.h;
-				if ( auSol ) {
-					t.y = SOL_Y - t.h;
-					t.vy = 0;
-					t.vx = sens * t.vitesse * 0.4;
-					t.saut -= dt;
-					if ( t.saut <= 0 ) {
-						t.vy = -250;
-						t.vx = sens * t.vitesse * 1.6;
-						t.saut = hasard( 1, 1.6 );
-					}
+			var vx = 0;
+			var distance = Math.abs( j.x - t.x );
+			var fuite = j.etat === 'mort';
+
+			if ( t.etat === 'mort' ) {
+				t.x += t.recul * dt;
+				return;
+			}
+			if ( t.etat === 'degats' ) {
+				if ( t.t >= Math.min( 0.45, dureeTimere( 'degats' ) ) ) {
+					etatTimere( t, 'repos' );
 				}
-				t.vy += 620 * dt;
-				t.y = Math.min( SOL_Y - t.h, t.y + t.vy * dt );
-			} else if ( t.type === 'volant' ) {
-				t.vx = sens * t.vitesse;
-				var proche = Math.abs( j.x - centre ) < 90;
-				var visee = proche ? SOL_Y - 52 : t.base + Math.sin( t.t * 3 + t.graine ) * 22;
-				t.y += ( visee - t.y ) * Math.min( 1, dt * ( proche ? 2.4 : 4 ) );
+			} else if ( t.etat === 'attaque' ) {
+				var i = imageTimere( t.attaque, t.t );
+				if ( ! t.touche && animationTimere( t.attaque ).coup.indexOf( i ) !== -1 && j.etat !== 'mort' && j.invincible <= 0 && chevauche( cible, boiteAttaque( t ) ) ) {
+					t.touche = true;
+					blesserJoueur( t.dir );
+				}
+				if ( t.t >= dureeTimere( t.attaque ) ) {
+					etatTimere( t, 'repos' );
+					t.recharge = hasard( 0.8, 1.5 ) * ( t.type === 'grand' ? 1.4 : 1 );
+				}
+			} else {
+				// Approche, attente ou attaque.
+				if ( ! fuite ) {
+					t.dir = j.x > t.x ? 1 : -1;
+				} else {
+					t.dir = t.x < LARGEUR / 2 ? -1 : 1;
+				}
+				var attaque = t.modele.attaques[ Math.floor( Math.random() * t.modele.attaques.length ) ];
+				var portee = PORTEE[ t.modele.attaques[ 0 ] ] * t.taille + 6;
+				if ( ! fuite && distance <= portee + 4 && t.recharge <= 0 ) {
+					t.attaque = distance > PORTEE.morsure * t.taille + 6 && t.modele.attaques.indexOf( 'fouet' ) !== -1 ? 'fouet' : attaque;
+					t.touche = false;
+					etatTimere( t, 'attaque' );
+				} else if ( fuite || distance > portee ) {
+					var court = t.modele.course && distance > 50;
+					var voulu = court ? 'course' : 'marche';
+					if ( t.etat !== voulu ) {
+						etatTimere( t, voulu );
+					}
+					vx = t.dir * ( court ? t.vitesse : Math.min( t.vitesse, 46 ) );
+				} else if ( t.etat !== 'repos' ) {
+					etatTimere( t, 'repos' );
+				}
 			}
-			t.x += ( t.vx + t.recul ) * dt;
-			if ( t.pv > 0 && j.etat !== 'mort' && j.invincible <= 0 && chevauche( cible, t ) ) {
-				blesserJoueur( centre < j.x ? 1 : -1 );
-			}
+			t.x += ( vx + t.recul ) * dt;
+		} );
+		// Les Timeres ne se superposent pas tout à fait.
+		timeres.forEach( function ( a, ia ) {
+			timeres.forEach( function ( b, ib ) {
+				if ( ib <= ia || a.etat === 'mort' || b.etat === 'mort' ) {
+					return;
+				}
+				var ecart = ( 14 * ( a.taille + b.taille ) ) - Math.abs( a.x - b.x );
+				if ( ecart > 0 ) {
+					var sens = a.x < b.x ? -1 : 1;
+					a.x += sens * ecart * 0.25;
+					b.x -= sens * ecart * 0.25;
+				}
+			} );
 		} );
 		timeres = timeres.filter( function ( t ) {
-			return t.pv > 0 && t.x > -120 && t.x < LARGEUR + 120;
+			var fini = t.etat === 'mort' && t.t > dureeTimere( 'mort' ) + DUREE_FONDU;
+			return ! fini && t.x > -140 && t.x < LARGEUR + 140;
 		} );
 	}
 
@@ -1014,50 +1113,33 @@
 	}
 
 	function dessinerTimere( t ) {
-		var cx = t.x + t.l / 2;
-		var cy = t.y + t.h / 2;
-		var ondule = mouvementReduit ? 0 : Math.sin( temps * 6 + t.graine );
+		var nom = t.etat === 'attaque' ? t.attaque : t.etat;
+		var cadre = animationTimere( nom ).images[ imageTimere( nom, t.t ) ];
+		var echelle = ( metaTimere.echelle || DENSITE ) / t.taille;
+		var alpha = 1;
+		if ( t.etat === 'mort' ) {
+			alpha = Math.max( 0, 1 - Math.max( 0, t.t - dureeTimere( 'mort' ) ) / DUREE_FONDU );
+		}
 		ctx.fillStyle = 'rgba(0,0,0,0.22)';
 		ctx.beginPath();
-		ctx.ellipse( cx, SOL_Y + 1, t.l / 2, 3, 0, 0, Math.PI * 2 );
+		ctx.ellipse( t.x, SOL_Y + 1, 24 * t.taille, 3, 0, 0, Math.PI * 2 );
 		ctx.fill();
 
-		ctx.fillStyle = t.flash > 0 ? '#ffffff' : '#140a24';
-		ctx.strokeStyle = t.flash > 0 ? '#ffffff' : '#5b3f8c';
-		ctx.lineWidth = 1.5;
-		ctx.beginPath();
-		if ( t.type === 'rampant' ) {
-			// Masse rampante avec des épines.
-			ctx.moveTo( t.x, t.y + t.h );
-			for ( var k = 0; k <= 6; k++ ) {
-				var px = t.x + ( k / 6 ) * t.l;
-				var py = t.y + ( k % 2 ? 0 : 6 ) + ondule * ( k % 2 ? 2 : 1 );
-				ctx.lineTo( px, py );
-			}
-			ctx.lineTo( t.x + t.l, t.y + t.h );
-			ctx.closePath();
-		} else if ( t.type === 'sauteur' ) {
-			ctx.ellipse( cx, cy + ondule, t.l / 2, t.h / 2 - ondule, 0, 0, Math.PI * 2 );
-		} else {
-			// Volant : corps et ailes membraneuses.
-			var aile = mouvementReduit ? 4 : Math.sin( temps * 14 + t.graine ) * 8;
-			ctx.moveTo( t.x, cy - aile );
-			ctx.lineTo( cx - 5, cy - 2 );
-			ctx.lineTo( cx, cy - 7 );
-			ctx.lineTo( cx + 5, cy - 2 );
-			ctx.lineTo( t.x + t.l, cy - aile );
-			ctx.lineTo( cx + 6, cy + 6 );
-			ctx.lineTo( cx - 6, cy + 6 );
-			ctx.closePath();
+		ctx.save();
+		ctx.globalAlpha = alpha;
+		ctx.translate( Math.round( t.x * DENSITE ) / DENSITE, SOL_Y );
+		if ( t.dir < 0 ) {
+			ctx.scale( -1, 1 );
 		}
-		ctx.fill();
-		ctx.stroke();
-
-		// Yeux.
-		var regard = joueur.x > cx ? 1.5 : -1.5;
-		ctx.fillStyle = '#ff5a7a';
-		ctx.fillRect( cx - 5 + regard, cy - 3, 3, 3 );
-		ctx.fillRect( cx + 2 + regard, cy - 3, 3, 3 );
+		ctx.imageSmoothingEnabled = false; // Pixel art.
+		ctx.drawImage( plancheTimere, cadre[ 0 ], cadre[ 1 ], cadre[ 2 ], cadre[ 3 ], -cadre[ 4 ] / echelle, -cadre[ 5 ] / echelle, cadre[ 2 ] / echelle, cadre[ 3 ] / echelle );
+		if ( t.flash > 0 ) {
+			// Éclat blanc : même image, en mode « lighter ».
+			ctx.globalCompositeOperation = 'lighter';
+			ctx.globalAlpha = 0.7;
+			ctx.drawImage( plancheTimere, cadre[ 0 ], cadre[ 1 ], cadre[ 2 ], cadre[ 3 ], -cadre[ 4 ] / echelle, -cadre[ 5 ] / echelle, cadre[ 2 ] / echelle, cadre[ 3 ] / echelle );
+		}
+		ctx.restore();
 	}
 
 	function dessinerOnde( o ) {
@@ -1171,7 +1253,7 @@
 			ctx.translate( hasard( -2, 2 ), hasard( -2, 2 ) );
 		}
 		dessinerDecor();
-		if ( planche && meta && joueur ) {
+		if ( planche && meta && plancheTimere && metaTimere && joueur ) {
 			timeres.forEach( dessinerTimere );
 			if ( etat !== 'titre' ) {
 				dessinerJoueur();

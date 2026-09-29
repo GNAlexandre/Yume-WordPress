@@ -18,10 +18,12 @@ const POIGNEE_SECRET = 'yume-wordend-secret';
 
 /** Fichiers du jeu chargés à la demande (clé de configuration => fichier de assets/). */
 const FICHIERS_A_LA_DEMANDE = array(
-	'jeu'     => 'jeu.js',
-	'style'   => 'jeu.css',
-	'planche' => 'chtholly.png',
-	'meta'    => 'chtholly.json',
+	'jeu'        => 'jeu.js',
+	'style'      => 'jeu.css',
+	'planche'    => 'chtholly.png',
+	'meta'       => 'chtholly.json',
+	'timere'     => 'timere.png',
+	'timereMeta' => 'timere.json',
 );
 
 /**
@@ -84,7 +86,7 @@ function url_asset( string $fichier ): string {
 /**
  * Configuration du jeu (window.ynWordEnd) : identique pour tous les visiteurs (Batcache).
  *
- * @return array{jeu:string,style:string,planche:string,meta:string,version:string}
+ * @return array{jeu:string,style:string,planche:string,meta:string,timere:string,timereMeta:string,version:string}
  */
 function configuration(): array {
 	$config = array();

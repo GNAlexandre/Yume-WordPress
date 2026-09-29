@@ -70,34 +70,61 @@ yume_test(
 	}
 );
 
+/**
+ * Vérifie une planche (PNG + JSON) : nombre d'images par animation, dimensions, cadres.
+ *
+ * @param string $nom     Nom de base (chtholly, timere).
+ * @param array  $attendu animation => nombre d'images.
+ */
+function yume_twe_verifier_planche( string $nom, array $attendu ): void {
+	$dossier = YUME_CORE_DIR . 'includes/wordend/assets/';
+	$meta    = json_decode( (string) file_get_contents( $dossier . $nom . '.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	yume_assert_true( is_array( $meta ), "$nom : JSON valide" );
+	foreach ( $attendu as $animation => $nombre ) {
+		yume_assert_same( $nombre, count( $meta['animations'][ $animation ]['images'] ?? array() ), "$nom : images de « $animation »" );
+	}
+	$taille = getimagesize( $dossier . $nom . '.png' );
+	yume_assert_same( $meta['planche'], array( $taille[0], $taille[1] ), "$nom : dimensions de la planche" );
+	foreach ( $meta['animations'] as $animation => $donnees ) {
+		foreach ( $donnees['images'] as $cadre ) {
+			yume_assert_true( $cadre[0] + $cadre[2] <= $taille[0] && $cadre[1] + $cadre[3] <= $taille[1], "$nom : cadre de « $animation » dans la planche" );
+		}
+		foreach ( $donnees['coup'] ?? array() as $indice ) {
+			yume_assert_true( $indice < count( $donnees['images'] ), "$nom : image de coup de « $animation » existante" );
+		}
+	}
+}
+
 yume_test(
-	'wordend : fichiers livrés et planche de Chtholly cohérente',
+	'wordend : fichiers livrés, planches de Chtholly et du Timere cohérentes',
 	function () {
 		foreach ( fichiers_requis() as $chemin ) {
 			yume_assert_true( is_readable( $chemin ), basename( $chemin ) . ' présent' );
 		}
-		$dossier = YUME_CORE_DIR . 'includes/wordend/assets/';
-		$meta    = json_decode( (string) file_get_contents( $dossier . 'chtholly.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		yume_assert_true( is_array( $meta ), 'JSON valide' );
-		$attendu = array(
-			'repos'   => 2,
-			'marche'  => 6,
-			'course'  => 5,
-			'attaque' => 4,
-			'charge'  => 4,
-			'degats'  => 1,
-			'mort'    => 1,
+		yume_twe_verifier_planche(
+			'chtholly',
+			array(
+				'repos'   => 2,
+				'marche'  => 6,
+				'course'  => 5,
+				'attaque' => 4,
+				'charge'  => 4,
+				'degats'  => 1,
+				'mort'    => 1,
+			)
 		);
-		foreach ( $attendu as $nom => $nombre ) {
-			yume_assert_same( $nombre, count( $meta['animations'][ $nom ]['images'] ?? array() ), "images de « $nom »" );
-		}
-		$taille = getimagesize( $dossier . 'chtholly.png' );
-		yume_assert_same( $meta['planche'], array( $taille[0], $taille[1] ), 'dimensions de la planche' );
-		foreach ( $meta['animations'] as $nom => $animation ) {
-			foreach ( $animation['images'] as $cadre ) {
-				yume_assert_true( $cadre[0] + $cadre[2] <= $taille[0] && $cadre[1] + $cadre[3] <= $taille[1], "cadre de « $nom » dans la planche" );
-			}
-		}
+		yume_twe_verifier_planche(
+			'timere',
+			array(
+				'repos'   => 7,
+				'marche'  => 7,
+				'course'  => 6,
+				'fouet'   => 7,
+				'morsure' => 7,
+				'degats'  => 7,
+				'mort'    => 7,
+			)
+		);
 	}
 );
 
@@ -105,7 +132,7 @@ yume_test(
 	'wordend : configuration (URLs versionnées) et filtre des œuvres',
 	function () {
 		$config = configuration();
-		foreach ( array( 'jeu', 'style', 'planche', 'meta' ) as $cle ) {
+		foreach ( array( 'jeu', 'style', 'planche', 'meta', 'timere', 'timereMeta' ) as $cle ) {
 			yume_assert_contains( YUME_CORE_URL . 'includes/wordend/assets/', $config[ $cle ], "URL « $cle »" );
 			yume_assert_contains( 'ver=', $config[ $cle ], "version de « $cle »" );
 		}

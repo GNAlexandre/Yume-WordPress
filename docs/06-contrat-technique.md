@@ -834,7 +834,7 @@ API du thème pour les autres scripts : `window.ynTheme.set( 'nuit'|'papier'|'se
 
 Easter egg WordEnd (module wordend, détails dans `docs/wordend.md`) : script `yume-wordend-declencheur`
 en façade (jamais en administration, flux ni embed) ; configuration `window.ynWordEnd` (URLs `jeu`,
-`style`, `planche`, `meta`, identique pour tous les visiteurs) et API `window.ynWordEnd.ouvrir()` ; le
+`style`, `planche`, `meta`, `timere`, `timereMeta`, identique pour tous les visiteurs) et API `window.ynWordEnd.ouvrir()` ; le
 jeu, chargé à la demande, expose `window.ynWordEndJeu` ; filtres `yume_wordend_actif` (bool) et
 `yume_wordend_oeuvres` (slugs dont la fiche affiche le papillon, défaut `sukasuka`) ; classe racine
 `.yn-wordend` ; événement `document` `yn:wordend` (`detail.etat` = `ouvert`\|`ferme`).
