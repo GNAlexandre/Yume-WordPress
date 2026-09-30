@@ -7,6 +7,11 @@ html.yn-wordend-ouvert {
 	overflow: hidden;
 }
 
+/* L'attribut hidden l'emporte sur les display des composants ci-dessous. */
+.yn-wordend [hidden] {
+	display: none !important;
+}
+
 .yn-wordend {
 	box-sizing: border-box;
 	width: min(96vw, 1000px);
@@ -70,6 +75,46 @@ html.yn-wordend-ouvert {
 	outline-offset: 2px;
 }
 
+.yn-wordend .yn-wordend__choix {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--wp--preset--spacing--20, 8px) var(--wp--preset--spacing--30, 12px);
+}
+
+.yn-wordend .yn-wordend__liste {
+	display: inline-flex;
+	flex: 1 1 12rem;
+	align-items: center;
+	gap: var(--wp--preset--spacing--20, 8px);
+	min-height: 44px;
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-wordend .yn-wordend__liste select {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 44px;
+	padding: 0 10px;
+	border: 1px solid var(--wp--preset--color--bordure, var(--wp--preset--color--filet));
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--fond);
+	color: var(--wp--preset--color--texte-fort);
+	font: inherit;
+	font-weight: 400;
+}
+
+.yn-wordend .yn-wordend__liste select:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-wordend .yn-wordend__liste select:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
 .yn-wordend .yn-wordend__barre {
 	display: flex;
 	flex-wrap: wrap;
@@ -78,6 +123,11 @@ html.yn-wordend-ouvert {
 
 .yn-wordend .yn-wordend__barre .yn-btn {
 	min-height: 44px;
+}
+
+.yn-wordend .yn-wordend__barre .yn-btn:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
 }
 
 .yn-wordend .yn-wordend__son {
@@ -115,18 +165,42 @@ html.yn-wordend-ouvert {
 .yn-wordend .yn-wordend__manettes {
 	display: none;
 	flex-wrap: wrap;
-	gap: var(--wp--preset--spacing--20, 8px);
+	gap: var(--wp--preset--spacing--20, 8px) var(--wp--preset--spacing--40, 16px);
 	justify-content: space-between;
 	user-select: none;
 	-webkit-user-select: none;
+}
+
+/* Deux groupes : déplacements à gauche, actions (Saut, principale, secondaire) à droite. */
+.yn-wordend .yn-wordend__manettes-groupe {
+	display: flex;
+	flex: 1 1 14rem;
+	gap: var(--wp--preset--spacing--20, 8px);
+}
+
+.yn-wordend .yn-wordend__manettes-groupe--droite {
+	justify-content: flex-end;
 }
 
 .yn-wordend .yn-wordend__manette {
 	flex: 1 1 0;
 	min-width: 56px;
 	min-height: 52px;
+	padding: 0 8px;
 	touch-action: none;
 	-webkit-touch-callout: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.yn-wordend .yn-wordend__manette--gauche,
+.yn-wordend .yn-wordend__manette--droite {
+	font-size: 20px;
+}
+
+.yn-wordend .yn-wordend__manette:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
 }
 
 .yn-wordend .yn-wordend__manette[aria-pressed="true"] {
@@ -144,6 +218,12 @@ html.yn-wordend-ouvert {
 @media (pointer: coarse) {
 	.yn-wordend .yn-wordend__manettes {
 		display: flex;
+		order: 1; /* Juste sous l'écran de jeu. */
+	}
+
+	.yn-wordend .yn-wordend__choix,
+	.yn-wordend .yn-wordend__barre {
+		order: 2;
 	}
 
 	.yn-wordend .yn-wordend__aide {
@@ -160,5 +240,20 @@ html.yn-wordend-ouvert {
 
 	.yn-wordend .yn-wordend__cadre {
 		padding: var(--wp--preset--spacing--30, 12px);
+	}
+
+	.yn-wordend .yn-wordend__son {
+		margin-left: 0;
+	}
+}
+
+/* Écran bas (téléphone en paysage) : l'écran de jeu et les manettes tiennent ensemble. */
+@media (pointer: coarse) and (max-height: 560px) {
+	.yn-wordend .yn-wordend__ecran {
+		width: auto;
+		max-width: 100%;
+		height: calc(100vh - 150px);
+		min-height: 160px;
+		margin: 0 auto;
 	}
 }

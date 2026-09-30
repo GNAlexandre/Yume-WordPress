@@ -2,8 +2,10 @@
  * WordEnd — moteur : entrées (clavier, manettes tactiles, impulsions).
  *
  * Touches physiques (e.code, indépendantes de la disposition) pour les déplacements et les
- * actions ; M (musique) et P (pause) sur la lettre tapée (e.key : en AZERTY, le M est à la
- * place du « ; » du QWERTY). Les touches du jeu ne remontent pas à la page (stopPropagation).
+ * actions ; M (musique), P (pause) et R (retour aux niveaux) sur la lettre tapée (e.key : en
+ * AZERTY, le M est à la place du « ; » du QWERTY). Les touches du jeu ne remontent pas à la
+ * page (stopPropagation). Saut : flèche haut, W (Z en AZERTY) ou Espace ; Entrée et Espace
+ * gardent aussi leur rôle « valider » sur les écrans (titre, sélection, pause, fin).
  * Interface : docs/wordend-formats.md.
  *
  * ES2019, sans dépendance.
@@ -31,19 +33,35 @@
 		KeyC: 'competence',
 	};
 
-	/* Actions de navigation renvoyées par surTouche pour les flèches. */
-	var NAVIGATION = { ArrowLeft: 'gauche', ArrowRight: 'droite', ArrowUp: 'haut', ArrowDown: 'bas' };
+	/* Actions de navigation (écrans de sélection) renvoyées par surTouche. */
+	var NAVIGATION = {
+		ArrowLeft: 'gauche',
+		KeyA: 'gauche',
+		ArrowRight: 'droite',
+		KeyD: 'droite',
+		ArrowUp: 'haut',
+		KeyW: 'haut',
+		ArrowDown: 'bas',
+		KeyS: 'bas',
+	};
+
+	/* Lettres lues sur e.key (disposition du clavier respectée). */
+	var LETTRES = { m: 'muet', p: 'pause', r: 'niveaux' };
 
 	/* Commandes qui produisent une impulsion (vraie une fois par appui). */
 	var IMPULSIONS = { epee: true, competence: true, saut: true };
 
-	/* Manettes par défaut (lot 0 : Chtholly v1). */
+	/*
+	 * Manettes par défaut (Chtholly). groupe : 'gauche' (déplacements) ou 'droite' (actions).
+	 * La modale les remplace d'après le personnage choisi (schéma de la même forme).
+	 */
 	var SCHEMA_DEFAUT = [
-		{ nom: 'gauche', texte: '◀', libelle: 'Aller à gauche' },
-		{ nom: 'droite', texte: '▶', libelle: 'Aller à droite' },
-		{ nom: 'courir', texte: 'Courir', libelle: 'Courir', bascule: true },
-		{ nom: 'epee', texte: 'Épée', libelle: 'Coup d’épée' },
-		{ nom: 'competence', texte: 'Charge', libelle: 'Charge magique (maintenir puis relâcher)' },
+		{ nom: 'gauche', texte: '◀', libelle: 'Aller à gauche', groupe: 'gauche' },
+		{ nom: 'droite', texte: '▶', libelle: 'Aller à droite', groupe: 'gauche' },
+		{ nom: 'courir', texte: 'Courir', libelle: 'Courir', bascule: true, groupe: 'gauche' },
+		{ nom: 'saut', texte: 'Saut', libelle: 'Sauter', groupe: 'droite' },
+		{ nom: 'epee', texte: 'Épée', libelle: 'Coup d’épée', groupe: 'droite' },
+		{ nom: 'competence', texte: 'Charge', libelle: 'Charge magique (maintenir puis relâcher)', groupe: 'droite' },
 	];
 
 	function element( balise, attributs, texte ) {
@@ -57,7 +75,7 @@
 		return el;
 	}
 
-	function creer( dialogue, ecran ) {
+	function creer() {
 		var clavier = {};
 		var tactile = {};
 		var impulsions = {};
@@ -95,7 +113,7 @@
 
 		/**
 		 * Touche enfoncée dans la modale : met à jour l'état et renvoie l'action d'interface :
-		 * 'echap'|'pause'|'muet'|'valider'|'epee'|'gauche'|'droite'|'haut'|'bas'|''.
+		 * 'echap'|'pause'|'muet'|'niveaux'|'valider'|'epee'|'gauche'|'droite'|'haut'|'bas'|''.
 		 */
 		entrees.surTouche = function ( e ) {
 			if ( e.key === 'Escape' ) {
@@ -117,31 +135,33 @@
 			e.stopPropagation();
 
 			var lettre = String( e.key || '' ).toLowerCase();
-			if ( lettre === 'm' ) {
+			if ( LETTRES[ lettre ] ) {
 				e.preventDefault();
-				return e.repeat ? '' : 'muet';
-			}
-			if ( lettre === 'p' ) {
-				e.preventDefault();
-				return e.repeat ? '' : 'pause';
+				return e.repeat ? '' : LETTRES[ lettre ];
 			}
 			var action = TOUCHES[ e.code ];
 			if ( e.key === 'Enter' || e.key === ' ' ) {
 				e.preventDefault();
-				if ( action && ! e.repeat ) {
-					impulsions[ action ] = true;
+				if ( action ) {
+					clavier[ action ] = true; // Espace maintenu : saut long.
+					if ( ! e.repeat && IMPULSIONS[ action ] ) {
+						impulsions[ action ] = true;
+					}
 				}
-				return 'valider';
+				return e.repeat ? '' : 'valider';
 			}
 			if ( ! action ) {
 				return '';
 			}
 			e.preventDefault();
 			clavier[ action ] = true;
-			if ( ! e.repeat && IMPULSIONS[ action ] ) {
+			if ( e.repeat ) {
+				return '';
+			}
+			if ( IMPULSIONS[ action ] ) {
 				impulsions[ action ] = true;
 			}
-			if ( action === 'epee' && ! e.repeat ) {
+			if ( action === 'epee' ) {
 				return 'epee';
 			}
 			return NAVIGATION[ e.code ] || '';
@@ -154,58 +174,87 @@
 			}
 		};
 
-		/* Construit les manettes tactiles : schema = [{nom, texte, libelle, bascule}]. */
+		function creerBouton( commande ) {
+			var attributs = {
+				type: 'button',
+				class: 'yn-btn yn-wordend__manette yn-wordend__manette--' + commande.nom,
+				'aria-label': commande.libelle || commande.texte,
+				'data-commande': commande.nom,
+			};
+			if ( commande.bascule ) {
+				attributs[ 'aria-pressed' ] = entrees.courirTactile ? 'true' : 'false';
+			}
+			var bouton = element( 'button', attributs, commande.texte );
+			if ( commande.bascule ) {
+				bouton.addEventListener( 'click', function () {
+					entrees.courirTactile = ! entrees.courirTactile;
+					bouton.setAttribute( 'aria-pressed', entrees.courirTactile ? 'true' : 'false' );
+				} );
+				return bouton;
+			}
+			var relacher = function () {
+				tactile[ commande.nom ] = false;
+			};
+			var dernierPointeur = 0;
+			bouton.addEventListener( 'pointerdown', function ( e ) {
+				e.preventDefault();
+				dernierPointeur = Date.now();
+				if ( bouton.setPointerCapture ) {
+					try {
+						bouton.setPointerCapture( e.pointerId );
+					} catch ( err ) {}
+				}
+				tactile[ commande.nom ] = true;
+				if ( IMPULSIONS[ commande.nom ] ) {
+					impulsions[ commande.nom ] = true;
+				}
+				if ( typeof entrees.surAppui === 'function' ) {
+					entrees.surAppui( commande.nom );
+				}
+			} );
+			bouton.addEventListener( 'pointerup', relacher );
+			bouton.addEventListener( 'pointercancel', relacher );
+			bouton.addEventListener( 'lostpointercapture', relacher );
+			// Appui long : ni menu contextuel ni sélection de texte.
+			bouton.addEventListener( 'contextmenu', function ( e ) {
+				e.preventDefault();
+			} );
+			// Clavier sur le bouton (Entrée / Espace) : action ponctuelle. Le clic qui suit un
+			// toucher (detail 0 lui aussi dans certains navigateurs) est ignoré.
+			bouton.addEventListener( 'click', function ( e ) {
+				if ( e.detail !== 0 || Date.now() - dernierPointeur < 1000 ) {
+					return;
+				}
+				if ( IMPULSIONS[ commande.nom ] ) {
+					impulsions[ commande.nom ] = true;
+				}
+				if ( typeof entrees.surAppui === 'function' ) {
+					entrees.surAppui( commande.nom );
+				}
+			} );
+			return bouton;
+		}
+
+		/*
+		 * Construit les manettes tactiles : schema = [{nom, texte, libelle, bascule?, groupe?}] ;
+		 * deux groupes : déplacements à gauche, actions à droite (groupe absent : déduit du nom).
+		 */
 		entrees.actualiserManettes = function ( schema ) {
 			var conteneur = entrees.element;
 			while ( conteneur.firstChild ) {
 				conteneur.removeChild( conteneur.firstChild );
 			}
 			tactile = {};
-			( schema || SCHEMA_DEFAUT ).forEach( function ( commande ) {
-				var attributs = { type: 'button', class: 'yn-btn yn-wordend__manette', 'aria-label': commande.libelle, 'data-commande': commande.nom };
-				if ( commande.bascule ) {
-					attributs[ 'aria-pressed' ] = entrees.courirTactile ? 'true' : 'false';
-				}
-				var bouton = element( 'button', attributs, commande.texte );
-				if ( commande.bascule ) {
-					bouton.addEventListener( 'click', function () {
-						entrees.courirTactile = ! entrees.courirTactile;
-						bouton.setAttribute( 'aria-pressed', entrees.courirTactile ? 'true' : 'false' );
-					} );
-				} else {
-					var relacher = function () {
-						tactile[ commande.nom ] = false;
-					};
-					bouton.addEventListener( 'pointerdown', function ( e ) {
-						e.preventDefault();
-						if ( bouton.setPointerCapture ) {
-							try {
-								bouton.setPointerCapture( e.pointerId );
-							} catch ( err ) {}
-						}
-						tactile[ commande.nom ] = true;
-						if ( IMPULSIONS[ commande.nom ] ) {
-							impulsions[ commande.nom ] = true;
-						}
-						if ( typeof entrees.surAppui === 'function' ) {
-							entrees.surAppui( commande.nom );
-						}
-					} );
-					bouton.addEventListener( 'pointerup', relacher );
-					bouton.addEventListener( 'pointercancel', relacher );
-					bouton.addEventListener( 'lostpointercapture', relacher );
-					bouton.addEventListener( 'contextmenu', function ( e ) {
-						e.preventDefault();
-					} );
-					// Clavier sur le bouton (Entrée / Espace) : action ponctuelle.
-					bouton.addEventListener( 'click', function ( e ) {
-						if ( e.detail === 0 && IMPULSIONS[ commande.nom ] ) {
-							impulsions[ commande.nom ] = true;
-						}
-					} );
-				}
-				conteneur.appendChild( bouton );
+			var groupes = {
+				gauche: element( 'div', { class: 'yn-wordend__manettes-groupe yn-wordend__manettes-groupe--gauche' } ),
+				droite: element( 'div', { class: 'yn-wordend__manettes-groupe yn-wordend__manettes-groupe--droite' } ),
+			};
+			( schema && schema.length ? schema : SCHEMA_DEFAUT ).forEach( function ( commande ) {
+				var groupe = commande.groupe || ( /^(gauche|droite|courir|bas)$/.test( commande.nom ) ? 'gauche' : 'droite' );
+				( groupes[ groupe ] || groupes.droite ).appendChild( creerBouton( commande ) );
 			} );
+			conteneur.appendChild( groupes.gauche );
+			conteneur.appendChild( groupes.droite );
 		};
 
 		entrees.actualiserManettes( SCHEMA_DEFAUT );

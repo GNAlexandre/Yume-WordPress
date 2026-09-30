@@ -1,9 +1,15 @@
 /**
  * WordEnd — moteur : modale <dialog>, boutons, accessibilité, boucle à pas fixe, orchestration.
  *
- * - showModal (le reste de la page est inerte). Échap met la partie en pause, un second Échap
- *   (ou Échap hors partie) ferme ; le focus revient à l'élément d'origine. Événement document
- *   « yn:wordend » (detail.etat = ouvert|ferme, detail.univers = slug).
+ * - showModal (le reste de la page est inerte), Tab et Maj+Tab bouclent dans la modale.
+ *   Échap met la partie en pause, un second Échap (ou Échap hors partie) ferme ; le focus
+ *   revient à l'élément d'origine. Événement document « yn:wordend » (detail.etat =
+ *   ouvert|ferme, detail.univers = slug).
+ * - Écrans de sélection dessinés dans le canvas ET doublés par de vrais contrôles sous le
+ *   canvas (.yn-wordend__choix : listes Univers, Personnage et Niveau), synchronisés,
+ *   désactivés pendant la partie ; bouton « Niveaux » (retour à la sélection) ; barre de vie du
+ *   boss doublée par un <progress> visuellement caché.
+ * - Aide et manettes tactiles adaptées au personnage (Saut, compétences principale et secondaire).
  * - Pas fixe de 1/60 s ; pause quand l'onglet est masqué ou que la fenêtre perd le focus.
  * - Musique pendant la partie seulement (bouton, curseur de volume, touche M), réglages mémorisés.
  * - Mouvement réduit (prefers-reduced-motion ou html[data-yn-animations="reduites"]) : ni
@@ -20,18 +26,24 @@
 	var ynWE = window.ynWordEndMoteur;
 	var DT = ynWE.DT;
 
-	var AIDE = 'Flèches ou Q/D : marcher · Maj : courir · J ou X : coup d’épée · K ou C maintenu puis relâché : charge magique · P : pause · M : musique · Échap : pause, puis fermer';
+	/* Texte des boutons tactiles selon le type de compétence (à défaut de def.bouton). */
+	var BOUTONS = { melee: 'Épée', projectile: 'Tir', onde: 'Charge', ruee: 'Ruée', parade: 'Parade' };
 
 	var config = null;
 	var dialogue = null;
 	var titre = null;
 	var ecran = null;
 	var annonce = null;
+	var aide = null;
 	var boutonJouer = null;
 	var boutonPause = null;
+	var boutonNiveaux = null;
 	var groupeSon = null;
 	var boutonMuet = null;
 	var curseurVolume = null;
+	var choix = null;
+	var listes = {};
+	var barreBoss = null;
 	var focusAvant = null;
 	var ouvert = false;
 	var echapTraite = false;
@@ -71,6 +83,72 @@
 				annonce.textContent = texte;
 			}, 50 );
 		}
+	}
+
+	function avertir( message ) {
+		// eslint-disable-next-line no-console
+		console.warn( '[WordEnd] ' + message );
+	}
+
+	function minuscule( texte ) {
+		texte = String( texte || '' );
+		return texte.charAt( 0 ).toLowerCase() + texte.slice( 1 );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Aide et manettes d'après le personnage                              */
+	/* ------------------------------------------------------------------ */
+
+	function competences( personnage ) {
+		return ( personnage && personnage.competences ) || {};
+	}
+
+	function aidePour( personnage ) {
+		var c = competences( personnage );
+		var morceaux = [
+			'Flèches ou Q/D : se déplacer',
+			'↑, Z ou Espace : sauter',
+			'↓ + saut : descendre d’une plateforme',
+			'Maj : courir',
+			'J ou X : ' + minuscule( c.principale && c.principale.libelle ? c.principale.libelle : 'Coup d’épée' ),
+		];
+		if ( c.secondaire ) {
+			morceaux.push( 'K ou C' + ( c.secondaire.type === 'onde' ? ' maintenu puis relâché' : '' ) + ' : ' + minuscule( c.secondaire.libelle || c.secondaire.type ) );
+		}
+		morceaux.push( 'P : pause', 'M : musique', 'R : niveaux', 'Échap : pause, puis fermer' );
+		return morceaux.join( ' · ' );
+	}
+
+	function schemaPour( personnage ) {
+		var c = competences( personnage );
+		var schema = [
+			{ nom: 'gauche', texte: '◀', libelle: 'Aller à gauche', groupe: 'gauche' },
+			{ nom: 'droite', texte: '▶', libelle: 'Aller à droite', groupe: 'gauche' },
+			{ nom: 'courir', texte: 'Courir', libelle: 'Courir', bascule: true, groupe: 'gauche' },
+			{ nom: 'saut', texte: 'Saut', libelle: 'Sauter', groupe: 'droite' },
+		];
+		var principale = c.principale || { type: 'melee', libelle: 'Coup d’épée' };
+		schema.push( { nom: 'epee', texte: principale.bouton || BOUTONS[ principale.type ] || 'Épée', libelle: principale.libelle || 'Action principale', groupe: 'droite' } );
+		if ( c.secondaire ) {
+			var sec = c.secondaire;
+			schema.push( {
+				nom: 'competence',
+				texte: sec.bouton || BOUTONS[ sec.type ] || 'Compétence',
+				libelle: ( sec.libelle || 'Compétence' ) + ( sec.type === 'onde' ? ' (maintenir puis relâcher)' : '' ),
+				groupe: 'droite',
+			} );
+		}
+		return schema;
+	}
+
+	var personnageCommandes = null;
+	function adapterCommandes( personnage ) {
+		if ( ! personnage || personnage === personnageCommandes ) {
+			return;
+		}
+		personnageCommandes = personnage;
+		aide.textContent = aidePour( personnage );
+		entrees.actualiserManettes( schemaPour( personnage ) );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -113,7 +191,8 @@
 	}
 
 	function lancerPartie( niveauSlug, personnage ) {
-		partie = ynWE.niveau.demarrer( univers, univers.niveaux[ niveauSlug ], personnage, entrees );
+		var nouvelle = ynWE.niveau.demarrer( univers, univers.niveaux[ niveauSlug ], personnage, entrees );
+		partie = nouvelle;
 		preparerMonde( partie.monde );
 	}
 
@@ -122,25 +201,43 @@
 		if ( ! univers || slugUnivers !== univers.slug ) {
 			return;
 		}
+		var u = univers;
 		function commencer() {
-			var personnage = univers.personnages[ slugPersonnage ];
+			if ( ! ouvert || univers !== u ) {
+				return;
+			}
+			var personnage = u.personnages[ slugPersonnage ];
+			try {
+				lancerPartie( niveauSlug, personnage );
+			} catch ( erreur ) {
+				avertir( 'niveau impossible à lancer (' + niveauSlug + ') : ' + erreur.message );
+				annoncer( 'Ce niveau n’est pas encore disponible.' );
+				if ( ec.etat !== 'niveaux' ) {
+					ec.aller( 'niveaux' );
+				}
+				return;
+			}
 			personnageSlug = slugPersonnage;
-			lancerPartie( niveauSlug, personnage );
+			adapterCommandes( personnage );
 			entrees.vider( 'impulsions' );
 			ec.aller( 'jeu' );
-			var textes = univers.niveaux[ niveauSlug ].textes || {};
+			var textes = u.niveaux[ niveauSlug ].textes || {};
 			annoncer( textes.intro || 'Partie commencée.' );
 		}
-		if ( univers.personnages[ slugPersonnage ] && univers.niveaux[ niveauSlug ] ) {
+		// Chemin synchrone si tout est déjà là (personnage, niveau et son décor) ; sinon chargement
+		// (chargerNiveau charge aussi le décor du niveau, lot A ; tout est mis en cache).
+		var niveauCharge = u.niveaux[ niveauSlug ];
+		var decorPret = niveauCharge && ( ! niveauCharge.decor || Object.prototype.hasOwnProperty.call( u.decors, niveauCharge.decor ) );
+		if ( u.personnages[ slugPersonnage ] && decorPret ) {
 			commencer();
 			return;
 		}
 		Promise.all( [
-			ynWE.ressources.chargerPersonnage( univers, slugPersonnage ),
-			ynWE.ressources.chargerNiveau( univers, niveauSlug ),
+			ynWE.ressources.chargerPersonnage( u, slugPersonnage ),
+			ynWE.ressources.chargerNiveau( u, niveauSlug ),
 		] ).then( commencer, function ( erreur ) {
-			// eslint-disable-next-line no-console
-			console.warn( '[WordEnd] ' + erreur.message );
+			avertir( erreur.message );
+			annoncer( 'Ce niveau n’a pas pu être chargé.' );
 		} );
 	}
 
@@ -177,32 +274,46 @@
 			'aria-label': 'Zone de jeu WordEnd',
 		} );
 		ecran.textContent = 'Votre navigateur ne peut pas afficher le jeu.';
+		ecran.addEventListener( 'click', surClicEcran );
 		cadre.appendChild( ecran );
 
+		barreBoss = element( 'progress', { class: 'yn-visually-hidden yn-wordend__boss', max: '1', value: '0', 'aria-label': 'Vie du boss' } );
+		barreBoss.hidden = true;
+		cadre.appendChild( barreBoss );
+
+		cadre.appendChild( construireChoix() );
+
 		var barre = element( 'div', { class: 'yn-wordend__barre' } );
-		boutonJouer = element( 'button', { type: 'button', class: 'yn-btn yn-btn--primary yn-btn--sm' }, 'Jouer' );
+		boutonJouer = element( 'button', { type: 'button', class: 'yn-btn yn-btn--primary yn-btn--sm yn-wordend__jouer' }, 'Jouer' );
 		boutonJouer.addEventListener( 'click', function () {
 			ec.surAction( 'jouer' );
 			ecran.focus();
 		} );
-		boutonPause = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm', 'aria-pressed': 'false' }, 'Pause' );
+		boutonPause = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm yn-wordend__pause', 'aria-pressed': 'false' }, 'Pause' );
 		boutonPause.addEventListener( 'click', function () {
 			ec.surAction( 'pause' );
 		} );
+		boutonNiveaux = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm yn-wordend__niveaux' }, 'Niveaux' );
+		boutonNiveaux.addEventListener( 'click', function () {
+			ec.surAction( 'niveaux' );
+			ecran.focus();
+		} );
 		barre.appendChild( boutonJouer );
 		barre.appendChild( boutonPause );
+		barre.appendChild( boutonNiveaux );
 		barre.appendChild( construireSon() );
 		cadre.appendChild( barre );
 
 		r = ynWE.rendu.creer( ecran );
 		audio = ynWE.audio.creer();
 		entrees = ynWE.entrees.creer( dialogue, ecran );
-		entrees.surAppui = function () {
-			ec.surAction( 'tactile' );
+		entrees.surAppui = function ( nom ) {
+			ec.surAction( 'tactile', nom );
 		};
 		cadre.appendChild( entrees.element );
 
-		cadre.appendChild( element( 'p', { id: 'yn-wordend-aide', class: 'yn-wordend__aide' }, AIDE ) );
+		aide = element( 'p', { id: 'yn-wordend-aide', class: 'yn-wordend__aide' }, aidePour( null ) );
+		cadre.appendChild( aide );
 		annonce = element( 'p', { class: 'yn-visually-hidden', role: 'status', 'aria-live': 'polite' } );
 		cadre.appendChild( annonce );
 
@@ -216,8 +327,9 @@
 			}
 			echapTraite = false;
 		} );
+		// « close » arrive en tâche différée : ignoré si la modale a été rouverte entre-temps.
 		dialogue.addEventListener( 'close', function () {
-			if ( ouvert ) {
+			if ( ouvert && ! dialogue.open ) {
 				fermer();
 			}
 		} );
@@ -237,12 +349,20 @@
 			personnage: function () {
 				return univers ? univers.personnages[ personnageSlug ] || null : null;
 			},
-			ouvrirUnivers: function ( slug ) {
+			partie: function () {
+				return partie;
+			},
+			ouvrirUnivers: function ( slug, apres ) {
+				if ( univers && slug === univers.slug ) {
+					ec.aller( apres || 'titre' );
+					return;
+				}
 				universSlug = slug;
-				ouvrirUnivers();
+				ouvrirUnivers( apres );
 			},
 			demarrerNiveau: demarrerNiveau,
 			fermer: fermer,
+			surChoix: synchroniserChoix,
 		};
 		ec = ynWE.ecrans.creer( contexte );
 
@@ -252,6 +372,8 @@
 		ynWE.evenements.sur( 'partie:etat', function ( detail ) {
 			if ( detail.etat === 'pause' ) {
 				entrees.vider();
+			} else if ( detail.etat === 'jeu' ) {
+				entrees.vider( 'impulsions' ); // Entrée / Espace de reprise : pas de saut.
 			}
 			mettreAJourBoutons();
 		} );
@@ -269,6 +391,80 @@
 				return partie;
 			},
 		};
+	}
+
+	/* Listes Univers / Personnage / Niveau (doublons des écrans de sélection du canvas). */
+	function construireChoix() {
+		choix = element( 'div', { class: 'yn-wordend__choix', role: 'group', 'aria-label': 'Sélection' } );
+		[ [ 'univers', 'Univers' ], [ 'personnage', 'Personnage' ], [ 'niveau', 'Niveau' ] ].forEach( function ( paire ) {
+			var nom = paire[ 0 ];
+			var etiquette = element( 'label', { class: 'yn-wordend__liste yn-wordend__liste--' + nom } );
+			etiquette.appendChild( element( 'span', {}, paire[ 1 ] ) );
+			var liste = element( 'select', { name: nom } );
+			liste.addEventListener( 'change', function () {
+				ec.choisir( nom, liste.value );
+			} );
+			liste.addEventListener( 'focus', function () {
+				ec.preparer(); // Listes complètes (niveaux, personnages) à la première interaction.
+			} );
+			etiquette.appendChild( liste );
+			choix.appendChild( etiquette );
+			listes[ nom ] = { etiquette: etiquette, liste: liste, signature: '' };
+		} );
+		return choix;
+	}
+
+	function remplir( nom, elements, valeur ) {
+		var entree = listes[ nom ];
+		var signature = elements.map( function ( e ) {
+			return e.slug + '|' + e.texte + '|' + ( e.desactive ? 1 : 0 );
+		} ).join( ';' );
+		if ( signature !== entree.signature ) {
+			entree.signature = signature;
+			while ( entree.liste.firstChild ) {
+				entree.liste.removeChild( entree.liste.firstChild );
+			}
+			elements.forEach( function ( e ) {
+				var option = element( 'option', { value: e.slug }, e.texte );
+				option.disabled = !! e.desactive;
+				entree.liste.appendChild( option );
+			} );
+		}
+		if ( valeur && entree.liste.value !== valeur ) {
+			entree.liste.value = valeur;
+		}
+	}
+
+	/* Synchronise les listes DOM avec l'état des écrans (appelé par ec à chaque changement). */
+	function synchroniserChoix() {
+		if ( ! ec || ! choix ) {
+			return;
+		}
+		var donnees = ec.listes();
+		remplir( 'univers', donnees.univers.map( function ( u ) {
+			return { slug: u.slug, texte: u.titre };
+		} ), donnees.choix.univers || universSlug );
+		listes.univers.etiquette.hidden = ! donnees.avecUnivers;
+		remplir( 'personnage', donnees.personnages.map( function ( p ) {
+			return { slug: p.slug, texte: p.nom + ( p.debloque ? '' : ' (verrouillé)' ), desactive: ! p.debloque };
+		} ), donnees.choix.personnage );
+		remplir( 'niveau', donnees.niveaux.map( function ( n ) {
+			var texte = n.arcade ? 'Arcade' : n.numero + '. ' + n.titre;
+			if ( ! n.debloque ) {
+				texte += ' (verrouillé)';
+			} else if ( ! n.arcade ) {
+				texte += ' (' + n.etoiles + ' / 3 étoiles)';
+			}
+			return { slug: n.slug, texte: texte, desactive: ! n.debloque };
+		} ), donnees.choix.niveau );
+		var bloque = ! univers || [ 'jeu', 'pause', 'chargement', 'erreur' ].indexOf( ec.etat ) !== -1;
+		// Aide et manettes du personnage choisi dès la sélection (sinon : celui de la partie).
+		if ( univers && ! bloque && univers.personnages[ donnees.choix.personnage ] ) {
+			adapterCommandes( univers.personnages[ donnees.choix.personnage ] );
+		}
+		Object.keys( listes ).forEach( function ( nom ) {
+			listes[ nom ].liste.disabled = bloque;
+		} );
 	}
 
 	/* Bouton muet et curseur de volume de la musique. */
@@ -326,19 +522,68 @@
 
 	function mettreAJourBoutons() {
 		var etat = ec.etat;
-		boutonJouer.textContent = etat === 'fin' || etat === 'victoire' || etat === 'jeu' || etat === 'pause' ? 'Rejouer' : 'Jouer';
+		var enPartie = etat === 'fin' || etat === 'victoire' || etat === 'jeu' || etat === 'pause';
+		boutonJouer.textContent = enPartie ? 'Rejouer' : ( etat === 'univers' || etat === 'personnage' ? 'Valider' : 'Jouer' );
 		boutonJouer.disabled = etat === 'chargement' || etat === 'erreur';
 		boutonPause.disabled = etat !== 'jeu' && etat !== 'pause';
 		boutonPause.setAttribute( 'aria-pressed', etat === 'pause' ? 'true' : 'false' );
 		boutonPause.textContent = etat === 'pause' ? 'Reprendre' : 'Pause';
+		boutonNiveaux.disabled = etat === 'chargement' || etat === 'erreur' || etat === 'niveaux';
+		if ( etat !== 'jeu' && etat !== 'pause' ) {
+			barreBoss.hidden = true;
+		}
 		mettreAJourSon();
+	}
+
+	/* Vie du boss pour les lecteurs d'écran (mise à jour seulement quand elle change). */
+	function mettreAJourBoss() {
+		var boss = partie && ( ec.etat === 'jeu' || ec.etat === 'pause' ) ? partie.hud().boss : null;
+		if ( ! boss || ! boss.pvMax ) {
+			if ( ! barreBoss.hidden ) {
+				barreBoss.hidden = true;
+			}
+			return;
+		}
+		var valeur = Math.max( 0, Math.round( boss.pv ) );
+		if ( barreBoss.hidden || String( valeur ) !== barreBoss.getAttribute( 'value' ) || String( boss.pvMax ) !== barreBoss.getAttribute( 'max' ) ) {
+			barreBoss.hidden = false;
+			barreBoss.setAttribute( 'max', String( boss.pvMax ) );
+			barreBoss.setAttribute( 'value', String( valeur ) );
+			barreBoss.setAttribute( 'aria-label', 'Vie du boss' + ( boss.nom ? ' : ' + boss.nom : '' ) );
+			barreBoss.setAttribute( 'aria-valuetext', valeur + ' sur ' + boss.pvMax );
+		}
 	}
 
 	/* ------------------------------------------------------------------ */
 	/* Entrées                                                             */
 	/* ------------------------------------------------------------------ */
 
+	/* Tab et Maj+Tab restent dans la modale (en plus de l'inertie de showModal). */
+	function pieger( e ) {
+		var candidats = dialogue.querySelectorAll( 'button, select, input, [tabindex]:not([tabindex="-1"])' );
+		var focalisables = Array.prototype.filter.call( candidats, function ( el ) {
+			return ! el.disabled && ! el.closest( '[hidden]' ) && el.getClientRects().length > 0;
+		} );
+		if ( ! focalisables.length ) {
+			return;
+		}
+		var premier = focalisables[ 0 ];
+		var dernier = focalisables[ focalisables.length - 1 ];
+		var actif = document.activeElement;
+		if ( e.shiftKey && ( actif === premier || ! dialogue.contains( actif ) ) ) {
+			e.preventDefault();
+			dernier.focus();
+		} else if ( ! e.shiftKey && ( actif === dernier || ! dialogue.contains( actif ) ) ) {
+			e.preventDefault();
+			premier.focus();
+		}
+	}
+
 	function surTouche( e ) {
+		if ( e.key === 'Tab' ) {
+			pieger( e );
+			return;
+		}
 		var action = entrees.surTouche( e );
 		if ( action === 'echap' ) {
 			echapTraite = true;
@@ -357,6 +602,20 @@
 		if ( action ) {
 			ec.surAction( action );
 		}
+	}
+
+	/* Clic ou toucher sur le canvas : cartes des écrans de sélection, écrans titre et fin. */
+	function surClicEcran( e ) {
+		if ( ! ouvert || ec.etat === 'jeu' || ec.etat === 'pause' ) {
+			return;
+		}
+		var cadre = ecran.getBoundingClientRect();
+		if ( ! cadre.width || ! cadre.height ) {
+			return;
+		}
+		var x = ( e.clientX - cadre.left ) / cadre.width * ynWE.LARGEUR;
+		var y = ( e.clientY - cadre.top ) / cadre.height * ynWE.HAUTEUR;
+		ec.surPointeur( x, y );
 	}
 
 	function surVisibilite() {
@@ -383,7 +642,8 @@
 	/* Ouverture et fermeture                                              */
 	/* ------------------------------------------------------------------ */
 
-	function ouvrirUnivers() {
+	/* Charge l'univers courant puis affiche l'écran titre (ou apres : 'personnage'). */
+	function ouvrirUnivers( apres ) {
 		ec.aller( 'chargement' );
 		chargerUnivers( universSlug ).then(
 			function ( u ) {
@@ -391,26 +651,31 @@
 					return;
 				}
 				univers = u;
+				partie = null;
 				personnageSlug = u.ordre.personnages[ 0 ];
 				var manifeste = u.manifeste;
 				titre.textContent = manifeste.sousTitre || manifeste.titre || 'WordEnd';
 				ecran.setAttribute( 'aria-label', ( manifeste.textes && manifeste.textes.libelleEcran ) || 'Zone de jeu ' + ( manifeste.titre || 'WordEnd' ) );
 				groupeSon.hidden = ! aMusique();
+				adapterCommandes( u.personnages[ personnageSlug ] );
 				return ynWE.ressources.chargerNiveau( u, niveauParDefaut( u ) ).then( function ( niveau ) {
 					if ( ! ouvert || ec.etat !== 'chargement' ) {
 						return;
 					}
-					// Monde de fond de l'écran titre (comme la v1 : partie préparée, non animée).
+					// Monde de fond des écrans titre et de sélection (partie préparée, non animée).
 					lancerPartie( niveau.slug, u.personnages[ personnageSlug ] );
 					ec.aller( 'titre' );
-					annoncer( ( manifeste.textes && manifeste.textes.pret ) || 'Appuyez sur Entrée pour commencer.' );
+					if ( apres && apres !== 'titre' ) {
+						ec.aller( apres );
+					} else {
+						annoncer( ( manifeste.textes && manifeste.textes.pret ) || 'Appuyez sur Entrée pour commencer.' );
+					}
 				} );
 			}
 		).then(
 			null,
 			function ( erreur ) {
-				// eslint-disable-next-line no-console
-				console.warn( '[WordEnd] ' + erreur.message );
+				avertir( erreur.message );
 				if ( ouvert ) {
 					ec.aller( 'erreur' );
 					annoncer( 'Le jeu n’a pas pu être chargé.' );
@@ -437,7 +702,7 @@
 			return;
 		}
 		contexte.config = config;
-		universSlug = slug || config.universPage || config.universParDefaut || Object.keys( config.univers || {} )[ 0 ] || '';
+		var demande = slug || config.universPage || config.universParDefaut || Object.keys( config.univers || {} )[ 0 ] || '';
 		ouvert = true;
 		focusAvant = document.activeElement;
 		r.lirePalette();
@@ -452,9 +717,17 @@
 		document.addEventListener( 'visibilitychange', surVisibilite );
 		window.addEventListener( 'blur', surPerteFocus );
 		document.addEventListener( 'yn:theme', surTheme );
-		document.dispatchEvent( new CustomEvent( 'yn:wordend', { detail: { etat: 'ouvert', univers: universSlug } } ) );
+		document.dispatchEvent( new CustomEvent( 'yn:wordend', { detail: { etat: 'ouvert', univers: demande } } ) );
 
-		ouvrirUnivers();
+		if ( univers && univers.slug === demande && partie ) {
+			// Réouverture du même univers : écran titre sans recharger.
+			universSlug = demande;
+			ec.aller( 'titre' );
+			annoncer( ( univers.manifeste.textes && univers.manifeste.textes.pret ) || 'Appuyez sur Entrée pour commencer.' );
+		} else {
+			universSlug = demande;
+			ouvrirUnivers();
+		}
 		dernierTemps = 0;
 		requete = window.requestAnimationFrame( boucle );
 	}
@@ -499,7 +772,7 @@
 		}
 		if ( ec.etat === 'jeu' ) {
 			partie.mettreAJour( dt );
-		} else if ( ec.etat === 'fin' || ec.etat === 'victoire' || ec.etat === 'titre' ) {
+		} else if ( ec.etat !== 'pause' ) {
 			ynWE.rendu.mettreAJourParticules( partie.monde, dt );
 		}
 	}
@@ -524,6 +797,7 @@
 			accumulateur = 0;
 		}
 		ec.dessiner( partie ? partie.monde : null, partie );
+		mettreAJourBoss();
 		images++;
 		if ( maintenant - debutIps >= 1000 ) {
 			ynWE.debug.ips = Math.round( images * 1000 / ( maintenant - debutIps ) );
