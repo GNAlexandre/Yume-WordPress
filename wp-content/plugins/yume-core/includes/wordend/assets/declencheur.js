@@ -6,8 +6,10 @@
  * - un appui long (1,2 s) sur la bascule de thème [data-yn-theme-toggle] (écrans tactiles) ;
  * - un clic sur un élément [data-yn-wordend-ouvrir] (papillon de la fiche d'œuvre).
  *
- * Le jeu (jeu.js, jeu.css) n'est chargé qu'à la première ouverture. Configuration :
- * window.ynWordEnd (URLs posées par le module) ; API : window.ynWordEnd.ouvrir().
+ * Le jeu n'est chargé qu'à la première ouverture : feuille config.style, puis les scripts du
+ * moteur config.scripts, insérés dans l'ordre (async = false : exécutés dans cet ordre). Le
+ * chargement est résolu quand window.ynWordEndJeu existe ; un échec permet de réessayer.
+ * Configuration : window.ynWordEnd (posée par le module) ; API : window.ynWordEnd.ouvrir( univers? ).
  *
  * ES2019, sans dépendance.
  */
@@ -15,7 +17,7 @@
 	'use strict';
 
 	var config = window.ynWordEnd;
-	if ( ! config || ! config.jeu ) {
+	if ( ! config || ! Array.isArray( config.scripts ) || ! config.scripts.length ) {
 		return;
 	}
 
@@ -41,7 +43,7 @@
 	}
 
 	/**
-	 * Charge la feuille et le script du jeu une seule fois.
+	 * Charge la feuille puis les scripts du moteur une seule fois.
 	 *
 	 * @return {Promise} Résolue quand window.ynWordEndJeu existe.
 	 */
@@ -53,25 +55,38 @@
 			return chargement;
 		}
 		chargement = new Promise( function ( resoudre, rejeter ) {
-			var feuille = document.createElement( 'link' );
-			feuille.rel = 'stylesheet';
-			feuille.href = config.style;
-			document.head.appendChild( feuille );
-
-			var script = document.createElement( 'script' );
-			script.src = config.jeu;
-			script.async = true;
-			script.onload = function () {
-				if ( window.ynWordEndJeu ) {
-					resoudre();
-				} else {
-					rejeter( new Error( 'jeu absent' ) );
-				}
-			};
-			script.onerror = function () {
-				rejeter( new Error( 'chargement impossible' ) );
-			};
-			document.head.appendChild( script );
+			if ( config.style && ! document.querySelector( 'link[data-yn-wordend]' ) ) {
+				var feuille = document.createElement( 'link' );
+				feuille.rel = 'stylesheet';
+				feuille.href = config.style;
+				feuille.setAttribute( 'data-yn-wordend', '' );
+				document.head.appendChild( feuille );
+			}
+			var restants = config.scripts.length;
+			var echoue = false;
+			config.scripts.forEach( function ( adresse ) {
+				var script = document.createElement( 'script' );
+				script.src = adresse;
+				script.async = false; // Exécution dans l'ordre d'insertion.
+				script.setAttribute( 'data-yn-wordend', '' );
+				script.onload = function () {
+					restants--;
+					if ( restants === 0 && ! echoue ) {
+						if ( window.ynWordEndJeu ) {
+							resoudre();
+						} else {
+							rejeter( new Error( 'jeu absent' ) );
+						}
+					}
+				};
+				script.onerror = function () {
+					if ( ! echoue ) {
+						echoue = true;
+						rejeter( new Error( 'chargement impossible : ' + adresse ) );
+					}
+				};
+				document.head.appendChild( script );
+			} );
 		} ).catch( function ( erreur ) {
 			chargement = null;
 			throw erreur;
@@ -79,13 +94,18 @@
 		return chargement;
 	}
 
-	function ouvrir() {
+	/**
+	 * Ouvre le jeu.
+	 *
+	 * @param {string} univers Slug de l'univers (facultatif : universPage, puis universParDefaut).
+	 */
+	function ouvrir( univers ) {
 		if ( jeuOuvert() ) {
 			return;
 		}
 		charger().then(
 			function () {
-				window.ynWordEndJeu.ouvrir( config );
+				window.ynWordEndJeu.ouvrir( config, typeof univers === 'string' ? univers : '' );
 			},
 			function ( erreur ) {
 				// eslint-disable-next-line no-console
@@ -123,7 +143,7 @@
 		var cible = e.target && e.target.closest ? e.target.closest( '[data-yn-wordend-ouvrir]' ) : null;
 		if ( cible ) {
 			e.preventDefault();
-			ouvrir();
+			ouvrir( cible.getAttribute( 'data-yn-wordend-univers' ) || '' );
 		}
 	} );
 

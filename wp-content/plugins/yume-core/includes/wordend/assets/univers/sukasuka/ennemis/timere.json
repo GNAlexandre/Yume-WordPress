@@ -1,0 +1,18 @@
+{
+	"version": 2,
+	"slug": "timere",
+	"nom": "Timere",
+	"planche": "timere",
+	"lissage": false,
+	"boite": { "l": 46, "h": 44 },
+	"attaques": {
+		"morsure": { "portee": 40, "hauteur": 34 },
+		"fouet": { "portee": 48, "hauteur": 36 }
+	},
+	"types": {
+		"petit": { "taille": 0.8, "pv": 1, "vitesse": 54, "points": 10, "comportement": "marcheur", "attaques": [ "morsure" ] },
+		"normal": { "taille": 1, "pv": 2, "vitesse": 38, "points": 15, "comportement": "marcheur", "attaques": [ "morsure", "fouet" ] },
+		"coureur": { "taille": 0.9, "pv": 1, "vitesse": 112, "points": 20, "comportement": "coureur", "attaques": [ "morsure" ] },
+		"grand": { "taille": 1.3, "pv": 5, "vitesse": 28, "points": 40, "comportement": "marcheur", "attaques": [ "fouet" ], "stoique": true, "rechargeFacteur": 1.4 }
+	}
+}

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.1 — 2026-09-30
+
+- WordEnd v2 : moteur découpé en modules (assets/moteur/), univers SukaSuka décrit en données (assets/univers/sukasuka/), banc d'essai ; mode arcade identique.
+
 ## 2.1.4 — 2026-09-30
 
 - Easter egg WordEnd : mini-jeu caché « Chtholly – Bats-toi contre ton destin » (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) : Chtholly contre des vagues de Timeres, décor peint, musique de fond réglable.

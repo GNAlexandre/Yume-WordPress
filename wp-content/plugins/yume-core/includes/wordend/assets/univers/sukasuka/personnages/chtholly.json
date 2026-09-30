@@ -1,0 +1,20 @@
+{
+	"version": 2,
+	"slug": "chtholly",
+	"nom": "Chtholly",
+	"description": "Épée Seniolis : coup rapide et onde magique.",
+	"planche": "chtholly",
+	"lissage": true,
+	"boite": { "l": 20, "h": 56 },
+	"pv": 5,
+	"vitesseMarche": 72,
+	"vitesseCourse": 138,
+	"saut": { "impulsion": 330, "sautsMax": 1 },
+	"poses": { "saut": [ "course", 1 ], "chute": [ "course", 3 ] },
+	"textes": { "mort": "Chtholly est à terre." },
+	"competences": {
+		"principale": { "type": "melee", "animation": "attaque", "degats": 1, "boite": { "x": 4, "y": -62, "l": 60, "h": 58 }, "libelle": "Coup d’épée" },
+		"secondaire": { "type": "onde", "animation": "charge", "chargeMin": 0.55, "degats": 3, "vitesse": 250, "vie": 1.1, "duree": 0.42, "recharge": 1.2, "libelle": "Charge magique" }
+	},
+	"debloque": true
+}

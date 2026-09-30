@@ -1,0 +1,20 @@
+{
+	"version": 2,
+	"slug": "sukasuka",
+	"titre": "WordEnd",
+	"sousTitre": "Chtholly – Bats-toi contre ton destin",
+	"oeuvre": "sukasuka",
+	"personnages": [ "personnages/chtholly.json", "personnages/nephren.json", "personnages/ithea.json" ],
+	"ennemis": [ "ennemis/timere.json" ],
+	"niveaux": [ "niveaux/arcade.json", "niveaux/01-plage.json", "niveaux/02-dunes.json", "niveaux/03-falaise.json", "niveaux/04-nuit.json", "niveaux/05-boss.json" ],
+	"decors": {
+		"dunes": { "image": "decors/dunes.webp", "parallaxe": 0.25 }
+	},
+	"musiques": {
+		"principale": { "fichier": "musiques/scarborough.mp3", "credit": "Scarborough Fair, trad." }
+	},
+	"textes": {
+		"pret": "WordEnd est prêt. Appuyez sur Entrée ou sur Jouer pour commencer.",
+		"libelleEcran": "Zone de jeu : Chtholly et son épée Seniolis face aux Timeres"
+	}
+}

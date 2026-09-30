@@ -1,7 +1,8 @@
 <?php
 /**
  * Fonctions du module wordend : activation, œuvres qui affichent le papillon, adresses des
- * fichiers chargés à la demande et configuration passée au script déclencheur.
+ * fichiers chargés à la demande (feuille, scripts du moteur) et configuration passée au script
+ * déclencheur. Les univers (manifestes, personnages, niveaux…) : univers.php.
  *
  * @package Yume\Core
  */
@@ -16,16 +17,28 @@ const POIGNEE = 'yume-wordend-declencheur';
 /** Poignée de la feuille du papillon de la fiche d'œuvre. */
 const POIGNEE_SECRET = 'yume-wordend-secret';
 
-/** Fichiers du jeu chargés à la demande (clé de configuration => fichier de assets/). */
-const FICHIERS_A_LA_DEMANDE = array(
-	'jeu'        => 'jeu.js',
-	'style'      => 'jeu.css',
-	'planche'    => 'chtholly.png',
-	'meta'       => 'chtholly.json',
-	'timere'     => 'timere.png',
-	'timereMeta' => 'timere.json',
-	'decor'      => 'decor.webp',
-	'musique'    => 'musique.mp3',
+/** Feuille du jeu (chargée à la demande). */
+const FEUILLE_JEU = 'jeu.css';
+
+/**
+ * Scripts du moteur, dans l'ordre de chargement (chacun enrichit window.ynWordEndMoteur ; le
+ * dernier expose window.ynWordEndJeu). Interfaces : docs/wordend-formats.md.
+ */
+const SCRIPTS_MOTEUR = array(
+	'moteur/00-espace.js',
+	'moteur/stockage.js',
+	'moteur/ressources.js',
+	'moteur/audio.js',
+	'moteur/rendu.js',
+	'moteur/physique.js',
+	'moteur/competences.js',
+	'moteur/joueur.js',
+	'moteur/ennemis.js',
+	'moteur/niveau.js',
+	'moteur/entrees.js',
+	'moteur/ecrans.js',
+	'moteur/modale.js',
+	'moteur/jeu.js',
 );
 
 /**
@@ -88,23 +101,29 @@ function url_asset( string $fichier ): string {
 /**
  * Configuration du jeu (window.ynWordEnd) : identique pour tous les visiteurs (Batcache).
  *
- * @return array{jeu:string,style:string,planche:string,meta:string,timere:string,timereMeta:string,decor:string,musique:string,version:string}
+ * @return array{version:string, style:string, scripts:string[], univers:array, universParDefaut:string, universPage:string}
  */
 function configuration(): array {
-	$config = array();
-	foreach ( FICHIERS_A_LA_DEMANDE as $cle => $fichier ) {
-		$config[ $cle ] = url_asset( $fichier );
-	}
-	$config['version'] = defined( 'YUME_CORE_VERSION' ) ? YUME_CORE_VERSION : '';
-	return $config;
+	return array(
+		'version'          => defined( 'YUME_CORE_VERSION' ) ? YUME_CORE_VERSION : '',
+		'style'            => url_asset( FEUILLE_JEU ),
+		'scripts'          => array_map( __NAMESPACE__ . '\\url_asset', SCRIPTS_MOTEUR ),
+		'univers'          => univers(),
+		'universParDefaut' => UNIVERS_PAR_DEFAUT,
+		'universPage'      => '',
+	);
 }
 
 /**
- * Chemins absolus des fichiers livrés par le module (contrôle des tests et de l'archive).
+ * Chemins absolus des fichiers livrés par le module (contrôle des tests et de l'archive) :
+ * déclencheur, feuilles, scripts du moteur et fichiers des univers intégrés.
  *
  * @return string[]
  */
 function fichiers_requis(): array {
-	$fichiers = array_merge( array( 'declencheur.js', 'secret.css' ), array_values( FICHIERS_A_LA_DEMANDE ) );
-	return array_map( __NAMESPACE__ . '\\chemin_asset', $fichiers );
+	$fichiers = array_map( __NAMESPACE__ . '\\chemin_asset', array_merge( array( 'declencheur.js', 'secret.css', FEUILLE_JEU ), SCRIPTS_MOTEUR ) );
+	foreach ( UNIVERS_INTEGRES as $univers ) {
+		$fichiers = array_merge( $fichiers, fichiers_univers( $univers['dossier'] ) );
+	}
+	return $fichiers;
 }

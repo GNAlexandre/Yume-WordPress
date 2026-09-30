@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr" data-yn-theme="nuit">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WordEnd — banc d'essai</title>
+<!--
+	Banc d'essai du jeu WordEnd, sans WordPress (outil de développement, jamais livré).
+
+	php -S 127.0.0.1:8081 -t /home/user/Yume-WordPress
+	http://127.0.0.1:8081/tools/wordend/banc/?univers=sukasuka&niveau=arcade&personnage=chtholly
+	  &auto=1                         ouvre le jeu dès le chargement
+	  ?planche=personnages/chtholly   visionneuse de planche (animations, ancre, boîte)
+	  ?apercu=niveaux/arcade          aperçu d'un niveau (sol, plateformes, apparition)
+
+	Voir docs/wordend-formats.md (« Banc d'essai »).
+-->
+<style>
+	@font-face { font-family: Outfit; font-weight: 700; font-display: swap; src: url("../../../wp-content/themes/yume/assets/fonts/outfit/outfit-latin-700-normal.woff2") format("woff2"); }
+	@font-face { font-family: Outfit; font-weight: 800; font-display: swap; src: url("../../../wp-content/themes/yume/assets/fonts/outfit/outfit-latin-800-normal.woff2") format("woff2"); }
+	/* Jetons de la palette Nuit du thème (theme.json), lus par le moteur. */
+	:root {
+		--wp--preset--color--fond: #1b1231;
+		--wp--preset--color--bande: #241740;
+		--wp--preset--color--carte: #2d1f4f;
+		--wp--preset--color--filet: #4a3b6e;
+		--wp--preset--color--bordure: #7f6aa8;
+		--wp--preset--color--texte-fort: #fff8fb;
+		--wp--preset--color--texte: #ebe3f2;
+		--wp--preset--color--texte-faible: #b7a9cc;
+		--wp--preset--color--accent: #f3a6c8;
+		--wp--preset--color--accent-texte: #2a1240;
+		--wp--preset--color--accent-2: #f7c59f;
+		--wp--preset--color--erreur: #ff8f7e;
+		--wp--preset--font-family--titres: Outfit, "Segoe UI", system-ui, sans-serif;
+		--wp--preset--spacing--30: 12px;
+		--wp--preset--spacing--40: 16px;
+		color-scheme: dark;
+	}
+	body { margin: 0; padding: 16px; background: var(--wp--preset--color--fond); color: var(--wp--preset--color--texte); font: 15px/1.5 system-ui, sans-serif; }
+	h1 { margin: 0 0 8px; font: 800 22px var(--wp--preset--font-family--titres); color: var(--wp--preset--color--texte-fort); }
+	a { color: var(--wp--preset--color--accent); }
+	.banc__barre { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; margin: 8px 0 16px; }
+	.banc__barre label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+	select, input, button { font: inherit; }
+	select, input[type="number"] { min-height: 36px; background: var(--wp--preset--color--carte); color: inherit; border: 1px solid var(--wp--preset--color--filet); border-radius: 6px; padding: 0 8px; }
+	.banc__etat { font: 13px/1.4 ui-monospace, monospace; color: var(--wp--preset--color--texte-faible); white-space: pre-wrap; }
+	.banc__vue { display: block; max-width: 100%; background: #0d0818; border: 1px solid var(--wp--preset--color--filet); image-rendering: auto; }
+	.banc__liste { margin: 8px 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+	/* Styles minimaux du thème utilisés par la modale. */
+	.yn-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--wp--preset--color--filet); border-radius: 999px; background: var(--wp--preset--color--carte); color: var(--wp--preset--color--texte-fort); cursor: pointer; font-weight: 700; }
+	.yn-btn--primary, .yn-btn[aria-pressed="true"] { background: var(--wp--preset--color--accent); color: var(--wp--preset--color--accent-texte); border-color: transparent; }
+	.yn-btn--sm { min-height: 36px; padding: 0 12px; font-size: 14px; }
+	.yn-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+	.yn-btn:focus-visible, .banc__vue:focus-visible { outline: 2px solid var(--wp--preset--color--accent); outline-offset: 2px; }
+	.yn-visually-hidden { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+	<h1>WordEnd — banc d'essai</h1>
+	<p>Moteur et univers chargés directement depuis <code>wp-content/plugins/yume-core/includes/wordend/assets/</code>, sans WordPress. Modes : jeu, <a href="?planche=personnages/chtholly">visionneuse de planche</a>, <a href="?apercu=niveaux/arcade">aperçu de niveau</a>.</p>
+	<main id="banc"></main>
+	<p class="banc__etat" id="banc-etat" role="status" aria-live="off"></p>
+	<script src="banc.js"></script>
+</body>
+</html>

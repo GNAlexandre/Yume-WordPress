@@ -1,0 +1,18 @@
+{
+	"version": 2,
+	"slug": "arcade",
+	"numero": 0,
+	"titre": "Arcade",
+	"decor": "dunes",
+	"musique": "principale",
+	"largeur": 480,
+	"sol": 238,
+	"gravite": 900,
+	"plateformes": [],
+	"apparition": { "x": 240 },
+	"objectif": { "type": "arcade", "ennemi": "timere" },
+	"textes": {
+		"intro": "Partie commencée. Défendez l’île contre les Timeres !",
+		"vague": "Vague {n} : {k} Timeres."
+	}
+}

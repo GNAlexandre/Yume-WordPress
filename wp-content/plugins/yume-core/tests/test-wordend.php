@@ -1,8 +1,10 @@
 <?php
 /**
- * Tests du module wordend (easter egg WordEnd) : fichiers livrés et planche de Chtholly,
- * configuration du jeu (URLs versionnées, filtres), script déclencheur en façade (defer,
- * configuration posée avant), coupure par filtre, papillon de la fiche d'œuvre.
+ * Tests du module wordend (easter egg WordEnd) : fichiers livrés (moteur, univers), planches de
+ * Chtholly et du Timere, données de l'univers SukaSuka (manifeste, personnage, ennemi, niveau),
+ * configuration du jeu (scripts dans l'ordre, URLs versionnées, univers, filtres), script
+ * déclencheur en façade (defer, configuration posée avant), coupure par filtre, papillon de la
+ * fiche d'œuvre.
  *
  * Commande : tools/localenv/test.sh wordend
  *
@@ -13,11 +15,14 @@ defined( 'ABSPATH' ) || exit;
 
 use function Yume\Core\WordEnd\ajouter_papillon;
 use function Yume\Core\WordEnd\configuration;
+use function Yume\Core\WordEnd\chemin_manifeste;
 use function Yume\Core\WordEnd\enfiler_declencheur;
 use function Yume\Core\WordEnd\fichiers_requis;
 use function Yume\Core\WordEnd\oeuvres_declencheuses;
+use function Yume\Core\WordEnd\univers;
 use const Yume\Core\WordEnd\POIGNEE;
 use const Yume\Core\WordEnd\POIGNEE_SECRET;
+use const Yume\Core\WordEnd\SCRIPTS_MOTEUR;
 
 // Module non chargé (YUME_ONLY_MODULES sans « wordend ») : rien à tester.
 if ( ! function_exists( 'Yume\Core\WordEnd\configuration' ) ) {
@@ -70,40 +75,71 @@ yume_test(
 	}
 );
 
+/** Dossier de l'univers SukaSuka. */
+const YUME_TWE_SUKASUKA = YUME_CORE_DIR . 'includes/wordend/assets/univers/sukasuka/';
+
 /**
- * Vérifie une planche (PNG + JSON) : nombre d'images par animation, dimensions, cadres.
+ * Fichiers référencés par le manifeste que les lots B (personnages) et C (niveaux) de WordEnd v2
+ * créent : tolérés absents jusqu'à leur intégration (liste à vider à l'intégration).
+ */
+const YUME_TWE_ATTENDUS_LOTS = array(
+	'personnages/nephren.json',
+	'personnages/ithea.json',
+	'niveaux/01-plage.json',
+	'niveaux/02-dunes.json',
+	'niveaux/03-falaise.json',
+	'niveaux/04-nuit.json',
+	'niveaux/05-boss.json',
+);
+
+/**
+ * Lit un JSON de l'univers SukaSuka.
  *
- * @param string $nom     Nom de base (chtholly, timere).
+ * @param string $relatif Chemin relatif au dossier de l'univers.
+ */
+function yume_twe_json( string $relatif ): array {
+	$donnees = json_decode( (string) file_get_contents( YUME_TWE_SUKASUKA . $relatif ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	yume_assert_true( is_array( $donnees ), "$relatif : JSON valide" );
+	return is_array( $donnees ) ? $donnees : array();
+}
+
+/**
+ * Vérifie une planche (PNG + .planche.json) : nombre d'images par animation, dimensions, cadres.
+ *
+ * @param string $base    Chemin relatif sans extension (personnages/chtholly, ennemis/timere).
  * @param array  $attendu animation => nombre d'images.
  */
-function yume_twe_verifier_planche( string $nom, array $attendu ): void {
-	$dossier = YUME_CORE_DIR . 'includes/wordend/assets/';
-	$meta    = json_decode( (string) file_get_contents( $dossier . $nom . '.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-	yume_assert_true( is_array( $meta ), "$nom : JSON valide" );
+function yume_twe_verifier_planche( string $base, array $attendu ): array {
+	$meta = yume_twe_json( $base . '.planche.json' );
 	foreach ( $attendu as $animation => $nombre ) {
-		yume_assert_same( $nombre, count( $meta['animations'][ $animation ]['images'] ?? array() ), "$nom : images de « $animation »" );
+		yume_assert_same( $nombre, count( $meta['animations'][ $animation ]['images'] ?? array() ), "$base : images de « $animation »" );
 	}
-	$taille = getimagesize( $dossier . $nom . '.png' );
-	yume_assert_same( $meta['planche'], array( $taille[0], $taille[1] ), "$nom : dimensions de la planche" );
+	$taille = getimagesize( YUME_TWE_SUKASUKA . $base . '.png' );
+	yume_assert_same( $meta['planche'], array( $taille[0], $taille[1] ), "$base : dimensions de la planche" );
 	foreach ( $meta['animations'] as $animation => $donnees ) {
 		foreach ( $donnees['images'] as $cadre ) {
-			yume_assert_true( $cadre[0] + $cadre[2] <= $taille[0] && $cadre[1] + $cadre[3] <= $taille[1], "$nom : cadre de « $animation » dans la planche" );
-			yume_assert_true( $cadre[4] >= 0 && $cadre[4] <= $cadre[2] && $cadre[5] >= 0 && $cadre[5] <= $cadre[3], "$nom : ancre de « $animation » dans son cadre" );
+			yume_assert_true( $cadre[0] + $cadre[2] <= $taille[0] && $cadre[1] + $cadre[3] <= $taille[1], "$base : cadre de « $animation » dans la planche" );
+			yume_assert_true( $cadre[4] >= 0 && $cadre[4] <= $cadre[2] && $cadre[5] >= 0 && $cadre[5] <= $cadre[3], "$base : ancre de « $animation » dans son cadre" );
 		}
 		foreach ( $donnees['coup'] ?? array() as $indice ) {
-			yume_assert_true( $indice < count( $donnees['images'] ), "$nom : image de coup de « $animation » existante" );
+			yume_assert_true( $indice < count( $donnees['images'] ), "$base : image de coup de « $animation » existante" );
 		}
 	}
+	return $meta;
 }
 
 yume_test(
-	'wordend : fichiers livrés, planches de Chtholly et du Timere cohérentes',
+	'wordend : fichiers livrés (moteur, univers), planches de Chtholly et du Timere cohérentes',
 	function () {
 		foreach ( fichiers_requis() as $chemin ) {
-			yume_assert_true( is_readable( $chemin ), basename( $chemin ) . ' présent' );
+			$relatif = str_replace( YUME_TWE_SUKASUKA, '', $chemin );
+			if ( in_array( $relatif, YUME_TWE_ATTENDUS_LOTS, true ) && ! file_exists( $chemin ) ) {
+				continue; // Créé par un lot de WordEnd v2 pas encore intégré.
+			}
+			yume_assert_true( is_readable( $chemin ), $relatif . ' présent' );
 		}
 		yume_twe_verifier_planche(
-			'chtholly',
+			'personnages/chtholly',
 			array(
 				'repos'   => 2,
 				'marche'  => 6,
@@ -114,12 +150,8 @@ yume_test(
 				'mort'    => 1,
 			)
 		);
-		$timere = json_decode( (string) file_get_contents( YUME_CORE_DIR . 'includes/wordend/assets/timere.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		foreach ( array( 'fouet', 'morsure' ) as $attaque ) {
-			yume_assert_true( ! empty( $timere['animations'][ $attaque ]['coup'] ), "timere : images de coup de « $attaque »" );
-		}
-		yume_twe_verifier_planche(
-			'timere',
+		$timere = yume_twe_verifier_planche(
+			'ennemis/timere',
 			array(
 				'repos'   => 5,
 				'marche'  => 4,
@@ -130,17 +162,72 @@ yume_test(
 				'mort'    => 6,
 			)
 		);
+		foreach ( array( 'fouet', 'morsure' ) as $attaque ) {
+			yume_assert_true( ! empty( $timere['animations'][ $attaque ]['coup'] ), "timere : images de coup de « $attaque »" );
+		}
 	}
 );
 
 yume_test(
-	'wordend : configuration (URLs versionnées) et filtre des œuvres',
+	'wordend : univers SukaSuka (manifeste v2, personnage, ennemi et niveau arcade cohérents)',
+	function () {
+		$manifeste = yume_twe_json( 'manifeste.json' );
+		yume_assert_same( 2, $manifeste['version'] ?? 0, 'manifeste en version 2' );
+		yume_assert_same( 'sukasuka', $manifeste['slug'] ?? '', 'slug du manifeste' );
+		yume_assert_same( 'personnages/chtholly.json', $manifeste['personnages'][0] ?? '', 'Chtholly, personnage par défaut' );
+		yume_assert_true( in_array( 'niveaux/arcade.json', $manifeste['niveaux'] ?? array(), true ), 'niveau arcade listé' );
+
+		$chtholly = yume_twe_json( 'personnages/chtholly.json' );
+		$planche  = yume_twe_json( 'personnages/' . $chtholly['planche'] . '.planche.json' );
+		yume_assert_same( 2, $chtholly['version'] ?? 0, 'personnage en version 2' );
+		foreach ( $chtholly['poses'] ?? array() as $pose => $cible ) {
+			yume_assert_true( isset( $planche['animations'][ $cible[0] ]['images'][ $cible[1] ] ), "chtholly : pose « $pose » existante" );
+		}
+		foreach ( $chtholly['competences'] ?? array() as $emplacement => $competence ) {
+			yume_assert_true( in_array( $competence['type'] ?? '', array( 'melee', 'onde', 'projectile', 'ruee', 'parade' ), true ), "chtholly : type de la compétence « $emplacement »" );
+			if ( ! empty( $competence['animation'] ) ) {
+				yume_assert_true( isset( $planche['animations'][ $competence['animation'] ] ), "chtholly : animation de la compétence « $emplacement »" );
+			}
+		}
+
+		$timere = yume_twe_json( 'ennemis/timere.json' );
+		$meta   = yume_twe_json( 'ennemis/' . $timere['planche'] . '.planche.json' );
+		yume_assert_same( array( 'petit', 'normal', 'coureur', 'grand' ), array_slice( array_keys( $timere['types'] ?? array() ), 0, 4 ), 'types v1 du Timere' );
+		foreach ( $timere['types'] as $nom => $type ) {
+			yume_assert_true( in_array( $type['comportement'] ?? '', array( 'marcheur', 'coureur', 'volant', 'tireur', 'bouclier', 'boss' ), true ), "timere : comportement du type « $nom »" );
+			foreach ( $type['attaques'] ?? array() as $attaque ) {
+				yume_assert_true( isset( $timere['attaques'][ $attaque ], $meta['animations'][ $attaque ] ), "timere : attaque « $attaque » du type « $nom »" );
+			}
+		}
+
+		$arcade = yume_twe_json( 'niveaux/arcade.json' );
+		yume_assert_same( 'arcade', $arcade['objectif']['type'] ?? '', 'objectif du niveau arcade' );
+		yume_assert_true( isset( $manifeste['decors'][ $arcade['decor'] ] ), 'décor du niveau arcade déclaré' );
+		yume_assert_true( isset( $manifeste['musiques'][ $arcade['musique'] ] ), 'musique du niveau arcade déclarée' );
+		yume_assert_same( 480, $arcade['largeur'] ?? 0, 'arcade : largeur d’un écran' );
+	}
+);
+
+yume_test(
+	'wordend : configuration (scripts dans l’ordre, URLs versionnées, univers) et filtre des œuvres',
 	function () {
 		$config = configuration();
-		foreach ( array( 'jeu', 'style', 'planche', 'meta', 'timere', 'timereMeta', 'decor', 'musique' ) as $cle ) {
-			yume_assert_contains( YUME_CORE_URL . 'includes/wordend/assets/', $config[ $cle ], "URL « $cle »" );
-			yume_assert_contains( 'ver=', $config[ $cle ], "version de « $cle »" );
+		$base   = YUME_CORE_URL . 'includes/wordend/assets/';
+		yume_assert_contains( $base . 'jeu.css', $config['style'], 'feuille du jeu' );
+		yume_assert_contains( 'ver=', $config['style'], 'version de la feuille' );
+		yume_assert_same( count( SCRIPTS_MOTEUR ), count( $config['scripts'] ), 'un script par fichier du moteur' );
+		yume_assert_same( 'moteur/00-espace.js', SCRIPTS_MOTEUR[0], 'espace de noms en premier' );
+		yume_assert_same( 'moteur/jeu.js', SCRIPTS_MOTEUR[ count( SCRIPTS_MOTEUR ) - 1 ], 'point d’entrée en dernier' );
+		foreach ( SCRIPTS_MOTEUR as $i => $script ) {
+			yume_assert_contains( $base . $script . '?ver=', $config['scripts'][ $i ], "script « $script » versionné, à son rang" );
 		}
+		yume_assert_same( array( 'sukasuka' ), array_keys( $config['univers'] ), 'univers intégrés' );
+		yume_assert_same( $config['univers'], univers() );
+		yume_assert_contains( $base . 'univers/sukasuka/manifeste.json?ver=', $config['univers']['sukasuka']['manifeste'], 'manifeste versionné' );
+		yume_assert_true( is_readable( chemin_manifeste( 'sukasuka' ) ), 'manifeste lisible' );
+		yume_assert_same( 'sukasuka', $config['univers']['sukasuka']['oeuvre'] );
+		yume_assert_same( 'sukasuka', $config['universParDefaut'] );
+		yume_assert_same( '', $config['universPage'], 'aucun univers de page (lot 0)' );
 		yume_assert_same( array( 'sukasuka' ), oeuvres_declencheuses() );
 
 		$filtre = static function () {
@@ -164,7 +251,8 @@ yume_test(
 			yume_assert_true( wp_script_is( POIGNEE, 'enqueued' ), 'mis en file' );
 			$avant = implode( "\n", (array) wp_scripts()->get_data( POIGNEE, 'before' ) );
 			yume_assert_contains( 'window.ynWordEnd = ', $avant );
-			yume_assert_contains( 'chtholly.png', $avant );
+			yume_assert_contains( 'moteur/00-espace.js', $avant );
+			yume_assert_contains( 'univers/sukasuka/manifeste.json', $avant );
 			yume_assert_not_contains( '<', $avant, 'aucune balise dans la configuration' );
 
 			yume_twe_vider_files();
