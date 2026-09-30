@@ -27,7 +27,7 @@ Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume 
 
 ## Règles (v1)
 
-- Chtholly a 5 PV. Un contact avec un Timere retire 1 PV, avec 1,2 s d'invincibilité ; 1 PV est
+- Chtholly a 5 PV. Chaque morsure ou coup de fouet d'un Timere retire 1 PV, avec 1,2 s d'invincibilité ; 1 PV est
   rendu toutes les deux vagues terminées.
 - Vague *n* : 3 + 2*n* Timeres, qui arrivent des deux côtés, de plus en plus vite. Ils s'approchent,
   puis mordent ou fouettent avec leur cou (la morsure et le fouet ne touchent que sur leurs images
@@ -35,9 +35,9 @@ Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume 
 
   | Type | Taille | PV | Attaques | Points |
   | --- | --- | --- | --- | --- |
-  | Petit | 0,72 | 1 | morsure | 10 |
-  | Normal | 0,95 | 2 | morsure, fouet | 15 |
-  | Coureur (dès la vague 2) | 0,85 | 1 | charge en courant, morsure | 20 |
+  | Petit | 0,8 | 1 | morsure | 10 |
+  | Normal | 1 | 2 | morsure, fouet | 15 |
+  | Coureur (dès la vague 2) | 0,9 | 1 | charge en courant, morsure | 20 |
   | Grand (dès la vague 3, un à la fois) | 1,3 | 5 | fouet longue portée ; ne recule que sous l'onde | 40 |
 - Coup d'épée : 1 dégât. Onde magique : 3 dégâts, traverse, recharge de 1,2 s.
 - Meilleur score et nombre de parties : `localStorage['yn.wordend']` (appareil seulement).
@@ -87,16 +87,19 @@ générée par Gemini (fond « transparent » dessiné en damier, titres par lig
 Chtholly debout = 144 px dans la planche. L'ancre de chaque image est le milieu du buste au niveau
 des bottes, pour que l'épée ne décale pas le personnage.
 
-**Timere** (`timere.*`) : source `tools/wordend/source/timere-planche.webp` (fond noir uni). Les
-sept animations (repos, marche, course, fouet, morsure, dégâts 7 images chacune, course 6) sont
-redessinées en **pixel art vert** pour s'harmoniser avec la planche verte de référence : image
-ramenée à la taille logique (56 px au repos), rampe de cinq verts selon la luminosité, contour sombre,
-yeux jaunes, puis agrandissement au plus proche (1 pixel du dessin = 2 px de planche). Ancre : milieu
-des pattes, au sol. Le jeu dessine le Timere à sa taille de type (0,72 à 1,3), sans lissage.
+**Timere** (`timere.*`) : deux planches en pixel art générées par Gemini, dans
+`tools/wordend/source/` :
 
-La planche verte de référence n'a pas pu être utilisée directement (pas de fichier disponible) : si
-elle est fournie, ses lignes Repos, Marche, Attaque Fouet et Attaque Morsure pourront remplacer
-celles de la planche restylée (les autres lignes de cette planche verte étaient incorrectes).
+- `timere-planche-verte.webp` (damier dessiné, traits beiges parasites) : seules ses lignes
+  **Repos** (5 images), **Marche** (4), **Attaque Fouet** (4) et **Attaque Morsure** (4) sont
+  correctes ; elles sont gardées telles quelles, sans rééchantillonnage (Timere au repos = 100 px
+  dans la planche, 50 px logiques à la taille 1) ;
+- `timere-planche-complement.webp` (vraie transparence) : lignes **Course** (6), **Dégâts** (5) et
+  **Mort** (6), ramenées à la même échelle (le Timere debout de la dernière image de Dégâts a la
+  hauteur du Timere au repos), bords nets ; les titres (texte noir) sont retirés.
+
+Ancre : milieu des pattes, au sol. Le jeu dessine le Timere à sa taille de type (0,8 à 1,3), sans
+lissage. Le fouet et la morsure touchent sur leurs images 1 et 2 (`coup`).
 
 ## Tests
 

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.2 — 2026-09-30
+
+- WordEnd : Timere d'après la planche verte (repos, marche, fouet, morsure) et une planche complémentaire (course, dégâts, mort), à la même échelle ; portées et boîtes des attaques ajustées.
+
 ## 2.1.4-dev.1 — 2026-09-29
 
 - Easter egg WordEnd : mini-jeu caché (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) où Chtholly repousse des vagues de Timeres ; planches de sprites découpées depuis les planches générées (tools/wordend), Timeres restylés en pixel art vert.

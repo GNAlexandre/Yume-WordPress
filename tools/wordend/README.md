@@ -10,10 +10,11 @@ python3 tools/wordend/decouper-planche.py            # les deux planches
 python3 tools/wordend/decouper-planche.py timere     # une seule
 ```
 
-Sources dans `tools/wordend/source/` : `chtholly-planche-gemini.jpg` (fond en damier dessiné) et
-`timere-planche.webp` (fond noir, restylé en pixel art vert). Option `--sortie` : autre dossier.
+Sources dans `tools/wordend/source/` : `chtholly-planche-gemini.jpg`, `timere-planche-verte.webp`
+(fonds en damier dessiné) et `timere-planche-complement.webp` (vraie transparence). Pour le Timere,
+seules les lignes Repos, Marche, Attaque Fouet et Attaque Morsure de la planche verte sont gardées ;
+Course, Dégâts et Mort viennent de la planche complémentaire. Option `--sortie` : autre dossier.
 
 Si une nouvelle planche a une autre disposition, adapter en tête du script `BANDES`/`RYTHMES`
-(Chtholly) ou `TIMERE_TITRES`/`TIMERE_BANDES`/`TIMERE_RYTHMES` (Timere : bandes et coupes en px de
-la source), et pour le style du Timere `TIMERE_RAMPE`, `TIMERE_CONTOUR`, `TIMERE_YEUX`. Vérifier
-ensuite le résultat dans le jeu. Format du JSON et fonctionnement : `docs/wordend.md`.
+(Chtholly) ou `TIMERE_VERTE`/`TIMERE_COMPLEMENT`/`TIMERE_RYTHMES` (Timere : bandes en px des
+sources). Vérifier ensuite le résultat dans le jeu. Format du JSON et fonctionnement : `docs/wordend.md`.

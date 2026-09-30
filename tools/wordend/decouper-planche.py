@@ -12,10 +12,10 @@ d'environ 12 px, blanc et gris ~194) avec un titre texte par ligne. Le script :
 4. met toutes les images à la même échelle (Chtholly debout = HAUTEUR px), les range en
    planche compacte (une ligne par animation) et écrit le PNG (256 couleurs) et le JSON.
 
-Timere (source WebP) : fond noir uni, titres blancs. Les titres sont retirés, le fond noir
-relié au bord devient transparent et la frange est « démélangée » du noir (alpha tiré de la
-luminosité, couleur divisée par l'alpha). Les images qui se chevauchent (pattes, coups de
-fouet) sont séparées aux colonnes les moins remplies. Ancre : milieu des pattes, au sol.
+Timere : lignes Repos, Marche, Attaque Fouet et Attaque Morsure de la planche verte (damier
+dessiné, gardées telles quelles) ; Course, Dégâts et Mort viennent d'une planche complémentaire
+(vraie transparence), ramenée à la même échelle (voir TIMERE_VERTE plus bas). Ancre : milieu des
+pattes, au sol.
 
 Usage (Python 3.9+, pip install pillow numpy scipy) :
 
@@ -41,9 +41,6 @@ SOURCES = os.path.join(RACINE, 'tools/wordend/source')
 # dans la planche = 72 px logiques sur l'écran de 480 × 270.
 HAUTEUR = 144
 
-# Hauteur d'un Timere au repos dans la planche (px) : 112 px = 56 px logiques à la taille 1
-# (le jeu agrandit ou réduit selon le type de Timere).
-HAUTEUR_TIMERE = 112
 
 # Bandes de la planche source : (haut, bas, gauche, droite) en px, et images à garder.
 BANDES = {
@@ -195,31 +192,40 @@ def chtholly(sortie):
     ecrire_planche(brutes, echelle, RYTHMES, 'chtholly', sortie)
 
 
-# Timere : titres (haut, bas) à effacer, bandes (haut, bas) et coupes des images qui se
-# chevauchent (colonnes, en px source ; None = colonnes vides).
-TIMERE_TITRES = [(0, 40), (200, 234), (372, 407), (520, 555), (698, 732), (864, 898), (1016, 1046)]
-TIMERE_BANDES = {
-    'repos': ((10, 200), None),
-    'marche': ((232, 372), None),
-    'course': ((400, 520), [23, 260, 504, 680, 901, 1049, 1275]),
-    'fouet': ((545, 692), [24, 196, 385, 542, 742, 930, 1116, 1282]),
-    'morsure': ((728, 864), None),
-    'degats': ((893, 1015), None),
-    'mort': ((1040, 1172), None),
+# Timere : deux planches générées.
+# - Planche verte (timere-planche-verte.webp : damier dessiné gris ~150 / blanc, traits beiges
+#   parasites) : seules ses lignes Repos, Marche, Attaque Fouet et Attaque Morsure sont correctes ;
+#   elles sont gardées telles quelles (pixel art, sans rééchantillonnage).
+# - Planche complémentaire (timere-planche-complement.webp : vraie transparence) : lignes Course,
+#   Dégâts et Mort, ramenées à l'échelle de la verte (Timere debout de même hauteur), alpha net.
+TIMERE_VERTE = {  # Bandes (haut, bas) en px de la source verte.
+    'repos': (55, 166),
+    'marche': (210, 330),
+    'fouet': (528, 634),
+    'morsure': (668, 767),
 }
+TIMERE_ORDRE = ['repos', 'marche', 'course', 'fouet', 'morsure', 'degats', 'mort']
 TIMERE_RYTHMES = {
-    'repos': {'ips': 7, 'boucle': True},
-    'marche': {'ips': 9, 'boucle': True},
-    'course': {'ips': 13, 'boucle': True},
-    'fouet': {'ips': 12, 'boucle': False, 'coup': [3, 4]},
-    'morsure': {'ips': 12, 'boucle': False, 'coup': [2, 3, 4]},
-    'degats': {'ips': 14, 'boucle': False},
-    'mort': {'ips': 9, 'boucle': False},
+    'repos': {'ips': 6, 'boucle': True},
+    'marche': {'ips': 7, 'boucle': True},
+    'course': {'ips': 12, 'boucle': True},
+    'fouet': {'ips': 8, 'boucle': False, 'coup': [1, 2]},
+    'morsure': {'ips': 8, 'boucle': False, 'coup': [1, 2]},
+    'degats': {'ips': 12, 'boucle': False},
+    'mort': {'ips': 8, 'boucle': False},
 }
+TIMERE_COMPLEMENT = {  # Bandes (haut, bas) en px de la planche complémentaire.
+    'course': (85, 280),
+    'degats': (366, 568),
+    'mort': (600, 860),
+}
+# Image de la planche complémentaire où le Timere est debout (dernière image de Dégâts) : sa
+# hauteur est égalée à celle du Timere au repos de la planche verte.
+TIMERE_COMPLEMENT_DEBOUT = ('degats', -1)
 
 
 def colonnes_vides(m):
-    """Coupes aux colonnes vides d'une bande : [début, fin, début, fin…] fusionnées en bornes."""
+    """Segments (début, fin) séparés par des colonnes vides dans un masque de bande."""
     col = m.sum(0)
     segments, debut = [], None
     for x, v in enumerate(col):
@@ -234,100 +240,86 @@ def colonnes_vides(m):
     return segments
 
 
-# Style « pixel art vert » (harmonisé avec la planche verte de Gemini) : rampe de verts du plus
-# sombre au plus clair, contour et yeux.
-TIMERE_CONTOUR = (26, 36, 20)
-TIMERE_RAMPE = [(33, 48, 24), (54, 79, 35), (80, 108, 47), (110, 138, 63), (150, 172, 92)]
-TIMERE_YEUX = (236, 226, 110)
-TIMERE_PIXEL = 2  # Taille d'un « pixel » du dessin dans la planche (2 = 1 px logique).
+def decouper_bande(rgba, visible, bande):
+    """Images d'une bande, de gauche à droite : (rgba, ancre x, ancre y). Ancre : milieu des
+    pattes (quart inférieur de l'image), au sol."""
+    y0, y1 = bande
+    m = visible[y0:y1]
+    images = []
+    for x0, x1 in colonnes_vides(m):
+        zone = m[:, x0:x1]
+        if zone.sum() < 600:
+            continue
+        ys, xs = np.nonzero(zone)
+        gx0, gx1, gy0, gy1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+        bloc = rgba[y0 + gy0:y0 + gy1, x0 + gx0:x0 + gx1].copy()
+        bloc[..., 3] = np.where(zone[gy0:gy1, gx0:gx1], bloc[..., 3], 0)
+        h = gy1 - gy0
+        _, xs2 = np.nonzero(zone[gy0 + int(h * 0.75):gy1, gx0:gx1])
+        ax = float(np.median(xs2)) if len(xs2) else (gx1 - gx0) / 2
+        images.append((bloc, ax, float(h)))
+    return images
 
 
-def styliser_timere(brutes, hauteur):
-    """Ramène chaque image à la taille logique, la redessine en pixel art vert (rampe de
-    luminosité, contour sombre, yeux jaunes), puis l'agrandit au plus proche (TIMERE_PIXEL)."""
-    echelle = hauteur / TIMERE_PIXEL / float(np.median([ay for _, _, ay in brutes['repos']]))
-    petites = {}
-    lums = []
-    for nom, imgs in brutes.items():
-        petites[nom] = []
+def timere_vert():
+    """Lignes gardées de la planche verte (alpha net, couleurs d'origine)."""
+    a = np.asarray(Image.open(os.path.join(SOURCES, 'timere-planche-verte.webp')).convert('RGB')).astype(int)
+    mx = a.max(2)
+    sat = mx - a.min(2)
+    gris = (sat <= 16) & (mx >= 125) & (mx <= 185)
+    blanc = (sat <= 16) & (mx >= 225)
+    beige = (mx >= 185) & (sat <= 60) & ~blanc  # Traits parasites de Gemini.
+    lab, n = nd.label(gris | blanc | beige)
+    idx = range(1, n + 1)
+    tot = nd.sum(np.ones_like(lab), lab, idx)
+    ng = nd.sum(gris, lab, idx)
+    nb = nd.sum(blanc, lab, idx)
+    fond = np.zeros(n + 1, bool)
+    fond[int(np.argmax(tot)) + 1] = True
+    for i in idx:
+        t = tot[i - 1]
+        if t > 30 and ng[i - 1] > 0.15 * t and nb[i - 1] > 0.15 * t:
+            fond[i] = True  # Poche de damier enfermée (les dents blanches seules sont gardées).
+    fg = nd.binary_opening(~fond[lab], iterations=1)
+    lab, n = nd.label(fg)
+    tailles = nd.sum(fg, lab, range(1, n + 1))
+    fg = np.isin(lab, 1 + np.where(tailles >= 60)[0])
+    rgba = np.dstack([a, fg * 255]).astype(np.uint8)
+    return {nom: decouper_bande(rgba, fg, bande) for nom, bande in TIMERE_VERTE.items()}
+
+
+def timere_complement(hauteur):
+    """Lignes Course, Dégâts et Mort de la planche complémentaire, à l'échelle de la verte."""
+    a = np.asarray(Image.open(os.path.join(SOURCES, 'timere-planche-complement.webp')).convert('RGBA'))
+    visible = a[..., 3] > 128
+    # Titres (texte noir uni) : composantes presque entièrement noires et neutres.
+    rgb = a[..., :3].astype(int)
+    noir = (rgb.max(2) < 80) & (rgb.max(2) - rgb.min(2) < 25)
+    lab, n = nd.label(visible)
+    idx = range(1, n + 1)
+    part_noire = nd.mean(noir, lab, idx)
+    for i in idx:
+        if part_noire[i - 1] > 0.6:
+            visible[lab == i] = False
+    images = {nom: decouper_bande(a, visible, bande) for nom, bande in TIMERE_COMPLEMENT.items()}
+    nom, indice = TIMERE_COMPLEMENT_DEBOUT
+    echelle = hauteur / images[nom][indice][2]
+    sorties = {}
+    for nom, imgs in images.items():
+        sorties[nom] = []
         for rgba, ax, ay in imgs:
             r = redimensionner(rgba, echelle)
-            # Yeux repérés en pleine résolution (orangés et lumineux), puis réduits.
-            src = rgba[..., :3].astype(int)
-            yeux = (rgba[..., 3] > 128) & (src.max(2) - src.min(2) > 70) & (src[..., 0] > 140) & (src[..., 1] > 90)
-            masque = Image.fromarray((yeux * 255).astype(np.uint8)).resize((r.shape[1], r.shape[0]), Image.BOX)
-            r = np.dstack([r, np.asarray(masque)])
-            petites[nom].append((r, ax * echelle, ay * echelle))
-            a = r[..., 3] > 115
-            lums.append(r[..., :3].astype(float).mean(2)[a])
-    seuils = np.percentile(np.concatenate(lums), [30, 56, 80, 94])
-    sorties = {}
-    for nom, imgs in petites.items():
-        sorties[nom] = []
-        for r, ax, ay in imgs:
-            rgb = r[..., :3].astype(int)
-            plein = r[..., 3] > 115
-            lum = rgb.mean(2)
-            niveau = np.digitize(lum, seuils)
-            couleurs = np.array(TIMERE_RAMPE)[niveau]
-            yeux = plein & (r[..., 4] > 25)
-            couleurs[yeux] = TIMERE_YEUX
-            interieur = nd.binary_erosion(plein, iterations=1, border_value=0)
-            contour = plein & ~interieur
-            couleurs[contour & ~yeux] = TIMERE_CONTOUR
-            out = np.dstack([couleurs, plein * 255]).astype(np.uint8)
-            out = out.repeat(TIMERE_PIXEL, 0).repeat(TIMERE_PIXEL, 1)
-            sorties[nom].append((out, ax * TIMERE_PIXEL, ay * TIMERE_PIXEL))
+            r[..., 3] = np.where(r[..., 3] > 128, 255, 0)  # Bords nets, comme la planche verte.
+            sorties[nom].append((r, ax * echelle, ay * echelle))
     return sorties
 
 
 def timere(sortie):
-    """Planche du Timere (WebP à fond noir uni)."""
-    a = np.asarray(Image.open(os.path.join(SOURCES, 'timere-planche.webp')).convert('RGB')).astype(int)
-    mx = a.max(2)
-    fg = mx > 12
-    # Titres : composantes entièrement dans une bande de titre, à gauche.
-    lab, n = nd.label(fg)
-    for i, s in enumerate(nd.find_objects(lab)):
-        for y0, y1 in TIMERE_TITRES:
-            if s[0].start >= y0 and s[0].stop <= y1 and s[1].stop <= 400:
-                fg[lab == i + 1] = False
-    # Fond : noir relié au bord, ou poche noire assez grande (entre les pattes).
-    noir = ~fg
-    lab, n = nd.label(noir)
-    tailles = nd.sum(noir, lab, range(1, n + 1))
-    bord = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
-    fond = np.zeros(n + 1, bool)
-    for i in range(1, n + 1):
-        fond[i] = i in bord or tailles[i - 1] >= 40
-    fond = fond[lab] | ~(fg | noir)
-    # Alpha : 1 à l'intérieur ; frange (2 px du fond) tirée de la luminosité.
-    alpha = np.where(fond, 0.0, 1.0)
-    frange = (~fond) & nd.binary_dilation(fond, iterations=2)
-    alpha[frange] = np.clip(mx[frange] / 70.0, 0, 1)
-    rgb = np.clip(a / np.maximum(alpha, 1e-3)[..., None], 0, 255)
-    rgba = np.dstack([np.where(alpha[..., None] > 0, rgb, 0), alpha * 255]).astype(np.uint8)
-    visible = alpha > 0.05
-
-    brutes = {}
-    for nom, ((y0, y1), coupes) in TIMERE_BANDES.items():
-        m = visible[y0:y1]
-        bornes = list(zip(coupes[:-1], coupes[1:])) if coupes else colonnes_vides(m)
-        imgs = []
-        for x0, x1 in bornes:
-            zone = m[:, x0:x1]
-            if zone.sum() < 800:
-                continue
-            ys, xs = np.nonzero(zone)
-            gx0, gx1, gy0, gy1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
-            bloc = rgba[y0 + gy0:y0 + gy1, x0 + gx0:x0 + gx1].copy()
-            bloc[..., 3] = np.where(zone[gy0:gy1, gx0:gx1], bloc[..., 3], 0)
-            h = gy1 - gy0
-            _, xs2 = np.nonzero(zone[gy0 + int(h * 0.75):gy1, gx0:gx1])
-            ax = float(np.median(xs2)) if len(xs2) else (gx1 - gx0) / 2
-            imgs.append((bloc, ax, float(h)))
-        brutes[nom] = imgs
-    ecrire_planche(styliser_timere(brutes, HAUTEUR_TIMERE), 1, TIMERE_RYTHMES, 'timere', sortie)
+    """Planche du Timere : lignes gardées de la verte, complétées par la planche complémentaire."""
+    vertes = timere_vert()
+    hauteur = float(np.median([ay for _, _, ay in vertes['repos']]))
+    images = dict(vertes, **timere_complement(hauteur))
+    ecrire_planche({nom: images[nom] for nom in TIMERE_ORDRE}, 1, TIMERE_RYTHMES, 'timere', sortie)
 
 
 def main():

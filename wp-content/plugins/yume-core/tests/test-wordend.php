@@ -116,13 +116,13 @@ yume_test(
 		yume_twe_verifier_planche(
 			'timere',
 			array(
-				'repos'   => 7,
-				'marche'  => 7,
+				'repos'   => 5,
+				'marche'  => 4,
 				'course'  => 6,
-				'fouet'   => 7,
-				'morsure' => 7,
-				'degats'  => 7,
-				'mort'    => 7,
+				'fouet'   => 4,
+				'morsure' => 4,
+				'degats'  => 5,
+				'mort'    => 6,
 			)
 		);
 	}

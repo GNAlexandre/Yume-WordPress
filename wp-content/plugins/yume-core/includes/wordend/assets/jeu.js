@@ -46,12 +46,12 @@
 	var DUREE_MORT = 2.2;
 
 	var TYPES = {
-		petit: { taille: 0.72, pv: 1, vitesse: 54, points: 10, attaques: [ 'morsure' ] },
-		normal: { taille: 0.95, pv: 2, vitesse: 38, points: 15, attaques: [ 'morsure', 'fouet' ] },
-		coureur: { taille: 0.85, pv: 1, vitesse: 112, points: 20, attaques: [ 'morsure' ], course: true },
+		petit: { taille: 0.8, pv: 1, vitesse: 54, points: 10, attaques: [ 'morsure' ] },
+		normal: { taille: 1, pv: 2, vitesse: 38, points: 15, attaques: [ 'morsure', 'fouet' ] },
+		coureur: { taille: 0.9, pv: 1, vitesse: 112, points: 20, attaques: [ 'morsure' ], course: true },
 		grand: { taille: 1.3, pv: 5, vitesse: 28, points: 40, attaques: [ 'fouet' ], stoique: true },
 	};
-	var PORTEE = { morsure: 30, fouet: 54 }; // Devant l'ancre, à la taille 1 (px logiques).
+	var PORTEE = { morsure: 40, fouet: 48 }; // Devant l'ancre, à la taille 1 (px logiques).
 	var DUREE_FONDU = 0.6;
 
 	var TOUCHES = {
@@ -753,8 +753,8 @@
 
 	/* Corps d'un Timere (ancre au sol, au milieu des pattes). */
 	function boiteTimere( t ) {
-		var l = 38 * t.taille;
-		var h = 42 * t.taille;
+		var l = 46 * t.taille;
+		var h = 44 * t.taille;
 		return { x: t.x - l / 2, y: SOL_Y - h, l: l, h: h };
 	}
 
@@ -762,7 +762,7 @@
 	function boiteAttaque( t ) {
 		var portee = PORTEE[ t.attaque ] * t.taille;
 		var debut = 6 * t.taille;
-		var h = ( t.attaque === 'fouet' ? 58 : 34 ) * t.taille;
+		var h = ( t.attaque === 'fouet' ? 36 : 34 ) * t.taille;
 		return {
 			x: t.dir > 0 ? t.x + debut : t.x - debut - portee,
 			y: SOL_Y - h - 4 * t.taille,
@@ -879,7 +879,7 @@
 				if ( ib <= ia || a.etat === 'mort' || b.etat === 'mort' ) {
 					return;
 				}
-				var ecart = ( 14 * ( a.taille + b.taille ) ) - Math.abs( a.x - b.x );
+				var ecart = ( 18 * ( a.taille + b.taille ) ) - Math.abs( a.x - b.x );
 				if ( ecart > 0 ) {
 					var sens = a.x < b.x ? -1 : 1;
 					a.x += sens * ecart * 0.25;
@@ -1122,7 +1122,7 @@
 		}
 		ctx.fillStyle = 'rgba(0,0,0,0.22)';
 		ctx.beginPath();
-		ctx.ellipse( t.x, SOL_Y + 1, 24 * t.taille, 3, 0, 0, Math.PI * 2 );
+		ctx.ellipse( t.x, SOL_Y + 1, 28 * t.taille, 3, 0, 0, Math.PI * 2 );
 		ctx.fill();
 
 		ctx.save();
