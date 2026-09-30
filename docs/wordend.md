@@ -1,4 +1,4 @@
-# Easter egg WordEnd — Chtholly contre les Timeres
+# Easter egg WordEnd — Chtholly – Bats-toi contre ton destin
 
 Mini-jeu 2D caché sur le site, clin d'œil à *SukaSuka* (« WordEnd ») : Chtholly et son épée
 Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume Core

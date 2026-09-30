@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.7 — 2026-09-30
+
+- WordEnd : titre « Chtholly – Bats-toi contre ton destin ».
+
 ## 2.1.4-dev.6 — 2026-09-30
 
 - WordEnd : Échap met la partie en pause, un second Échap ferme le jeu.

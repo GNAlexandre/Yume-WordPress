@@ -1,5 +1,5 @@
 /**
- * WordEnd — Chtholly contre les Timeres (easter egg de Yume Novel).
+ * WordEnd — Chtholly – Bats-toi contre ton destin (easter egg de Yume Novel).
  *
  * Chargé à la demande par declencheur.js. Expose window.ynWordEndJeu :
  * { ouvrir( config ), fermer(), estOuvert() }.
@@ -285,7 +285,7 @@
 		var cadre = element( 'div', { class: 'yn-wordend__cadre' } );
 
 		var entete = element( 'div', { class: 'yn-wordend__entete' } );
-		entete.appendChild( element( 'h2', { id: 'yn-wordend-titre', class: 'yn-wordend__titre' }, 'WordEnd — Chtholly contre les Timeres' ) );
+		entete.appendChild( element( 'h2', { id: 'yn-wordend-titre', class: 'yn-wordend__titre' }, 'Chtholly – Bats-toi contre ton destin' ) );
 		var fermerBouton = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm yn-wordend__fermer', 'aria-label': 'Fermer le jeu' }, '×' );
 		fermerBouton.addEventListener( 'click', fermer );
 		entete.appendChild( fermerBouton );
@@ -1314,7 +1314,7 @@
 		if ( etat === 'titre' ) {
 			voile();
 			texte( 'WordEnd', LARGEUR / 2, 62, 34, 'center', palette.accent, 800 );
-			texte( 'Chtholly contre les Timeres', LARGEUR / 2, 94, 15, 'center' );
+			texte( 'Chtholly – Bats-toi contre ton destin', LARGEUR / 2, 94, 15, 'center' );
 			dessinerSprite( 'repos', imageCourante( 'repos', temps ), LARGEUR / 2 - 20, 196, 1 );
 			texte( 'Entrée ou « Jouer » pour commencer', LARGEUR / 2, 222, 12, 'center' );
 			texte( 'Record : ' + meilleur, LARGEUR / 2, 244, 11, 'center', palette.texteFaible );
