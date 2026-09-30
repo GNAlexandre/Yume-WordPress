@@ -165,28 +165,34 @@ html.yn-wordend-ouvert {
 .yn-wordend .yn-wordend__manettes {
 	display: none;
 	flex-wrap: wrap;
-	gap: var(--wp--preset--spacing--20, 8px) var(--wp--preset--spacing--40, 16px);
+	align-items: center;
+	gap: var(--wp--preset--spacing--20, 8px);
 	justify-content: space-between;
 	user-select: none;
 	-webkit-user-select: none;
 }
 
-/* Deux groupes : déplacements à gauche, actions (Saut, principale, secondaire) à droite. */
+/*
+ * Deux groupes : déplacements (◀ ▶ ▼ Courir) à gauche, actions (Saut, principale, secondaire)
+ * à droite. Sur une seule rangée quand la largeur le permet ; sinon le groupe droit passe à la
+ * ligne, calé à droite (margin-left: auto), le gauche restant calé à gauche. Cibles ≥ 44 px.
+ */
 .yn-wordend .yn-wordend__manettes-groupe {
 	display: flex;
-	flex: 1 1 14rem;
-	gap: var(--wp--preset--spacing--20, 8px);
+	flex: 0 1 auto;
+	gap: 6px;
 }
 
 .yn-wordend .yn-wordend__manettes-groupe--droite {
 	justify-content: flex-end;
+	margin-left: auto;
 }
 
 .yn-wordend .yn-wordend__manette {
-	flex: 1 1 0;
-	min-width: 56px;
+	flex: 0 0 auto;
+	min-width: 48px;
 	min-height: 52px;
-	padding: 0 8px;
+	padding: 0 10px;
 	touch-action: none;
 	-webkit-touch-callout: none;
 	user-select: none;
@@ -194,8 +200,42 @@ html.yn-wordend-ouvert {
 }
 
 .yn-wordend .yn-wordend__manette--gauche,
-.yn-wordend .yn-wordend__manette--droite {
+.yn-wordend .yn-wordend__manette--droite,
+.yn-wordend .yn-wordend__manette--bas {
 	font-size: 20px;
+}
+
+/* Téléphone : boutons plus serrés, une seule rangée dès 360 px de large (sinon deux rangées). */
+@media (max-width: 480px) {
+	.yn-wordend .yn-wordend__manettes,
+	.yn-wordend .yn-wordend__manettes-groupe {
+		gap: 4px;
+	}
+
+	.yn-wordend .yn-wordend__manette {
+		min-width: 44px;
+		min-height: 48px;
+		padding: 0 5px;
+		font-size: 13px;
+	}
+
+	.yn-wordend .yn-wordend__manette--gauche,
+	.yn-wordend .yn-wordend__manette--droite,
+	.yn-wordend .yn-wordend__manette--bas {
+		font-size: 17px;
+	}
+}
+
+@media (max-width: 400px) {
+	.yn-wordend .yn-wordend__manettes,
+	.yn-wordend .yn-wordend__manettes-groupe {
+		gap: 3px;
+	}
+
+	.yn-wordend .yn-wordend__manette {
+		padding: 0 2px;
+		font-size: 12px;
+	}
 }
 
 .yn-wordend .yn-wordend__manette:focus-visible {
@@ -244,6 +284,13 @@ html.yn-wordend-ouvert {
 
 	.yn-wordend .yn-wordend__son {
 		margin-left: 0;
+	}
+}
+
+/* Très petit écran : marges réduites (les sept manettes tiennent sur une rangée dès 360 px). */
+@media (max-width: 400px) {
+	.yn-wordend .yn-wordend__cadre {
+		padding: var(--wp--preset--spacing--20, 8px);
 	}
 }
 

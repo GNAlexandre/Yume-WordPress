@@ -28,9 +28,9 @@ En partie :
 | Marcher | ← → ou Q/D (A/D en QWERTY) | ◀ ▶ |
 | Courir | Maj maintenue | « Courir » (bascule) |
 | Sauter | ↑, Z (W en QWERTY) ou Espace ; maintenir pour sauter plus haut ; nouvel appui en l'air : double saut (Nephren) | « Saut » |
-| Descendre d'une plateforme | ↓ + saut (plateformes fines seulement) | — |
+| Descendre d'une plateforme | ↓ + saut (plateformes fines seulement) | ▼ maintenu + « Saut » |
 | Action principale | J ou X | « Épée » (Chtholly, Nephren), « Tir » (Ithea) |
-| Compétence | K ou C ; charge magique : maintenir 0,55 s puis relâcher | « Charge », « Parade », « Ruée » (maintenu pour la charge) |
+| Compétence | K ou C (un appui bref suffit pour la parade et la ruée) ; charge magique : maintenir 0,55 s puis relâcher | « Charge », « Parade », « Ruée » (maintenu pour la charge) |
 | Pause / reprise | P, ou bouton « Pause » | bouton « Pause » |
 | Retour aux niveaux | R (en pause, à la fin, sur les écrans), ou bouton « Niveaux » | bouton « Niveaux » |
 | Couper / remettre la musique | M, ou bouton « Couper la musique » | même bouton |
@@ -41,15 +41,16 @@ En partie :
 
 | Action | Clavier | Tactile, souris |
 | --- | --- | --- |
-| Choisir | ← → (↑ ↓ : ligne de la grille des niveaux) ; listes « Univers », « Personnage », « Niveau » sous l'écran | ◀ ▶ ; toucher ou cliquer une carte |
+| Choisir | ← → (↑ ↓ : ligne de la grille des niveaux) ; listes « Univers », « Personnage », « Niveau » sous l'écran | ◀ ▶ (▼ : ligne suivante) ; toucher ou cliquer une carte |
 | Valider, commencer | Entrée, Espace, J ou X ; bouton « Jouer » / « Valider » | second appui sur la carte choisie ; toucher l'écran titre ; tout autre bouton de manette |
 | Après une défaite | Entrée : rejouer ; R : niveaux | bouton « Rejouer », « Niveaux » |
 | Après une victoire | Entrée : niveau suivant ; R : niveaux | toucher l'écran ; « Rejouer », « Niveaux » |
 | Fermer | Échap | × |
 
 L'aide sous l'écran et les boutons tactiles suivent le personnage choisi. Les manettes tactiles
-n'apparaissent que sur les écrans tactiles (`pointer: coarse`) : déplacements à gauche, Saut et
-compétences à droite (boutons de 52 px au moins, `touch-action: none`) ; en paysage sur un téléphone,
+n'apparaissent que sur les écrans tactiles (`pointer: coarse`) : déplacements (◀ ▶ ▼ Courir) calés à
+gauche, Saut et compétences calés à droite, sur une seule rangée dès 360 px de large (sinon deux rangées,
+chacune de son côté), cibles de 44 px au moins, `touch-action: none` ; en paysage sur un téléphone,
 l'écran de jeu et les manettes tiennent ensemble.
 
 ## Personnages et compétences
@@ -62,8 +63,10 @@ Hauteurs de saut à la gravité par défaut (900 px/s²). PV : points de vie (c�
 | Nephren (Insania) | 5 | 66 / 128 px/s | 53 px, **double saut** | Coup d'Insania : 2 dégâts | Parade (0,6 s, recharge 2 s) : coups absorbés, attaquant repoussé, projectiles renvoyés | en finissant « La plage » |
 | Ithea (Valgulious) | 4 | 78 / 150 px/s | 64 px | Dague lancée : 1 dégât, 300 px/s, toutes les 0,35 s | Ruée : 90 px en 0,2 s, invulnérable, recharge 1,5 s | en finissant « La falaise » |
 
-Règles communes : après un coup reçu, 1,2 s d'invincibilité (le personnage clignote) ; saut possible
-0,08 s après avoir quitté un bord ; les compétences se lancent aussi en l'air ; la jauge sous les cœurs
+Règles communes : après un coup reçu, 1,2 s d'invincibilité (le personnage clignote ; 2,5 s après un coup
+du Timere géant) ; saut possible 0,08 s après avoir quitté un bord ; les compétences se lancent aussi en
+l'air ; en l'air ou sur une plateforme, le coup d'épée porte aussi 32 px plus bas (un Timere au sol juste
+sous une corniche basse reste frappable) ; la jauge sous les cœurs
 montre la recharge de la compétence. Le dernier personnage choisi est mémorisé.
 
 ## Niveaux et objectifs
@@ -100,7 +103,7 @@ Tous sont des Timeres (`ennemis/timere.json`), de huit types :
 | Timere ailé (volant) | 0,6 | 1 | 25 | ondule au-dessus du sol, plonge sur le joueur puis remonte |
 | Timere cracheur (tireur) | 0,9 | 2 | 30 | garde ses distances, crache des projectiles ; mord au contact |
 | Timere cuirassé (bouclier) | 1,1 | 3 | 35 | pare les coups de face ; le frapper dans le dos (il se retourne lentement) ou avec l'onde |
-| Timere géant (boss) | 2 | 40 | 500 | ne recule jamais ; charge traversante toutes les 6 s (annoncée par un clignotement) ; à mi-vie, accélère et appelle des petits Timeres |
+| Timere géant (boss) | 2 | 40 | 500 | ne recule jamais ; coups espacés (3–5 s) annoncés par 0,45 s de clignotement, 2,5 s de répit après un coup reçu ; charge traversante toutes les 9 s (0,8 s de clignotement) ; à mi-vie, accélère et appelle des petits Timeres |
 
 Les morsures et coups de fouet ne touchent que sur les images « coup » de leur animation ; un ennemi
 n'attaque pas depuis l'extérieur de l'écran.
@@ -108,8 +111,9 @@ n'attaque pas depuis l'extérieur de l'écran.
 ## Étoiles, déblocages et sauvegarde
 
 - Arcade toujours ouvert ; un niveau s'ouvre quand le précédent est fini ; Nephren et Ithea se débloquent
-  en finissant « La plage » et « La falaise ». Les éléments verrouillés sont signalés (cadenas, « verrouillé »
-  dans les listes) et annoncés, jamais lancés.
+  en finissant « La plage » et « La falaise ». Les éléments verrouillés sont signalés (cadenas, carte en
+  tirets, « verrouillé » dans les listes) et annoncés, jamais lancés. L'écran de victoire affiche et annonce
+  ce qu'elle débloque (« Nouveau personnage : Nephren ! · Niveau débloqué : Les dunes »).
 - Une étoile pour finir un niveau, une pour le score, une pour les PV restants ou le temps (critères du
   JSON du niveau) ; on garde le meilleur score et le maximum d'étoiles.
 - Sauvegarde : `localStorage['yn.wordend']` (appareil seulement), format v2 par univers : parties, record
@@ -128,14 +132,16 @@ n'attaque pas depuis l'extérieur de l'écran.
   musique, commandes tactiles), zone de jeu `role="img"` avec un libellé.
 - Annonces dans une région `role="status"` : écran courant et consigne, carte choisie (verrou,
   description, étoiles, record), vague, secondes restantes en survie, rage du boss, pause, fin de partie et
-  victoire ; la vie du boss est aussi un `<progress>` visuellement caché.
+  victoire (avec les déblocages) ; la vie du boss est aussi un `<progress>` visuellement caché.
 - Mouvement réduit (`prefers-reduced-motion` ou option « Animations réduites » du lecteur,
   `html[data-yn-animations="reduites"]`) : ni secousse, ni clignotement, pas de parallaxe ni de lissage de
   caméra, étoiles et bannières sans animation, moins de particules.
 - Pause automatique quand l'onglet est masqué ou que la fenêtre perd le focus.
-- Couleurs de l'interface (textes, cœurs, jauges, plateformes, cartes) lues dans les variables du thème
+- Couleurs de l'interface (textes, jauges, plateformes, cartes) lues dans les variables du thème
   (Nuit, Papier, Sépia), mises à jour à l'événement `yn:theme` ; le décor est une image peinte, identique
-  dans les trois thèmes.
+  dans les trois thèmes. Les cartes verrouillées restent opaques, libellés en `texte-faible` (≥ 4,5:1).
+  Le HUD (cœurs, score, record, vague, boss), dessiné sur le décor, garde les mêmes couleurs dans les trois
+  thèmes : texte clair et cœurs cerclés d'un contour sombre, tailles relevées pour les téléphones.
 - Musique jamais lancée sans action du joueur, coupable à tout moment (bouton à `aria-pressed`, touche
   M), volume réglable par un vrai curseur étiqueté ; réglages gardés sur l'appareil.
 
@@ -269,7 +275,5 @@ planche remplace la pose figée correspondante sans toucher au code.
   utilisé a un ayant droit : droits à confirmer avant toute diffusion large (sinon, le remplacer par une
   piste libre créditée dans `musiques.<nom>.credit`). 3,6 Mo : un réencodage à 128 kbit/s réduirait le
   poids d'un tiers.
-- Pas de bouton tactile « bas » : on ne peut pas descendre d'une plateforme fine au doigt (il suffit d'en
-  sortir par le bord).
 - La planche de Chtholly vient d'une image générée : les bords extérieurs très clairs de l'onde de la
   charge magique sont légèrement rognés par le détourage.

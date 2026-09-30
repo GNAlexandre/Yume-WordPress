@@ -199,8 +199,28 @@ async function parcoursPrincipal( navigateur ) {
 	ok( await attendreEtat( page, 'victoire' ), 'niveau:fin gagné → victoire' );
 	await page.waitForTimeout( 1400 );
 	await capture( page, 'victoire-nuit' );
+	const annonceArcade = await page.textContent( 'dialog .yn-visually-hidden[role=status]' );
+	ok( /Victoire/.test( annonceArcade ) && ! /débloqué|Nouveau personnage/.test( annonceArcade ), 'arcade gagnée : aucun déblocage annoncé' );
 	await page.keyboard.press( 'Enter' );
 	ok( await attendreEtat( page, 'niveaux' ), 'Entrée sur victoire (sans suivant) → niveaux' );
+
+	// Victoire sur 01-plage : Nephren et « Les dunes » débloqués, affichés et annoncés.
+	await page.selectOption( 'dialog select[name=niveau]', '01-plage' );
+	await page.focus( 'dialog .yn-wordend__ecran' );
+	await page.keyboard.press( 'Enter' );
+	ok( await attendreEtat( page, 'jeu' ), '01-plage lancé' );
+	await page.evaluate( () => window.ynWordEndMoteur.evenements.emettre( 'niveau:fin', { resultat: 'gagne', score: 300, etoiles: 2, temps: 60, pv: 3, niveau: '01-plage' } ) );
+	ok( await attendreEtat( page, 'victoire' ), '01-plage gagné → victoire' );
+	await page.waitForTimeout( 1400 );
+	const annonce = await page.textContent( 'dialog .yn-visually-hidden[role=status]' );
+	ok( /Nouveau personnage : Nephren/.test( annonce ) && /Niveau débloqué : Les dunes/.test( annonce ), 'déblocages annoncés : « ' + annonce + ' »' );
+	await capture( page, 'victoire-deblocage-nuit' );
+	const nephren = await page.$$eval( 'dialog select[name=personnage] option', ( o ) => o.filter( ( x ) => x.value === 'nephren' ).map( ( x ) => x.textContent ) );
+	ok( nephren.length === 1 && ! /verrouill/.test( nephren[ 0 ] ), 'Nephren débloquée dans la liste : ' + nephren[ 0 ] );
+	await page.keyboard.press( 'r' );
+	ok( await attendreEtat( page, 'niveaux' ), 'R sur victoire → niveaux' );
+	await page.selectOption( 'dialog select[name=niveau]', 'arcade' );
+	await page.focus( 'dialog .yn-wordend__ecran' );
 	await page.keyboard.press( 'Enter' );
 	ok( await attendreEtat( page, 'jeu' ), 'niveaux → jeu' );
 	await page.keyboard.press( 'Escape' );
@@ -265,7 +285,7 @@ async function parcoursTactile( navigateur ) {
 	ok( await attendreEtat( page, 'titre' ), 'titre' );
 	ok( await page.locator( 'dialog .yn-wordend__manette[data-commande=saut]' ).isVisible(), 'manette Saut visible (pointeur grossier)' );
 	const groupes = await page.$$eval( 'dialog .yn-wordend__manettes-groupe', ( g ) => g.map( ( x ) => Array.from( x.children ).map( ( b ) => b.dataset.commande ).join( '+' ) ) );
-	ok( groupes.length === 2 && /gauche\+droite/.test( groupes[ 0 ] ) && /saut\+epee\+competence/.test( groupes[ 1 ] ), 'groupes : ' + groupes.join( ' / ' ) );
+	ok( groupes.length === 2 && /gauche\+droite\+bas\+courir/.test( groupes[ 0 ] ) && /saut\+epee\+competence/.test( groupes[ 1 ] ), 'groupes (▼ Bas à gauche) : ' + groupes.join( ' / ' ) );
 	const tailles = await page.$$eval( 'dialog .yn-wordend__manette', ( b ) => b.map( ( x ) => Math.min( x.getBoundingClientRect().width, x.getBoundingClientRect().height ) ) );
 	ok( Math.min.apply( null, tailles ) >= 44, 'boutons tactiles ≥ 44 px (min ' + Math.round( Math.min.apply( null, tailles ) ) + ')' );
 	await page.tap( 'dialog .yn-wordend__manette[data-commande=saut]' );

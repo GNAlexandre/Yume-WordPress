@@ -52,12 +52,14 @@
 	var IMPULSIONS = { epee: true, competence: true, saut: true };
 
 	/*
-	 * Manettes par défaut (Chtholly). groupe : 'gauche' (déplacements) ou 'droite' (actions).
+	 * Manettes par défaut (Chtholly). groupe : 'gauche' (déplacements : ◀ ▶ ▼ Courir) ou 'droite'
+	 * (actions). ▼ (commande 'bas', maintenue) + Saut : descendre d'une plateforme traversable.
 	 * La modale les remplace d'après le personnage choisi (schéma de la même forme).
 	 */
 	var SCHEMA_DEFAUT = [
 		{ nom: 'gauche', texte: '◀', libelle: 'Aller à gauche', groupe: 'gauche' },
 		{ nom: 'droite', texte: '▶', libelle: 'Aller à droite', groupe: 'gauche' },
+		{ nom: 'bas', texte: '▼', libelle: 'Bas (maintenir, puis Saut : descendre d’une plateforme)', groupe: 'gauche' },
 		{ nom: 'courir', texte: 'Courir', libelle: 'Courir', bascule: true, groupe: 'gauche' },
 		{ nom: 'saut', texte: 'Saut', libelle: 'Sauter', groupe: 'droite' },
 		{ nom: 'epee', texte: 'Épée', libelle: 'Coup d’épée', groupe: 'droite' },

@@ -16,6 +16,20 @@
 	var ynWE = window.ynWordEndMoteur;
 	var PLAFOND_PARTICULES = 300;
 
+	/*
+	 * Couleurs du HUD, indépendantes du thème : le HUD est dessiné sur le décor peint, identique
+	 * dans les trois thèmes (ciel sombre). Texte clair à contour sombre, lisible partout (y
+	 * compris sur le décor de secours clair du thème Papier). Valeurs de la palette Nuit.
+	 */
+	var HUD = {
+		texte: '#fff8fb',
+		faible: '#e4d9f0',
+		accent: '#f3a6c8',
+		contour: '#1b1231',
+		vide: '#4a3b6e',
+		danger: '#ff8f7e',
+	};
+
 	/* Particules : fonctions sans état, aussi exposées sur r. */
 	function ajouterParticule( monde, x, y, vx, vy, vie, couleur, taille, flotte ) {
 		if ( ! monde || monde.particules.length >= PLAFOND_PARTICULES ) {
@@ -312,6 +326,19 @@
 			ctx.fillText( contenu, x, y );
 		};
 
+		/* Texte du HUD (sur le décor) : couleurs HUD, contour sombre, indépendant du thème. */
+		r.texteHud = function ( contenu, x, y, taille, alignement, couleur, graisse ) {
+			ctx.font = ( graisse || 700 ) + ' ' + taille + 'px ' + r.police;
+			ctx.textAlign = alignement || 'left';
+			ctx.textBaseline = 'middle';
+			ctx.lineJoin = 'round';
+			ctx.lineWidth = 3.5;
+			ctx.strokeStyle = HUD.contour;
+			ctx.strokeText( contenu, x, y );
+			ctx.fillStyle = couleur || HUD.texte;
+			ctx.fillText( contenu, x, y );
+		};
+
 		r.voile = function () {
 			ctx.globalAlpha = 0.72;
 			ctx.fillStyle = r.palette.fond;
@@ -319,15 +346,29 @@
 			ctx.globalAlpha = 1;
 		};
 
-		r.coeur = function ( x, y, plein ) {
-			ctx.fillStyle = plein ? r.palette.accent : r.palette.filet;
+		/*
+		 * Cœur du HUD (pointe en (x, y + 9 × echelle)) : plein rose, vide sombre, toujours cerclé
+		 * d'un contour sombre (couleurs HUD, lisibles sur le décor dans les trois thèmes).
+		 */
+		r.coeur = function ( x, y, plein, echelle ) {
+			var e = echelle || 1;
+			ctx.save();
+			ctx.translate( x, y );
+			ctx.scale( e, e );
 			ctx.beginPath();
-			ctx.moveTo( x, y + 3 );
-			ctx.bezierCurveTo( x, y, x - 5, y - 1, x - 5, y + 2 );
-			ctx.bezierCurveTo( x - 5, y + 5, x - 1, y + 7, x, y + 9 );
-			ctx.bezierCurveTo( x + 1, y + 7, x + 5, y + 5, x + 5, y + 2 );
-			ctx.bezierCurveTo( x + 5, y - 1, x, y, x, y + 3 );
+			ctx.moveTo( 0, 3 );
+			ctx.bezierCurveTo( 0, 0, -5, -1, -5, 2 );
+			ctx.bezierCurveTo( -5, 5, -1, 7, 0, 9 );
+			ctx.bezierCurveTo( 1, 7, 5, 5, 5, 2 );
+			ctx.bezierCurveTo( 5, -1, 0, 0, 0, 3 );
+			ctx.closePath();
+			ctx.lineJoin = 'round';
+			ctx.lineWidth = 2.4 / e;
+			ctx.strokeStyle = HUD.contour;
+			ctx.stroke();
+			ctx.fillStyle = plein ? HUD.accent : HUD.vide;
 			ctx.fill();
+			ctx.restore();
 		};
 
 		r.particules = function ( monde ) {
@@ -346,6 +387,7 @@
 	}
 
 	ynWE.rendu = {
+		HUD: HUD,
 		creer: creer,
 		ajouterParticule: ajouterParticule,
 		mettreAJourParticules: mettreAJourParticules,

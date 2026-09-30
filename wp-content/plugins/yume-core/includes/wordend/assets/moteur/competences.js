@@ -39,11 +39,20 @@
 	/* melee : coup porté sur les images « coup » de l'animation            */
 	/* ------------------------------------------------------------------ */
 
+	var PORTEE_BAS = 32;
+
+	/*
+	 * Boîte du coup. En l'air ou debout sur une plateforme (j.support), elle s'allonge vers le
+	 * bas de def.porteeBas px (32 par défaut : depuis une plateforme à 50–58 px du sol, atteint
+	 * le haut d'un petit Timere de 35 px) : un ennemi au sol juste sous une plateforme basse
+	 * reste frappable (sinon joueur et ennemi ne pourraient plus s'atteindre).
+	 */
 	function boiteMelee( j, def ) {
 		var b = def.boite || { x: 4, y: -62, l: 60, h: 58 };
+		var bas = ! j.auSol || j.support ? ( typeof def.porteeBas === 'number' ? def.porteeBas : PORTEE_BAS ) : 0;
 		return j.dir > 0 ?
-			{ x: j.x + b.x, y: j.y + b.y, l: b.l, h: b.h } :
-			{ x: j.x - b.x - b.l, y: j.y + b.y, l: b.l, h: b.h };
+			{ x: j.x + b.x, y: j.y + b.y, l: b.l, h: b.h + bas } :
+			{ x: j.x - b.x - b.l, y: j.y + b.y, l: b.l, h: b.h + bas };
 	}
 
 	var melee = {

@@ -191,6 +191,48 @@
 			} );
 		}
 
+		/* Slugs débloqués (personnages et niveaux) : instantané comparé par ec.nouveautes. */
+		function deblocages() {
+			var slugs = function ( liste ) {
+				return liste.filter( function ( x ) {
+					return x.debloque;
+				} ).map( function ( x ) {
+					return x.slug;
+				} );
+			};
+			return { personnages: slugs( listePersonnages() ), niveaux: slugs( listeNiveaux() ) };
+		}
+
+		/*
+		 * Déblocages survenus depuis l'instantané avant (ec.deblocages()) : liste de
+		 * {type: 'personnage'|'niveau', slug, nom}. La modale l'appelle autour de
+		 * stockage.enregistrerResultat et la passe au bilan de victoire (bilan.nouveautes).
+		 */
+		function nouveautes( avant ) {
+			var liste = [];
+			if ( ! avant ) {
+				return liste;
+			}
+			listePersonnages().forEach( function ( p ) {
+				if ( p.debloque && p.personnage && ( avant.personnages || [] ).indexOf( p.slug ) === -1 ) {
+					liste.push( { type: 'personnage', slug: p.slug, nom: p.nom } );
+				}
+			} );
+			listeNiveaux().forEach( function ( n ) {
+				if ( n.debloque && ( avant.niveaux || [] ).indexOf( n.slug ) === -1 ) {
+					liste.push( { type: 'niveau', slug: n.slug, nom: n.titre } );
+				}
+			} );
+			return liste;
+		}
+
+		/* Phrase des déblocages : « Nouveau personnage : Nephren ! · Niveau débloqué : Les dunes ». */
+		function texteNouveautes( liste, separateur ) {
+			return ( liste || [] ).map( function ( n ) {
+				return n.type === 'personnage' ? 'Nouveau personnage : ' + n.nom + ' !' : 'Niveau débloqué : ' + n.nom + '.';
+			} ).join( separateur );
+		}
+
 		function trouver( liste, slug ) {
 			for ( var i = 0; i < liste.length; i++ ) {
 				if ( liste[ i ].slug === slug ) {
@@ -506,7 +548,8 @@
 					var etoiles = bilan.etoiles || 0;
 					var partieFinie = partieCourante();
 					var message = partieFinie && partieFinie.niveau && partieFinie.niveau.textes ? partieFinie.niveau.textes.victoire : '';
-					annoncer( 'Victoire ! ' + ( message ? message + ' ' : '' ) + 'Score : ' + bilan.score + '. ' + etoiles + ( etoiles > 1 ? ' étoiles' : ' étoile' ) + ' sur 3.' + ( bilan.record ? ' Nouveau record !' : '' ) + ( niveauSuivant() ? ' Entrée : niveau suivant, R : niveaux.' : ' Entrée ou R : niveaux.' ) );
+					var debloque = texteNouveautes( bilan.nouveautes, ' ' );
+					annoncer( 'Victoire ! ' + ( message ? message + ' ' : '' ) + 'Score : ' + bilan.score + '. ' + etoiles + ( etoiles > 1 ? ' étoiles' : ' étoile' ) + ' sur 3.' + ( bilan.record ? ' Nouveau record !' : '' ) + ( debloque ? ' ' + debloque : '' ) + ( niveauSuivant() ? ' Entrée : niveau suivant, R : niveaux.' : ' Entrée ou R : niveaux.' ) );
 				}
 			}
 			var precedent = ec.etat;
@@ -555,6 +598,8 @@
 		};
 
 		ec.preparer = preparer;
+		ec.deblocages = deblocages;
+		ec.nouveautes = nouveautes;
 
 		ec.surAction = function ( action, nom ) {
 			var etat = ec.etat;
@@ -596,6 +641,11 @@
 			} else if ( action === 'tactile' ) {
 				if ( MENUS[ etat ] && etat !== 'titre' && ( nom === 'gauche' || nom === 'droite' ) ) {
 					deplacer( nom === 'gauche' ? -1 : 1 );
+				} else if ( nom === 'bas' ) {
+					// ▼ : descend d'une rangée dans les menus, ne valide jamais.
+					if ( MENUS[ etat ] && etat !== 'titre' ) {
+						deplacer( etat === 'niveaux' ? COLONNES_NIVEAUX : 1 );
+					}
 				} else if ( MENUS[ etat ] || etat === 'fin' || etat === 'victoire' ) {
 					valider();
 				}
@@ -648,18 +698,29 @@
 			ctx.closePath();
 		}
 
+		/*
+		 * Carte de sélection. Verrouillée (grisee) : fond carte opaque (le décor ne passe pas au
+		 * travers, les libellés en texte-faible gardent leur contraste ≥ 4,5:1 du thème) et
+		 * contour en tirets ; le verrou se lit au cadenas et au libellé, pas à une opacité réduite.
+		 */
 		function carte( x, y, l, h, choisie, grisee ) {
 			var ctx = r.ctx;
 			var p = r.palette;
-			ctx.globalAlpha = grisee ? 0.7 : 0.92;
+			ctx.globalAlpha = grisee ? 1 : 0.92;
 			ctx.fillStyle = p.carte;
 			rectangleArrondi( x, y, l, h, 6 );
 			ctx.fill();
 			ctx.globalAlpha = 1;
 			ctx.lineWidth = choisie ? 2 : 1;
-			ctx.strokeStyle = choisie ? p.accent : p.filet;
+			ctx.strokeStyle = choisie ? p.accent : ( grisee ? p.texteFaible : p.filet );
+			if ( grisee && ! choisie && ctx.setLineDash ) {
+				ctx.setLineDash( [ 4, 3 ] );
+			}
 			rectangleArrondi( x, y, l, h, 6 );
 			ctx.stroke();
+			if ( ctx.setLineDash ) {
+				ctx.setLineDash( [] );
+			}
 		}
 
 		/* Étoile à 5 branches (pleine ou contour), échelle 0…1. */
@@ -827,7 +888,7 @@
 					choisi = n;
 				}
 				carte( x, y, l, h, estChoisi, ! n.debloque );
-				var couleur = n.debloque ? p.texteFaible : p.filet;
+				var couleur = p.texteFaible; // Verrouillé ou non : texte-faible sur carte (≥ 4,5:1).
 				r.texte( n.arcade ? 'Mode libre' : 'Niveau ' + n.numero, x + 8, y + 11, 9, 'left', couleur );
 				r.texte( n.titre, x + l / 2, y + h * 0.42, 13, 'center', n.debloque ? ( estChoisi ? p.texteFort : p.texte ) : p.texteFaible, 800 );
 				if ( ! n.debloque ) {
@@ -854,36 +915,45 @@
 		/* HUD                                                                 */
 		/* ------------------------------------------------------------------ */
 
+		/*
+		 * HUD dessiné sur le décor : couleurs ynWE.rendu.HUD (texte clair, contour sombre), les
+		 * mêmes dans les trois thèmes puisque le décor ne change pas. Tailles logiques relevées
+		 * pour rester lisibles sur un téléphone (canvas ≈ 0,8 × sa taille logique à 412 px).
+		 */
 		ec.hud = function ( monde, partie ) {
 			var j = monde.joueur;
-			var p = r.palette;
+			var H = ynWE.rendu.HUD;
 			var infos = partie ? partie.hud() : { vague: 0, banniere: 0 };
 			for ( var i = 0; i < j.pvMax; i++ ) {
-				r.coeur( 16 + i * 13, 10, i < j.pv );
+				r.coeur( 17 + i * 16, 8, i < j.pv, 1.3 );
 			}
-			r.texte( 'Score ' + monde.score, LARGEUR / 2, 15, 12, 'center' );
-			r.texte( 'Record ' + Math.max( ec.meilleur, monde.score ), LARGEUR - 10, 15, 11, 'right', p.texteFaible );
+			r.texteHud( 'Score ' + monde.score, LARGEUR / 2, 15, 14, 'center' );
+			r.texteHud( 'Record ' + Math.max( ec.meilleur, monde.score ), LARGEUR - 10, 15, 12, 'right', H.faible );
 			var niveau = monde.niveau || {};
 			var objectif = niveau.objectif || {};
 			// Survie : hud().restant (lot C), à défaut objectif.duree − temps. Pas de « Vague 0 ».
 			var restant = typeof infos.restant === 'number' ? infos.restant : ( infos.objectif === 'survie' && typeof objectif.duree === 'number' ? objectif.duree - ( infos.temps || 0 ) : null );
 			if ( restant !== null ) {
-				r.texte( 'Survie ' + chrono( restant ), LARGEUR - 10, 30, 11, 'right', restant <= 10 ? p.accent : p.texteFaible );
+				r.texteHud( 'Survie ' + chrono( restant ), LARGEUR - 10, 31, 12, 'right', restant <= 10 ? H.accent : H.faible );
 			} else if ( infos.vague > 0 ) {
-				r.texte( 'Vague ' + infos.vague + ( infos.total ? ' / ' + infos.total : '' ), LARGEUR - 10, 30, 11, 'right', p.texteFaible );
+				r.texteHud( 'Vague ' + infos.vague + ( infos.total ? ' / ' + infos.total : '' ), LARGEUR - 10, 31, 12, 'right', H.faible );
 			}
 			var secondaire = ( monde.personnage.competences || {} ).secondaire;
 			if ( secondaire && secondaire.recharge && j.recharges && j.recharges.secondaire > 0 ) {
-				r.jauge( 16, 26, 60, 3, 1 - j.recharges.secondaire / secondaire.recharge, '#8fd0ff' );
+				r.ctx.fillStyle = H.contour;
+				r.ctx.fillRect( 15, 27, 62, 5 );
+				r.jauge( 16, 28, 60, 3, 1 - j.recharges.secondaire / secondaire.recharge, '#8fd0ff' );
 			}
 			if ( infos.boss && infos.boss.pvMax > 0 ) {
-				r.texte( infos.boss.nom || 'Boss', LARGEUR / 2, 32, 10, 'center', p.texteFort );
-				r.jauge( LARGEUR / 2 - 100, 39, 200, 5, infos.boss.pv / infos.boss.pvMax, p.erreur );
+				r.texteHud( infos.boss.nom || 'Boss', LARGEUR / 2, 33, 11, 'center' );
+				r.ctx.fillStyle = H.contour;
+				r.ctx.fillRect( LARGEUR / 2 - 101, 40, 202, 7 );
+				r.jauge( LARGEUR / 2 - 100, 41, 200, 5, infos.boss.pv / infos.boss.pvMax, H.danger );
 			}
 			if ( infos.banniere > 0 && ec.etat === 'jeu' ) {
 				var decalage = monde.mouvementReduit ? 0 : Math.max( 0, infos.banniere - 1.7 ) * 200;
 				r.ctx.globalAlpha = Math.min( 1, infos.banniere * 2 );
-				r.texte( 'Vague ' + infos.vague + ( infos.total ? ' / ' + infos.total : '' ), LARGEUR / 2 - decalage, 96, 26, 'center', p.accent, 800 );
+				r.texteHud( 'Vague ' + infos.vague + ( infos.total ? ' / ' + infos.total : '' ), LARGEUR / 2 - decalage, 96, 26, 'center', H.accent, 800 );
 				r.ctx.globalAlpha = 1;
 			}
 		};
@@ -951,7 +1021,11 @@
 			if ( victoire ) {
 				rangeeEtoiles( LARGEUR / 2, 128, bilan.etoiles || 0, 13, apparitionEtoile );
 				r.texte( 'Score : ' + bilan.score + ( bilan.record ? ' · nouveau record !' : '' ), LARGEUR / 2, 160, 14, 'center' );
-				r.texte( niveauSuivant() ? 'Entrée : niveau suivant · R : niveaux' : 'Entrée ou R : niveaux', LARGEUR / 2, 196, 12, 'center' );
+				var debloque = texteNouveautes( bilan.nouveautes, ' · ' ).replace( /\.( ·|$)/g, '$1' );
+				if ( debloque ) {
+					paragraphe( debloque, LARGEUR / 2, 182, LARGEUR - 40, 12, p.accent2, 2 );
+				}
+				r.texte( niveauSuivant() ? 'Entrée : niveau suivant · R : niveaux' : 'Entrée ou R : niveaux', LARGEUR / 2, debloque ? 214 : 196, 12, 'center' );
 			} else {
 				r.texte( 'Score : ' + bilan.score, LARGEUR / 2, 124, 16, 'center' );
 				r.texte( bilan.record && bilan.score > 0 ? 'Nouveau record !' : 'Record : ' + ec.meilleur, LARGEUR / 2, 148, 12, 'center', p.accent2 );

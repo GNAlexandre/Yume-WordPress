@@ -289,7 +289,7 @@ function remplacerStubProjectiles() {
 		s.in.relacher( 'bas' );
 		b.pas( s, 60 );
 		const resteDessus = s.j.y === 180;
-		s = b.monde( 'chtholly', { plateformes: [ { x: 200, y: 150, l: 96, type: 'solide' } ] } );
+		s = b.monde( 'chtholly', { plateformes: [ { x: 200, y: 150, l: 96, type: 'solide', h: 6 } ] } );
 		s.j.x = 248;
 		b.pas( s, 1 );
 		s.in.appuyer( 'saut' );
@@ -298,7 +298,14 @@ function remplacerStubProjectiles() {
 			b.pas( s, 1 );
 			yMin = Math.min( yMin, s.j.y );
 		}
-		r.solide = { resteDessus: resteDessus, yMin: yMin, attendu: 150 + ynWE.physique.EPAISSEUR + s.j.h, yFinal: s.j.y };
+		r.solide = { resteDessus: resteDessus, yMin: yMin, attendu: 150 + 6 + s.j.h, yFinal: s.j.y };
+		// Solide sans h : bloc jusqu'au sol (comme au dessin) ; on bute contre son flanc au sol.
+		s = b.monde( 'chtholly', { plateformes: [ { x: 300, y: 200, l: 60, type: 'solide' } ] } );
+		s.j.x = 240;
+		s.in.appuyer( 'droite' );
+		b.pas( s, 90 );
+		s.in.relacher( 'droite' );
+		r.blocSol = { x: s.j.x, y: s.j.y, attendu: 300 - s.j.l / 2, epaisseur: ynWE.physique.epaisseur( s.monde.plateformes[ 0 ], s.monde.sol ) };
 
 		// Saut écourté : touche relâchée après 3 pas.
 		s = b.monde( 'chtholly' );
@@ -437,6 +444,38 @@ function remplacerStubProjectiles() {
 		b.pas( s, 80 );
 		r.mortAir = { etat: s.j.etat, y: s.j.y };
 
+		// Appui bref sur K (enfoncée et relâchée dans la même image) : impulsion seule.
+		function appuiBref( slug ) {
+			const t = b.monde( slug );
+			b.pas( t, 1 );
+			t.in.appuyer( 'competence' );
+			t.in.relacher( 'competence' );
+			b.pas( t, 1 );
+			const apres1 = { etat: t.j.etat, phase: t.j.phase, x: t.j.x };
+			b.pas( t, 40 );
+			return { apres1: apres1, ondes: t.monde.ondes.length, recharge: t.j.recharges.secondaire, dx: t.j.x - 240 };
+		}
+		r.brefNephren = appuiBref( 'nephren' );
+		r.brefIthea = appuiBref( 'ithea' );
+		r.brefChtholly = appuiBref( 'chtholly' );
+
+		// Épée vers le bas : sur une plateforme basse (y 188), un petit Timere au sol juste dessous.
+		function coupBas( surPlateforme ) {
+			const t = b.monde( 'chtholly', { plateformes: [ { x: 200, y: 188, l: 110 } ] } );
+			t.j.x = 250;
+			t.j.y = surPlateforme ? 188 : 238;
+			b.pas( t, 2 );
+			const e = ynWE.ennemis.creer( b.univers.ennemis.timere, 'petit', { x: 262, dir: -1, taille: 0.8 }, t.monde );
+			e.recharge = 99;
+			e.vitesse = 0;
+			t.monde.ennemis.push( e );
+			const pv = e.pv;
+			t.in.appuyer( 'epee' );
+			b.pas( t, 30 );
+			return { degats: pv - e.pv, support: !! t.j.support };
+		}
+		r.coupBas = coupBas( true );
+
 		// Animations : pose figée en l'air ; mêmes planches pour les trois personnages.
 		s = b.monde( 'chtholly' );
 		b.pas( s, 1 );
@@ -458,6 +497,11 @@ function remplacerStubProjectiles() {
 	verifier( 'quitte la plateforme par le bord et retombe au sol', factice.bord.y === 180 && factice.apresBord.y === 238 && factice.apresBord.auSol, [ factice.bord, factice.apresBord ] );
 	verifier( 'bas + saut : traverse la plateforme', factice.traverse.surPlateforme && factice.traverse.y === 238 && factice.traverse.auSol, factice.traverse );
 	verifier( 'plateforme solide : pas de traversée', factice.solide.resteDessus, factice.solide );
+	verifier( 'plateforme solide sans h : bloc jusqu’au sol (flanc)', Math.abs( factice.blocSol.x - factice.blocSol.attendu ) < 0.01 && factice.blocSol.y === 238 && factice.blocSol.epaisseur === 38, factice.blocSol );
+	verifier( 'appui bref K (même image) : parade de Nephren', factice.brefNephren.apres1.etat === 'competence' && factice.brefNephren.apres1.phase === 'parade' && factice.brefNephren.recharge > 1, factice.brefNephren );
+	verifier( 'appui bref K : ruée d’Ithea (≈ 90 px)', factice.brefIthea.apres1.phase === 'ruee' && Math.abs( factice.brefIthea.dx - 90 ) <= 4, factice.brefIthea );
+	verifier( 'appui bref K : l’onde de Chtholly démarre puis s’annule (pas d’onde, pas de recharge)', factice.brefChtholly.ondes === 0 && factice.brefChtholly.recharge === 0, factice.brefChtholly );
+	verifier( 'épée depuis une plateforme basse : touche le petit Timere au sol dessous', factice.coupBas.support && factice.coupBas.degats === 1, factice.coupBas );
 	verifier( 'plateforme solide : la tête bute dessous', Math.abs( factice.solide.yMin - factice.solide.attendu ) < 0.01 && factice.solide.yFinal === 238, factice.solide );
 	verifier( 'saut écourté (touche relâchée tôt) : plus bas', factice.ecourte > 10 && factice.ecourte < 40, factice.ecourte );
 	verifier( 'tolérance de bord : saut 3 pas après la chute', factice.coyote.vy < -300 && factice.coyote.etat === 'saut', factice.coyote );

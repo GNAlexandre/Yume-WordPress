@@ -4,7 +4,9 @@
  * États : repos, marche, course, saut, chute, attaque (compétence principale), competence
  * (secondaire), degats, mort. Le joueur est son propre corps physique (j.corps === j).
  * Commandes lues : gauche, droite, courir (+ in.courirTactile), bas, saut (impulsion ; maintenu :
- * hauteur), epee (impulsion → principale), competence (maintenue → secondaire).
+ * hauteur), epee (impulsion → principale), competence (impulsion ou maintenue → secondaire : un
+ * appui bref, même relâché dans la même image, déclenche parade et ruée ; l'onde démarre sa
+ * concentration sur l'appui et ne part que si la touche est tenue au moins chargeMin).
  *
  * Reproduit Chtholly v1 en arcade (vitesses, PV, invincibilité 1,2 s, recul 150, dégâts 0,35 s,
  * mort 2,2 s) et ajoute le saut : impulsion personnage.saut.impulsion, sautsMax sauts (double saut
@@ -122,6 +124,7 @@
 
 		j.mettreAJour = function ( dt ) {
 			var appui = impulsion( 'epee' );
+			var appuiCompetence = impulsion( 'competence' ); // Lue à chaque image : pas d'appui périmé.
 			var appuiSaut = impulsion( 'saut' );
 			var libre = !! LIBRES[ j.etat ];
 			var sens = 0;
@@ -155,7 +158,7 @@
 			}
 
 			if ( libre ) {
-				if ( ! ( appui && lancer( 'principale' ) ) && ! ( commande( 'competence' ) && lancer( 'secondaire' ) ) ) {
+				if ( ! ( appui && lancer( 'principale' ) ) && ! ( ( appuiCompetence || commande( 'competence' ) ) && lancer( 'secondaire' ) ) ) {
 					sens = ( commande( 'droite' ) ? 1 : 0 ) - ( commande( 'gauche' ) ? 1 : 0 );
 					var court = commande( 'courir' ) || !! ( entrees && entrees.courirTactile );
 					if ( sens !== 0 ) {

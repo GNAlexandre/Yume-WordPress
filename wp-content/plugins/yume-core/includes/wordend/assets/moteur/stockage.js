@@ -180,7 +180,8 @@
 	}
 
 	/*
-	 * Éléments débloqués. Sans l'univers chargé : l'arcade et les niveaux finis. Avec lui : le
+	 * Éléments débloqués. Sans l'univers chargé : l'arcade et les niveaux finis ; personnages :
+	 * le dernier choisi seulement (mémorisé par choisirPersonnage), sinon []. Avec lui : le
 	 * niveau n est débloqué quand n − 1 est fini (le premier toujours) ; un personnage l'est si
 	 * c'est le premier, si son JSON chargé porte « debloque: true » (ou n'a pas le champ), ou
 	 * si le niveau de « debloque: {niveau} » est fini. Un personnage non chargé n'est listé que
@@ -214,6 +215,11 @@
 					niveaux.push( slug );
 				}
 			} );
+			// Sans l'univers, les règles des personnages sont inconnues : seul le dernier
+			// personnage choisi (donc débloqué à ce moment) est sûr. Liste vide s'il n'y en a pas.
+			if ( u.personnage ) {
+				personnages.push( u.personnage );
+			}
 		}
 		return { niveaux: niveaux, personnages: personnages };
 	}

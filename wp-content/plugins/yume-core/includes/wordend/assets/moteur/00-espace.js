@@ -36,13 +36,6 @@
 		return Math.max( min, Math.min( max, valeur ) );
 	};
 
-	/* Erreur des fonctions prévues mais pas encore écrites (lots A–F). */
-	ynWE.nonImplemente = function ( nom ) {
-		return function () {
-			throw new Error( 'non implémenté : ' + nom );
-		};
-	};
-
 	/* ------------------------------------------------------------------ */
 	/* Événements                                                          */
 	/* ------------------------------------------------------------------ */

@@ -7,7 +7,8 @@
  * - « traversable » (défaut) : on n'y atterrit qu'en descente, quand les pieds étaient au-dessus
  *   au pas précédent ; on la traverse vers le bas tant que corps.traverse > 0 (bas + saut) ;
  * - « solide » : même atterrissage, jamais traversée vers le bas, bloque la tête par-dessous et
- *   les côtés (épaisseur p.h, défaut EPAISSEUR).
+ *   les côtés. Épaisseur p.h ; sans h, bloc plein jusqu'au sol (monde.sol − p.y), comme au
+ *   dessin (rendu.plateformes). Une traversable sans h a l'épaisseur EPAISSEUR (6 px).
  * Bords du monde : [BORD, largeur − BORD]. Interface : docs/wordend-formats.md (§3.6).
  *
  * ES2019, sans dépendance.
@@ -39,8 +40,12 @@
 		return p.type === 'solide';
 	}
 
-	function epaisseur( p ) {
-		return typeof p.h === 'number' && p.h > 0 ? p.h : EPAISSEUR;
+	/* Épaisseur de collision : h donné, sinon solide = jusqu'au sol, traversable = EPAISSEUR. */
+	function epaisseur( p, sol ) {
+		if ( typeof p.h === 'number' && p.h > 0 ) {
+			return p.h;
+		}
+		return estSolide( p ) && typeof sol === 'number' ? Math.max( EPAISSEUR, sol - p.y ) : EPAISSEUR;
 	}
 
 	/* Vrai si l'abscisse x (milieu des pieds) est au-dessus de la plateforme. */
@@ -56,7 +61,7 @@
 			}
 			var haut = c.y - c.h;
 			var bas = c.y;
-			if ( bas <= p.y + 0.5 || haut >= p.y + epaisseur( p ) ) {
+			if ( bas <= p.y + 0.5 || haut >= p.y + epaisseur( p, monde.sol ) ) {
 				return; // Posé dessus, ou entièrement dessous.
 			}
 			var gauche = c.x - c.l / 2;
@@ -89,7 +94,7 @@
 
 		c.x += c.vx * dt;
 		if ( plateformes.length ) {
-			bloquerCotes( c, { plateformes: plateformes }, xAvant );
+			bloquerCotes( c, { plateformes: plateformes, sol: monde.sol }, xAvant );
 		}
 		if ( options.bords !== false ) {
 			c.x = ynWE.limiter( c.x, BORD, monde.largeur - BORD );
@@ -114,7 +119,7 @@
 		if ( c.vy < 0 ) {
 			// Montée : la tête bute sous une plateforme solide.
 			plateformes.forEach( function ( p ) {
-				var dessous = p.y + epaisseur( p );
+				var dessous = p.y + epaisseur( p, monde.sol );
 				if ( estSolide( p ) && dessus( p, c.x ) && yAvant - c.h >= dessous && c.y - c.h < dessous ) {
 					c.y = dessous + c.h;
 					c.vy = 0;
@@ -175,6 +180,7 @@
 		boite: boite,
 		surfaceSous: surfaceSous,
 		estSolide: estSolide,
+		epaisseur: epaisseur,
 		chevauche: ynWE.chevauche,
 	};
 }() );

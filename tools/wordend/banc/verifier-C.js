@@ -447,7 +447,7 @@ async function capture( page, nom ) {
 			window.__C.evenements.length = 0;
 			let charge = false;
 			let xMin = boss.x;
-			for ( let i = 0; i < 10 * 60; i++ ) {
+			for ( let i = 0; i < 12 * 60; i++ ) {
 				m.joueur.invincible = 1;
 				m.joueur.x = 110;
 				p.mettreAJour( M.DT );
@@ -475,12 +475,58 @@ async function capture( page, nom ) {
 			const fin = window.__C.evenements.filter( ( e ) => e.nom === 'niveau:fin' ).map( ( e ) => e.detail );
 			return { charge, xMin, stoique, invoques, phase, avant, etat: p.etat, fin, hud: p.hud().boss };
 		} ) );
-		verifier( r.charge && r.xMin < 200, 'charge traversante dans les 10 premières secondes', { charge: r.charge, xMin: r.xMin } );
+		verifier( r.charge && r.xMin < 200, 'charge traversante dans les 12 premières secondes (toutes les 9 s, après 1,2 s d’entrée)', { charge: r.charge, xMin: r.xMin } );
 		verifier( r.stoique.recul === 0 && r.stoique.etat !== 'degats' && r.stoique.pv === 36, 'le boss ne recule jamais', r.stoique );
 		verifier( r.phase.indice === 1 && Math.abs( r.phase.vitesse - r.phase.base * 1.3 ) < 1e-9, 'phase 2 sous 50 % : vitesse × 1,3', r.phase );
 		verifier( r.invoques.length >= 2 && r.invoques.every( ( t ) => t === 'petit' ), 'phase 2 : invocation de petits Timeres', r.invoques );
 		verifier( r.avant === 'enCours' && r.etat === 'gagne' && r.fin.length === 1 && r.fin[ 0 ].resultat === 'gagne' && r.fin[ 0 ].score >= 500, 'mort du boss → niveau:fin gagné (après 1,6 s)', r.fin );
 		verifier( r.hud.pv === 0, 'hud().boss.pv borné à 0', r.hud );
+
+		// Équilibrage : préavis avant le coup du boss, répit après, perce (ancien nom percant).
+		const q = await page.evaluate( () => window.__C.partie( '05-boss' ).then( ( p ) => {
+			const M = window.ynWordEndMoteur;
+			const m = p.monde;
+			const boss = p.boss;
+			const j = m.joueur;
+			boss.entree = 0;
+			boss.chargeMinuterie = 99;
+			j.x = boss.x - 70;
+			j.invincible = 0;
+			boss.dir = -1;
+			boss.attaque = 'fouet';
+			boss.touche = false;
+			M.ennemis.changerEtat( boss, 'attaque' );
+			let premierCoup = null;
+			for ( let i = 0; i < 90 && premierCoup === null; i++ ) {
+				j.x = boss.x - 70;
+				M.ennemis.mettreAJour( boss, M.DT, m );
+				if ( j.pv < j.pvMax ) {
+					premierCoup = boss.t;
+				}
+			}
+			const repit = j.invincible;
+			// Projectiles camp joueur : « perce » (et l'ancien « percant ») traversent.
+			const perce = ( champ ) => {
+				m.ennemis.length = 0;
+				m.projectiles.length = 0;
+				const a = M.ennemis.creer( m.univers.ennemis.timere, 'normal', { x: 200, dir: -1 }, m );
+				const b = M.ennemis.creer( m.univers.ennemis.timere, 'normal', { x: 240, dir: -1 }, m );
+				m.ennemis.push( a, b );
+				const tir = { camp: 'joueur', renvoye: true, x: 150, y: m.sol - 20, vx: 300, vy: 0, degats: 1 };
+				if ( champ ) {
+					tir[ champ ] = true;
+				}
+				M.ennemis.ajouterProjectile( m, tir );
+				for ( let i = 0; i < 30; i++ ) {
+					M.ennemis.mettreAJourProjectiles( m, M.DT );
+				}
+				return ( a.pv < a.pvMax ? 1 : 0 ) + ( b.pv < b.pvMax ? 1 : 0 );
+			};
+			return { premierCoup, repit, preavis: boss.type.preavis, repitType: boss.type.repit, touchesSans: perce( '' ), touchesPerce: perce( 'perce' ), touchesPercant: perce( 'percant' ) };
+		} ) );
+		verifier( q.premierCoup !== null && q.premierCoup >= q.preavis, 'boss : coup porté après le préavis (' + q.preavis + ' s)', q );
+		verifier( Math.abs( q.repit - q.repitType ) < 0.05 && q.repitType > 1.2, 'boss : répit (invincibilité ' + q.repitType + ' s) après son coup', q );
+		verifier( q.touchesSans === 1 && q.touchesPerce === 2 && q.touchesPercant === 2, 'projectile : s’éteint au premier coup, sauf perce (ou percant)', q );
 		await page.close();
 	}
 

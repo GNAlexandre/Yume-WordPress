@@ -111,7 +111,6 @@ ynWE.LARGEUR = 480; ynWE.HAUTEUR = 270; ynWE.DENSITE = 2; ynWE.DT = 1/60;
 ynWE.hasard(min, max) → nombre dans [min, max[
 ynWE.chevauche(a, b) → bool             // boîtes {x, y, l, h} (x, y = coin haut gauche)
 ynWE.limiter(v, min, max) → nombre
-ynWE.nonImplemente(nom) → fonction qui lève Error('non implémenté : ' + nom)   // pour un module en préparation ; inutilisée en v2.1
 ynWE.evenements = { sur(nom, fn), retirer(nom, fn), emettre(nom, detail) }   // fn(detail, nom) ; bus interne, pas d'événement DOM
 ynWE.annoncer(texte)          ≡ emettre('annonce', {texte})   // zone role="status" de la modale
 ynWE.secouer(monde, duree)    // monde.secousse = max(…) sauf monde.mouvementReduit ; émet 'secousse'
@@ -164,7 +163,9 @@ ynWE.stockage = { CLE: 'yn.wordend', VERSION: 2,
 - `lire()` passe par `migrer()` (idempotent ; n'écrit que si la clé existe et n'est pas encore en v2).
   Un format futur (`version > 2`) est laissé tel quel et n'est jamais réécrit par les résultats.
 - `progression()` renvoie une copie toujours complète. `debloques` : sans `univers`, l'arcade et les niveaux
-  finis ; avec l'univers chargé (`ressources`), `arcade` plus les niveaux hors arcade triés par `numero`
+  finis, et pour les personnages **seulement le dernier choisi** (`personnage`, s'il y en a un ; sinon `[]`)
+  puisque leurs règles de déblocage sont dans les JSON non chargés : passer l'univers pour la liste
+  complète ; avec l'univers chargé (`ressources`), `arcade` plus les niveaux hors arcade triés par `numero`
   puis ordre du manifeste, le premier toujours, le suivant quand le précédent est `fini` (ou s'il est fini
   lui-même) ; personnages : le premier, ceux chargés dont `debloque` vaut `true` (ou est absent), et ceux
   dont le niveau de `debloque: {niveau}` est fini.
@@ -240,7 +241,8 @@ r.plateformes(monde)
 r.sprite(planche {image, meta}, nom, i, x, y, dir, echelleSup = 1, lissage = true, alpha = 1, flash = 0)
 r.ombre(x, y, rayonX, rayonY, opacite) ; r.jauge(x, y, l, h, part 0…1, couleur)
 r.texte(contenu, x, y, taille, alignement, couleur, graisse)   // contour couleur fond, remplissage texteFort par défaut
-r.voile() ; r.coeur(x, y, plein) ; r.particules(monde) ; r.ajouterParticule(…) ; r.mettreAJourParticules(monde, dt)
+r.texteHud(contenu, x, y, taille, alignement, couleur = HUD.texte, graisse)   // HUD sur le décor : contour HUD.contour
+r.voile() ; r.coeur(x, y, plein, echelle = 1) ; r.particules(monde) ; r.ajouterParticule(…) ; r.mettreAJourParticules(monde, dt)
 ```
 
 - `r.decor` (coordonnées du monde) : image 960 × 540 dessinée en 480 × 270, **répétée en miroir** (une
@@ -254,6 +256,10 @@ r.voile() ; r.coeur(x, y, plein) ; r.particules(monde) ; r.ajouterParticule(…)
   sol, avec rainures de pierre.
 - `r.sprite` : ancre en (x, y), retourné si `dir < 0`, échelle = `meta.echelle / echelleSup` ;
   `lissage === false` pour le pixel art ; `flash > 0` : éclat blanc en mode `lighter`.
+- HUD (`ynWE.rendu.HUD` : `texte`, `faible`, `accent`, `contour`, `vide`, `danger`) : couleurs **fixes**
+  (palette Nuit), indépendantes du thème, car le HUD est dessiné sur le décor peint, identique dans les
+  trois thèmes : texte clair à contour sombre (lisible aussi sur le décor de secours clair de Papier).
+  `r.coeur` : cœur plein `HUD.accent` ou vide `HUD.vide`, toujours cerclé de `HUD.contour`.
 - Plafond de 300 particules ; gravité des particules 260 px/s² (8 si `flotte`). `r.texte`, `r.voile`,
   `r.coeur`, le HUD et les surcouches s'utilisent **après** `r.finir()` (coordonnées de l'écran).
 
@@ -263,7 +269,8 @@ r.voile() ; r.coeur(x, y, plein) ; r.particules(monde) ; r.ajouterParticule(…)
 ynWE.physique = { BORD: 18, VITESSE_MAX: 600, EPAISSEUR: 6,
   corps(obj) → obj complété {x, y, vx: 0, vy: 0, l, h, auSol: false, traverse: 0, support: null},
   appliquer(corps, dt, monde, options {gravite, plateformes, bords} /* true par défaut ; false pour désactiver */),
-  boite(corps) → {x: x − l/2, y: y − h, l, h}, surfaceSous(monde, x, y) → y de la surface, estSolide(p) → bool, chevauche }
+  boite(corps) → {x: x − l/2, y: y − h, l, h}, surfaceSous(monde, x, y) → y de la surface, estSolide(p) → bool,
+  epaisseur(p, sol) → épaisseur de collision, chevauche }
 ```
 
 - `corps(obj)` complète et **renvoie le même objet** : le joueur et les ennemis sont leur propre corps
@@ -276,8 +283,9 @@ ynWE.physique = { BORD: 18, VITESSE_MAX: 600, EPAISSEUR: 6,
   les pieds étaient au-dessus au pas précédent et que le milieu des pieds est au-dessus ; ignorée tant que
   `traverse > 0` (le joueur la pose à ↓ + saut) ; la plus haute franchie pendant le pas l'emporte.
   **`type: "solide"`** : même atterrissage, jamais traversée vers le bas, bloque la tête par-dessous et les
-  côtés, sur une épaisseur `p.h` (défaut `EPAISSEUR`, 6 px ; le rendu d'une solide sans `h` descend
-  jusqu'au sol : donner `h` pour que collision et dessin coïncident).
+  côtés, sur une épaisseur `p.h` ; **sans `h`, bloc plein jusqu'au sol** (`sol − y`), exactement comme au
+  dessin (`r.plateformes`) : on bute contre son flanc depuis le sol. Une traversable sans `h` a
+  l'épaisseur `EPAISSEUR` (6 px). Les niveaux livrés n'ont pas de plateforme solide.
 - `options.gravite === false` : corps libre (`y += vy·dt`, ni sol ni plateformes, `auSol` faux).
 - `surfaceSous` : sol ou plateforme la plus haute sous le point (ombres). Les ennemis ont `l`/`h` à la
   taille 1 (leur boîte réelle est multipliée par `e.taille`, §3.9).
@@ -300,9 +308,12 @@ impl = { demarrer(joueur, monde, def) → bool, mettreAJour(joueur, dt, monde, d
   démarre pas tant que la recharge de son emplacement est positive.
 - `melee` : état `attaque` ; immobile au sol (en l'air, l'élan est gardé) ; `degats` (1) sur les images
   `coup` de `animation` (`attaque`), boîte `boite` (`{x: 4, y: −62, l: 60, h: 58}`) relative à l'ancre,
-  miroir si `dir < 0` ; une touche par ennemi et par coup ; pas de recharge.
+  miroir si `dir < 0` ; une touche par ennemi et par coup ; pas de recharge. **En l'air ou debout sur une
+  plateforme** (`j.support`), la boîte s'allonge vers le bas de `porteeBas` (32) px : depuis une
+  plateforme basse (50–58 px au-dessus du sol), le coup atteint un Timere au sol juste dessous (même un
+  petit, 35 px de haut) ; sinon joueur et ennemi ne pourraient plus s'atteindre.
 - `onde` : état `competence`, phase `concentration` tant que le bouton est maintenu (jauge au-dessus de la
-  tête) ; relâché après `chargeMin` (0,55 s) : phase `onde`, onde `{x, y, dir, vie, t, touches, degats,
+  tête ; un appui bref la démarre puis l'annule aussitôt) ; relâché après `chargeMin` (0,55 s) : phase `onde`, onde `{x, y, dir, vie, t, touches, degats,
   vitesse, boite}` dans `monde.ondes` (départ `depart` `{x: 40, y: −34}`, boîte `boiteOnde` `{l: 28, h: 52}`,
   `degats` 3, `vitesse` 250, `vie` 1,1 s), recharge `recharge` posée au lancer, secousse 0,12 s, image
   `anim.onde` pendant `duree` (0,42 s) ; relâché trop tôt : annulée. L'onde traverse les ennemis.
@@ -335,9 +346,11 @@ j.dessiner(r, monde) ; j.animationCourante() → [nom, i] ; j.changerEtat(etat) 
 ```
 
 - Commandes lues : `gauche`, `droite`, `courir` (ou `entrees.courirTactile`), `bas`, `saut` (impulsion ;
-  maintenu : hauteur), `epee` (impulsion → principale), `competence` (maintenue → secondaire).
+  maintenu : hauteur), `epee` (impulsion → principale), `competence` (impulsion ou maintenue →
+  secondaire : un appui bref, enfoncé et relâché dans la même image, clavier ou tactile, lance la parade ou
+  la ruée ; l'impulsion est lue à chaque image, jamais gardée pour plus tard).
 - États libres (`repos`, `marche`, `course`, `saut`, `chute`) : impulsion `epee` ⇒ principale, sinon
-  `competence` maintenue ⇒ secondaire, sinon déplacement (`vitesseMarche`, `vitesseCourse`) et saut. Les
+  impulsion ou maintien de `competence` ⇒ secondaire, sinon déplacement (`vitesseMarche`, `vitesseCourse`) et saut. Les
   compétences se lancent aussi en l'air. Après la physique, l'état libre suit le mouvement (`saut` si
   `vy < 0`, `chute` en l'air, `course`/`marche`/`repos` au sol).
 - Saut (impulsion `saut`) : ↓ maintenu sur une plateforme traversable ⇒ descente (`traverse` 0,25 s) ;
@@ -380,7 +393,10 @@ e (corps) : id, definition, planche, typeNom, type (données du type), comportem
   l'animation) puis `repos` ; `attaque` : sur les images `coup`, tant que le coup n'a pas porté, **`attaquer` renvoie
   vrai si le comportement traite le coup lui-même** (tir du tireur), sinon le joueur est touché une fois si
   `j.boite()` chevauche `boiteAttaque(e)` (dégâts `attaques.<nom>.degats`, 1 ; un joueur qui pare absorbe le
-  coup), puis `repos` et recharge `hasard(0,8, 1,5) × type.rechargeFacteur` ; sinon
+  coup), puis `repos` et recharge `hasard(0,8, 1,5) × type.rechargeFacteur` ; `type.preavis` (s,
+  facultatif, hors tir du tireur) retient la première image de l'attaque en clignotant avant le geste,
+  pour laisser le temps de s'écarter ; `type.repit` (s, facultatif) : invincibilité du joueur après un coup
+  porté par ce type (au moins `joueur.INVINCIBILITE`) ; sinon
   `vx = comportement.mettreAJour(…)`. Déplacement : ennemis au sol par `physique.appliquer` (gravité,
   plateformes, sans bords : un Timere tombe d'une plateforme mais n'y monte pas) ; volants : `x` direct.
 - `boite(e)` = `{x − l·taille/2, y − h·taille, l·taille, h·taille}` ; `boiteAttaque(e)` : portée et hauteur de
@@ -412,19 +428,25 @@ e (corps) : id, definition, planche, typeNom, type (données du type), comportem
     toutesLes (8 s), max (6 en vie)}` aux bords de l'écran. Charge toutes les `charge.toutesLes` (6) s quand
     il est visible et à plus de 70 px : préparation `charge.preparation` (0,6 s, clignotement), puis ruée à
     `charge.vitesse` (230) px/s jusqu'à `charge.depassement` (90) px au-delà du joueur (3 s au plus), dégâts
-    `charge.degats` (1) ; parée, elle s'arrête net.
+    `charge.degats` (1) ; parée, elle s'arrête net. Timere géant (`timere.json`, équilibrage 2.1.5) :
+    `rechargeFacteur` 3,5 (un coup toutes les 3–5 s au contact), `preavis` 0,45 s, `repit` 2,5 s, charge
+    toutes les 9 s avec 0,8 s de préparation ; un joueur qui recule pendant le préavis et esquive une charge
+    sur deux le bat en ≈ 30–35 s une fois sur deux (banc, robot à 0,25 s de réaction), contre une défaite
+    en ≈ 12 s auparavant.
 - `separer` : les ennemis ne se superposent pas tout à fait (v1) ; un volant et un ennemi au sol ne se
   gênent pas, ni deux ennemis à plus de 20 px de hauteur l'un de l'autre ; le boss n'est pas déplacé.
   `retirerFinis` : mort + animation `mort` + fondu 0,6 s, ou sorti de `[−140, largeur + 140]`.
 - Dessin : ombre (sur la surface sous un volant), `r.sprite(planche, anim, i, x, y, dir, taille,
-  definition.lissage, alpha du fondu, flash)` ; clignotement pendant la préparation de la charge du boss.
+  definition.lissage, alpha du fondu, flash)` ; clignotement pendant la préparation de la charge du boss
+  et pendant le `preavis` d'une attaque.
 - Projectiles (`monde.projectiles`, tous camps, 60 au plus) : `ajouterProjectile(monde, p)` complète
   `{camp: 'ennemi', vx: 0, vy: 0, t: 0, vie: 2, degats: 1, touches: []}` puis ajoute. Format géré ici :
-  `{camp: 'ennemi'|'joueur', x, y, vx, vy, degats, vie (s), couleur?, rayon? | l?, h?, gravite?, percant?,
+  `{camp: 'ennemi'|'joueur', x, y, vx, vy, degats, vie (s), couleur?, rayon? | l?, h?, gravite?, perce?,
   touches?, type?, source?, mettreAJour?(p, dt, monde), dessiner?(r, p, monde)}`. Un projectile ennemi
   blesse le joueur (sauf invincible) puis s'éteint ; s'il pare, il est **renvoyé** (`camp: 'joueur'`,
   `vx × −1,2`, `vy` inversé, `renvoye: true`, vie ≥ 1,5 s). Un projectile du camp joueur frappe les ennemis
-  (`competences.frapper`) et s'éteint sauf `percant`. Tout projectile s'éteint au sol. Les tirs du joueur
+  (`competences.frapper`) et s'éteint sauf `perce` (même nom que les tirs du joueur, §3.7 ; l'ancien
+  `percant` est encore lu en secours). Tout projectile s'éteint au sol. Les tirs du joueur
   (§3.7, non renvoyés) sont avancés et dessinés par `competences.projectile.avancer` / `dessinerTir`.
 
 ### 3.10 `niveau.js`
@@ -491,10 +513,13 @@ in.surAppui = fn(nom)    // posé par la modale (appui tactile) ; in.courirTacti
   sinon `stopPropagation` (la page ne voit pas les touches du jeu). Entrée/Espace ⇒ `valider` (Espace pose
   aussi `saut`, maintenu et impulsion). Flèches et W/A/S/D renvoient aussi la navigation
   (`gauche`, `droite`, `haut`, `bas`), J/X renvoie `epee`.
-- Manettes : `SCHEMA_DEFAUT` (◀ ▶ Courir | Saut Épée Charge) ; deux groupes (`groupe` absent : `gauche`
+- Manettes : `SCHEMA_DEFAUT` (◀ ▶ ▼ Courir | Saut Épée Charge ; ▼ = commande `bas` maintenue : avec
+  Saut, descendre d'une plateforme traversable) ; deux groupes (`groupe` absent : `gauche`
   pour gauche, droite, courir et bas, sinon `droite`) ; `pointerdown` avec capture ⇒ commande maintenue et
   impulsion, relâchée à `pointerup`/`pointercancel`/perte de capture ; Entrée/Espace sur un bouton focalisé
-  ⇒ impulsion ; `bascule` : `aria-pressed`.
+  ⇒ impulsion ; `bascule` : `aria-pressed`. Mise en page (`jeu.css`, pointeur grossier) : groupe gauche
+  calé à gauche, groupe droit à droite, sur une rangée dès 360 px de large (boutons ≥ 44 × 48 px, plus
+  serrés sous 480 et 400 px), sinon le groupe droit passe à la ligne, toujours calé à droite.
 
 ### 3.12 `ecrans.js`
 
@@ -509,6 +534,8 @@ ec.aller(etat, donnees?)      // émet 'partie:etat' {etat, precedent} ; 'fin'|'
 ec.choisir(type 'univers'|'personnage'|'niveau', slug)   // depuis une liste <select> ; ignoré en jeu, chargement, erreur
 ec.listes() → {univers[], personnages[], niveaux[], choix, avecUnivers}   // doublons DOM des écrans de sélection
 ec.preparer() → Promise       // charge tous les niveaux et personnages de l'univers (une fois ; absents ignorés)
+ec.deblocages() → {personnages: [slug], niveaux: [slug]}          // instantané des éléments débloqués
+ec.nouveautes(avant) → [{type: 'personnage'|'niveau', slug, nom}] // débloqués depuis l'instantané avant
 ec.surAction(action, nom?) ; ec.surPointeur(x, y) /* coordonnées logiques */ ; ec.dessiner(monde|null, partie|null) ; ec.hud(monde, partie)
 ```
 
@@ -528,16 +555,22 @@ ec.surAction(action, nom?) ; ec.surPointeur(x, y) /* coordonnées logiques */ ; 
   | `niveaux` (R, bouton Niveaux) | écran des niveaux, sauf en jeu |
   | `valider`, `epee` | hors jeu : valider (titre → suite, choix, reprise, rejouer, niveau suivant) |
   | `jouer` (bouton) | jeu, pause, fin, victoire ⇒ rejouer le niveau ; sinon valider |
-  | `tactile` (`nom` = commande) | sélection : ◀ ▶ déplacent, les autres valident ; titre, fin, victoire : valider |
+  | `tactile` (`nom` = commande) | sélection : ◀ ▶ déplacent, ▼ descend (jamais de validation), les autres valident ; titre, fin, victoire : valider |
   | `gauche`, `droite` / `haut`, `bas` | sélection : ±1 / ±1 (±3 sur la grille des niveaux) |
 
   `surPointeur` : titre, fin, victoire ⇒ valider ; sur une carte : la choisir, puis valider au second appui.
   Un personnage ou un niveau verrouillé est annoncé, jamais lancé.
+- Cartes verrouillées : fond `carte` **opaque** et contour en tirets `texte-faible`, libellés en
+  `texte-faible` (le thème le définit pour tenir 4,5:1 sur `carte`), cadenas ; pas d'opacité réduite sur
+  les libellés (illisibles en Papier/Sépia).
+- Victoire : `bilan.nouveautes` (posé par la modale, voir §3.13) s'affiche sous le score (« Nouveau
+  personnage : Nephren ! · Niveau débloqué : Les dunes », couleur `accent2`) et s'ajoute à l'annonce.
 - Ordre de dessin : `r.camera`, `r.commencer`, `r.decor` (décor du niveau, parallaxe du manifeste, voile),
   `r.plateformes`, puis hors menus ennemis, joueur, ondes, projectiles ; particules ; `r.finir` ; HUD (hors
   menus) ; surcouche (voile de l'interface, titre, cartes, pause, fin, victoire, chargement, erreur).
-- HUD : cœurs (`pvMax`), Score, Record, `Vague n / total` ou `Survie m:ss`, jauge de recharge de la
-  secondaire, nom et barre du boss, bannière de vague.
+- HUD : cœurs (`pvMax`, échelle 1,3), Score (14 px logiques), Record et `Vague n / total` ou `Survie m:ss`
+  (12), jauge de recharge de la secondaire, nom (11) et barre du boss, bannière de vague ; tout en couleurs
+  `ynWE.rendu.HUD` via `r.texteHud` / `r.coeur` (clair à contour sombre, identique dans les trois thèmes).
 
 ### 3.13 `modale.js` et `jeu.js`
 
@@ -563,7 +596,8 @@ ynWE.modale = { ouvrir(config, universSlug?), fermer(), estOuvert() }   // jeu.j
   (`config.depart.niveau` ou `arcade`), partie de fond non animée pour les écrans titre et de sélection,
   annonce `textes.pret`. Réouverture du même univers : titre sans recharger.
 - Boucle à pas fixe (`DT`, au plus 5 pas par image) : `jeu` ⇒ `partie.mettreAJour` ; hors pause ⇒ particules
-  seulement ; dessin à chaque image ; `ynWE.debug.ips`. `niveau:fin` ⇒ `stockage.enregistrerResultat` puis
+  seulement ; dessin à chaque image ; `ynWE.debug.ips`. `niveau:fin` ⇒ `ec.deblocages()` (avant),
+  `stockage.enregistrerResultat`, `bilan.nouveautes = ec.nouveautes(avant)` si gagné (sinon `[]`), puis
   `ec.aller('victoire'|'fin', bilan)`.
 
 ## 4. Schémas JSON des univers
@@ -632,7 +666,7 @@ Compétences (§3.7) : `type` ∈ `melee`, `onde`, `projectile`, `ruee`, `parade
 
 | Type | Champs (défauts) |
 | --- | --- |
-| `melee` | `degats` (1), `boite {x, y, l, h}` relative à l'ancre, côté droit (miroir à gauche) |
+| `melee` | `degats` (1), `boite {x, y, l, h}` relative à l'ancre, côté droit (miroir à gauche), `porteeBas` (32 : allongement vers le bas en l'air ou sur une plateforme) |
 | `onde` | `chargeMin` (0,55), `degats` (3), `vitesse` (250), `vie` (1,1), `duree` (0,42), `recharge`, `depart {x, y}` (40, −34), `boiteOnde {l, h}` (28, 52) |
 | `projectile` | `vitesse` (300), `degats` (1), `recharge`, `depart {x, y}` (22, −30), `vie` (1,4), `couleur` (`#ffe28a`), `perce` (faux) |
 | `ruee` | `distance` (90), `duree` (0,2), `recharge` (1,5) |
@@ -662,8 +696,9 @@ Ithea (`pv` 4, 78/150 px/s, `saut {340}`, `projectile {vitesse 300, degats 1, re
     "bouclier": { "nom": "Timere cuirassé", "taille": 1.1, "pv": 3, "vitesse": 32, "points": 35, "comportement": "bouclier", "attaques": ["fouet"],
                   "teinte": "grayscale(0.55) brightness(0.9) contrast(1.1)" },
     "boss":     { "nom": "Timere géant", "taille": 2, "pv": 40, "vitesse": 26, "points": 500, "comportement": "boss", "attaques": ["fouet", "morsure"], "stoique": true,
+                  "rechargeFacteur": 3.5, "repit": 2.5, "preavis": 0.45,
                   "teinte": "hue-rotate(230deg) saturate(1.4) brightness(0.8)",
-                  "charge": { "toutesLes": 6, "preparation": 0.6, "vitesse": 230, "degats": 1 },
+                  "charge": { "toutesLes": 9, "preparation": 0.8, "vitesse": 230, "degats": 1 },
                   "phases": [ { "pvSous": 1, "vitesseFacteur": 1, "invocations": null },
                               { "pvSous": 0.5, "vitesseFacteur": 1.3, "invocations": { "ennemi": "timere", "type": "petit", "n": 2, "toutesLes": 8 },
                                 "texte": "Le Timere géant entre en rage et appelle des renforts !" } ] } } }
@@ -676,6 +711,8 @@ Ithea (`pv` 4, 78/150 px/s, `saut {340}`, `projectile {vitesse 300, degats 1, re
 - Type : `taille`, `pv`, `vitesse` (px/s), `points`, `comportement` ∈ `marcheur`, `coureur`, `volant`,
   `tireur`, `bouclier`, `boss`, `attaques` (liste ; la première donne la portée d'approche). Facultatifs :
   `nom` (HUD du boss, annonces), `stoique`, `rechargeFacteur` (multiplie la recharge entre deux attaques),
+  `preavis` (s : première image tenue en clignotant avant le coup), `repit` (s : invincibilité du joueur
+  après un coup de ce type),
   `planche` (planche propre au type, même dossier), `teinte` (filtre CSS sur la planche du type), et par
   comportement : `volant` `altitude`, `amplitude`, `plongee`, `remontee` ; `tireur` `distance`, `recharge`,
   `geste` (animation du tir), `projectile {vitesse, degats, hauteur, couleur, vie, rayon}` ; `bouclier`
@@ -785,7 +822,8 @@ Entrée de `decouper-planche.py` (référence complète : `tools/wordend/README.
   `types.*.attaques` déclarées dans `attaques` et animées dans la planche (du type s'il en a une) ;
   invocations résolues (`valider.py`).
 - Niveaux : `objectif.type` ∈ {arcade, vagues, survie, boss} ; `decor`, `musique` et `suivant` résolus ;
-  `largeur` ≥ 480 ; plateformes dans `[0, largeur]`, de type `traversable` ou `solide` ; ennemis et types des
+  `largeur` ≥ 480 ; plateformes dans `[0, largeur]`, de type `traversable` ou `solide`, `h` positif s'il
+  est donné ; types d'ennemis : `rechargeFacteur`, `repit`, `preavis` ≥ 0 (`valider.py`) ; ennemis et types des
   vagues, du générateur de survie (et du boss pour `valider.py`) déclarés.
 - PHP seulement : registre des univers (assainissement, œuvre ↔ univers, défaut), configuration (14
   scripts dans l'ordre, URL versionnées), `universPage` selon la requête, déclencheur coupé par

@@ -215,6 +215,8 @@ async function ouvrirBanc( contexte, adresse, erreurs, tolerees ) {
 	verifier( sto.personnage === 'nephren', 'choisirPersonnage' );
 	verifier( sto.debloques.niveaux.join() === 'arcade,01-plage,02-dunes' && sto.debloques.personnages.join() === 'chtholly,ithea', 'déblocages (avec l’univers)', sto.debloques );
 	verifier( sto.debloquesSansUnivers.niveaux.join() === 'arcade,01-plage', 'déblocages (sans l’univers : arcade + finis)', sto.debloquesSansUnivers );
+	verifier( sto.debloquesSansUnivers.personnages.join() === 'nephren', 'déblocages sans l’univers : dernier personnage choisi seulement', sto.debloquesSansUnivers.personnages );
+	verifier( sto.structure.debloques.personnages.length === 0, 'déblocages sans l’univers ni personnage choisi : []', sto.structure.debloques );
 	verifier( sto.final.volume === 0.8 && sto.final.muet === false && sto.final.univers.sukasuka.arcade.meilleur === 2000, 'enregistrerSon garde la progression', sto.final );
 	verifier( sto.illisible.arcade.meilleur === 0 && sto.sonIllisible.volume === 0.5, 'données illisibles : valeurs par défaut' );
 	verifier( sto.vide.parties === 0 && sto.rienEcrit, 'lecture sans données : rien n’est écrit' );

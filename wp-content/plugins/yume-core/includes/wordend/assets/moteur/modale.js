@@ -108,7 +108,7 @@
 		var morceaux = [
 			'Flèches ou Q/D : se déplacer',
 			'↑, Z ou Espace : sauter',
-			'↓ + saut : descendre d’une plateforme',
+			'↓ + saut (tactile : ▼ maintenu + Saut) : descendre d’une plateforme',
 			'Maj : courir',
 			'J ou X : ' + minuscule( c.principale && c.principale.libelle ? c.principale.libelle : 'Coup d’épée' ),
 		];
@@ -124,6 +124,7 @@
 		var schema = [
 			{ nom: 'gauche', texte: '◀', libelle: 'Aller à gauche', groupe: 'gauche' },
 			{ nom: 'droite', texte: '▶', libelle: 'Aller à droite', groupe: 'gauche' },
+			{ nom: 'bas', texte: '▼', libelle: 'Bas (maintenir, puis Saut : descendre d’une plateforme)', groupe: 'gauche' },
 			{ nom: 'courir', texte: 'Courir', libelle: 'Courir', bascule: true, groupe: 'gauche' },
 			{ nom: 'saut', texte: 'Saut', libelle: 'Sauter', groupe: 'droite' },
 		];
@@ -245,7 +246,10 @@
 		if ( ! ouvert || ! univers ) {
 			return;
 		}
+		// Instantané des déblocages avant/après l'enregistrement : la victoire annonce les nouveautés.
+		var avant = ec.deblocages();
 		ynWE.stockage.enregistrerResultat( univers.slug, bilan.niveau, { score: bilan.score, etoiles: bilan.etoiles, fini: bilan.resultat === 'gagne' } );
+		bilan.nouveautes = bilan.resultat === 'gagne' ? ec.nouveautes( avant ) : [];
 		ec.aller( bilan.resultat === 'gagne' ? 'victoire' : 'fin', bilan );
 	}
 

@@ -30,8 +30,9 @@
 		},
 		"boss": {
 			"nom": "Timere géant", "taille": 2, "pv": 40, "vitesse": 26, "points": 500, "comportement": "boss", "attaques": [ "fouet", "morsure" ], "stoique": true,
+			"rechargeFacteur": 3.5, "repit": 2.5, "preavis": 0.45,
 			"teinte": "hue-rotate(230deg) saturate(1.4) brightness(0.8)",
-			"charge": { "toutesLes": 6, "preparation": 0.6, "vitesse": 230, "degats": 1 },
+			"charge": { "toutesLes": 9, "preparation": 0.8, "vitesse": 230, "degats": 1 },
 			"phases": [
 				{ "pvSous": 1, "vitesseFacteur": 1, "invocations": null },
 				{ "pvSous": 0.5, "vitesseFacteur": 1.3, "invocations": { "ennemi": "timere", "type": "petit", "n": 2, "toutesLes": 8 }, "texte": "Le Timere géant entre en rage et appelle des renforts !" }

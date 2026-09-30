@@ -224,6 +224,9 @@ class Validateur:
                           'comportement « %s » inconnu (%s)' % (t.get('comportement'), ', '.join(COMPORTEMENTS)))
             for champ in ('taille', 'pv', 'vitesse', 'points'):
                 self.verifier(nombre(t.get(champ)) and t[champ] > 0, ici, '« %s » positif attendu' % champ)
+            for champ in ('rechargeFacteur', 'repit', 'preavis'):
+                if champ in t:
+                    self.verifier(nombre(t[champ]) and t[champ] >= 0, ici, '« %s » : nombre ≥ 0 attendu' % champ)
             anims_type = anims
             if t.get('planche'):
                 meta_type = self.planche(dossier, t['planche'], ici)
@@ -258,6 +261,9 @@ class Validateur:
                               'hors de [0, %s]' % largeur)
                 self.verifier(0 <= p['y'] <= (sol if nombre(sol) else 270), ici, 'au-dessous du sol')
                 self.verifier(p.get('type', 'traversable') in PLATEFORMES, ici, 'type « %s » inconnu' % p.get('type'))
+                if 'h' in p:
+                    # Sans h : 6 px (traversable) ou bloc jusqu'au sol (solide), au dessin comme à la collision.
+                    self.verifier(nombre(p['h']) and p['h'] > 0, ici, '« h » positif attendu')
         apparition = donnees.get('apparition')
         if apparition is not None and nombre(largeur):
             self.verifier(isinstance(apparition, dict) and nombre(apparition.get('x'))

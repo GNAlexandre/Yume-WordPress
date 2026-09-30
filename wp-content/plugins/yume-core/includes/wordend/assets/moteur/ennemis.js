@@ -19,7 +19,7 @@
  * gèrent eux-mêmes leur hauteur.
  *
  * Projectiles (monde.projectiles, tous camps) : {camp: 'ennemi'|'joueur', x, y, vx, vy, degats,
- * vie (s), couleur?, rayon? | l?, h?, gravite?, percant?, touches?, mettreAJour?(p, dt, monde),
+ * vie (s), couleur?, rayon? | l?, h?, gravite?, perce? (ancien nom lu en secours : percant), touches?, mettreAJour?(p, dt, monde),
  * dessiner?(r, p, monde)}. Un projectile ennemi blesse le joueur (sauf invincible) ou lui est
  * renvoyé s'il pare (j.pare) ; un projectile du joueur frappe les ennemis (competences.frapper).
  *
@@ -184,7 +184,8 @@
 	/*
 	 * Coup de l'ennemi e sur le joueur. Pendant une parade (j.pare, lot B), j.blesser absorbe le
 	 * coup et repousse l'attaquant : renvoie 'pare'. Sinon 'touche', ou '' si le joueur est
-	 * invincible.
+	 * invincible. types.<t>.repit (s, facultatif) : invincibilité du joueur après un coup porté
+	 * (au moins joueur.INVINCIBILITE, 1,2 s).
 	 */
 	function toucherJoueur( e, j, degats, monde ) {
 		if ( j.pare ) {
@@ -194,8 +195,21 @@
 		if ( j.invincible > 0 ) {
 			return '';
 		}
-		j.blesser( e.dir, degats, monde );
+		if ( j.blesser( e.dir, degats, monde ) && typeof e.type.repit === 'number' && j.etat !== 'mort' ) {
+			// Répit (s) accordé après un coup de ce type : plus long que l'invincibilité par défaut.
+			j.invincible = Math.max( j.invincible, e.type.repit );
+		}
 		return 'touche';
+	}
+
+	/*
+	 * Temps écoulé dans l'animation d'attaque : types.<t>.preavis (s, facultatif) retient la
+	 * première image (l'ennemi clignote, dessiner) avant le geste, pour laisser le temps de
+	 * s'écarter. Le tir du tireur n'en tient pas compte (il a déjà sa propre recharge).
+	 */
+	function tempsAttaque( e ) {
+		var preavis = typeof e.type.preavis === 'number' && ! e.tir ? e.type.preavis : 0;
+		return Math.max( 0, e.t - preavis );
 	}
 
 	/* Déplacement d'un pas : physique pour les ennemis au sol, direct pour les volants. */
@@ -235,7 +249,7 @@
 				changerEtat( e, 'repos' );
 			}
 		} else if ( e.etat === 'attaque' ) {
-			var i = ynWE.imageCourante( meta, e.attaque, e.t );
+			var i = ynWE.imageCourante( meta, e.attaque, tempsAttaque( e ) );
 			if ( ! e.touche && ( ynWE.animation( meta, e.attaque ).coup || [] ).indexOf( i ) !== -1 ) {
 				if ( comportement && comportement.attaquer && comportement.attaquer( e, monde ) ) {
 					e.touche = true;
@@ -244,7 +258,7 @@
 					toucherJoueur( e, j, ( e.definition.attaques[ e.attaque ] || {} ).degats || 1, monde );
 				}
 			}
-			if ( e.etat === 'attaque' && e.t >= ynWE.dureeAnimation( meta, e.attaque ) ) {
+			if ( e.etat === 'attaque' && tempsAttaque( e ) >= ynWE.dureeAnimation( meta, e.attaque ) ) {
 				changerEtat( e, 'repos' );
 				e.tir = false;
 				e.recharge = hasard( 0.8, 1.5 ) * ( e.type.rechargeFacteur || 1 );
@@ -766,10 +780,13 @@
 			r.ombre( e.x, e.y + 1, 28 * e.taille, 3, 0.22 );
 		}
 		var flash = e.flash > 0 ? 1 : 0;
+		var tAnim = e.etat === 'attaque' ? tempsAttaque( e ) : e.t;
 		if ( e.charge === 'preparation' ) {
 			flash = monde.mouvementReduit ? 0.5 : ( Math.floor( e.chargeT * 12 ) % 2 ? 0.8 : 0 );
+		} else if ( e.etat === 'attaque' && ! e.tir && e.t < ( e.type.preavis || 0 ) ) {
+			flash = Math.max( flash, monde.mouvementReduit ? 0.4 : ( Math.floor( e.t * 10 ) % 2 ? 0.6 : 0 ) ); // Préavis.
 		}
-		r.sprite( e.planche, nom, ynWE.imageCourante( meta, nom, e.t ), e.x, e.y, e.dir, e.taille, e.definition.lissage !== false, alpha, flash );
+		r.sprite( e.planche, nom, ynWE.imageCourante( meta, nom, tAnim ), e.x, e.y, e.dir, e.taille, e.definition.lissage !== false, alpha, flash );
 		if ( e.comportement === 'bouclier' && e.etat !== 'mort' ) {
 			dessinerBouclier( r, e );
 		}
@@ -871,7 +888,7 @@
 				p.touches = p.touches || [];
 				var avant = p.touches.length;
 				ynWE.competences.frapper( monde, b, p.degats || 1, p.touches, { type: p.type || 'projectile', dir: sens } );
-				if ( p.touches.length > avant && ! p.percant ) {
+				if ( p.touches.length > avant && ! ( p.perce || p.percant ) ) {
 					eteindre( p, monde );
 					return;
 				}
