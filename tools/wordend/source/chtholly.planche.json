@@ -1,0 +1,40 @@
+{
+	"sortie": "chtholly",
+	"echelle": 2,
+	"hauteur": 144,
+	"reference": [ "repos", "marche" ],
+	"ancre": "buste",
+	"sources": [
+		{
+			"fichier": "chtholly-planche-gemini.jpg",
+			"fond": "damier",
+			"damier": { "saturation": 14, "gris": [ 176, 214 ], "blanc": 232, "poche": 40, "clair": { "saturation": 18, "min": 165 }, "tailleMin": 120 },
+			"decoupe": "composantes",
+			"reglages": { "tailleImage": 2500, "marges": [ 12, 12, 12, 4 ], "satellites": { "saturation": 25, "taille": 60 } },
+			"sombre": 75,
+			"bandes": {
+				"repos": { "zone": [ 80, 320, 0, 1411 ], "garder": [ 0, 1 ] },
+				"marche": { "zone": [ 390, 630, 0, 1411 ] },
+				"course": { "zone": [ 700, 940, 0, 1411 ] },
+				"attaque": { "zone": [ 1040, 1285, 0, 1411 ] },
+				"charge": { "zone": [ 1380, 1630, 0, 1411 ] },
+				"degats": { "zone": [ 1715, 1970, 0, 420 ] },
+				"mort": { "zone": [ 1730, 1990, 440, 900 ], "marges": [ 40, 90, 40, 4 ], "ancre": "centre", "sol": "sombre" }
+			}
+		}
+	],
+	"rythmes": {
+		"repos": { "ips": 2, "boucle": true },
+		"marche": { "ips": 10, "boucle": true },
+		"course": { "ips": 14, "boucle": true },
+		"attaque": { "ips": 14, "boucle": false, "coup": [ 1, 2, 3 ] },
+		"charge": { "ips": 10, "boucle": false, "onde": 3 },
+		"degats": { "ips": 1, "boucle": false },
+		"mort": { "ips": 1, "boucle": false }
+	},
+	"ordre": [ "repos", "marche", "course", "attaque", "charge", "degats", "mort" ],
+	"variantes": {
+		"nephren": { "teinte": 0, "saturation": 0.25, "luminosite": 1.15, "plage": [ 170, 260 ], "saturationMin": 40 },
+		"ithea": { "teinte": -165, "saturation": 1.1, "luminosite": 1.2, "plage": [ 170, 260 ], "saturationMin": 40 }
+	}
+}

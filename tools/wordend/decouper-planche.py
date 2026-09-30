@@ -1,77 +1,81 @@
 #!/usr/bin/env python3
-"""Découpe les planches générées (Chtholly, Timere) en planches de jeu WordEnd.
+"""Découpe des planches générées (Gemini…) en planches de jeu WordEnd, d'après une description JSON.
 
-Chtholly (source JPG de Gemini) : le « fond transparent » est un damier dessiné (cases
-d'environ 12 px, blanc et gris ~194) avec un titre texte par ligne. Le script :
+Chaque planche de jeu est décrite par un fichier `tools/wordend/source/<nom>.planche.json` (format
+détaillé dans `tools/wordend/README.md`) : sources (image, fond, bandes par animation), ancre,
+hauteur de référence, rythmes, ordre, alignements, bords nets, variantes recolorées. Aucune
+constante propre à une planche dans ce script.
 
-1. détoure le damier : pixels gris neutres ou blancs reliés au fond, plus les poches de
-   damier enfermées (qui contiennent les deux couleurs : une lueur blanche seule est gardée) ;
-2. retire les petites taches (bruit JPEG, titres) et découpe chaque image par ligne ;
-3. calcule l'ancre de chaque image : milieu du buste (pixels sombres de l'uniforme, entre
-   40 et 80 % de la hauteur), bas des bottes ; l'épée ne décale donc pas le personnage ;
-4. met toutes les images à la même échelle (Chtholly debout = HAUTEUR px), les range en
-   planche compacte (une ligne par animation) et écrit le PNG (256 couleurs) et le JSON.
+Étapes, pour chaque source :
 
-Timere : lignes Repos, Marche, Attaque Fouet et Attaque Morsure de la planche verte (damier
-dessiné, gardées telles quelles) ; Course, Dégâts et Mort viennent d'une planche complémentaire
-(vraie transparence), ramenée à la même échelle (voir TIMERE_VERTE plus bas). Ancre : milieu des
-pattes, au sol.
+1. détourage : fond « damier » (damier dessiné : gris et blancs neutres reliés au fond, poches de
+   damier enfermées, cases collées au personnage, petites taches) ou « transparent » (vraie
+   transparence, titres noirs retirés si `titres`) ;
+2. découpe de chaque bande (zone en px de la source) en images, de gauche à droite : par
+   composantes (`decoupe: "composantes"`, images fusionnées quand elles se chevauchent, petits
+   éléments colorés rattachés) ou par colonnes vides (`decoupe: "colonnes"`) ;
+3. ancre de chaque image (`ancre` : buste, pattes ou centre ; `sol` : bas des pixels sombres ou
+   bas de l'image), alignement facultatif sur la tête ;
+4. mise à l'échelle commune (hauteur de référence), bords nets facultatifs ;
+
+puis rangement en planche compacte (une ligne par animation, dans `ordre`), PNG 256 couleurs et
+JSON au format v1 (`docs/wordend-formats.md` §4.5).
 
 Usage (Python 3.9+, pip install pillow numpy scipy) :
 
-    python3 tools/wordend/decouper-planche.py [chtholly|timere ...] \
-        [--sortie wp-content/plugins/yume-core/includes/wordend/assets]
+    python3 tools/wordend/decouper-planche.py tools/wordend/source/chtholly.planche.json \\
+        [autre.planche.json …] --sortie <dossier> [--variante nephren] [--variante nom=teinte:40]
 
-Outil ponctuel : la CI ne l'exécute pas, le PNG et le JSON générés sont versionnés.
+Écrit `<sortie>/<nom>.png` et `<sortie>/<nom>.planche.json` (+ une paire par variante).
+Outil ponctuel : la CI ne l'exécute pas, les PNG et JSON produits sont versionnés dans
+`wp-content/plugins/yume-core/includes/wordend/assets/univers/<univers>/`.
 """
 
 import argparse
 import json
 import os
+import sys
 
 import numpy as np
 from PIL import Image
 from scipy import ndimage as nd
 
-RACINE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+FORMAT = 'images : [x, y, largeur, hauteur, ancre x, ancre y] en px de la planche'
 
-SOURCES = os.path.join(RACINE, 'tools/wordend/source')
-
-# Hauteur de Chtholly debout dans la planche de sortie (px). Le jeu dessine en 2× : 144 px
-# dans la planche = 72 px logiques sur l'écran de 480 × 270.
-HAUTEUR = 144
-
-
-# Bandes de la planche source : (haut, bas, gauche, droite) en px, et images à garder.
-BANDES = {
-    'repos': ((80, 320, 0, 1411), [0, 1]),  # Les deux vues de dos sont écartées.
-    'marche': ((390, 630, 0, 1411), None),
-    'course': ((700, 940, 0, 1411), None),
-    'attaque': ((1040, 1285, 0, 1411), None),
-    'charge': ((1380, 1630, 0, 1411), None),
-    'degats': ((1715, 1970, 0, 420), None),
-    'mort': ((1730, 1990, 440, 900), None),
+# Valeurs par défaut du détourage d'un fond en damier dessiné.
+DAMIER_DEFAUT = {
+    'saturation': 14,     # écart max entre canaux d'un pixel « neutre »
+    'gris': [176, 214],   # cases grises : max des canaux dans cet intervalle
+    'blanc': 232,         # cases blanches : max des canaux ≥ blanc
+    'beige': None,        # {"min", "saturation"} : traits parasites clairs, rattachés au fond
+    'poche': 40,          # taille min (px) d'une poche de damier enfermée (gris ET blanc ≥ 15 %)
+    'clair': None,        # {"saturation", "min"} : zones claires neutres collées au fond = fond
+    'tailleMin': 120,     # taches plus petites retirées
 }
 
-# Rythme (images par seconde), boucle, et repères de jeu par animation.
-RYTHMES = {
-    'repos': {'ips': 2, 'boucle': True},
-    'marche': {'ips': 10, 'boucle': True},
-    'course': {'ips': 14, 'boucle': True},
-    'attaque': {'ips': 14, 'boucle': False, 'coup': [1, 2, 3]},
-    'charge': {'ips': 10, 'boucle': False, 'onde': 3},
-    'degats': {'ips': 1, 'boucle': False},
-    'mort': {'ips': 1, 'boucle': False},
-}
+ANCRES = ('buste', 'pattes', 'centre')
+SOLS = ('sombre', 'bas')
+SOL_PAR_ANCRE = {'buste': 'sombre', 'pattes': 'bas', 'centre': 'bas'}
 
 
-def detourer(a):
-    """Masque du premier plan (True = personnage)."""
+class ErreurDescription(Exception):
+    """Description de planche invalide."""
+
+
+# --- Détourage ---------------------------------------------------------------------------------
+
+
+def masque_damier(a, reglages):
+    """Masque du premier plan (True = sujet) d'une source RGB (int) à damier dessiné."""
+    r = dict(DAMIER_DEFAUT, **reglages)
     mx = a.max(2)
     sat = mx - a.min(2)
-    gris = (sat <= 14) & (mx >= 176) & (mx <= 214)
-    blanc = (sat <= 14) & (mx >= 232)
-    lab, n = nd.label(gris | blanc)
+    gris = (sat <= r['saturation']) & (mx >= r['gris'][0]) & (mx <= r['gris'][1])
+    blanc = (sat <= r['saturation']) & (mx >= r['blanc'])
+    candidats = gris | blanc
+    if r['beige']:
+        candidats = candidats | ((mx >= r['beige']['min']) & (sat <= r['beige']['saturation']) & ~blanc)
+    lab, n = nd.label(candidats)
     idx = range(1, n + 1)
     tot = nd.sum(np.ones_like(lab), lab, idx)
     ng = nd.sum(gris, lab, idx)
@@ -80,36 +84,98 @@ def detourer(a):
     fond[int(np.argmax(tot)) + 1] = True
     for i in idx:
         t = tot[i - 1]
-        if t > 40 and ng[i - 1] > 0.15 * t and nb[i - 1] > 0.15 * t:
+        # Poche de damier enfermée : elle contient les deux couleurs (une lueur blanche seule,
+        # des dents blanches, sont gardées).
+        if t > r['poche'] and ng[i - 1] > 0.15 * t and nb[i - 1] > 0.15 * t:
             fond[i] = True
     fond = fond[lab]
-    # Cases de damier collées au personnage (bruit JPEG : un peu hors des seuils ci-dessus) :
-    # zone claire et neutre qui touche le fond = fond. Les vrais blancs (reflets des yeux,
-    # éclats bleutés de l'épée) ne touchent pas le fond ou ne sont pas neutres.
-    clair = ~fond & (sat <= 18) & (mx >= 165)
-    lab, n = nd.label(clair)
-    bord = nd.binary_dilation(fond, iterations=1)
-    touche = nd.maximum(bord, lab, range(1, n + 1))
-    for i in range(1, n + 1):
-        if touche[i - 1]:
-            fond |= lab == i
+    if r['clair']:
+        # Cases de damier collées au sujet (bruit JPEG, un peu hors des seuils) : zone claire et
+        # neutre qui touche le fond = fond. Les vrais blancs (reflets, éclats bleutés) ne touchent
+        # pas le fond ou ne sont pas neutres.
+        clair = ~fond & (sat <= r['clair']['saturation']) & (mx >= r['clair']['min'])
+        lab, n = nd.label(clair)
+        bord = nd.binary_dilation(fond, iterations=1)
+        touche = nd.maximum(bord, lab, range(1, n + 1))
+        for i in range(1, n + 1):
+            if touche[i - 1]:
+                fond |= lab == i
     fg = nd.binary_opening(~fond, iterations=1)
     lab, n = nd.label(fg)
     tailles = nd.sum(fg, lab, range(1, n + 1))
-    return np.isin(lab, 1 + np.where(tailles >= 120)[0])
+    return np.isin(lab, 1 + np.where(tailles >= r['tailleMin'])[0])
 
 
-def images_bande(a, fg, nom, bande):
-    """Images RGBA d'une bande, de gauche à droite, avec leur ancre (x, y) en px source."""
-    y0, y1, x0, x1 = bande
+def masque_transparent(rgba, seuil, titres):
+    """Masque du premier plan d'une source à vraie transparence (alpha > seuil), sans les titres
+    (composantes à plus de 60 % de noir neutre) si `titres`."""
+    visible = rgba[..., 3] > seuil
+    if titres:
+        rgb = rgba[..., :3].astype(int)
+        noir = (rgb.max(2) < 80) & (rgb.max(2) - rgb.min(2) < 25)
+        lab, n = nd.label(visible)
+        idx = range(1, n + 1)
+        part_noire = nd.mean(noir, lab, idx)
+        for i in idx:
+            if part_noire[i - 1] > 0.6:
+                visible[lab == i] = False
+    return visible
+
+
+# --- Ancres ------------------------------------------------------------------------------------
+
+
+def calculer_ancre(rgb, masque, ancre, sol, sombre):
+    """Ancre (x, y) en px de l'image : x selon `ancre`, y selon `sol`.
+
+    - buste : médiane des pixels sombres (< `sombre`) entre 40 et 80 % de la hauteur (l'épée ou
+      la queue ne décalent pas le sujet) ; milieu de l'image s'il n'y en a pas ;
+    - pattes : médiane des pixels du quart inférieur ;
+    - centre : milieu de l'image ;
+    - sol « sombre » : bas des pixels sombres (bottes) ; « bas » : bas de l'image.
+    """
+    h, w = masque.shape
+    fonce = masque & (rgb.max(2) < sombre)
+    if ancre == 'buste':
+        _, xs = np.nonzero(fonce[int(h * 0.4):int(h * 0.8)])
+        ax = float(np.median(xs)) if len(xs) else w / 2
+    elif ancre == 'pattes':
+        _, xs = np.nonzero(masque[int(h * 0.75):])
+        ax = float(np.median(xs)) if len(xs) else w / 2
+    else:
+        ax = w / 2
+    if sol == 'sombre':
+        ys = np.nonzero(fonce)[0]
+        ay = float(ys.max() + 1) if len(ys) else float(h)
+    else:
+        ay = float(h)
+    return ax, ay
+
+
+# --- Découpe des bandes ------------------------------------------------------------------------
+
+
+def zone_bande(bande, largeur):
+    """(haut, bas, gauche, droite) d'une bande : `zone` = [haut, bas] ou [haut, bas, gauche, droite]."""
+    z = bande['zone']
+    return (z[0], z[1], 0, largeur) if len(z) == 2 else tuple(z)
+
+
+def decouper_composantes(rgba, fg, bande, reglages):
+    """Images d'une bande par composantes : les grandes (≥ `tailleImage`) donnent les images,
+    fusionnées si elles se chevauchent ; les éléments proches sont rattachés s'ils sont grands ou
+    petits mais colorés (pétales, papillon, étincelles). Renvoie [(rgba, masque)]."""
+    y0, y1, x0, x1 = zone_bande(bande, fg.shape[1])
     m = fg[y0:y1, x0:x1]
-    sat = (a.max(2) - a.min(2))[y0:y1, x0:x1]
+    rgb = rgba[..., :3].astype(int)
+    sat = (rgb.max(2) - rgb.min(2))[y0:y1, x0:x1]
     lab, n = nd.label(m)
     sl = nd.find_objects(lab)
     tailles = nd.sum(m, lab, range(1, n + 1))
     msat = nd.mean(sat, lab, range(1, n + 1))
+    grande = reglages['tailleImage']
     boites = []
-    for i in sorted((i for i in range(n) if tailles[i] >= 2500), key=lambda i: sl[i][1].start):
+    for i in sorted((i for i in range(n) if tailles[i] >= grande), key=lambda i: sl[i][1].start):
         s = sl[i]
         b = [s[1].start, s[0].start, s[1].stop, s[0].stop]
         if boites and b[0] < boites[-1][2] - 10:
@@ -117,30 +183,79 @@ def images_bande(a, fg, nom, bande):
             boites[-1] = [min(p[0], b[0]), min(p[1], b[1]), max(p[2], b[2]), max(p[3], b[3])]
         else:
             boites.append(b)
+    mg, mh, md, mb = bande.get('marges', reglages['marges'])
     sorties = []
     for b in boites:
-        marge = 40 if nom == 'mort' else 12
-        zone = [b[0] - marge, b[1] - (90 if nom == 'mort' else marge), b[2] + marge, b[3] + 4]
+        zone = [b[0] - mg, b[1] - mh, b[2] + md, b[3] + mb]
         garde = np.zeros_like(m)
         for i in range(n):
             s = sl[i]
             cx = (s[1].start + s[1].stop) / 2
             cy = (s[0].start + s[0].stop) / 2
             dedans = zone[0] <= cx <= zone[2] and zone[1] <= cy <= zone[3]
-            # Grandes composantes, ou petites mais colorées (pétales, papillon, étincelles).
-            if dedans and (tailles[i] >= 2500 or (msat[i] > 25 and tailles[i] >= 60)):
+            colore = msat[i] > reglages['satellites']['saturation'] and tailles[i] >= reglages['satellites']['taille']
+            if dedans and (tailles[i] >= grande or colore):
                 garde |= lab == i + 1
         ys, xs = np.nonzero(garde)
         gx0, gx1, gy0, gy1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
-        rgb = a[y0 + gy0:y0 + gy1, x0 + gx0:x0 + gx1]
-        alpha = garde[gy0:gy1, gx0:gx1]
-        h = gy1 - gy0
-        sombre = alpha & (rgb.max(2) < 75)
-        _, xs2 = np.nonzero(sombre[int(h * 0.4):int(h * 0.8)])
-        ax = alpha.shape[1] / 2 if nom == 'mort' or not len(xs2) else float(np.median(xs2))
-        ay = float(np.nonzero(sombre)[0].max() + 1)
-        sorties.append((np.dstack([rgb, alpha * 255]).astype(np.uint8), ax, ay))
+        bloc = rgba[y0 + gy0:y0 + gy1, x0 + gx0:x0 + gx1].copy()
+        masque = garde[gy0:gy1, gx0:gx1]
+        bloc[..., 3] = masque * 255
+        sorties.append((bloc, masque))
     return sorties
+
+
+def colonnes_vides(m, ecart):
+    """Segments (début, fin) de plus de `ecart` px séparés par des colonnes vides."""
+    col = m.sum(0)
+    segments, debut = [], None
+    for x, v in enumerate(col):
+        if v > 0 and debut is None:
+            debut = x
+        elif v == 0 and debut is not None:
+            if x - debut > ecart:
+                segments.append((debut, x))
+            debut = None
+    if debut is not None:
+        segments.append((debut, len(col)))
+    return segments
+
+
+def decouper_colonnes(rgba, fg, bande, reglages):
+    """Images d'une bande séparées par des colonnes vides (pixel art bien espacé)."""
+    y0, y1, x0, x1 = zone_bande(bande, fg.shape[1])
+    m = fg[y0:y1, x0:x1]
+    sorties = []
+    for c0, c1 in colonnes_vides(m, reglages['ecartColonnes']):
+        zone = m[:, c0:c1]
+        if zone.sum() < reglages['tailleImage']:
+            continue
+        ys, xs = np.nonzero(zone)
+        gx0, gx1, gy0, gy1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+        bloc = rgba[y0 + gy0:y0 + gy1, x0 + c0 + gx0:x0 + c0 + gx1].copy()
+        masque = zone[gy0:gy1, gx0:gx1]
+        bloc[..., 3] = np.where(masque, bloc[..., 3], 0)
+        sorties.append((bloc, masque))
+    return sorties
+
+
+DECOUPES = {
+    'composantes': (decouper_composantes, {'tailleImage': 2500, 'marges': [12, 12, 12, 4],
+                                           'satellites': {'saturation': 25, 'taille': 60}}),
+    'colonnes': (decouper_colonnes, {'tailleImage': 600, 'ecartColonnes': 8}),
+}
+
+
+def aligner_tete(images):
+    """Aligne le bout de la tête (colonne la plus à droite de la moitié haute) à distance
+    constante de l'ancre, égale à la médiane des images : utile quand les pattes bougent trop
+    pour servir d'ancre (course)."""
+    tetes = [float(np.nonzero(rgba[: rgba.shape[0] // 2, :, 3] > 0)[1].max()) for rgba, _, _ in images]
+    ecart = float(np.median([tete - ax for tete, (_, ax, _) in zip(tetes, images)]))
+    return [(rgba, tete - ecart, ay) for tete, (rgba, _, ay) in zip(tetes, images)]
+
+
+# --- Mise à l'échelle et écriture --------------------------------------------------------------
 
 
 def redimensionner(rgba, echelle):
@@ -157,198 +272,245 @@ def redimensionner(rgba, echelle):
     return np.dstack([rgb, alpha]).astype(np.uint8)
 
 
-def ecrire_planche(brutes, echelle, rythmes, nom_fichier, sortie):
-    """Range les images (déjà découpées) en planche compacte et écrit le PNG et le JSON."""
+def ranger(images, ordre, rythmes):
+    """Range les images (déjà à l'échelle) en planche compacte : (tableau RGBA, animations)."""
     placees, animations, y, largeur = [], {}, 0, 0
-    for nom, imgs in brutes.items():
+    for nom in ordre:
         x, hmax, cadres = 0, 0, []
-        for rgba, ax, ay in imgs:
-            r = redimensionner(rgba, echelle)
+        for r, ax, ay in images[nom]:
             h, w = r.shape[:2]
             placees.append((x, y, r))
-            cadres.append([x, y, w, h, int(round(ax * echelle)), int(round(ay * echelle))])
+            cadres.append([x, y, w, h, int(round(ax)), int(round(ay))])
             x += w + 2
             hmax = max(hmax, h)
         animations[nom] = dict(rythmes[nom], images=cadres)
         largeur = max(largeur, x)
         y += hmax + 2
-
     planche = Image.new('RGBA', (largeur, y))
     for x, yy, r in placees:
         planche.paste(Image.fromarray(r, 'RGBA'), (x, yy))
-    planche = planche.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
-    planche.save(os.path.join(sortie, nom_fichier + '.png'), optimize=True)
-    meta = {
-        'version': 1,
-        'echelle': 2,
-        'planche': [largeur, y],
-        'format': 'images : [x, y, largeur, hauteur, ancre x, ancre y] en px de la planche',
-        'animations': animations,
-    }
-    with open(os.path.join(sortie, nom_fichier + '.json'), 'w', encoding='utf-8') as f:
+    return planche, animations
+
+
+def ecrire(planche, meta, nom, sortie):
+    """Écrit `<nom>.png` (256 couleurs) et `<nom>.planche.json` dans `sortie`."""
+    image = planche.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
+    image.save(os.path.join(sortie, nom + '.png'), optimize=True)
+    with open(os.path.join(sortie, nom + '.planche.json'), 'w', encoding='utf-8') as f:
         json.dump(meta, f, ensure_ascii=False, separators=(',', ':'))
         f.write('\n')
-    print('%s : planche %d × %d, échelle %.3f' % (nom_fichier, largeur, y, echelle))
+    print('%s : planche %d × %d' % (nom, planche.width, planche.height))
 
 
-def chtholly(sortie):
-    """Planche de Chtholly (JPG de Gemini à damier dessiné)."""
-    a = np.asarray(Image.open(os.path.join(SOURCES, 'chtholly-planche-gemini.jpg')).convert('RGB')).astype(int)
-    fg = detourer(a)
-    brutes = {}
-    for nom, (bande, garder) in BANDES.items():
-        imgs = images_bande(a, fg, nom, bande)
-        brutes[nom] = [imgs[i] for i in garder] if garder else imgs
-    echelle = HAUTEUR / float(np.median([ay for _, _, ay in brutes['repos']] + [ay for _, _, ay in brutes['marche']]))
-    ecrire_planche(brutes, echelle, RYTHMES, 'chtholly', sortie)
+# --- Variantes recolorées ----------------------------------------------------------------------
 
 
-# Timere : deux planches générées.
-# - Planche verte (timere-planche-verte.webp : damier dessiné gris ~150 / blanc, traits beiges
-#   parasites) : seules ses lignes Repos, Marche, Attaque Fouet et Attaque Morsure sont correctes ;
-#   elles sont gardées telles quelles (pixel art, sans rééchantillonnage).
-# - Planche complémentaire (timere-planche-complement.webp : vraie transparence) : lignes Course,
-#   Dégâts et Mort, ramenées à l'échelle de la verte (Timere debout de même hauteur), alpha net.
-TIMERE_VERTE = {  # Bandes (haut, bas) en px de la source verte.
-    'repos': (55, 166),
-    'marche': (210, 330),
-    'fouet': (528, 634),
-    'morsure': (668, 767),
-}
-TIMERE_ORDRE = ['repos', 'marche', 'course', 'fouet', 'morsure', 'degats', 'mort']
-TIMERE_RYTHMES = {
-    'repos': {'ips': 6, 'boucle': True},
-    'marche': {'ips': 7, 'boucle': True},
-    'course': {'ips': 12, 'boucle': True},
-    'fouet': {'ips': 8, 'boucle': False, 'coup': [1, 2]},
-    'morsure': {'ips': 8, 'boucle': False, 'coup': [1, 2]},
-    'degats': {'ips': 12, 'boucle': False},
-    'mort': {'ips': 8, 'boucle': False},
-}
-TIMERE_COMPLEMENT = {  # Bandes (haut, bas) en px de la planche complémentaire.
-    'course': (85, 280),
-    'degats': (366, 568),
-    'mort': (600, 860),
-}
-# Image de la planche complémentaire où le Timere est debout (dernière image de Dégâts) : sa
-# hauteur est égalée à celle du Timere au repos de la planche verte.
-TIMERE_COMPLEMENT_DEBOUT = ('degats', -1)
+def recolorer(planche, variante):
+    """Planche recolorée : rotation de teinte (`teinte` en degrés), facteurs `saturation` et
+    `luminosite`, limitée aux pixels dont la teinte d'origine est dans `plage` ([min, max] en
+    degrés, bornes incluses, intervalle circulaire si min > max) et assez saturés (`saturationMin`,
+    0…255)."""
+    rgba = np.asarray(planche)
+    hsv = np.asarray(Image.fromarray(np.ascontiguousarray(rgba[..., :3]), 'RGB').convert('HSV')).astype(float)
+    teinte_deg = hsv[..., 0] * 360 / 256
+    choisis = rgba[..., 3] > 0
+    if 'plage' in variante:
+        pmin, pmax = variante['plage']
+        dedans = (teinte_deg >= pmin) & (teinte_deg <= pmax) if pmin <= pmax else \
+            (teinte_deg >= pmin) | (teinte_deg <= pmax)
+        choisis &= dedans
+    choisis &= hsv[..., 1] >= variante.get('saturationMin', 0)
+    nouveau = hsv.copy()
+    nouveau[..., 0] = (hsv[..., 0] + variante.get('teinte', 0) * 256 / 360) % 256
+    nouveau[..., 1] = np.clip(hsv[..., 1] * variante.get('saturation', 1), 0, 255)
+    nouveau[..., 2] = np.clip(hsv[..., 2] * variante.get('luminosite', 1), 0, 255)
+    hsv = np.where(choisis[..., None], nouveau, hsv)
+    rgb = np.asarray(Image.fromarray(np.round(hsv).astype(np.uint8), 'HSV').convert('RGB'))
+    return Image.fromarray(np.dstack([rgb, rgba[..., 3]]), 'RGBA')
 
 
-def colonnes_vides(m):
-    """Segments (début, fin) séparés par des colonnes vides dans un masque de bande."""
-    col = m.sum(0)
-    segments, debut = [], None
-    for x, v in enumerate(col):
-        if v > 0 and debut is None:
-            debut = x
-        elif v == 0 and debut is not None:
-            if x - debut > 8:
-                segments.append((debut, x))
-            debut = None
-    if debut is not None:
-        segments.append((debut, len(col)))
-    return segments
+def lire_variante_cli(texte, description):
+    """`--variante nom` (déclarée dans la description) ou `--variante nom=teinte:40,saturation:0.8`."""
+    if '=' not in texte:
+        variantes = description.get('variantes', {})
+        if texte not in variantes:
+            raise ErreurDescription('variante inconnue : %s (déclarées : %s)'
+                                    % (texte, ', '.join(variantes) or 'aucune'))
+        return texte, variantes[texte]
+    nom, reglages = texte.split('=', 1)
+    variante = {}
+    for morceau in filter(None, reglages.split(',')):
+        cle, _, valeur = morceau.partition(':')
+        if cle == 'plage':
+            variante[cle] = [float(v) for v in valeur.split('/')]
+        else:
+            variante[cle] = float(valeur)
+    return nom, variante
 
 
-def decouper_bande(rgba, visible, bande):
-    """Images d'une bande, de gauche à droite : (rgba, ancre x, ancre y). Ancre : milieu des
-    pattes (quart inférieur de l'image), au sol."""
-    y0, y1 = bande
-    m = visible[y0:y1]
-    images = []
-    for x0, x1 in colonnes_vides(m):
-        zone = m[:, x0:x1]
-        if zone.sum() < 600:
-            continue
-        ys, xs = np.nonzero(zone)
-        gx0, gx1, gy0, gy1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
-        bloc = rgba[y0 + gy0:y0 + gy1, x0 + gx0:x0 + gx1].copy()
-        bloc[..., 3] = np.where(zone[gy0:gy1, gx0:gx1], bloc[..., 3], 0)
-        h = gy1 - gy0
-        _, xs2 = np.nonzero(zone[gy0 + int(h * 0.75):gy1, gx0:gx1])
-        ax = float(np.median(xs2)) if len(xs2) else (gx1 - gx0) / 2
-        images.append((bloc, ax, float(h)))
+# --- Description -------------------------------------------------------------------------------
+
+
+def verifier_description(d, chemin):
+    """Contrôles de forme de la description (messages en français)."""
+    def exiger(condition, message):
+        if not condition:
+            raise ErreurDescription('%s : %s' % (chemin, message))
+
+    exiger(isinstance(d.get('sources'), list) and d['sources'], '« sources » doit être une liste non vide')
+    exiger(isinstance(d.get('rythmes'), dict), '« rythmes » manquant')
+    noms = []
+    for i, s in enumerate(d['sources']):
+        exiger(s.get('fond', 'damier') in ('damier', 'transparent'), 'source %d : fond « damier » ou « transparent »' % i)
+        exiger(s.get('decoupe', 'composantes') in DECOUPES, 'source %d : découpe inconnue' % i)
+        exiger(s.get('ancre', d.get('ancre', 'buste')) in ANCRES, 'source %d : ancre inconnue' % i)
+        exiger(isinstance(s.get('bandes'), dict) and s['bandes'], 'source %d : « bandes » manquant' % i)
+        for nom, b in s['bandes'].items():
+            exiger(len(b.get('zone', [])) in (2, 4), 'bande « %s » : zone [haut, bas] ou [haut, bas, gauche, droite]' % nom)
+            exiger(b.get('ancre', 'centre') in ANCRES, 'bande « %s » : ancre inconnue' % nom)
+            exiger(b.get('sol', 'bas') in SOLS, 'bande « %s » : sol « sombre » ou « bas »' % nom)
+            exiger(nom not in noms, 'animation « %s » décrite deux fois' % nom)
+            noms.append(nom)
+    for nom in d.get('ordre', noms):
+        exiger(nom in noms, 'animation « %s » de « ordre » sans bande' % nom)
+        exiger(nom in d['rythmes'], 'animation « %s » sans rythme' % nom)
+    for nom, mode in d.get('alignement', {}).items():
+        exiger(nom in noms and mode == 'tete', 'alignement « %s » : animation connue et mode « tete »' % nom)
+    exiger(isinstance(d.get('reference'), list) and d['reference'], '« reference » : animations donnant la hauteur')
+
+
+def charger_description(chemin):
+    with open(chemin, encoding='utf-8') as f:
+        d = json.load(f)
+    verifier_description(d, chemin)
+    return d
+
+
+def lire_source(s, dossier, ancre_defaut):
+    """Images brutes d'une source : {animation: [(rgba, ax, ay)]} en px de la source."""
+    fichier = os.path.join(dossier, s['fichier'])
+    image = Image.open(fichier)
+    if s.get('fond', 'damier') == 'damier':
+        a = np.asarray(image.convert('RGB')).astype(int)
+        fg = masque_damier(a, s.get('damier', {}))
+        rgba = np.dstack([a, fg * 255]).astype(np.uint8)
+    else:
+        rgba = np.asarray(image.convert('RGBA'))
+        fg = masque_transparent(rgba, s.get('seuilAlpha', 128), s.get('titres', False))
+    methode = s.get('decoupe', 'composantes')
+    fonction, defauts = DECOUPES[methode]
+    reglages = dict(defauts, **s.get('reglages', {}))
+    ancre_source = s.get('ancre', ancre_defaut)
+    sombre = s.get('sombre', 75)
+    images = {}
+    for nom, bande in s['bandes'].items():
+        ancre = bande.get('ancre', ancre_source)
+        sol = bande.get('sol', s.get('sol', SOL_PAR_ANCRE[ancre_source]))
+        brutes = []
+        for bloc, masque in fonction(rgba, fg, bande, reglages):
+            ax, ay = calculer_ancre(bloc[..., :3].astype(int), masque, ancre, sol, sombre)
+            brutes.append((bloc, ax, ay))
+        if 'garder' in bande:
+            try:
+                brutes = [brutes[i] for i in bande['garder']]
+            except IndexError:
+                raise ErreurDescription('bande « %s » : « garder » hors des %d images trouvées' % (nom, len(brutes)))
+        if not brutes:
+            raise ErreurDescription('bande « %s » : aucune image trouvée' % nom)
+        images[nom] = brutes
     return images
 
 
-def timere_vert():
-    """Lignes gardées de la planche verte (alpha net, couleurs d'origine)."""
-    a = np.asarray(Image.open(os.path.join(SOURCES, 'timere-planche-verte.webp')).convert('RGB')).astype(int)
-    mx = a.max(2)
-    sat = mx - a.min(2)
-    gris = (sat <= 16) & (mx >= 125) & (mx <= 185)
-    blanc = (sat <= 16) & (mx >= 225)
-    beige = (mx >= 185) & (sat <= 60) & ~blanc  # Traits parasites de Gemini.
-    lab, n = nd.label(gris | blanc | beige)
-    idx = range(1, n + 1)
-    tot = nd.sum(np.ones_like(lab), lab, idx)
-    ng = nd.sum(gris, lab, idx)
-    nb = nd.sum(blanc, lab, idx)
-    fond = np.zeros(n + 1, bool)
-    fond[int(np.argmax(tot)) + 1] = True
-    for i in idx:
-        t = tot[i - 1]
-        if t > 30 and ng[i - 1] > 0.15 * t and nb[i - 1] > 0.15 * t:
-            fond[i] = True  # Poche de damier enfermée (les dents blanches seules sont gardées).
-    fg = nd.binary_opening(~fond[lab], iterations=1)
-    lab, n = nd.label(fg)
-    tailles = nd.sum(fg, lab, range(1, n + 1))
-    fg = np.isin(lab, 1 + np.where(tailles >= 60)[0])
-    rgba = np.dstack([a, fg * 255]).astype(np.uint8)
-    return {nom: decouper_bande(rgba, fg, bande) for nom, bande in TIMERE_VERTE.items()}
+def construire(d, dossier):
+    """Planche (Image RGBA) et méta JSON d'une description."""
+    sources = [lire_source(s, dossier, d.get('ancre', 'buste')) for s in d['sources']]
+    alignement = d.get('alignement', {})
+    for images in sources:
+        for nom in images:
+            if alignement.get(nom) == 'tete':
+                images[nom] = aligner_tete(images[nom])
 
+    # Hauteur de référence : médiane des ancres (y) des animations de « reference » ; mise à
+    # l'échelle de chaque source pour que cette hauteur vaille « hauteur » (ou celle de la
+    # première source qui a ces animations, gardée telle quelle si « hauteur » est absent).
+    reference = d['reference']
 
-def timere_complement(hauteur):
-    """Lignes Course, Dégâts et Mort de la planche complémentaire, à l'échelle de la verte."""
-    a = np.asarray(Image.open(os.path.join(SOURCES, 'timere-planche-complement.webp')).convert('RGBA'))
-    visible = a[..., 3] > 128
-    # Titres (texte noir uni) : composantes presque entièrement noires et neutres.
-    rgb = a[..., :3].astype(int)
-    noir = (rgb.max(2) < 80) & (rgb.max(2) - rgb.min(2) < 25)
-    lab, n = nd.label(visible)
-    idx = range(1, n + 1)
-    part_noire = nd.mean(noir, lab, idx)
-    for i in idx:
-        if part_noire[i - 1] > 0.6:
-            visible[lab == i] = False
-    images = {nom: decouper_bande(a, visible, bande) for nom, bande in TIMERE_COMPLEMENT.items()}
-    # Course : les pattes bougent trop pour servir d'ancre (le corps sauterait d'une image à
-    # l'autre). On aligne plutôt le bout de la tête (colonne la plus à droite de la moitié
-    # haute) à distance constante de l'ancre, égale à la médiane des images.
-    course = images['course']
-    tetes = [float(np.nonzero(rgba[: rgba.shape[0] // 2, :, 3] > 0)[1].max()) for rgba, _, _ in course]
-    ecart = float(np.median([tete - ax for tete, (_, ax, _) in zip(tetes, course)]))
-    images['course'] = [(rgba, tete - ecart, ay) for tete, (rgba, _, ay) in zip(tetes, course)]
-    nom, indice = TIMERE_COMPLEMENT_DEBOUT
-    echelle = hauteur / images[nom][indice][2]
-    sorties = {}
-    for nom, imgs in images.items():
-        sorties[nom] = []
-        for rgba, ax, ay in imgs:
-            r = redimensionner(rgba, echelle)
-            r[..., 3] = np.where(r[..., 3] > 128, 255, 0)  # Bords nets, comme la planche verte.
-            sorties[nom].append((r, ax * echelle, ay * echelle))
-    return sorties
+    def hauteur_reference(images):
+        ays = [ay for nom in reference if nom in images for _, _, ay in images[nom]]
+        return float(np.median(ays)) if ays else None
 
+    cible = d.get('hauteur')
+    echelles = [None] * len(sources)
+    if cible is None:
+        for i, images in enumerate(sources):
+            h = hauteur_reference(images)
+            if h is not None:
+                cible, echelles[i] = h, 1
+                break
+        if cible is None:
+            raise ErreurDescription('aucune source ne contient les animations de « reference »')
+    for i, (s, images) in enumerate(zip(d['sources'], sources)):
+        if echelles[i] is not None:
+            continue
+        if 'referenceHauteur' in s:
+            nom, indice = s['referenceHauteur']
+            if nom not in images or not -len(images[nom]) <= indice < len(images[nom]):
+                raise ErreurDescription('source %d : « referenceHauteur » %s introuvable' % (i, [nom, indice]))
+            echelles[i] = cible / images[nom][indice][2]
+        else:
+            h = hauteur_reference(images)
+            if h is None:
+                raise ErreurDescription('source %d : ni animation de « reference » ni « referenceHauteur »' % i)
+            echelles[i] = cible / h
 
-def timere(sortie):
-    """Planche du Timere : lignes gardées de la verte, complétées par la planche complémentaire."""
-    vertes = timere_vert()
-    hauteur = float(np.median([ay for _, _, ay in vertes['repos']]))
-    images = dict(vertes, **timere_complement(hauteur))
-    ecrire_planche({nom: images[nom] for nom in TIMERE_ORDRE}, 1, TIMERE_RYTHMES, 'timere', sortie)
+    nets = set(d.get('bordsNets', []))
+    finales = {}
+    for images, echelle in zip(sources, echelles):
+        for nom, imgs in images.items():
+            finales[nom] = []
+            for rgba, ax, ay in imgs:
+                r = redimensionner(rgba, echelle)
+                if nom in nets:
+                    r[..., 3] = np.where(r[..., 3] > 128, 255, 0)
+                finales[nom].append((r, ax * echelle, ay * echelle))
+
+    ordre = d.get('ordre') or [nom for s in d['sources'] for nom in s['bandes']]
+    planche, animations = ranger(finales, ordre, d['rythmes'])
+    meta = {
+        'version': 1,
+        'echelle': d.get('echelle', 2),
+        'planche': [planche.width, planche.height],
+        'format': FORMAT,
+        'animations': animations,
+    }
+    return planche, meta, echelles
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    p.add_argument('planches', nargs='*', help='chtholly, timere (défaut : les deux)')
-    p.add_argument('--sortie', default=os.path.join(RACINE, 'wp-content/plugins/yume-core/includes/wordend/assets'))
+    p.add_argument('descriptions', nargs='+', help='fichiers tools/wordend/source/<nom>.planche.json')
+    p.add_argument('--sortie', required=True, help='dossier où écrire <nom>.png et <nom>.planche.json')
+    p.add_argument('--variante', action='append', default=[],
+                   help='variante recolorée : nom déclaré dans « variantes », ou nom=teinte:40[,saturation:0.8,'
+                        'luminosite:1.1,plage:180/260,saturationMin:40] (répétable)')
+    p.add_argument('--toutes-variantes', action='store_true', help='produit aussi toutes les variantes déclarées')
     args = p.parse_args()
-    for nom in args.planches or ['chtholly', 'timere']:
-        if nom not in ('chtholly', 'timere'):
-            p.error('planche inconnue : ' + nom)
-        {'chtholly': chtholly, 'timere': timere}[nom](args.sortie)
+    os.makedirs(args.sortie, exist_ok=True)
+    try:
+        for chemin in args.descriptions:
+            d = charger_description(chemin)
+            nom = d.get('sortie') or os.path.basename(chemin).split('.')[0]
+            demandees = [lire_variante_cli(v, d) for v in args.variante]
+            if args.toutes_variantes:
+                demandees += list(d.get('variantes', {}).items())
+            planche, meta, echelles = construire(d, os.path.dirname(os.path.abspath(chemin)))
+            ecrire(planche, meta, nom, args.sortie)
+            print('  échelles des sources : ' + ', '.join('%.3f' % e for e in echelles))
+            for nom_variante, variante in demandees:
+                ecrire(recolorer(planche, variante), meta, nom_variante, args.sortie)
+    except (ErreurDescription, OSError, ValueError, KeyError) as e:
+        print('Erreur : %s' % e, file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

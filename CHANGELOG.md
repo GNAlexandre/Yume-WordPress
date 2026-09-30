@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.3 — 2026-09-30
+
+- WordEnd v2 (lot F) : découpe des planches pilotée par des fichiers de description, variantes de teinte, validateur d'univers (valider.py).
+
 ## 2.1.5-dev.2 — 2026-09-30
 
 - WordEnd v2 (lot E) : registre des univers (filtre yume_wordend_univers), univers de la page, papillon par œuvre, déclencheur durci.

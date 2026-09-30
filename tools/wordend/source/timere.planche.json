@@ -1,0 +1,47 @@
+{
+	"sortie": "timere",
+	"echelle": 2,
+	"reference": [ "repos" ],
+	"ancre": "pattes",
+	"sources": [
+		{
+			"fichier": "timere-planche-verte.webp",
+			"fond": "damier",
+			"damier": { "saturation": 16, "gris": [ 125, 185 ], "blanc": 225, "beige": { "min": 185, "saturation": 60 }, "poche": 30, "tailleMin": 60 },
+			"decoupe": "colonnes",
+			"reglages": { "tailleImage": 600, "ecartColonnes": 8 },
+			"bandes": {
+				"repos": { "zone": [ 55, 166 ] },
+				"marche": { "zone": [ 210, 330 ] },
+				"fouet": { "zone": [ 528, 634 ] },
+				"morsure": { "zone": [ 668, 767 ] }
+			}
+		},
+		{
+			"fichier": "timere-planche-complement.webp",
+			"fond": "transparent",
+			"seuilAlpha": 128,
+			"titres": true,
+			"decoupe": "colonnes",
+			"reglages": { "tailleImage": 600, "ecartColonnes": 8 },
+			"referenceHauteur": [ "degats", -1 ],
+			"bandes": {
+				"course": { "zone": [ 85, 280 ] },
+				"degats": { "zone": [ 366, 568 ] },
+				"mort": { "zone": [ 600, 860 ] }
+			}
+		}
+	],
+	"rythmes": {
+		"repos": { "ips": 6, "boucle": true },
+		"marche": { "ips": 7, "boucle": true },
+		"course": { "ips": 12, "boucle": true },
+		"fouet": { "ips": 8, "boucle": false, "coup": [ 1, 2 ] },
+		"morsure": { "ips": 8, "boucle": false, "coup": [ 1, 2 ] },
+		"degats": { "ips": 12, "boucle": false },
+		"mort": { "ips": 8, "boucle": false }
+	},
+	"ordre": [ "repos", "marche", "course", "fouet", "morsure", "degats", "mort" ],
+	"alignement": { "course": "tete" },
+	"bordsNets": [ "course", "degats", "mort" ]
+}
