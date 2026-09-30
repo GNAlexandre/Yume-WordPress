@@ -29,6 +29,7 @@ de l'équipe.
 | [docs/guide-equipe.md](docs/guide-equipe.md) | Guide de l'équipe : publier un tome, planning, rappels |
 | [docs/guide-developpeur.md](docs/guide-developpeur.md) | Guide développeur : modules, tests, CI, release |
 | [docs/glossaire.md](docs/glossaire.md) | Glossaire des œuvres : format YAML de Yume-Trad, page publique, espace équipe, envoi direct par l'application (API) |
+| [docs/wordend.md](docs/wordend.md) | Easter egg WordEnd : mini-jeu caché (« Chtholly – Bats-toi contre ton destin »), commandes, planche de sprites |
 | [design/README.md](design/README.md) | Direction visuelle, tokens, liste des maquettes |
 | [docs/plan-refonte.html](docs/plan-refonte.html) | Version présentable du plan (page HTML autonome) |
 
@@ -46,7 +47,7 @@ jamais hébergés sur le site ; la lecture en ligne est générée depuis le DOC
 ```
 wp-content/plugins/yume-core   plugin métier (types de contenu, planning, import DOCX/EPUB, API, comptes)
 wp-content/themes/yume         thème bloc « Nuit sakura / Papier »
-tools/                         scripts de migration et fixtures
+tools/                         scripts de migration, fixtures, découpe de la planche WordEnd
 docs/                          documentation
 design/                        tokens et maquettes
 ```

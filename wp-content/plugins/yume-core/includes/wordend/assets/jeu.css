@@ -1,0 +1,164 @@
+/**
+ * Modale du jeu WordEnd (chargée à la demande). Couleurs : variables du thème uniquement,
+ * donc valable en Nuit, Papier et Sépia. Sélecteurs préfixés par .yn-wordend (styles globaux
+ * de WordPress 6.6.0, voir docs/guide-developpeur.md §6).
+ */
+html.yn-wordend-ouvert {
+	overflow: hidden;
+}
+
+.yn-wordend {
+	box-sizing: border-box;
+	width: min(96vw, 1000px);
+	max-width: none;
+	max-height: 96vh;
+	margin: auto;
+	padding: 0;
+	overflow: auto;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--carte);
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-wordend::backdrop {
+	background: rgba(8, 4, 16, 0.72);
+}
+
+.yn-wordend .yn-wordend__cadre {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wp--preset--spacing--30, 12px);
+	padding: var(--wp--preset--spacing--40, 16px);
+}
+
+.yn-wordend .yn-wordend__entete {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--wp--preset--spacing--30, 12px);
+}
+
+.yn-wordend .yn-wordend__titre {
+	margin: 0;
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 20px;
+	font-weight: 800;
+	line-height: 1.2;
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-wordend .yn-wordend__fermer {
+	min-width: 44px;
+	min-height: 44px;
+	font-size: 22px;
+	line-height: 1;
+}
+
+.yn-wordend .yn-wordend__ecran {
+	display: block;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 16 / 9;
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--fond);
+	touch-action: none;
+}
+
+.yn-wordend .yn-wordend__ecran:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-wordend .yn-wordend__barre {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--wp--preset--spacing--20, 8px);
+}
+
+.yn-wordend .yn-wordend__barre .yn-btn {
+	min-height: 44px;
+}
+
+.yn-wordend .yn-wordend__son {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--wp--preset--spacing--20, 8px);
+	margin-left: auto;
+}
+
+.yn-wordend .yn-wordend__muet[aria-pressed="true"] {
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-wordend .yn-wordend__volume {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--wp--preset--spacing--20, 8px);
+	min-height: 44px;
+	font-size: 14px;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-wordend .yn-wordend__volume input[type="range"] {
+	width: 8rem;
+	accent-color: var(--wp--preset--color--accent);
+}
+
+.yn-wordend .yn-wordend__volume input[type="range"]:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-wordend .yn-wordend__manettes {
+	display: none;
+	flex-wrap: wrap;
+	gap: var(--wp--preset--spacing--20, 8px);
+	justify-content: space-between;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.yn-wordend .yn-wordend__manette {
+	flex: 1 1 0;
+	min-width: 56px;
+	min-height: 52px;
+	touch-action: none;
+	-webkit-touch-callout: none;
+}
+
+.yn-wordend .yn-wordend__manette[aria-pressed="true"] {
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-wordend .yn-wordend__aide {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--wp--preset--color--texte-faible);
+}
+
+@media (pointer: coarse) {
+	.yn-wordend .yn-wordend__manettes {
+		display: flex;
+	}
+
+	.yn-wordend .yn-wordend__aide {
+		display: none;
+	}
+}
+
+@media (max-width: 600px) {
+	.yn-wordend {
+		width: 100vw;
+		max-height: 100vh;
+		border-radius: 0;
+	}
+
+	.yn-wordend .yn-wordend__cadre {
+		padding: var(--wp--preset--spacing--30, 12px);
+	}
+}

@@ -2,6 +2,38 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.8 — 2026-09-30
+
+- WordEnd : cases de damier collées à Chtholly retirées (pose de repos), touche M (musique) reconnue en AZERTY.
+
+## 2.1.4-dev.7 — 2026-09-30
+
+- WordEnd : titre « Chtholly – Bats-toi contre ton destin ».
+
+## 2.1.4-dev.6 — 2026-09-30
+
+- WordEnd : Échap met la partie en pause, un second Échap ferme le jeu.
+
+## 2.1.4-dev.5 — 2026-09-30
+
+- WordEnd : décor peint (coucher de soleil sur les dunes) et musique de fond « Scarborough Fair » pendant la partie, avec volume et bouton muet (touche M), réglages mémorisés.
+
+## 2.1.4-dev.4 — 2026-09-30
+
+- WordEnd : un Timere n'attaque plus depuis l'extérieur de l'écran (il avance jusqu'à être à moitié visible).
+
+## 2.1.4-dev.3 — 2026-09-30
+
+- WordEnd : course du Timere alignée sur la tête (plus d'à-coup), ancres et images de coup vérifiées par les tests.
+
+## 2.1.4-dev.2 — 2026-09-30
+
+- WordEnd : Timere d'après la planche verte (repos, marche, fouet, morsure) et une planche complémentaire (course, dégâts, mort), à la même échelle ; portées et boîtes des attaques ajustées.
+
+## 2.1.4-dev.1 — 2026-09-29
+
+- Easter egg WordEnd : mini-jeu caché (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) où Chtholly repousse des vagues de Timeres ; planches de sprites découpées depuis les planches générées (tools/wordend), Timeres restylés en pixel art vert.
+
 ## 2.1.3 — 2026-09-29
 
 - Version 2.1.3 : contenu de la 2.1.2 (planning à jour pour les visiteurs, commentaires pleine largeur, reprise de migration) et relance manuelle de la Release.
