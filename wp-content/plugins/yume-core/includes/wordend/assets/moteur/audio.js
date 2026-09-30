@@ -1,9 +1,9 @@
 /**
  * WordEnd — moteur : son (musique de fond en boucle, volume, muet ; effets en v2.2).
  *
- * audio.musique(url) choisit la piste et la joue (sauf muet ou volume nul) ; musique(null) la
- * met en pause (position conservée). L'élément Audio n'est créé qu'à la première lecture
- * effective. Les réglages sont mémorisés (stockage.enregistrerSon) et annoncés par l'événement
+ * audio.musique(url) choisit la piste et la joue (sauf muet ou volume nul) ; une autre URL (la
+ * musique d'un autre niveau) remplace la piste et libère l'ancienne ; musique(null) la met en
+ * pause (position conservée). L'élément Audio n'est créé qu'à la première lecture effective. Les réglages sont mémorisés (stockage.enregistrerSon) et annoncés par l'événement
  * 'son:changement'. Interface : docs/wordend-formats.md.
  *
  * ES2019, sans dépendance.
@@ -23,7 +23,12 @@
 			var jouer = voulue && !! url && ! son.muet && son.volume > 0;
 			if ( jouer && ( ! piste || piste.dataset.url !== url ) ) {
 				if ( piste ) {
+					// Changement de piste (musique d'un autre niveau) : l'ancienne est libérée.
 					piste.pause();
+					piste.removeAttribute( 'src' );
+					try {
+						piste.load();
+					} catch ( e ) {}
 				}
 				piste = new Audio( url );
 				piste.dataset.url = url;
@@ -84,6 +89,10 @@
 			reprendre: function () {
 				voulue = true;
 				appliquer();
+			},
+			/* État (tests, banc ; ajout lot A) : piste créée, lecture voulue, lecture en cours. */
+			etat: function () {
+				return { url: piste ? piste.dataset.url : '', voulue: voulue && !! url, joue: !! piste && ! piste.paused };
 			},
 			/* Effets sonores : v2.2. */
 			effet: function () {},
