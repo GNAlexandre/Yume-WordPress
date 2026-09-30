@@ -8,7 +8,10 @@
  *
  * Le jeu n'est chargé qu'à la première ouverture : feuille config.style, puis les scripts du
  * moteur config.scripts, insérés dans l'ordre (async = false : exécutés dans cet ordre). Le
- * chargement est résolu quand window.ynWordEndJeu existe ; un échec permet de réessayer.
+ * chargement est résolu quand window.ynWordEndJeu existe ; un échec (script introuvable) rejette
+ * le chargement et permet de réessayer à la demande suivante.
+ * Le papillon passe son univers (data-yn-wordend-univers) ; un slug inconnu de config.univers est
+ * ignoré (la modale ouvre alors config.universPage, puis config.universParDefaut).
  * Configuration : window.ynWordEnd (posée par le module) ; API : window.ynWordEnd.ouvrir( univers? ).
  *
  * ES2019, sans dépendance.
@@ -27,6 +30,8 @@
 	var position = 0;
 	var derniere = 0;
 	var chargement = null;
+	var pret = false; // Moteur chargé en entier par charger().
+	var essaye = false; // charger() a déjà inséré des scripts.
 
 	function estChampSaisie( el ) {
 		if ( ! el || ! el.tagName ) {
@@ -43,17 +48,25 @@
 	}
 
 	/**
-	 * Charge la feuille puis les scripts du moteur une seule fois.
+	 * Charge la feuille puis les scripts du moteur une seule fois. Les scripts sont insérés tous
+	 * ensemble dans l'ordre (async = false : téléchargés en parallèle, exécutés dans l'ordre). Le
+	 * premier échec (réseau, 404) rejette le chargement : les éléments de cette tentative sont
+	 * retirés et un nouvel appel recommence depuis le début.
 	 *
 	 * @return {Promise} Résolue quand window.ynWordEndJeu existe.
 	 */
 	function charger() {
-		if ( window.ynWordEndJeu ) {
+		// Moteur déjà chargé : par ce script, ou par la page elle-même (banc d'essai) si ce script
+		// n'a encore rien inséré (après un échec, window.ynWordEndJeu peut exister sans le moteur
+		// complet : seul un chargement réussi compte).
+		if ( pret || ( ! essaye && window.ynWordEndJeu ) ) {
 			return Promise.resolve();
 		}
 		if ( chargement ) {
 			return chargement;
 		}
+		essaye = true;
+		var inseres = [];
 		chargement = new Promise( function ( resoudre, rejeter ) {
 			if ( config.style && ! document.querySelector( 'link[data-yn-wordend]' ) ) {
 				var feuille = document.createElement( 'link' );
@@ -63,7 +76,15 @@
 				document.head.appendChild( feuille );
 			}
 			var restants = config.scripts.length;
-			var echoue = false;
+			var termine = false;
+
+			function echouer( erreur ) {
+				if ( ! termine ) {
+					termine = true;
+					rejeter( erreur );
+				}
+			}
+
 			config.scripts.forEach( function ( adresse ) {
 				var script = document.createElement( 'script' );
 				script.src = adresse;
@@ -71,27 +92,46 @@
 				script.setAttribute( 'data-yn-wordend', '' );
 				script.onload = function () {
 					restants--;
-					if ( restants === 0 && ! echoue ) {
-						if ( window.ynWordEndJeu ) {
+					if ( restants === 0 && ! termine ) {
+						if ( window.ynWordEndJeu && typeof window.ynWordEndJeu.ouvrir === 'function' ) {
+							termine = true;
+							pret = true;
 							resoudre();
 						} else {
-							rejeter( new Error( 'jeu absent' ) );
+							echouer( new Error( 'jeu absent après le chargement du moteur' ) );
 						}
 					}
 				};
 				script.onerror = function () {
-					if ( ! echoue ) {
-						echoue = true;
-						rejeter( new Error( 'chargement impossible : ' + adresse ) );
-					}
+					echouer( new Error( 'chargement impossible : ' + adresse ) );
 				};
+				inseres.push( script );
 				document.head.appendChild( script );
 			} );
 		} ).catch( function ( erreur ) {
+			// Réessai possible : on repart d'un état propre (scripts de cette tentative retirés).
+			inseres.forEach( function ( script ) {
+				script.onload = null;
+				script.onerror = null;
+				if ( script.parentNode ) {
+					script.parentNode.removeChild( script );
+				}
+			} );
 			chargement = null;
 			throw erreur;
 		} );
 		return chargement;
+	}
+
+	/**
+	 * Slug d'univers connu de la configuration, sinon '' (la modale choisit alors universPage,
+	 * puis universParDefaut).
+	 *
+	 * @param {*} univers Slug demandé.
+	 * @return {string} Slug retenu.
+	 */
+	function universConnu( univers ) {
+		return typeof univers === 'string' && univers && config.univers && Object.prototype.hasOwnProperty.call( config.univers, univers ) ? univers : '';
 	}
 
 	/**
@@ -103,9 +143,13 @@
 		if ( jeuOuvert() ) {
 			return;
 		}
+		var slug = universConnu( univers );
 		charger().then(
 			function () {
-				window.ynWordEndJeu.ouvrir( config, typeof univers === 'string' ? univers : '' );
+				// Deux demandes pendant le même chargement : une seule ouverture.
+				if ( ! jeuOuvert() ) {
+					window.ynWordEndJeu.ouvrir( config, slug );
+				}
 			},
 			function ( erreur ) {
 				// eslint-disable-next-line no-console

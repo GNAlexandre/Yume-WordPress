@@ -8,6 +8,9 @@
  * (assets/moteur/*.js), sa feuille de style et l'univers (assets/univers/<slug>/ : manifeste,
  * personnages, ennemis, niveaux, décors, musiques) sont chargés à la demande.
  *
+ * Filtres : yume_wordend_actif (coupure), yume_wordend_univers (registre des univers, univers.php),
+ * yume_wordend_oeuvres (œuvres supplémentaires affichant le papillon, fonctions.php).
+ *
  * Contrat : docs/06-contrat-technique.md (§1, §14) ; documentation : docs/wordend.md ;
  * interfaces du moteur et schémas JSON : docs/wordend-formats.md.
  * Au chargement, les fichiers ne font qu'accrocher des hooks (§0).

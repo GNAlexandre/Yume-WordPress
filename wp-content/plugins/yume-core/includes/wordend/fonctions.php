@@ -54,18 +54,24 @@ function actif(): bool {
 }
 
 /**
- * Slugs des œuvres dont la fiche affiche le papillon qui ouvre le jeu.
+ * Slugs des œuvres dont la fiche affiche le papillon qui ouvre le jeu : œuvres des univers
+ * (yume_wordend_univers) et œuvres ajoutées par le filtre yume_wordend_oeuvres, assainis et
+ * dédoublonnés.
  *
  * @return string[]
  */
 function oeuvres_declencheuses(): array {
+	$des_univers = array_values( array_filter( array_column( univers(), 'oeuvre' ) ) );
 	/**
-	 * Slugs des œuvres (yume_oeuvre) dont la fiche affiche le papillon de WordEnd.
+	 * Slugs des œuvres (yume_oeuvre) dont la fiche affiche le papillon de WordEnd. Une œuvre sans
+	 * univers associé ouvre l'univers par défaut ; les œuvres des univers (yume_wordend_univers)
+	 * gardent toujours leur papillon (les retirer : filtre yume_wordend_univers).
 	 *
-	 * @param string[] $slugs Par défaut : sukasuka.
+	 * @param string[] $slugs Par défaut : œuvres des univers (sukasuka).
 	 */
-	$slugs = apply_filters( 'yume_wordend_oeuvres', array( 'sukasuka' ) );
-	$slugs = array_filter( array_map( 'sanitize_title', array_map( 'strval', (array) $slugs ) ) );
+	$slugs = apply_filters( 'yume_wordend_oeuvres', $des_univers );
+	$slugs = array_merge( array_map( 'strval', (array) $slugs ), $des_univers );
+	$slugs = array_filter( array_map( 'sanitize_title', $slugs ) );
 	return array_values( array_unique( $slugs ) );
 }
 
@@ -99,18 +105,20 @@ function url_asset( string $fichier ): string {
 }
 
 /**
- * Configuration du jeu (window.ynWordEnd) : identique pour tous les visiteurs (Batcache).
+ * Configuration du jeu (window.ynWordEnd). Batcache : elle ne dépend que de l'URL demandée
+ * (universPage = univers de la fiche d'œuvre de la requête principale), jamais du visiteur.
  *
  * @return array{version:string, style:string, scripts:string[], univers:array, universParDefaut:string, universPage:string}
  */
 function configuration(): array {
+	$univers = univers();
 	return array(
 		'version'          => defined( 'YUME_CORE_VERSION' ) ? YUME_CORE_VERSION : '',
 		'style'            => url_asset( FEUILLE_JEU ),
 		'scripts'          => array_map( __NAMESPACE__ . '\\url_asset', SCRIPTS_MOTEUR ),
-		'univers'          => univers(),
-		'universParDefaut' => UNIVERS_PAR_DEFAUT,
-		'universPage'      => '',
+		'univers'          => $univers,
+		'universParDefaut' => univers_par_defaut( $univers ),
+		'universPage'      => univers_de_la_page(),
 	);
 }
 

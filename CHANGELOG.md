@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.2 — 2026-09-30
+
+- WordEnd v2 (lot E) : registre des univers (filtre yume_wordend_univers), univers de la page, papillon par œuvre, déclencheur durci.
+
 ## 2.1.5-dev.1 — 2026-09-30
 
 - WordEnd v2 : moteur découpé en modules (assets/moteur/), univers SukaSuka décrit en données (assets/univers/sukasuka/), banc d'essai ; mode arcade identique.
