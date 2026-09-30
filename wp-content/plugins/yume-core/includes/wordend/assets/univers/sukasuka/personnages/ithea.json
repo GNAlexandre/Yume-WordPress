@@ -1,0 +1,20 @@
+{
+	"version": 2,
+	"slug": "ithea",
+	"nom": "Ithea",
+	"description": "Épée Valgulious : dagues lancées et ruée éclair.",
+	"planche": "ithea",
+	"lissage": true,
+	"boite": { "l": 20, "h": 56 },
+	"pv": 4,
+	"vitesseMarche": 78,
+	"vitesseCourse": 150,
+	"saut": { "impulsion": 340, "sautsMax": 1 },
+	"poses": { "saut": [ "course", 1 ], "chute": [ "course", 3 ] },
+	"textes": { "mort": "Ithea est à terre." },
+	"competences": {
+		"principale": { "type": "projectile", "animation": "attaque", "vitesse": 300, "degats": 1, "recharge": 0.35, "depart": { "x": 22, "y": -30 }, "couleur": "#ffe28a", "libelle": "Dague lancée" },
+		"secondaire": { "type": "ruee", "animation": "course", "distance": 90, "duree": 0.2, "recharge": 1.5, "libelle": "Ruée" }
+	},
+	"debloque": { "niveau": "03-falaise" }
+}

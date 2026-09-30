@@ -1,0 +1,20 @@
+{
+	"version": 2,
+	"slug": "nephren",
+	"nom": "Nephren",
+	"description": "Épée Insania : coups lourds, parade et double saut.",
+	"planche": "nephren",
+	"lissage": true,
+	"boite": { "l": 20, "h": 56 },
+	"pv": 5,
+	"vitesseMarche": 66,
+	"vitesseCourse": 128,
+	"saut": { "impulsion": 310, "sautsMax": 2 },
+	"poses": { "saut": [ "course", 1 ], "chute": [ "course", 3 ], "parade": [ "charge", 1 ] },
+	"textes": { "mort": "Nephren est à terre." },
+	"competences": {
+		"principale": { "type": "melee", "animation": "attaque", "degats": 2, "boite": { "x": 4, "y": -62, "l": 60, "h": 58 }, "libelle": "Coup d’Insania" },
+		"secondaire": { "type": "parade", "duree": 0.6, "recharge": 2, "libelle": "Parade" }
+	},
+	"debloque": { "niveau": "01-plage" }
+}

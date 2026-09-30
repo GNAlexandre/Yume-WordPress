@@ -1,13 +1,16 @@
 /**
  * WordEnd — moteur : joueur générique piloté par le JSON du personnage.
  *
- * États : repos, marche, course, saut, chute (lot B), attaque (compétence principale),
- * competence (secondaire), degats, mort. Le joueur est son propre corps physique (j.corps === j).
- * Commandes lues : gauche, droite, courir (+ in.courirTactile), epee (impulsion → principale),
- * competence (maintenue → secondaire), saut (lot B).
+ * États : repos, marche, course, saut, chute, attaque (compétence principale), competence
+ * (secondaire), degats, mort. Le joueur est son propre corps physique (j.corps === j).
+ * Commandes lues : gauche, droite, courir (+ in.courirTactile), bas, saut (impulsion ; maintenu :
+ * hauteur), epee (impulsion → principale), competence (maintenue → secondaire).
  *
- * Lot 0 : reproduit Chtholly v1 (vitesses, PV, invincibilité 1,2 s, recul 150, dégâts 0,35 s,
- * mort 2,2 s). Interface : docs/wordend-formats.md.
+ * Reproduit Chtholly v1 en arcade (vitesses, PV, invincibilité 1,2 s, recul 150, dégâts 0,35 s,
+ * mort 2,2 s) et ajoute le saut : impulsion personnage.saut.impulsion, sautsMax sauts (double saut
+ * si 2), tolérance de 0,08 s après avoir quitté un bord, saut écourté (vy × 0,5) si la touche
+ * maintenue au départ est relâchée pendant la montée, bas + saut sur une plateforme traversable :
+ * descente. Interface : docs/wordend-formats.md (§3.8).
  *
  * ES2019, sans dépendance.
  */
@@ -21,13 +24,22 @@
 	var DUREE_DEGATS = 0.35;
 	var RECUL = 150;
 	var DUREE_MORT = 2.2;
+	var COYOTE = 0.08;
+	var DUREE_TRAVERSE = 0.25;
+	var COUPE_SAUT = 0.5;
 
 	/* Bouton associé à chaque emplacement de compétence. */
 	var BOUTONS = { principale: 'epee', secondaire: 'competence' };
 
+	/* États où le joueur est libre de ses mouvements. */
+	var LIBRES = { repos: true, marche: true, course: true, saut: true, chute: true };
+
 	function creer( personnage, monde, entrees ) {
 		var boite = personnage.boite || { l: 20, h: 56 };
-		var j = ynWE.physique.corps( { x: ynWE.LARGEUR / 2, y: monde.sol, l: boite.l, h: boite.h } );
+		var saut = personnage.saut || {};
+		var impulsionSaut = typeof saut.impulsion === 'number' ? saut.impulsion : 330;
+		var sautsMax = typeof saut.sautsMax === 'number' ? saut.sautsMax : 1;
+		var j = ynWE.physique.corps( { x: ynWE.LARGEUR / 2, y: monde.sol, l: boite.l, h: boite.h, auSol: true } );
 		j.corps = j;
 		j.personnage = personnage;
 		j.planche = personnage.planche;
@@ -42,6 +54,10 @@
 		j.touches = [];
 		j.emplacement = '';
 		j.phase = '';
+		j.pare = false;
+		j.sautsFaits = 0;
+		j.enLair = 0; // Temps passé hors du sol (s).
+		j.sautMaintenu = false; // Saut lancé touche maintenue : relâcher l'écourte.
 
 		function commande( nom ) {
 			return !! ( entrees && entrees.commande( nom ) );
@@ -59,6 +75,7 @@
 		j.changerEtat = function ( nouvel ) {
 			j.etat = nouvel;
 			j.t = 0;
+			j.pare = false;
 			if ( nouvel !== 'attaque' && nouvel !== 'competence' ) {
 				j.emplacement = '';
 				j.phase = '';
@@ -78,15 +95,52 @@
 			return false;
 		}
 
+		function sauter() {
+			j.vy = -impulsionSaut;
+			j.sautsFaits++;
+			j.auSol = false;
+			j.support = null;
+			j.enLair = COYOTE;
+			j.sautMaintenu = commande( 'saut' );
+			j.changerEtat( 'saut' );
+		}
+
+		/* Impulsion de saut : descente d'une plateforme, saut depuis le sol ou saut en l'air. */
+		function gererSaut() {
+			if ( commande( 'bas' ) && j.auSol && j.support && ! ynWE.physique.estSolide( j.support ) ) {
+				j.traverse = DUREE_TRAVERSE;
+				j.auSol = false;
+				j.support = null;
+				return;
+			}
+			if ( j.auSol || ( j.enLair < COYOTE && j.sautsFaits === 0 ) ) {
+				sauter();
+			} else if ( j.sautsFaits < sautsMax ) {
+				sauter();
+			}
+		}
+
 		j.mettreAJour = function ( dt ) {
 			var appui = impulsion( 'epee' );
-			impulsion( 'saut' ); // Lot B : saut.
-			var libre = j.etat === 'repos' || j.etat === 'marche' || j.etat === 'course';
+			var appuiSaut = impulsion( 'saut' );
+			var libre = !! LIBRES[ j.etat ];
+			var sens = 0;
 			j.t += dt;
 			j.invincible = Math.max( 0, j.invincible - dt );
 			Object.keys( j.recharges ).forEach( function ( cle ) {
 				j.recharges[ cle ] = Math.max( 0, j.recharges[ cle ] - dt );
 			} );
+
+			if ( j.auSol ) {
+				j.enLair = 0;
+				j.sautsFaits = 0;
+				j.sautMaintenu = false;
+			} else {
+				j.enLair += dt;
+				if ( j.enLair >= COYOTE && j.sautsFaits === 0 ) {
+					j.sautsFaits = 1; // Tombé d'un bord : le premier saut est perdu.
+				}
+			}
 
 			if ( j.etat === 'mort' ) {
 				j.vx *= 0.9;
@@ -102,25 +156,41 @@
 
 			if ( libre ) {
 				if ( ! ( appui && lancer( 'principale' ) ) && ! ( commande( 'competence' ) && lancer( 'secondaire' ) ) ) {
-					var sens = ( commande( 'droite' ) ? 1 : 0 ) - ( commande( 'gauche' ) ? 1 : 0 );
+					sens = ( commande( 'droite' ) ? 1 : 0 ) - ( commande( 'gauche' ) ? 1 : 0 );
 					var court = commande( 'courir' ) || !! ( entrees && entrees.courirTactile );
 					if ( sens !== 0 ) {
 						j.dir = sens;
 						j.vx = sens * ( court ? personnage.vitesseCourse || 138 : personnage.vitesseMarche || 72 );
-						var voulu = court ? 'course' : 'marche';
-						if ( j.etat !== voulu ) {
-							j.changerEtat( voulu );
-						}
 					} else {
 						j.vx = 0;
-						if ( j.etat !== 'repos' ) {
-							j.changerEtat( 'repos' );
-						}
+					}
+					if ( appuiSaut ) {
+						gererSaut();
 					}
 				}
 			}
 
+			// Saut écourté : touche relâchée pendant la montée.
+			if ( j.sautMaintenu && j.vy < 0 && ! commande( 'saut' ) ) {
+				j.vy *= COUPE_SAUT;
+				j.sautMaintenu = false;
+			}
+
 			ynWE.physique.appliquer( j, dt, monde, { gravite: true, plateformes: true, bords: true } );
+
+			if ( LIBRES[ j.etat ] ) {
+				var voulu;
+				if ( ! j.auSol ) {
+					voulu = j.vy < 0 ? 'saut' : 'chute';
+				} else if ( j.vx !== 0 && sens !== 0 ) {
+					voulu = commande( 'courir' ) || ( entrees && entrees.courirTactile ) ? 'course' : 'marche';
+				} else {
+					voulu = 'repos';
+				}
+				if ( j.etat !== voulu ) {
+					j.changerEtat( voulu );
+				}
+			}
 		};
 
 		/* Corps touchable (v1 : 20 × 56, 2 px au-dessus du sol). */
@@ -128,10 +198,19 @@
 			return { x: j.x - j.l / 2, y: j.y - j.h - 2, l: j.l, h: j.h };
 		};
 
-		/* Encaisse un coup venu du côté sens (±1). Renvoie vrai si le coup a porté. */
+		/*
+		 * Encaisse un coup venu du côté sens (±1 : sens du recul). Renvoie vrai si le coup a porté.
+		 * Une compétence en cours peut l'absorber (impl.encaisser : parade, ruée).
+		 */
 		j.blesser = function ( sens, degats ) {
 			if ( j.etat === 'mort' || j.invincible > 0 ) {
 				return false;
+			}
+			if ( ( j.etat === 'attaque' || j.etat === 'competence' ) && j.emplacement ) {
+				var c = competence( j.emplacement );
+				if ( c && c.impl.encaisser && c.impl.encaisser( j, sens, degats || 1, monde, c.def ) ) {
+					return false;
+				}
 			}
 			j.pv -= degats || 1;
 			j.invincible = INVINCIBILITE;
@@ -158,6 +237,7 @@
 			return j.etat === 'mort' && j.t >= DUREE_MORT;
 		};
 
+		/* [animation, indice] : compétence, animation de l'état, sinon pose figée du JSON. */
 		j.animationCourante = function () {
 			var meta = j.planche.meta;
 			if ( ( j.etat === 'attaque' || j.etat === 'competence' ) && j.emplacement ) {
@@ -173,7 +253,9 @@
 
 		j.dessiner = function ( r ) {
 			var anim = j.animationCourante();
-			r.ombre( j.x, monde.sol + 1, anim[ 0 ] === 'mort' ? 34 : 18, 4, 0.25 );
+			var surface = ynWE.physique.surfaceSous( monde, j.x, j.y );
+			var proche = Math.max( 0.4, 1 - ( surface - j.y ) / 120 ); // Ombre plus petite en l'air.
+			r.ombre( j.x, surface + 1, ( anim[ 0 ] === 'mort' ? 34 : 18 ) * proche, 4 * proche, 0.25 * proche );
 			var alpha = 1;
 			if ( j.invincible > 0 && anim[ 0 ] !== 'mort' ) {
 				alpha = monde.mouvementReduit ? 0.6 : ( Math.floor( j.invincible * 12 ) % 2 ? 0.35 : 1 );
@@ -192,5 +274,6 @@
 		creer: creer,
 		DUREE_MORT: DUREE_MORT,
 		INVINCIBILITE: INVINCIBILITE,
+		COYOTE: COYOTE,
 	};
 }() );

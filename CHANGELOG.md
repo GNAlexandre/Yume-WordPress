@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.5 — 2026-09-30
+
+- WordEnd v2 (lot B) : gravité, saut et plateformes, joueur générique, compétences (épée, onde, tir, ruée, parade), Nephren et Ithea (planches provisoires).
+
 ## 2.1.5-dev.4 — 2026-09-30
 
 - WordEnd v2 (lot A) : ressources (chargement à la demande, teintes), rendu (caméra, parallaxe, voile, plateformes), audio par niveau, sauvegarde v2 avec migration.
