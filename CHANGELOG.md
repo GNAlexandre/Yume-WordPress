@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.4 — 2026-09-30
+
+- WordEnd : un Timere n'attaque plus depuis l'extérieur de l'écran (il avance jusqu'à être à moitié visible).
+
 ## 2.1.4-dev.3 — 2026-09-30
 
 - WordEnd : course du Timere alignée sur la tête (plus d'à-coup), ancres et images de coup vérifiées par les tests.

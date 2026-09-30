@@ -856,11 +856,14 @@
 				}
 				var attaque = t.modele.attaques[ Math.floor( Math.random() * t.modele.attaques.length ) ];
 				var portee = PORTEE[ t.modele.attaques[ 0 ] ] * t.taille + 6;
-				if ( ! fuite && distance <= portee + 4 && t.recharge <= 0 ) {
+				// Pas d'attaque depuis l'extérieur de l'écran : l'ancre (milieu des pattes) doit
+				// être dans le cadre, donc au moins la moitié du corps visible.
+				var visible = t.x > 4 && t.x < LARGEUR - 4;
+				if ( ! fuite && visible && distance <= portee + 4 && t.recharge <= 0 ) {
 					t.attaque = distance > PORTEE.morsure * t.taille + 6 && t.modele.attaques.indexOf( 'fouet' ) !== -1 ? 'fouet' : attaque;
 					t.touche = false;
 					etatTimere( t, 'attaque' );
-				} else if ( fuite || distance > portee ) {
+				} else if ( fuite || distance > portee || ! visible ) {
 					var court = t.modele.course && distance > 50;
 					var voulu = court ? 'course' : 'marche';
 					if ( t.etat !== voulu ) {
