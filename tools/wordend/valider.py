@@ -307,7 +307,8 @@ class Validateur:
                     for g in groupes:
                         reference(g, relatif + ' générateur')
         elif genre == 'boss':
-            reference(objectif, relatif + ' objectif boss')
+            # « type » est déjà le type d'objectif : le type d'ennemi est « typeEnnemi » (défaut boss).
+            reference({'ennemi': objectif.get('ennemi'), 'type': objectif.get('typeEnnemi', 'boss')}, relatif + ' objectif boss')
         etoiles = donnees.get('etoiles')
         if etoiles is not None:
             self.verifier(isinstance(etoiles, dict), relatif, '« etoiles » : objet attendu')

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.8 — 2026-09-30
+
+- WordEnd v2 : documentation (wordend.md, wordend-formats.md, contrat §1 et §14, guide), validateur : type d'ennemi de l'objectif boss (typeEnnemi).
+
 ## 2.1.5-dev.7 — 2026-09-30
 
 - WordEnd v2 (lot D) : écrans de sélection (personnage, niveaux avec étoiles et verrous), HUD (boss, survie), victoire, saut et manettes par personnage, listes accessibles.

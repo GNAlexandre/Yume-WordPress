@@ -21,7 +21,7 @@ tools/localenv/                   WordPress local SQLite (setup.sh, wp.sh, test.
 tools/build/                      lint.sh (php -l), zip.sh (archives installables)
 tools/playground/                 blueprints WordPress Playground + contenu de démonstration
 tools/docx2chapters/, tools/migrate/   outils en ligne de commande (import DOCX, migration)
-tools/wordend/                    découpe de la planche de Chtholly (easter egg, Python, ponctuel)
+tools/wordend/                    WordEnd : découpe des planches, valider.py (Python), banc d'essai du moteur
 tools/preprod/                    préproduction locale (MariaDB) construite de zéro + parcours Playwright
 tools/ci/                         contrôle de rendu de la CI (rendu.sh, rendu.js, rendu-attendus.js)
 .github/workflows/                ci.yml (intégration continue), release.yml (publication)

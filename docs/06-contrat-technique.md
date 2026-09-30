@@ -46,7 +46,7 @@ installé), aucun téléversement de zip. La bascule du §8 de `02-plan-refonte.
 | `includes/library/`, `tests/test-library.php` | **bibliothèque** (blocs d'affichage) |
 | `includes/migration/`, `tests/test-migration.php`, `tools/migrate/` | **migration** |
 | `includes/updater/`, `lib/`, `tests/test-updater.php`, `.github/`, `tools/localenv/` (hors wp.sh/test.sh), `tools/playground/`, `phpcs.xml.dist`, `docs/guide-equipe.md`, `docs/guide-developpeur.md` | **outillage** |
-| `includes/wordend/`, `tests/test-wordend.php`, `tools/wordend/` | **wordend** (easter egg SukaSuka : mini-jeu 2D, planches de Chtholly et du Timere) |
+| `includes/wordend/` (moteur `assets/moteur/`, univers `assets/univers/`), `tests/test-wordend.php`, `tools/wordend/` (planches, `valider.py`, banc d'essai `banc/`), `docs/wordend.md`, `docs/wordend-formats.md` | **wordend** (easter egg SukaSuka : jeu de plateformes 2D, univers en JSON) |
 | `wp-content/themes/yume/` | **thème** |
 
 Chaque module range ses fichiers statiques dans `includes/<module>/assets/` et ses blocs dans
@@ -936,7 +936,7 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 | `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
 | `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
 | `yn.a11y` | `{contraste: bool, animations: 'systeme'\|'reduites'}` (appareil seulement, jamais envoyé au compte) | lecture (panneau Paramètres, script d'initialisation) |
-| `yn.wordend` | `{meilleur: int, parties: int, maj: 'YYYY-MM-DD', volume: 0…1, muet: bool}` (meilleur score et réglages du son du jeu caché, appareil seulement) | wordend |
+| `yn.wordend` | `{version: 2, volume: 0…1, muet: bool, maj: 'YYYY-MM-DD', univers: { [slug]: {parties, personnage, arcade: {meilleur}, niveaux: { [slug]: {meilleur, etoiles: 0…3, fini} }} }}` (progression et réglages du son du jeu caché, appareil seulement ; l'ancien format `{meilleur, parties, maj, volume, muet}` est migré à la lecture vers l'univers `sukasuka`, sans perte ; détails : `docs/wordend-formats.md` §6) | wordend |
 
 Stockage Cache Storage du service worker (lecture hors ligne) : caches `yume-lecture-{version}`,
 `yume-statique-{version}`, `yume-secours-{version}` (version = `YUME_CORE_VERSION` ; ceux des versions
@@ -946,12 +946,17 @@ API du thème pour les autres scripts : `window.ynTheme.set( 'nuit'|'papier'|'se
 (sinon poser l'attribut et `localStorage['yn.theme']`) ; événement `document` `yn:theme`
 (`detail.theme`) à chaque changement ; classe `html.yn-js` quand JavaScript est actif.
 
-Easter egg WordEnd (module wordend, détails dans `docs/wordend.md`) : script `yume-wordend-declencheur`
-en façade (jamais en administration, flux ni embed) ; configuration `window.ynWordEnd` (URLs `jeu`,
-`style`, `planche`, `meta`, `timere`, `timereMeta`, `decor`, `musique`, identique pour tous les visiteurs) et API `window.ynWordEnd.ouvrir()` ; le
-jeu, chargé à la demande, expose `window.ynWordEndJeu` ; filtres `yume_wordend_actif` (bool) et
-`yume_wordend_oeuvres` (slugs dont la fiche affiche le papillon, défaut `sukasuka`) ; classe racine
-`.yn-wordend` ; événement `document` `yn:wordend` (`detail.etat` = `ouvert`\|`ferme`).
+Easter egg WordEnd (module wordend, détails dans `docs/wordend.md`, interfaces dans
+`docs/wordend-formats.md`) : script `yume-wordend-declencheur` en façade (jamais en administration, flux
+ni embed ; absent si aucun univers) ; configuration `window.ynWordEnd` =
+`{version, style, scripts[], univers: {[slug]: {titre, oeuvre, manifeste, version}}, universParDefaut, universPage}`
+(`scripts` : 14 URL versionnées dans l'ordre de `SCRIPTS_MOTEUR`), qui ne dépend que de l'URL (Batcache) ;
+API `window.ynWordEnd.ouvrir( univers? )` ; le moteur, chargé à la demande, expose `window.ynWordEndJeu`
+(`window.ynWordEndMoteur` est privé, non contractuel) ; filtres `yume_wordend_actif` (bool),
+`yume_wordend_univers` (registre des univers, assaini) et `yume_wordend_oeuvres` (œuvres supplémentaires
+affichant le papillon ; défaut : œuvres des univers) ; papillon `[data-yn-wordend-ouvrir]` avec
+`data-yn-wordend-univers` ; classe racine `.yn-wordend` ; événement `document` `yn:wordend`
+(`detail.etat` = `ouvert`\|`ferme`, `detail.univers` = slug).
 
 La page Illustrations d'un tome n'écrit jamais `yn.progression` ni `PUT /moi/progression` (pas de
 chapitre ; la REST refuse un ID de tome) : elle ne compte pas dans les pourcentages et ne remplace pas une

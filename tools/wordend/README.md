@@ -113,9 +113,9 @@ bleus (cheveux, lame) : planches **provisoires** en attendant de vraies planches
 Mesurer les bandes (haut, bas, et gauche/droite si plusieurs animations partagent une ligne) dans un
 éditeur d'image, écrire la description (partir de la plus proche : `chtholly` pour un personnage
 peint sur damier, `timere` pour du pixel art), lancer le script, vérifier dans la visionneuse du
-banc, ajuster `garder`, `marges`, `ancre`, seuils. Consignes aux générateurs d'images : voir le plan
-WordEnd v2 (§7) : vraie transparence, profil vers la droite, une ligne par animation, pas de titre
-dans la grille.
+banc, ajuster `garder`, `marges`, `ancre`, seuils. Consignes aux générateurs d'images : voir
+`docs/wordend.md` (« Planches de sprites et outillage ») : vraie transparence, profil vers la droite,
+une ligne par animation, pas de titre dans la grille.
 
 ## Valider un univers
 
