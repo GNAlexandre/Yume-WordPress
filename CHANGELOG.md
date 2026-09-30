@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4 — 2026-09-30
+
+- Easter egg WordEnd : mini-jeu caché « Chtholly – Bats-toi contre ton destin » (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) : Chtholly contre des vagues de Timeres, décor peint, musique de fond réglable.
+
 ## 2.1.4-dev.8 — 2026-09-30
 
 - WordEnd : cases de damier collées à Chtholly retirées (pose de repos), touche M (musique) reconnue en AZERTY.
