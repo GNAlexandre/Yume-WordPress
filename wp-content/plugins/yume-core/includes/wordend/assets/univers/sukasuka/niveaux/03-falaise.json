@@ -1,0 +1,47 @@
+{
+	"version": 2,
+	"slug": "03-falaise",
+	"numero": 3,
+	"titre": "La falaise",
+	"decor": "dunes",
+	"musique": "principale",
+	"largeur": 480,
+	"sol": 238,
+	"gravite": 900,
+	"plateformes": [
+		{ "x": 16, "y": 188, "l": 112 },
+		{ "x": 352, "y": 188, "l": 112 },
+		{ "x": 104, "y": 140, "l": 92 },
+		{ "x": 284, "y": 140, "l": 92 },
+		{ "x": 190, "y": 94, "l": 100 }
+	],
+	"apparition": { "x": 240 },
+	"objectif": {
+		"type": "vagues",
+		"vagues": [
+			{ "delai": 1.2, "ennemis": [
+				{ "ennemi": "timere", "type": "tireur", "n": 1, "apparition": { "x": 420, "y": 188 } },
+				{ "ennemi": "timere", "type": "petit", "n": 2, "cote": "alterne", "intervalle": 1.6 }
+			] },
+			{ "delai": 2, "ennemis": [
+				{ "ennemi": "timere", "type": "tireur", "n": 1, "apparition": { "x": 150, "y": 140 } },
+				{ "ennemi": "timere", "type": "tireur", "n": 1, "apparition": { "x": 330, "y": 140 } },
+				{ "ennemi": "timere", "type": "normal", "n": 2, "cote": "alterne", "intervalle": 2.2 }
+			] },
+			{ "delai": 2, "ennemis": [
+				{ "ennemi": "timere", "type": "tireur", "n": 1, "apparition": { "x": 240, "y": 94 } },
+				{ "ennemi": "timere", "type": "coureur", "n": 2, "cote": "alterne", "intervalle": 1.8 },
+				{ "ennemi": "timere", "type": "normal", "n": 1, "cote": "droite", "intervalle": 1 },
+				{ "ennemi": "timere", "type": "tireur", "n": 1, "apparition": { "x": 60, "y": 188 } }
+			] }
+		]
+	},
+	"soinEntreVagues": 1,
+	"etoiles": { "score": 520, "pvRestants": 3, "temps": 100 },
+	"textes": {
+		"intro": "La falaise. Des Timeres cracheurs tirent depuis les corniches : grimpez pour les atteindre.",
+		"vague": "Vague {n} sur {total} : {k} Timeres.",
+		"victoire": "La falaise est dégagée."
+	},
+	"suivant": "04-nuit"
+}

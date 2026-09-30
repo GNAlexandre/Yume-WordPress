@@ -1,0 +1,22 @@
+{
+	"version": 2,
+	"slug": "05-boss",
+	"numero": 5,
+	"titre": "Le Timere géant",
+	"decor": "dunes",
+	"musique": "principale",
+	"largeur": 480,
+	"sol": 238,
+	"gravite": 900,
+	"plateformes": [
+		{ "x": 28, "y": 186, "l": 84 },
+		{ "x": 368, "y": 186, "l": 84 }
+	],
+	"apparition": { "x": 110 },
+	"objectif": { "type": "boss", "ennemi": "timere", "typeEnnemi": "boss", "x": 390 },
+	"etoiles": { "score": 600, "pvRestants": 3, "temps": 90 },
+	"textes": {
+		"intro": "Le Timere géant approche. Sautez sur les corniches pour esquiver sa charge.",
+		"victoire": "Le Timere géant est vaincu !"
+	}
+}

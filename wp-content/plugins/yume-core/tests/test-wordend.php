@@ -47,15 +47,7 @@ const YUME_TWE_UNIVERS = YUME_CORE_DIR . 'includes/wordend/assets/univers/';
  * constante, vide) : tout fichier référencé par un manifeste devient alors obligatoire et son
  * contenu est validé (personnages, niveaux). La liste peut aussi être raccourcie lot par lot.
  */
-const YUME_TWE_ATTENDUS_LOTS = array(
-	'personnages/nephren.json',
-	'personnages/ithea.json',
-	'niveaux/01-plage.json',
-	'niveaux/02-dunes.json',
-	'niveaux/03-falaise.json',
-	'niveaux/04-nuit.json',
-	'niveaux/05-boss.json',
-);
+const YUME_TWE_ATTENDUS_LOTS = array();
 
 /** Types connus des registres du moteur (docs/wordend-formats.md §4). */
 const YUME_TWE_COMPETENCES   = array( 'melee', 'onde', 'projectile', 'ruee', 'parade' );

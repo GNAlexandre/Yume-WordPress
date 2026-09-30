@@ -1,0 +1,47 @@
+{
+	"version": 2,
+	"slug": "02-dunes",
+	"numero": 2,
+	"titre": "Les dunes",
+	"decor": "dunes",
+	"musique": "principale",
+	"largeur": 960,
+	"sol": 238,
+	"gravite": 900,
+	"plateformes": [
+		{ "x": 250, "y": 188, "l": 88 },
+		{ "x": 470, "y": 186, "l": 110 },
+		{ "x": 720, "y": 188, "l": 96 }
+	],
+	"apparition": { "x": 120 },
+	"objectif": {
+		"type": "vagues",
+		"vagues": [
+			{ "delai": 1.5, "ennemis": [
+				{ "ennemi": "timere", "type": "coureur", "n": 2, "cote": "droite", "intervalle": 2 },
+				{ "ennemi": "timere", "type": "petit", "n": 2, "cote": "gauche", "intervalle": 2.4 }
+			] },
+			{ "delai": 2, "ennemis": [
+				{ "ennemi": "timere", "type": "volant", "n": 2, "cote": "droite", "intervalle": 2.4 },
+				{ "ennemi": "timere", "type": "normal", "n": 2, "cote": "alterne", "intervalle": 2 }
+			] },
+			{ "delai": 2, "ennemis": [
+				{ "ennemi": "timere", "type": "coureur", "n": 3, "cote": "alterne", "intervalle": 1.4 },
+				{ "ennemi": "timere", "type": "volant", "n": 2, "cote": "aleatoire", "intervalle": 2.2 }
+			] },
+			{ "delai": 2, "ennemis": [
+				{ "ennemi": "timere", "type": "grand", "n": 1, "cote": "droite", "intervalle": 1 },
+				{ "ennemi": "timere", "type": "coureur", "n": 2, "cote": "gauche", "intervalle": 1.6 },
+				{ "ennemi": "timere", "type": "volant", "n": 2, "cote": "alterne", "intervalle": 2.6 }
+			] }
+		]
+	},
+	"soinEntreVagues": 1,
+	"etoiles": { "score": 800, "pvRestants": 3, "temps": 120 },
+	"textes": {
+		"intro": "Les dunes. Le terrain s’étend au-delà de l’écran : coureurs et Timeres ailés arrivent.",
+		"vague": "Vague {n} sur {total} : {k} Timeres.",
+		"victoire": "Les dunes sont sûres."
+	},
+	"suivant": "03-falaise"
+}

@@ -1,0 +1,40 @@
+{
+	"version": 2,
+	"slug": "04-nuit",
+	"numero": 4,
+	"titre": "La nuit",
+	"decor": "dunes",
+	"musique": "principale",
+	"largeur": 480,
+	"sol": 238,
+	"gravite": 900,
+	"plateformes": [
+		{ "x": 190, "y": 186, "l": 100 }
+	],
+	"apparition": { "x": 240 },
+	"objectif": {
+		"type": "survie",
+		"duree": 75,
+		"bonus": 200,
+		"generateur": {
+			"delai": 1.5,
+			"intervalle": 3.2,
+			"max": 7,
+			"acceleration": 0.4,
+			"ennemis": [
+				{ "ennemi": "timere", "type": "bouclier", "poids": 3, "cote": "aleatoire" },
+				{ "ennemi": "timere", "type": "normal", "poids": 2, "cote": "aleatoire" },
+				{ "ennemi": "timere", "type": "petit", "poids": 2, "cote": "aleatoire" },
+				{ "ennemi": "timere", "type": "volant", "poids": 1, "cote": "aleatoire" }
+			]
+		}
+	},
+	"etoiles": { "score": 450, "pvRestants": 3 },
+	"textes": {
+		"intro": "La nuit. Tenez 75 secondes. Les Timeres cuirassés parent les coups de face : frappez-les dans le dos ou avec la magie.",
+		"restant": "Plus que {s} secondes !",
+		"victoire": "L’aube se lève : vous avez tenu !"
+	},
+	"voile": "rgba(8, 10, 38, 0.5)",
+	"suivant": "05-boss"
+}

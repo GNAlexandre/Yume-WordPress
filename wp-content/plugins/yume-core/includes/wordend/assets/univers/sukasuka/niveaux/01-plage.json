@@ -1,0 +1,40 @@
+{
+	"version": 2,
+	"slug": "01-plage",
+	"numero": 1,
+	"titre": "La plage",
+	"decor": "dunes",
+	"musique": "principale",
+	"largeur": 480,
+	"sol": 238,
+	"gravite": 900,
+	"plateformes": [
+		{ "x": 60, "y": 186, "l": 96 },
+		{ "x": 324, "y": 186, "l": 96 }
+	],
+	"apparition": { "x": 240 },
+	"objectif": {
+		"type": "vagues",
+		"vagues": [
+			{ "delai": 1.2, "ennemis": [
+				{ "ennemi": "timere", "type": "petit", "n": 3, "cote": "alterne", "intervalle": 1.6 }
+			] },
+			{ "delai": 1.8, "ennemis": [
+				{ "ennemi": "timere", "type": "petit", "n": 2, "cote": "gauche", "intervalle": 1.8 },
+				{ "ennemi": "timere", "type": "normal", "n": 2, "cote": "droite", "intervalle": 2 }
+			] },
+			{ "delai": 1.8, "ennemis": [
+				{ "ennemi": "timere", "type": "normal", "n": 3, "cote": "alterne", "intervalle": 1.5 },
+				{ "ennemi": "timere", "type": "petit", "n": 2, "cote": "aleatoire", "intervalle": 1.2 }
+			] }
+		]
+	},
+	"soinEntreVagues": 1,
+	"etoiles": { "score": 400, "pvRestants": 4, "temps": 75 },
+	"textes": {
+		"intro": "La plage. Repoussez trois vagues de Timeres.",
+		"vague": "Vague {n} sur {total} : {k} Timeres.",
+		"victoire": "La plage est libérée !"
+	},
+	"suivant": "02-dunes"
+}

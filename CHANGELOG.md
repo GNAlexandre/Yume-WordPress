@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.6 — 2026-09-30
+
+- WordEnd v2 (lot C) : Timeres volant, tireur, bouclier et boss, projectiles, objectifs vagues/survie/boss, 5 niveaux SukaSuka (plage, dunes, falaise, nuit, boss).
+
 ## 2.1.5-dev.5 — 2026-09-30
 
 - WordEnd v2 (lot B) : gravité, saut et plateformes, joueur générique, compétences (épée, onde, tir, ruée, parade), Nephren et Ithea (planches provisoires).
