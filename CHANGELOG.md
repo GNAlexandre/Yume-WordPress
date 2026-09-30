@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.8 — 2026-09-30
+
+- WordEnd : cases de damier collées à Chtholly retirées (pose de repos), touche M (musique) reconnue en AZERTY.
+
 ## 2.1.4-dev.7 — 2026-09-30
 
 - WordEnd : titre « Chtholly – Bats-toi contre ton destin ».

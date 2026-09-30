@@ -104,7 +104,8 @@ Les deux planches sont produites par `tools/wordend/decouper-planche.py` (voir
 **Chtholly** (`chtholly.*`) : source `tools/wordend/source/chtholly-planche-gemini.jpg`, planche
 générée par Gemini (fond « transparent » dessiné en damier, titres par ligne). Repos 2 images
 (les deux vues de dos sont écartées), marche 6, course 5, attaque 4, charge 4, dégâts 1, mort 1 ;
-Chtholly debout = 144 px dans la planche. L'ancre de chaque image est le milieu du buste au niveau
+Chtholly debout = 144 px dans la planche. Les cases de damier restées collées au personnage (claires, neutres, touchant
+le fond) sont retirées aussi. L'ancre de chaque image est le milieu du buste au niveau
 des bottes, pour que l'épée ne décale pas le personnage.
 
 **Timere** (`timere.*`) : deux planches en pixel art générées par Gemini, dans

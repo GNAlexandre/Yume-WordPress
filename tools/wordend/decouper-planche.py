@@ -82,7 +82,18 @@ def detourer(a):
         t = tot[i - 1]
         if t > 40 and ng[i - 1] > 0.15 * t and nb[i - 1] > 0.15 * t:
             fond[i] = True
-    fg = nd.binary_opening(~fond[lab], iterations=1)
+    fond = fond[lab]
+    # Cases de damier collées au personnage (bruit JPEG : un peu hors des seuils ci-dessus) :
+    # zone claire et neutre qui touche le fond = fond. Les vrais blancs (reflets des yeux,
+    # éclats bleutés de l'épée) ne touchent pas le fond ou ne sont pas neutres.
+    clair = ~fond & (sat <= 18) & (mx >= 165)
+    lab, n = nd.label(clair)
+    bord = nd.binary_dilation(fond, iterations=1)
+    touche = nd.maximum(bord, lab, range(1, n + 1))
+    for i in range(1, n + 1):
+        if touche[i - 1]:
+            fond |= lab == i
+    fg = nd.binary_opening(~fond, iterations=1)
     lab, n = nd.label(fg)
     tailles = nd.sum(fg, lab, range(1, n + 1))
     return np.isin(lab, 1 + np.where(tailles >= 120)[0])

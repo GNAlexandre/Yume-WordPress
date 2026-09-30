@@ -604,14 +604,17 @@
 		e.stopPropagation();
 
 		var action = TOUCHES[ e.code ];
-		if ( e.code === 'KeyM' && config.musique ) {
+		// M et P se lisent sur la lettre tapée (e.key), pas sur la position de la touche : en
+		// AZERTY, le M est à la place du « ; » du QWERTY (e.code = Semicolon).
+		var lettre = String( e.key || '' ).toLowerCase();
+		if ( lettre === 'm' && config.musique ) {
 			e.preventDefault();
 			if ( ! e.repeat ) {
 				basculerMuet();
 			}
 			return;
 		}
-		if ( e.code === 'KeyP' ) {
+		if ( lettre === 'p' ) {
 			e.preventDefault();
 			if ( ! e.repeat ) {
 				basculerPause();
