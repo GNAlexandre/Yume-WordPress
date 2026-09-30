@@ -88,6 +88,7 @@ function yume_twe_verifier_planche( string $nom, array $attendu ): void {
 	foreach ( $meta['animations'] as $animation => $donnees ) {
 		foreach ( $donnees['images'] as $cadre ) {
 			yume_assert_true( $cadre[0] + $cadre[2] <= $taille[0] && $cadre[1] + $cadre[3] <= $taille[1], "$nom : cadre de « $animation » dans la planche" );
+			yume_assert_true( $cadre[4] >= 0 && $cadre[4] <= $cadre[2] && $cadre[5] >= 0 && $cadre[5] <= $cadre[3], "$nom : ancre de « $animation » dans son cadre" );
 		}
 		foreach ( $donnees['coup'] ?? array() as $indice ) {
 			yume_assert_true( $indice < count( $donnees['images'] ), "$nom : image de coup de « $animation » existante" );
@@ -113,6 +114,10 @@ yume_test(
 				'mort'    => 1,
 			)
 		);
+		$timere = json_decode( (string) file_get_contents( YUME_CORE_DIR . 'includes/wordend/assets/timere.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		foreach ( array( 'fouet', 'morsure' ) as $attaque ) {
+			yume_assert_true( ! empty( $timere['animations'][ $attaque ]['coup'] ), "timere : images de coup de « $attaque »" );
+		}
 		yume_twe_verifier_planche(
 			'timere',
 			array(

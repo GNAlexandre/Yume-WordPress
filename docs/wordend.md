@@ -96,10 +96,11 @@ des bottes, pour que l'épée ne décale pas le personnage.
   dans la planche, 50 px logiques à la taille 1) ;
 - `timere-planche-complement.webp` (vraie transparence) : lignes **Course** (6), **Dégâts** (5) et
   **Mort** (6), ramenées à la même échelle (le Timere debout de la dernière image de Dégâts a la
-  hauteur du Timere au repos), bords nets ; les titres (texte noir) sont retirés.
+  hauteur du Timere au repos), bords nets ; les titres (texte noir) sont retirés. Les images de
+  course sont alignées sur le bout de la tête (les pattes bougent trop pour servir d'ancre).
 
-Ancre : milieu des pattes, au sol. Le jeu dessine le Timere à sa taille de type (0,8 à 1,3), sans
-lissage. Le fouet et la morsure touchent sur leurs images 1 et 2 (`coup`).
+Ancre : milieu des pattes, au sol. Le jeu dessine le Timere à sa taille de type (0,8 à 1,3, ±6 %),
+sans lissage. Le fouet et la morsure touchent sur leurs images 1 et 2 (`coup`).
 
 ## Tests
 

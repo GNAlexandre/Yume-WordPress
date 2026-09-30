@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.3 — 2026-09-30
+
+- WordEnd : course du Timere alignée sur la tête (plus d'à-coup), ancres et images de coup vérifiées par les tests.
+
 ## 2.1.4-dev.2 — 2026-09-30
 
 - WordEnd : Timere d'après la planche verte (repos, marche, fouet, morsure) et une planche complémentaire (course, dégâts, mort), à la même échelle ; portées et boîtes des attaques ajustées.

@@ -302,6 +302,13 @@ def timere_complement(hauteur):
         if part_noire[i - 1] > 0.6:
             visible[lab == i] = False
     images = {nom: decouper_bande(a, visible, bande) for nom, bande in TIMERE_COMPLEMENT.items()}
+    # Course : les pattes bougent trop pour servir d'ancre (le corps sauterait d'une image à
+    # l'autre). On aligne plutôt le bout de la tête (colonne la plus à droite de la moitié
+    # haute) à distance constante de l'ancre, égale à la médiane des images.
+    course = images['course']
+    tetes = [float(np.nonzero(rgba[: rgba.shape[0] // 2, :, 3] > 0)[1].max()) for rgba, _, _ in course]
+    ecart = float(np.median([tete - ax for tete, (_, ax, _) in zip(tetes, course)]))
+    images['course'] = [(rgba, tete - ecart, ay) for tete, (rgba, _, ay) in zip(tetes, course)]
     nom, indice = TIMERE_COMPLEMENT_DEBOUT
     echelle = hauteur / images[nom][indice][2]
     sorties = {}
