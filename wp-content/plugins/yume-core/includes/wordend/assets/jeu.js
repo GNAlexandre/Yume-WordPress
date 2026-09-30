@@ -4,8 +4,8 @@
  * Chargé à la demande par declencheur.js. Expose window.ynWordEndJeu :
  * { ouvrir( config ), fermer(), estOuvert() }.
  *
- * - Modale <dialog> (showModal : le reste de la page est inerte ; Échap ferme, le focus revient
- *   à l'élément d'origine). Événement document « yn:wordend » (detail.etat = ouvert|ferme).
+ * - Modale <dialog> (showModal : le reste de la page est inerte). Échap met la partie en pause,
+ *   un second Échap (ou Échap hors partie) ferme ; le focus revient à l'élément d'origine. Événement document « yn:wordend » (detail.etat = ouvert|ferme).
  * - Écran logique 480 × 270 dessiné en 2× (planche de Chtholly à l'échelle 1:1), pas fixe
  *   de 1/60 s, pause quand l'onglet est masqué ou la fenêtre perd le focus.
  * - Chtholly : repos, marche, course (Maj), coup d'épée (J/X), charge magique (K/C maintenu
@@ -82,6 +82,7 @@
 	var boutonPause = null;
 	var focusAvant = null;
 	var ouvert = false;
+	var echapTraite = false;
 	var planche = null;
 	var meta = null;
 	var plancheTimere = null;
@@ -285,7 +286,7 @@
 
 		var entete = element( 'div', { class: 'yn-wordend__entete' } );
 		entete.appendChild( element( 'h2', { id: 'yn-wordend-titre', class: 'yn-wordend__titre' }, 'WordEnd — Chtholly contre les Timeres' ) );
-		var fermerBouton = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm yn-wordend__fermer', 'aria-label': 'Fermer le jeu (Échap)' }, '×' );
+		var fermerBouton = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm yn-wordend__fermer', 'aria-label': 'Fermer le jeu' }, '×' );
 		fermerBouton.addEventListener( 'click', fermer );
 		entete.appendChild( fermerBouton );
 		cadre.appendChild( entete );
@@ -324,16 +325,21 @@
 			element(
 				'p',
 				{ id: 'yn-wordend-aide', class: 'yn-wordend__aide' },
-				'Flèches ou Q/D : marcher · Maj : courir · J ou X : coup d’épée · K ou C maintenu puis relâché : charge magique · P : pause · M : musique · Échap : fermer'
+				'Flèches ou Q/D : marcher · Maj : courir · J ou X : coup d’épée · K ou C maintenu puis relâché : charge magique · P : pause · M : musique · Échap : pause, puis fermer'
 			)
 		);
 		annonce = element( 'p', { class: 'yn-visually-hidden', role: 'status', 'aria-live': 'polite' } );
 		cadre.appendChild( annonce );
 
 		dialogue.appendChild( cadre );
+		// Échap arrive par keydown (surTouche) ; « cancel » ne sert que si le keydown n'a pas atteint
+		// la modale (aucun élément focalisé), pour ne pas traiter deux fois la même touche.
 		dialogue.addEventListener( 'cancel', function ( e ) {
 			e.preventDefault();
-			fermer();
+			if ( ! echapTraite ) {
+				echap();
+			}
+			echapTraite = false;
 		} );
 		dialogue.addEventListener( 'close', function () {
 			if ( ouvert ) {
@@ -563,10 +569,24 @@
 	/* Entrées                                                             */
 	/* ------------------------------------------------------------------ */
 
+	/* Échap : met en pause une partie en cours ; sinon (pause, titre, fin) ferme le jeu. */
+	function echap() {
+		if ( etat === 'jeu' ) {
+			basculerPause();
+			annoncer( 'Pause. Échap de nouveau pour fermer le jeu, P ou Entrée pour reprendre.' );
+		} else {
+			fermer();
+		}
+	}
+
 	function surTouche( e ) {
 		if ( e.key === 'Escape' ) {
 			e.preventDefault();
-			fermer();
+			echapTraite = true;
+			window.setTimeout( function () {
+				echapTraite = false;
+			}, 0 );
+			echap();
 			return;
 		}
 		if ( e.key === 'Tab' || e.altKey || e.ctrlKey || e.metaKey ) {
@@ -1301,7 +1321,7 @@
 		} else if ( etat === 'pause' ) {
 			voile();
 			texte( 'Pause', LARGEUR / 2, HAUTEUR / 2 - 10, 28, 'center', palette.accent, 800 );
-			texte( 'P ou Entrée pour reprendre', LARGEUR / 2, HAUTEUR / 2 + 18, 12, 'center' );
+			texte( 'P ou Entrée pour reprendre · Échap pour fermer', LARGEUR / 2, HAUTEUR / 2 + 18, 12, 'center' );
 		} else if ( etat === 'fin' ) {
 			voile();
 			texte( 'Fin de partie', LARGEUR / 2, 86, 28, 'center', palette.accent, 800 );

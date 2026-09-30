@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.6 — 2026-09-30
+
+- WordEnd : Échap met la partie en pause, un second Échap ferme le jeu.
+
 ## 2.1.4-dev.5 — 2026-09-30
 
 - WordEnd : décor peint (coucher de soleil sur les dunes) et musique de fond « Scarborough Fair » pendant la partie, avec volume et bouton muet (touche M), réglages mémorisés.

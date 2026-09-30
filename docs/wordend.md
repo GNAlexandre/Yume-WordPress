@@ -25,7 +25,8 @@ Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume 
 | Couper / remettre la musique | M (ou bouton « Couper la musique ») | même bouton |
 | Volume de la musique | curseur « Volume » (flèches quand il a le focus) | curseur « Volume » |
 | Commencer / rejouer | Entrée ou Espace | « Jouer » |
-| Fermer | Échap ou × | × |
+| Mettre en pause puis fermer | Échap en partie met en pause ; Échap de nouveau (ou hors partie) ferme | × |
+| Fermer tout de suite | × | × |
 
 ## Règles (v1)
 
@@ -48,7 +49,8 @@ Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume 
 ## Accessibilité
 
 - Modale `<dialog>` ouverte avec `showModal()` : le reste de la page est inerte, le focus reste dans
-  le jeu, Échap ferme et le focus revient à l'élément d'origine.
+  le jeu. Échap met une partie en cours en pause (rien n'est perdu par mégarde), un second Échap
+  ferme ; à la fermeture, le focus revient à l'élément d'origine.
 - Vrais boutons (Jouer, Pause, Fermer, commandes tactiles), zone de jeu `role="img"` avec un libellé,
   annonces (vague, pause, fin de partie) dans une région `role="status"`.
 - Mouvement réduit (`prefers-reduced-motion` ou option « Animations réduites » du lecteur,
@@ -125,7 +127,8 @@ sans lissage. Le fouet et la morsure touchent sur leurs images 1 et 2 (`coup`).
 - `tools/localenv/test.sh wordend` : fichiers livrés, cohérence des planches et des JSON, URLs
   versionnées, déclencheur en façade (defer, configuration avant le script), filtres, papillon.
 - Parcours manuel : `tools/localenv/serve.sh`, code Konami sur l'accueil dans les trois thèmes ;
-  Tab reste dans la modale ; Échap ferme et rend le focus ; onglet masqué → pause.
+  Tab reste dans la modale ; Échap en partie → pause, Échap de nouveau → fermeture et focus
+  rendu ; onglet masqué → pause.
 
 ## Limites de la v1
 
