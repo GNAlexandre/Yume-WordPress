@@ -24,6 +24,8 @@ const FICHIERS_A_LA_DEMANDE = array(
 	'meta'       => 'chtholly.json',
 	'timere'     => 'timere.png',
 	'timereMeta' => 'timere.json',
+	'decor'      => 'decor.webp',
+	'musique'    => 'musique.mp3',
 );
 
 /**
@@ -86,7 +88,7 @@ function url_asset( string $fichier ): string {
 /**
  * Configuration du jeu (window.ynWordEnd) : identique pour tous les visiteurs (Batcache).
  *
- * @return array{jeu:string,style:string,planche:string,meta:string,timere:string,timereMeta:string,version:string}
+ * @return array{jeu:string,style:string,planche:string,meta:string,timere:string,timereMeta:string,decor:string,musique:string,version:string}
  */
 function configuration(): array {
 	$config = array();

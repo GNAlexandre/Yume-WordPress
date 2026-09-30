@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.4-dev.5 — 2026-09-30
+
+- WordEnd : décor peint (coucher de soleil sur les dunes) et musique de fond « Scarborough Fair » pendant la partie, avec volume et bouton muet (touche M), réglages mémorisés.
+
 ## 2.1.4-dev.4 — 2026-09-30
 
 - WordEnd : un Timere n'attaque plus depuis l'extérieur de l'écran (il avance jusqu'à être à moitié visible).

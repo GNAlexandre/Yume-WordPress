@@ -22,6 +22,8 @@ Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume 
 | Coup d'épée | J ou X | « Épée » |
 | Charge magique | K ou C maintenu (0,55 s) puis relâché : onde qui traverse les Timeres | « Charge » maintenu |
 | Pause | P (ou bouton « Pause ») | bouton « Pause » |
+| Couper / remettre la musique | M (ou bouton « Couper la musique ») | même bouton |
+| Volume de la musique | curseur « Volume » (flèches quand il a le focus) | curseur « Volume » |
 | Commencer / rejouer | Entrée ou Espace | « Jouer » |
 | Fermer | Échap ou × | × |
 
@@ -40,7 +42,8 @@ Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume 
   | Coureur (dès la vague 2) | 0,9 | 1 | charge en courant, morsure | 20 |
   | Grand (dès la vague 3, un à la fois) | 1,3 | 5 | fouet longue portée ; ne recule que sous l'onde | 40 |
 - Coup d'épée : 1 dégât. Onde magique : 3 dégâts, traverse, recharge de 1,2 s.
-- Meilleur score et nombre de parties : `localStorage['yn.wordend']` (appareil seulement).
+- Meilleur score, nombre de parties et réglages du son : `localStorage['yn.wordend']` (appareil
+  seulement).
 
 ## Accessibilité
 
@@ -51,14 +54,29 @@ Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume 
 - Mouvement réduit (`prefers-reduced-motion` ou option « Animations réduites » du lecteur,
   `html[data-yn-animations="reduites"]`) : ni secousse, ni clignotement, moins de particules.
 - Pause automatique quand l'onglet est masqué ou que la fenêtre perd le focus.
-- Couleurs du décor et de l'interface lues dans les variables du thème (Nuit, Papier, Sépia), mises à
-  jour à l'événement `yn:theme`.
+- Couleurs de l'interface (textes, cœurs, jauges) lues dans les variables du thème (Nuit, Papier,
+  Sépia), mises à jour à l'événement `yn:theme` ; le décor est une image peinte, identique dans les
+  trois thèmes.
+- Musique jamais lancée sans action du joueur (elle démarre avec la partie), coupable à tout moment
+  (bouton à `aria-pressed`, touche M), volume réglable par un vrai curseur étiqueté ; réglages
+  gardés sur l'appareil.
+
+## Décor et musique
+
+- **Décor** : `assets/decor.webp`, coucher de soleil sur des dunes, 960 × 540 (l'écran en 2×), tiré de
+  `tools/wordend/source/decor-source.webp`. S'il ne se charge pas, le jeu dessine un ciel dégradé
+  aux couleurs du thème.
+- **Musique** : `assets/musique.mp3` (« Scarborough Fair », 2 min 32, 192 kbit/s, 3,6 Mo), en boucle,
+  **seulement pendant une partie** : elle s'arrête en pause, à la fin de la partie, quand l'onglet
+  est masqué ou la fenêtre du jeu fermée. Le fichier n'est téléchargé qu'au premier lancement d'une
+  partie (jamais au chargement des pages du site), et pas du tout si la musique est coupée.
+  Volume par défaut 50 % ; volume et muet sont mémorisés dans `localStorage['yn.wordend']`.
 
 ## Chargement et performances
 
 Seul `assets/declencheur.js` (quelques Ko, `defer`) est chargé sur les pages publiques. Le jeu
-(`jeu.js`, `jeu.css`) et les planches (`chtholly.png`/`.json`, `timere.png`/`.json`) ne sont
-téléchargés qu'à la première ouverture. La configuration `window.ynWordEnd` est identique pour tous les visiteurs (aucune
+(`jeu.js`, `jeu.css`), les planches (`chtholly.png`/`.json`, `timere.png`/`.json`) et le décor ne
+sont téléchargés qu'à la première ouverture ; la musique, au premier lancement d'une partie. La configuration `window.ynWordEnd` est identique pour tous les visiteurs (aucune
 incidence sur Batcache).
 
 ## Filtres
@@ -111,6 +129,5 @@ sans lissage. Le fouet et la morsure touchent sur leurs images 1 et 2 (`coup`).
 
 ## Limites de la v1
 
-- Pas de son.
 - La planche vient d'une image générée : les bords extérieurs très clairs de l'onde de la charge
   magique sont légèrement rognés par le détourage.

@@ -13,7 +13,9 @@
  * - Timeres (planche timere.png, même format que celle de Chtholly) : petit, normal, coureur,
  *   grand ; approche, morsure ou coup de fouet (touche sur les images « coup »), dégâts, mort ;
  *   par vagues croissantes.
- * - Meilleur score dans localStorage['yn.wordend'] (try/catch).
+ * - Décor peint (decor.webp) ; musique de fond (musique.mp3) pendant la partie seulement, en
+ *   boucle, avec volume et bouton muet (touche M), réglages mémorisés.
+ * - Meilleur score et réglages du son dans localStorage['yn.wordend'] (try/catch).
  * - Mouvement réduit (prefers-reduced-motion ou html[data-yn-animations="reduites"]) : ni
  *   secousse ni clignotement, moins de particules.
  *
@@ -83,6 +85,11 @@
 	var planche = null;
 	var meta = null;
 	var plancheTimere = null;
+	var imageDecor = null;
+	var musique = null;
+	var son = { volume: 0.5, muet: false };
+	var boutonMuet = null;
+	var curseurVolume = null;
 	var metaTimere = null;
 	var ressources = null;
 	var palette = {};
@@ -108,7 +115,6 @@
 	var meilleur = 0;
 	var secousse = 0;
 	var prochainId = 1;
-	var decor = null;
 
 	/* ------------------------------------------------------------------ */
 	/* Outils                                                              */
@@ -144,18 +150,39 @@
 		return { meilleur: 0, parties: 0 };
 	}
 
+	/* Fusionne des champs dans localStorage['yn.wordend'] (score et son partagent la clé). */
+	function fusionnerStockage( champs ) {
+		try {
+			var donnees = JSON.parse( window.localStorage.getItem( CLE_STOCKAGE ) || 'null' );
+			donnees = donnees && typeof donnees === 'object' ? donnees : {};
+			Object.keys( champs ).forEach( function ( cle ) {
+				donnees[ cle ] = champs[ cle ];
+			} );
+			window.localStorage.setItem( CLE_STOCKAGE, JSON.stringify( donnees ) );
+		} catch ( e ) {}
+	}
+
 	function ecrireStockage( meilleurScore ) {
 		var donnees = lireStockage();
+		fusionnerStockage( {
+			meilleur: Math.max( donnees.meilleur, meilleurScore ),
+			parties: donnees.parties + 1,
+			maj: new Date().toISOString().slice( 0, 10 ),
+		} );
+	}
+
+	function lireSon() {
 		try {
-			window.localStorage.setItem(
-				CLE_STOCKAGE,
-				JSON.stringify( {
-					meilleur: Math.max( donnees.meilleur, meilleurScore ),
-					parties: donnees.parties + 1,
-					maj: new Date().toISOString().slice( 0, 10 ),
-				} )
-			);
+			var donnees = JSON.parse( window.localStorage.getItem( CLE_STOCKAGE ) || 'null' );
+			if ( donnees && typeof donnees === 'object' ) {
+				var volume = parseFloat( donnees.volume );
+				return {
+					volume: isFinite( volume ) ? Math.min( 1, Math.max( 0, volume ) ) : 0.5,
+					muet: donnees.muet === true,
+				};
+			}
 		} catch ( e ) {}
+		return { volume: 0.5, muet: false };
 	}
 
 	function lirePalette() {
@@ -180,7 +207,6 @@
 		police = titres || window.getComputedStyle( document.body ).fontFamily || 'sans-serif';
 		mouvementReduit = document.documentElement.getAttribute( 'data-yn-animations' ) === 'reduites' ||
 			!! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
-		decor = null;
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -218,12 +244,17 @@
 			chargerJson( config.meta ),
 			chargerImage( config.timere ),
 			chargerJson( config.timereMeta ),
+			// Le décor est facultatif : sans lui, le ciel dégradé du thème le remplace.
+			config.decor ? chargerImage( config.decor ).catch( function () {
+				return null;
+			} ) : null,
 		] ).then(
 			function ( resultats ) {
 				planche = resultats[ 0 ];
 				meta = resultats[ 1 ];
 				plancheTimere = resultats[ 2 ];
 				metaTimere = resultats[ 3 ];
+				imageDecor = resultats[ 4 ];
 			},
 			function ( erreur ) {
 				ressources = null;
@@ -282,6 +313,9 @@
 		} );
 		barre.appendChild( boutonJouer );
 		barre.appendChild( boutonPause );
+		if ( config.musique ) {
+			barre.appendChild( construireSon() );
+		}
 		cadre.appendChild( barre );
 
 		cadre.appendChild( construireManettes() );
@@ -290,7 +324,7 @@
 			element(
 				'p',
 				{ id: 'yn-wordend-aide', class: 'yn-wordend__aide' },
-				'Flèches ou Q/D : marcher · Maj : courir · J ou X : coup d’épée · K ou C maintenu puis relâché : charge magique · P : pause · Échap : fermer'
+				'Flèches ou Q/D : marcher · Maj : courir · J ou X : coup d’épée · K ou C maintenu puis relâché : charge magique · P : pause · M : musique · Échap : fermer'
 			)
 		);
 		annonce = element( 'p', { class: 'yn-visually-hidden', role: 'status', 'aria-live': 'polite' } );
@@ -311,6 +345,70 @@
 		document.body.appendChild( dialogue );
 
 		ctx = ecran.getContext( '2d' );
+	}
+
+	/* Bouton muet et curseur de volume de la musique. */
+	function construireSon() {
+		var groupe = element( 'div', { class: 'yn-wordend__son', role: 'group', 'aria-label': 'Musique' } );
+		boutonMuet = element( 'button', { type: 'button', class: 'yn-btn yn-btn--sm yn-wordend__muet', 'aria-pressed': 'false' }, 'Couper la musique' );
+		boutonMuet.addEventListener( 'click', function () {
+			basculerMuet();
+		} );
+		var etiquette = element( 'label', { class: 'yn-wordend__volume' } );
+		etiquette.appendChild( element( 'span', {}, 'Volume' ) );
+		curseurVolume = element( 'input', { type: 'range', min: '0', max: '100', step: '5' } );
+		curseurVolume.addEventListener( 'input', function () {
+			son.volume = Math.min( 1, Math.max( 0, parseInt( curseurVolume.value, 10 ) / 100 || 0 ) );
+			if ( son.volume > 0 && son.muet ) {
+				son.muet = false;
+			}
+			fusionnerStockage( { volume: son.volume, muet: son.muet } );
+			mettreAJourSon();
+		} );
+		etiquette.appendChild( curseurVolume );
+		groupe.appendChild( boutonMuet );
+		groupe.appendChild( etiquette );
+		return groupe;
+	}
+
+	function basculerMuet() {
+		son.muet = ! son.muet;
+		fusionnerStockage( { volume: son.volume, muet: son.muet } );
+		mettreAJourSon();
+		annoncer( son.muet ? 'Musique coupée.' : 'Musique activée.' );
+	}
+
+	/* Musique : jouée seulement pendant une partie, fenêtre ouverte, sans muet ni volume nul. */
+	function mettreAJourSon() {
+		if ( boutonMuet ) {
+			boutonMuet.setAttribute( 'aria-pressed', son.muet ? 'true' : 'false' );
+			boutonMuet.textContent = son.muet ? 'Remettre la musique' : 'Couper la musique';
+		}
+		if ( curseurVolume ) {
+			curseurVolume.value = String( Math.round( son.volume * 100 ) );
+			curseurVolume.setAttribute( 'aria-valuetext', Math.round( son.volume * 100 ) + ' %' + ( son.muet ? ', musique coupée' : '' ) );
+		}
+		if ( ! config || ! config.musique ) {
+			return;
+		}
+		var jouer = ouvert && etat === 'jeu' && ! son.muet && son.volume > 0;
+		if ( jouer && ! musique ) {
+			musique = new Audio( config.musique );
+			musique.loop = true;
+			musique.preload = 'auto';
+		}
+		if ( ! musique ) {
+			return;
+		}
+		musique.volume = son.volume;
+		if ( jouer && musique.paused ) {
+			var promesse = musique.play();
+			if ( promesse && promesse.catch ) {
+				promesse.catch( function () {} ); // Lecture refusée par le navigateur : silence.
+			}
+		} else if ( ! jouer && ! musique.paused ) {
+			musique.pause();
+		}
 	}
 
 	function construireManettes() {
@@ -385,6 +483,7 @@
 		focusAvant = document.activeElement;
 		lirePalette();
 		meilleur = lireStockage().meilleur;
+		son = lireSon();
 		document.documentElement.classList.add( 'yn-wordend-ouvert' );
 		if ( typeof dialogue.showModal === 'function' ) {
 			dialogue.showModal();
@@ -440,6 +539,7 @@
 			}
 		}
 		document.documentElement.classList.remove( 'yn-wordend-ouvert' );
+		mettreAJourSon();
 		if ( focusAvant && typeof focusAvant.focus === 'function' && document.contains( focusAvant ) ) {
 			focusAvant.focus();
 		}
@@ -456,6 +556,7 @@
 		boutonPause.disabled = etat !== 'jeu' && etat !== 'pause';
 		boutonPause.setAttribute( 'aria-pressed', etat === 'pause' ? 'true' : 'false' );
 		boutonPause.textContent = etat === 'pause' ? 'Reprendre' : 'Pause';
+		mettreAJourSon();
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -471,6 +572,10 @@
 		if ( e.key === 'Tab' || e.altKey || e.ctrlKey || e.metaKey ) {
 			return;
 		}
+		if ( e.target && e.target.tagName === 'INPUT' ) {
+			e.stopPropagation(); // Curseur de volume : flèches et Début/Fin gardent leur rôle.
+			return;
+		}
 		var surBouton = e.target && e.target.tagName === 'BUTTON';
 		if ( surBouton && ( e.key === 'Enter' || e.key === ' ' ) ) {
 			return; // Laisse le bouton agir.
@@ -479,6 +584,13 @@
 		e.stopPropagation();
 
 		var action = TOUCHES[ e.code ];
+		if ( e.code === 'KeyM' && config.musique ) {
+			e.preventDefault();
+			if ( ! e.repeat ) {
+				basculerMuet();
+			}
+			return;
+		}
 		if ( e.code === 'KeyP' ) {
 			e.preventDefault();
 			if ( ! e.repeat ) {
@@ -999,68 +1111,22 @@
 	/* Rendu                                                               */
 	/* ------------------------------------------------------------------ */
 
-	function preparerDecor() {
-		var iles = [];
-		for ( var i = 0; i < 5; i++ ) {
-			iles.push( { x: 40 + i * 100 + hasard( -20, 20 ), y: hasard( 60, 130 ), l: hasard( 40, 90 ), vitesse: hasard( 1, 4 ) } );
-		}
-		var etoiles = [];
-		for ( var k = 0; k < 40; k++ ) {
-			etoiles.push( { x: hasard( 0, LARGEUR ), y: hasard( 0, 150 ), r: hasard( 0.4, 1.2 ), p: hasard( 0, 6 ) } );
-		}
-		decor = { iles: iles, etoiles: etoiles };
-	}
-
 	function dessinerDecor() {
-		if ( ! decor ) {
-			preparerDecor();
+		if ( imageDecor ) {
+			// Décor peint (960 × 540, soit l'écran en 2×).
+			ctx.drawImage( imageDecor, 0, 0, LARGEUR, HAUTEUR );
+			return;
 		}
+		// Secours (décor non chargé) : ciel dégradé et sol aux couleurs du thème.
 		var ciel = ctx.createLinearGradient( 0, 0, 0, SOL_Y );
 		ciel.addColorStop( 0, palette.fond );
 		ciel.addColorStop( 1, palette.bande );
 		ctx.fillStyle = ciel;
 		ctx.fillRect( 0, 0, LARGEUR, HAUTEUR );
-
-		ctx.fillStyle = palette.texteFaible;
-		decor.etoiles.forEach( function ( e ) {
-			ctx.globalAlpha = mouvementReduit ? 0.5 : 0.3 + 0.3 * Math.sin( temps * 1.5 + e.p );
-			ctx.beginPath();
-			ctx.arc( e.x, e.y, e.r, 0, Math.PI * 2 );
-			ctx.fill();
-		} );
-		ctx.globalAlpha = 0.18;
-		ctx.fillStyle = palette.accent2;
-		ctx.beginPath();
-		ctx.arc( 400, 56, 26, 0, Math.PI * 2 );
-		ctx.fill();
-
-		// Îles flottantes de Regul Aire, au loin.
-		ctx.globalAlpha = 0.55;
-		ctx.fillStyle = palette.carte;
-		decor.iles.forEach( function ( ile ) {
-			var y = ile.y + ( mouvementReduit ? 0 : Math.sin( temps * 0.5 + ile.vitesse ) * 2 );
-			ctx.beginPath();
-			ctx.moveTo( ile.x - ile.l / 2, y );
-			ctx.lineTo( ile.x + ile.l / 2, y );
-			ctx.lineTo( ile.x + ile.l / 6, y + ile.l * 0.45 );
-			ctx.lineTo( ile.x - ile.l / 8, y + ile.l * 0.3 );
-			ctx.closePath();
-			ctx.fill();
-			ctx.fillRect( ile.x - ile.l / 2, y - 3, ile.l, 3 );
-		} );
-		ctx.globalAlpha = 1;
-
-		// Sol.
 		ctx.fillStyle = palette.carte;
 		ctx.fillRect( 0, SOL_Y, LARGEUR, HAUTEUR - SOL_Y );
 		ctx.fillStyle = palette.filet;
 		ctx.fillRect( 0, SOL_Y, LARGEUR, 2 );
-		ctx.fillStyle = palette.accent;
-		ctx.globalAlpha = 0.35;
-		for ( var x = 6; x < LARGEUR; x += 23 ) {
-			ctx.fillRect( x, SOL_Y + 6 + ( x % 3 ) * 5, 3, 2 );
-		}
-		ctx.globalAlpha = 1;
 	}
 
 	function dessinerSprite( nom, i, x, y, dir ) {

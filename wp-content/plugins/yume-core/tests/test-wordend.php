@@ -137,7 +137,7 @@ yume_test(
 	'wordend : configuration (URLs versionnées) et filtre des œuvres',
 	function () {
 		$config = configuration();
-		foreach ( array( 'jeu', 'style', 'planche', 'meta', 'timere', 'timereMeta' ) as $cle ) {
+		foreach ( array( 'jeu', 'style', 'planche', 'meta', 'timere', 'timereMeta', 'decor', 'musique' ) as $cle ) {
 			yume_assert_contains( YUME_CORE_URL . 'includes/wordend/assets/', $config[ $cle ], "URL « $cle »" );
 			yume_assert_contains( 'ver=', $config[ $cle ], "version de « $cle »" );
 		}

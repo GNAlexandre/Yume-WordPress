@@ -936,7 +936,7 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 | `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
 | `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
 | `yn.a11y` | `{contraste: bool, animations: 'systeme'\|'reduites'}` (appareil seulement, jamais envoyé au compte) | lecture (panneau Paramètres, script d'initialisation) |
-| `yn.wordend` | `{meilleur: int, parties: int, maj: 'YYYY-MM-DD'}` (meilleur score du jeu caché, appareil seulement) | wordend |
+| `yn.wordend` | `{meilleur: int, parties: int, maj: 'YYYY-MM-DD', volume: 0…1, muet: bool}` (meilleur score et réglages du son du jeu caché, appareil seulement) | wordend |
 
 Stockage Cache Storage du service worker (lecture hors ligne) : caches `yume-lecture-{version}`,
 `yume-statique-{version}`, `yume-secours-{version}` (version = `YUME_CORE_VERSION` ; ceux des versions
@@ -948,7 +948,7 @@ API du thème pour les autres scripts : `window.ynTheme.set( 'nuit'|'papier'|'se
 
 Easter egg WordEnd (module wordend, détails dans `docs/wordend.md`) : script `yume-wordend-declencheur`
 en façade (jamais en administration, flux ni embed) ; configuration `window.ynWordEnd` (URLs `jeu`,
-`style`, `planche`, `meta`, `timere`, `timereMeta`, identique pour tous les visiteurs) et API `window.ynWordEnd.ouvrir()` ; le
+`style`, `planche`, `meta`, `timere`, `timereMeta`, `decor`, `musique`, identique pour tous les visiteurs) et API `window.ynWordEnd.ouvrir()` ; le
 jeu, chargé à la demande, expose `window.ynWordEndJeu` ; filtres `yume_wordend_actif` (bool) et
 `yume_wordend_oeuvres` (slugs dont la fiche affiche le papillon, défaut `sukasuka`) ; classe racine
 `.yn-wordend` ; événement `document` `yn:wordend` (`detail.etat` = `ouvert`\|`ferme`).
