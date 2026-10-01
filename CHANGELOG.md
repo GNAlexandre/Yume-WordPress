@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.8 — 2026-10-01
+
+- État du tome choisi par l'équipe (Planifié, En cours de publication, Publié) avec confirmations ; retour à « Planifié » retire la lecture ; guide Word de l'équipe aligné sur les écrans.
+
 ## 2.1.5-dev.7 — 2026-10-01
 
 - État des œuvres modifiable depuis la liste « Œuvres » ; « Licenciée » retire la lecture en ligne et les liens (réversible) ; œuvre en pause, terminée, abandonnée ou licenciée : plus de rappels ni d'alertes.

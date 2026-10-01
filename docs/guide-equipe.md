@@ -434,7 +434,7 @@ Puis :
   qui suivent l'œuvre, plus l'article d'annonce à la première sortie du tome (« SukaMoka, Tome 2 :
   Prologue disponible ! »). Un chapitre mis à jour n'est jamais annoncé ;
 - **Le tome est complet avec ces chapitres** : à cocher au dernier envoi (ou pour un tome publié d'un
-  coup) avec les **liens PDF et EPUB**. Le tome passe « Complet », le planning à **Publié, 100 %**,
+  coup) avec les **liens PDF et EPUB**. Le tome passe « Publié », le planning à **Publié, 100 %**,
   et l'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ». **Les fichiers
   PDF et EPUB ne sont jamais envoyés sur le site** : ce ne sont que des liens.
 

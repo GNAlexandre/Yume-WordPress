@@ -248,15 +248,15 @@ Plusieurs boutons ouvrent la même page :
 
 ## Comprendre la parution d'un tome
 
-Aujourd'hui, l'état d'un tome suit ses chapitres : rien à choisir.
+L'état d'un tome suit ses chapitres : le site le met à jour tout seul.
 
-| Parution | Quand |
-| --- | --- |
-| **À paraître** | Dès la création, tant qu'aucun chapitre n'est en ligne. Le tome figure au planning, sans bouton « Lire ». |
-| **En cours** | Au premier chapitre publié. Le tome se lit en ligne, ses chapitres sortent au fil de l'eau. |
-| **Complet** | Quand l'équipe coche « Tome complet ». Tous les chapitres sont en ligne, les liens PDF et EPUB s'ajoutent. |
+| État (équipe) | Les lecteurs voient | Quand |
+| --- | --- | --- |
+| **Planifié** | À paraître | Dès la création, tant qu'aucun chapitre n'est en ligne. Le tome figure au planning, sans bouton « Lire ». |
+| **En cours de publication** | En cours | Au premier chapitre publié. Le tome se lit en ligne, ses chapitres sortent au fil de l'eau. |
+| **Publié** | Publié | Quand l'équipe coche « Tome complet » ou choisit « Publié ». Tous les chapitres sont en ligne, les liens PDF et EPUB s'ajoutent. |
 
-> **Nouveau** : version 2.1.5. L'équipe pourra aussi choisir l'état du tome à la main : **Planifié**, **En cours de publication** ou **Publié**. Voir le chapitre « Nouveau (version 2.1.5) : l'état des tomes et des œuvres ».
+> **Nouveau** : version 2.1.5. L'équipe peut aussi changer l'état du tome à la main : **Planifié**, **En cours de publication** ou **Publié**. Voir le chapitre « Nouveau (version 2.1.5) : l'état des tomes et des œuvres ».
 
 # Préparer le fichier Word
 
@@ -398,7 +398,7 @@ Pour un tome traduit en entier, publié en une fois avec ses liens de téléchar
 5. Collez le **Lien de téléchargement · PDF** et le **Lien de téléchargement · EPUB**.
 6. Relisez **Ce qui va se passer**, puis cliquez sur **Publier** (le bouton donne le nombre de chapitres) et confirmez.
 
-Résultat : tous les chapitres sont en ligne, le tome est « Complet », les liens s'affichent et le planning passe à « Publié », 100 %. L'annonce dit « Le tome 2 de SukaMoka est disponible ! ».
+Résultat : tous les chapitres sont en ligne, le tome est « Publié », les liens s'affichent et le planning passe à « Publié », 100 %. L'annonce dit « Le tome 2 de SukaMoka est disponible ! ».
 
 > **À savoir** : les fichiers PDF et EPUB ne sont jamais envoyés sur le site. Ce sont seulement des liens vers leur hébergement (ClicTune, Mega…).
 
@@ -486,25 +486,26 @@ C'est la façon normale de terminer un tome en cours : l'annonce « tome complet
 5. Collez le **Lien de téléchargement · PDF** et le **Lien de téléchargement · EPUB**.
 6. Cliquez sur le bouton d'envoi, puis confirmez.
 
-Le tome passe « Complet », les liens s'affichent, le planning passe à « Publié », 100 %. L'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ». Si les derniers chapitres sont programmés, tout cela se fait à la sortie du dernier.
+Le tome passe « Publié », les liens s'affichent, le planning passe à « Publié », 100 %. L'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ». Si les derniers chapitres sont programmés, tout cela se fait à la sortie du dernier.
 
-## Passer un tome à « Complet » sans annonce
+## Passer un tome à « Publié » depuis sa fiche
 
 Tous les chapitres sont déjà en ligne et il ne manque que les liens ?
 
 1. **Tous les tomes**, puis **Modifier** sur la ligne du tome.
-2. Dans l'encadré **Tome complet**, cochez **Tous les chapitres sont en ligne : passer le tome à « Complet » (sans annonce)**.
+2. Dans l'encadré **État du tome**, choisissez **Publié**.
 3. Collez le **Lien PDF** et le **Lien EPUB**.
-4. Cliquez sur **Enregistrer**.
+4. Cochez **Annoncer « Le tome N est complet »** si vous voulez prévenir les lecteurs (décochée par défaut).
+5. Cliquez sur **Enregistrer**, puis confirmez si le site le demande.
 
-![L'encadré « Tome complet » de la fiche du tome.](images/TomeEnCours-complet.png){largeur=40%}
+![L'encadré « État du tome » de la fiche du tome.](images/EtatTome-etats.png){largeur=80%}
 
-> **Attention** : ici, rien n'est annoncé : ni article, ni Discord, ni e-mail. Pour annoncer le tome complet, cochez plutôt la case en ajoutant ses derniers chapitres (procédure précédente).
+> **À savoir** : sans la case d'annonce, rien n'est annoncé : ni article, ni Discord, ni e-mail. Voir aussi le chapitre « Nouveau (version 2.1.5) : l'état des tomes et des œuvres ».
 
 ## Remplacer un lien PDF ou EPUB mort
 
 1. **Tous les tomes**, puis **Modifier** sur la ligne du tome.
-2. Dans l'encadré **Tome complet**, remplacez le lien.
+2. Dans l'encadré **État du tome**, sous **Publié**, remplacez le lien.
 3. Cliquez sur **Enregistrer**.
 
 # Modifier un tome
@@ -549,7 +550,7 @@ La liste **Chapitres** de la fiche montre chaque chapitre avec son état : **En 
 
 # Nouveau (version 2.1.5) : l'état des tomes et des œuvres
 
-> **Nouveau** : ce chapitre décrit des fonctions de la version 2.1.5, en cours de finition. Il suit les maquettes validées par l'équipe. Les noms exacts des boutons peuvent encore changer.
+> **Nouveau** : ce chapitre décrit des fonctions de la version 2.1.5. Les images viennent des maquettes : si un détail diffère de l'écran, c'est le texte qui fait foi.
 
 ## Le cycle de vie d'un tome
 
@@ -582,12 +583,14 @@ Un tome publié d'un coup (fichier entier, case « Tome complet ») passe direct
 
 ![Les confirmations demandées avant un changement qui touche les lecteurs.](images/EtatTome-confirmations.png)
 
-| Changement | Ce qui se passe |
-| --- | --- |
-| **Planifié → En cours de publication** | Rien ne change tant qu'aucun chapitre n'est en ligne. Le site propose d'**Ajouter des chapitres**. |
-| **En cours de publication → Publié** | Le tome est affiché « Publié », même s'il manque des chapitres prévus (la confirmation le rappelle). Les liens PDF et EPUB s'affichent, le planning passe à 100 %. |
-| **Publié → En cours de publication** | Le tome est rouvert. Les liens PDF et EPUB sont masqués. |
-| **En cours de publication → Planifié** | Les chapitres en ligne sont **retirés de la lecture** : ils repassent en brouillon. Le tome redevient « à paraître ». |
+| Changement | Bouton de confirmation | Ce qui se passe |
+| --- | --- | --- |
+| **Planifié → En cours de publication** | aucun | Rien ne change tant qu'aucun chapitre n'est en ligne. Le site propose d'**Ajouter des chapitres**. |
+| **Planifié → Publié** | **Oui, publier le tome** | Le tome et ses chapitres prêts sont publiés. Annonce seulement si vous avez coché la case d'annonce. |
+| **En cours de publication → Publié** | **Oui, passer à « Publié »** (demandé s'il manque des chapitres prévus) | Les liens PDF et EPUB s'affichent, le planning passe à « Publié » (100 %). Annonce « Le tome est complet » seulement si la case est cochée. |
+| **Publié → En cours de publication** | **Oui, rouvrir le tome** | Le tome est rouvert. Les liens PDF et EPUB sont gardés mais masqués aux lecteurs. Le planning revient à l'étape « Édition ». |
+| **En cours de publication → Planifié** | **Oui, retirer de la lecture** | Les chapitres en ligne et programmés repassent en brouillon, le tome aussi, l'annonce est dépubliée et les notifications pas encore parties sont annulées. Le tome redevient « à paraître ». |
+| **Publié → Planifié** | cocher **Je comprends que le tome entier ne sera plus lisible**, puis **Oui, retirer le tome de la lecture** | Même retrait, pour le tome entier. |
 
 > **Attention** : le retour **En cours de publication → Planifié** retire les chapitres que les lecteurs pouvaient lire. Il sert à réparer une publication faite par erreur. Pour arrêter un tome sans rien retirer, mettez-le plutôt en pause (voir « Mettre un tome en pause »).
 
@@ -597,10 +600,10 @@ Exemple : vous vouliez programmer le prologue pour samedi, mais vous avez cliqu�
 
 1. **Tous les tomes**, puis **Modifier** sur la ligne du tome.
 2. Dans **État du tome**, choisissez **Planifié**.
-3. Cliquez sur **Enregistrer**, puis confirmez avec **Retirer les chapitres**. Le prologue n'est plus lisible et le tome redevient « à paraître ».
+3. Cliquez sur **Enregistrer**, puis confirmez avec **Oui, retirer de la lecture**. Le prologue n'est plus lisible, l'annonce est dépubliée et le tome redevient « à paraître ».
 4. Ouvrez **Ajouter des chapitres**, choisissez le tome et déposez de nouveau le fichier : le prologue apparaît **Brouillon**.
 5. Choisissez **À une date**, indiquez samedi 18 h, puis cliquez sur **Programmer 1 chapitre** et confirmez. Le prologue sortira samedi, avec son annonce.
-6. Prévenez l'équipe sur Discord : l'annonce déjà envoyée (Discord, e-mail) ne peut pas être reprise. Un éditeur peut dépublier l'article d'annonce dans l'administration.
+6. Prévenez l'équipe sur Discord : le message Discord et les e-mails déjà partis ne peuvent pas être repris. L'article d'annonce, lui, a été dépublié et reviendra à la vraie sortie.
 
 > **Astuce** : si un seul chapitre est sorti trop tôt dans un tome déjà en cours, pas besoin de changer l'état du tome. Utilisez **Retirer** sur la ligne du chapitre, puis **Changer la date** (voir « Publier, reprogrammer ou retirer un chapitre »).
 
@@ -613,7 +616,9 @@ L'état d'une œuvre se change directement dans la liste **Œuvres**, sans ouvri
 1. Dans le menu, ouvrez **Catalogue**, puis **Œuvres**.
 2. Pour retrouver une œuvre, filtrez par **État**, par type, ou tapez une partie du titre.
 3. Sur la ligne de l'œuvre, choisissez son nouvel état dans la liste **État de l'œuvre**.
-4. Enregistrez. Pour un changement qui touche les lecteurs (« Licenciée »), une question demande confirmation.
+4. Cliquez sur **Changer**. Pour entrer dans « Licenciée » ou en sortir, l'écran **Ce qui va changer** s'ouvre : lisez-le, puis cliquez sur **Confirmer : passer à « … »**.
+
+Vous pouvez aussi changer l'état dans la fiche de l'œuvre (**Modifier**, champ **État de l'œuvre**) : les mêmes confirmations s'appliquent.
 
 | État de l'œuvre | Ce que fait le site |
 | --- | --- |
@@ -621,9 +626,11 @@ L'état d'une œuvre se change directement dans la liste **Œuvres**, sans ouvri
 | **Terminée** | Tous les tomes prévus sont publiés. Plus de rappel de planning. Quand tous les tomes de la VO sont « Publié », le site propose de passer à « Terminée », sans l'imposer. |
 | **En pause** | Une reprise est prévue. Les tomes restent au planning, mais le site n'envoie **plus aucun rappel ni alerte de retard** pour cette œuvre. |
 | **Abandonnée** | Plus de traduction. Les tomes publiés restent lisibles. Plus de rappel. |
-| **Licenciée** | L'œuvre est publiée officiellement en France. Le site **retire automatiquement la lecture en ligne et les liens PDF et EPUB**. Plus de rappel. |
+| **Licenciée** | L'œuvre est publiée officiellement en France. Le site **retire automatiquement la lecture en ligne et les liens PDF et EPUB** de tous ses tomes et annule les e-mails d'alerte en attente. La fiche de l'œuvre et ses tomes restent en ligne, avec la mention « Licenciée ». Plus de rappel. |
 
 > **Attention** : **Licenciée** retire tout de suite la lecture et les liens de toute l'œuvre. Vérifiez avec un gérant avant de choisir cet état.
+
+> **À savoir** : c'est réversible. En quittant « Licenciée », la case **Remettre en ligne la lecture et les liens retirés à la licence** (cochée par défaut) remet tout en ligne, sans aucune annonce.
 
 # Ce que voient les lecteurs
 
@@ -635,7 +642,7 @@ Il est utile de savoir ce que montre le site, pour répondre aux lecteurs sur Di
 
 - En haut : la couverture, le type, l'état de la traduction, le synopsis et les boutons pour reprendre la lecture, mettre l'œuvre en favori (avec une alerte à chaque sortie) et l'**Ajouter à une liste**.
 - À droite : la **Prochaine sortie**, quand un chapitre est programmé.
-- La liste des tomes : chaque tome avec sa parution (**À paraître**, **En cours**, **Complet**), **Lire en ligne** et, pour un tome complet, **PDF** et **EPUB**.
+- La liste des tomes : chaque tome avec sa parution (**À paraître**, **En cours**, **Publié**), **Lire en ligne** et, pour un tome publié, **PDF** et **EPUB**.
 - Les onglets **Actualités** et **Glossaire** apparaissent quand l'œuvre en a.
 
 ## La page d'un tome en cours
@@ -691,7 +698,7 @@ Pour chaque commentaire :
 | J'ai publié un chapitre trop tôt. | Fiche du tome, ligne du chapitre : **Retirer**, puis **Changer la date**. Pour un tome entier, voir « J'ai publié au lieu de programmer : comment réparer ». |
 | Tous les chapitres de mon fichier sont sortis d'un coup. | Tous les chapitres **Nouveau** sortent ensemble. La prochaine fois, choisissez **Un par un, au rythme**, ou déposez un fichier avec les seuls chapitres à publier. |
 | Les chapitres sont mal découpés. | Vérifiez les styles **Titre 1** dans Word et déposez de nouveau le fichier. Sinon, découpez vous-même (voir « Découper soi-même les chapitres »). |
-| Un lien PDF ou EPUB ne marche plus. | **Tous les tomes**, **Modifier**, encadré **Tome complet** : remplacez le lien, puis **Enregistrer**. |
+| Un lien PDF ou EPUB ne marche plus. | **Tous les tomes**, **Modifier**, encadré **État du tome** (**Publié**) : remplacez le lien, puis **Enregistrer**. |
 | Le tome publié n'apparaît pas sur le site. | Il est encore en brouillon ou programmé. Vérifiez son statut dans **Tous les tomes** (filtre **Statut**). |
 | Un lecteur ne reçoit pas les alertes. | Il doit avoir l'œuvre en favori, avec une alerte active (page **Mon compte**). |
 | J'ai oublié mon mot de passe. | Lien **Mot de passe oublié ?** sur la page de connexion. |
