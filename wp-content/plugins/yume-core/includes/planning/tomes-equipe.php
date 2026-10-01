@@ -5,8 +5,8 @@
  * brouillons), groupés par œuvre, avec des filtres œuvre / statut / recherche dans le titre
  * (GET, sans JavaScript) et une pagination.
  *
- * Pour chaque tome : couverture, libellé, parution (« À paraître », « En cours », « Complet » :
- * yume_parution_tome()), date, chapitres en ligne (« 3 chapitres sur 12 en ligne » quand le
+ * Pour chaque tome : couverture, libellé, état (« Planifié », « En cours de publication »,
+ * « Publié » : yume_etats_tome() de yume_parution_tome()), date, chapitres en ligne (« 3 chapitres sur 12 en ligne » quand le
  * nombre de chapitres prévus est connu), prochain chapitre programmé, et les actions « Ajouter
  * des chapitres » (formulaire de publication prérempli par ?tome=ID), « Voir » (tome publié) et
  * « Modifier » (fiche du tome dans l'espace équipe, ?vue=tomes&modifier=ID, si l'utilisateur
@@ -37,9 +37,9 @@ const CATALOGUE_PAR_PAGE = 60;
 function statuts_vue_tomes(): array {
 	return array(
 		''           => __( 'Tous', 'yume-core' ),
-		'a_paraitre' => __( 'À paraître', 'yume-core' ),
-		'en_cours'   => __( 'En cours', 'yume-core' ),
-		'complet'    => __( 'Complets', 'yume-core' ),
+		'a_paraitre' => __( 'Planifiés', 'yume-core' ),
+		'en_cours'   => __( 'En cours de publication', 'yume-core' ),
+		'complet'    => __( 'Publiés', 'yume-core' ),
 		'programme'  => __( 'Programmés', 'yume-core' ),
 		'brouillon'  => __( 'Brouillons', 'yume-core' ),
 	);
@@ -231,19 +231,20 @@ function tomes_equipe( array $filtres, int $page = 1 ): array {
 }
 
 /**
- * Pastille de parution d'un tome : « À paraître », « ● En cours », « ✓ Complet ».
+ * Pastille de l'état d'un tome dans l'espace équipe (yume_etats_tome()) : « ▲ Planifié »,
+ * « ● En cours de publication », « ✓ Publié ».
  *
- * @param string $parution a_paraitre | en_cours | complet.
+ * @param string $parution a_paraitre | en_cours | complet (yume_parution_tome()).
  */
 function pastille_parution( string $parution ): string {
-	$libelles = yume_parutions();
+	$libelles = yume_etats_tome();
 	if ( 'en_cours' === $parution ) {
 		return '<span class="yn-chip yn-chip--ok"><span aria-hidden="true">●</span> ' . esc_html( $libelles['en_cours'] ) . '</span>';
 	}
 	if ( 'complet' === $parution ) {
-		return '<span class="yn-chip yn-chip--ok"><span aria-hidden="true">✓</span> ' . esc_html( $libelles['complet'] ) . '</span>';
+		return '<span class="yn-chip yn-chip--info"><span aria-hidden="true">✓</span> ' . esc_html( $libelles['complet'] ) . '</span>';
 	}
-	return '<span class="yn-chip yn-chip--warn">' . esc_html( $libelles['a_paraitre'] ) . '</span>';
+	return '<span class="yn-chip yn-chip--warn"><span aria-hidden="true">▲</span> ' . esc_html( $libelles['a_paraitre'] ) . '</span>';
 }
 
 /**
@@ -429,7 +430,7 @@ function rendu_vue_tomes(): string {
 	}
 	$boutons .= '<a class="yn-btn yn-btn--primary" href="' . esc_url( yume_url_page( 'publier' ) ) . '">' . esc_html__( 'Ajouter des chapitres', 'yume-core' ) . '</a>';
 	$html    .= tete_vue( __( 'Tous les tomes', 'yume-core' ), $boutons );
-	$html    .= '<p class="yn-muted">' . esc_html__( 'Tous les tomes du catalogue, publiés compris. « Ajouter des chapitres » ouvre le formulaire de publication avec le tome déjà choisi : un chapitre, plusieurs ou le tome entier. « Modifier » ouvre la fiche du tome ici, dans l’espace équipe : ses champs, « Tome complet » et ses chapitres (publier, programmer, retirer).', 'yume-core' ) . '</p>';
+	$html    .= '<p class="yn-muted">' . esc_html__( 'Tous les tomes du catalogue, publiés compris. « Ajouter des chapitres » ouvre le formulaire de publication avec le tome déjà choisi : un chapitre, plusieurs ou le tome entier. « Modifier » ouvre la fiche du tome ici, dans l’espace équipe : son état (Planifié, En cours de publication, Publié), ses champs et ses chapitres (publier, programmer, retirer).', 'yume-core' ) . '</p>';
 
 	// Filtres (GET, sans JavaScript).
 	$choix = choix_oeuvres( __( 'Toutes', 'yume-core' ) );

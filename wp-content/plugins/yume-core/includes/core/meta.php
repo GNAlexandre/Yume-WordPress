@@ -483,14 +483,14 @@ function definitions_meta(): array {
 			),
 			'yume_parution'         => array(
 				'type'        => 'string',
-				'description' => __( 'Parution du tome : vide (déduite, tomes antérieurs), « en_cours » (chapitres publiés au fil de l’eau) ou « complet » (tous les chapitres en ligne, marqué par l’équipe). Lire avec yume_parution_tome().', 'yume-core' ),
+				'description' => __( 'Parution du tome : vide (déduite, tomes antérieurs), « planifie » (« Planifié » choisi par l’équipe : rien de lisible), « en_cours » (chapitres publiés au fil de l’eau) ou « complet » (« Publié » : tous les chapitres en ligne, marqué par l’équipe). Lire avec yume_parution_tome().', 'yume-core' ),
 				'sanitize'    => static function ( $v ) {
-					return san_enum( $v, array( '', 'en_cours', 'complet' ), '' );
+					return san_enum( $v, array( '', 'planifie', 'en_cours', 'complet' ), '' );
 				},
 				'default'     => '',
 				'schema'      => array(
 					'type' => 'string',
-					'enum' => array( '', 'en_cours', 'complet' ),
+					'enum' => array( '', 'planifie', 'en_cours', 'complet' ),
 				),
 			),
 			'yume_chapitres_prevus' => array(

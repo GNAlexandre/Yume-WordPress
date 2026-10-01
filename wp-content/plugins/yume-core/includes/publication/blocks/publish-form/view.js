@@ -1294,7 +1294,7 @@
 					+ ( comparaisonCourante ? pluriel( nbSortants, 'chapitre', 'chapitres' ) : 'les nouveaux chapitres' )
 					+ ( sortieAjout === 'rythme' ? ' un par un' : '' ) + ' ?'
 					+ ( modeCatalogue() ? ' Sans annonce (ni article, ni Discord, ni e-mail).' : ' Les lecteurs qui suivent l’œuvre seront prévenus' + ( sortieAjout === 'maintenant' ? '.' : ' à chaque sortie.' ) )
-					+ ( completCase && completCase.checked ? ' Le tome passera « Complet ».' : '' );
+					+ ( completCase && completCase.checked ? ' Le tome passera « Publié ».' : '' );
 				if ( ! window.confirm( question ) ) {
 					return;
 				}
@@ -1442,7 +1442,7 @@
 								: sortie.tome.titre + ' sortira le ' + dateSortie + '.';
 						}
 						if ( etat && sortie.mode === 'chapitres' ) {
-							etat.textContent = { a_paraitre: 'À paraître', en_cours: 'En cours', complet: 'Complet' }[ sortie.parution ] || 'Tome publié';
+							etat.textContent = { a_paraitre: 'Planifié', en_cours: 'En cours de publication', complet: 'Publié' }[ sortie.parution ] || 'Tome publié';
 						} else if ( etat ) {
 							etat.textContent = sortie.sans_annonce
 								? ( sortie.remplacement ? 'Lecture en ligne remplacée' : ( sortie.statut === 'publish' ? 'Lecture en ligne ajoutée' : 'Lecture en ligne programmée' ) )

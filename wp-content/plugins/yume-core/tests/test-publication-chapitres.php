@@ -851,12 +851,12 @@ yume_test(
 			};
 			$html          = $rendu( array( 'tome' => (string) $en_cours ) );
 			yume_assert_contains( 'Ajouter des chapitres à un tome', $html );
-			yume_assert_true( (bool) preg_match( '#<option value="' . $en_cours . '"[^>]*data-parution="en_cours"[^>]*selected[^>]*>Tome 2 · en cours · 1 chapitre en ligne</option>#', $html ), 'tome en cours sélectionné' );
-			yume_assert_true( (bool) preg_match( '#<option value="' . $migre . '"[^>]*data-catalogue="1"[^>]*>Tome 1 · complet</option>#', $html ), 'tome migré complet' );
-			yume_assert_true( (bool) preg_match( '#<option value="' . $a_paraitre . '"[^>]*>Tome 3 · à paraître</option>#', $html ), 'tome à paraître' );
+			yume_assert_true( (bool) preg_match( '#<option value="' . $en_cours . '"[^>]*data-parution="en_cours"[^>]*selected[^>]*>Tome 2 · en cours de publication · 1 chapitre en ligne</option>#', $html ), 'tome en cours sélectionné' );
+			yume_assert_true( (bool) preg_match( '#<option value="' . $migre . '"[^>]*data-catalogue="1"[^>]*>Tome 1 · publié</option>#', $html ), 'tome migré complet' );
+			yume_assert_true( (bool) preg_match( '#<option value="' . $a_paraitre . '"[^>]*>Tome 3 · planifié</option>#', $html ), 'tome à paraître' );
 			yume_assert_contains( 'data-yn-creation hidden', $html, 'création ici masquée : un tome est choisi' );
 			yume_assert_contains( 'href="' . esc_url( Formulaire::url_nouveau_tome( $oeuvre ) ) . '" data-yn-nouveau-tome', $html );
-			yume_assert_contains( 'data-yn-fiche-parution>En cours</span>', $html );
+			yume_assert_contains( 'data-yn-fiche-parution>En cours de publication</span>', $html );
 			yume_assert_contains( 'Prologue en ligne', $html );
 			yume_assert_contains( '1 sur 12', $html );
 			yume_assert_true( (bool) preg_match( '#<input id="yn-publish-annoncer" type="checkbox" name="annoncer" value="1"[^>]*checked#', $html ), 'tome en cours : « Annoncer » cochée' );

@@ -1042,7 +1042,7 @@ final class Service {
 	 * @return array<string,mixed>
 	 */
 	public static function infos_tome( int $tome_id, int $a_sortir = 0 ): array {
-		$parutions = yume_parutions();
+		$parutions = yume_etats_tome();
 		$parution  = yume_parution_tome( $tome_id );
 		$en_ligne  = wp_list_pluck( yume_get_chapitres( $tome_id ), 'ID' );
 		$dernier   = self::dernier_programme( $tome_id );
@@ -2730,6 +2730,24 @@ final class Service {
 	private static function annuler_complet_programme( int $tome_id ): void {
 		delete_post_meta( $tome_id, self::META_COMPLET );
 		wp_clear_scheduled_hook( self::HOOK_COMPLET, array( $tome_id ) );
+	}
+
+	/**
+	 * Annule ce qui attend la sortie d'un tome : sortie groupée programmée (tâche cron, marques
+	 * des chapitres pas encore en ligne) et passage « complet » programmé. Utilisé quand
+	 * l'équipe remet un tome « Planifié » (espace équipe, « Modifier le tome »).
+	 *
+	 * @param int $tome_id Tome.
+	 * @return array{groupe:bool,complet:bool} Ce qui était programmé.
+	 */
+	public static function annuler_programmations( int $tome_id ): array {
+		$annule = array(
+			'groupe'  => is_array( get_post_meta( $tome_id, self::META_GROUPE, true ) ),
+			'complet' => is_array( get_post_meta( $tome_id, self::META_COMPLET, true ) ),
+		);
+		self::annuler_sortie_groupee( $tome_id );
+		self::annuler_complet_programme( $tome_id );
+		return $annule;
 	}
 
 	/**

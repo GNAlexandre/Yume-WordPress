@@ -530,7 +530,7 @@ function ligne_tome( \WP_Post $tome, string $oeuvre ): string {
 		$nom .= ' <span class="yn-tome-list__sous-titre">' . esc_html( $sous_titre ) . '</span>';
 	}
 	if ( $en_cours ) {
-		$nom .= ' ' . pastille( __( 'En cours', 'yume-core' ), 'ok', '●', 'yn-tome-list__en-cours' );
+		$nom .= ' ' . pastille( yume_parutions()['en_cours'], 'ok', '●', 'yn-tome-list__en-cours' );
 	}
 
 	$ligne = array(
@@ -837,8 +837,8 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
 			$etat = sprintf( __( '%1$s · %2$s sur %3$s', 'yume-core' ), $etat, nombre_fr( (int) $stats['publies'] ), nombre_fr( max( $prevus, (int) $stats['publies'] ) ) );
 		}
 		$pastilles .= pastille( $etat, 'ok', '●', 'yn-tome-header__parution' );
-	} elseif ( 'publish' !== get_post_status( $tome_id ) ) {
-		$pastilles .= pastille( __( 'À paraître', 'yume-core' ), 'warn', '▲', 'yn-tome-header__parution' );
+	} elseif ( 'publish' !== get_post_status( $tome_id ) || 'a_paraitre' === ( $stats['parution'] ?? '' ) ) {
+		$pastilles .= pastille( yume_parutions()['a_paraitre'], 'warn', '▲', 'yn-tome-header__parution' );
 	}
 
 	$details = array_filter(
