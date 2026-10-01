@@ -13,9 +13,13 @@
  * existante n'est réécrit que s'il a été modifié dans le formulaire (sa mise en forme
  * d'origine est sinon conservée telle quelle).
  *
- * Pour chaque œuvre : couverture, titre, statut, type, statut de la traduction, nombre de tomes
- * et les actions « Voir » (publiée), « Publier » (brouillon), « Modifier », « Ajouter un tome au
- * planning » (vue « Nouveau tome », œuvre présélectionnée) et « Ajouter des chapitres ».
+ * Pour chaque œuvre : couverture, titre, statut, type, VO, ses tomes et leur état (regroupés :
+ * « T1 à T6 ✓ Publiés »), son état modifiable (liste déroulante et « Changer », suggestion
+ * « passer à Terminée » : oeuvres-etat.php) et les actions « Voir » (publiée), « Publier »
+ * (brouillon), « Modifier », « Ajouter un tome au planning » (vue « Nouveau tome », œuvre
+ * présélectionnée) et « Ajouter des chapitres ». Filtres GET statut, etat et recherche ; légende
+ * des états. Le champ « État de l'œuvre » du formulaire « Modifier » passe par
+ * changer_etat_oeuvre() (mêmes confirmations et effets).
  *
  * Genres (capacités edit_terms / delete_terms de yume_genre) : ajout et suppression dans la vue.
  *
@@ -55,10 +59,20 @@ function statuts_vue_oeuvres(): array {
 }
 
 /**
- * Œuvres de la vue, triées par titre.
+ * Filtre « État » de la vue : '' (tous) puis les états de yume_etats_oeuvre().
  *
- * @param array{statut?:string,recherche?:string} $filtres Filtres.
- * @return array<int,array{id:int,titre:string,statut:string,type:string,avancement:string,tomes:int}>
+ * @return array<string,string>
+ */
+function etats_vue_oeuvres(): array {
+	return array( '' => __( 'Tous', 'yume-core' ) ) + yume_etats_oeuvre();
+}
+
+/**
+ * Œuvres de la vue, triées par titre, avec leurs tomes (une seule requête pour tous) et leur
+ * état.
+ *
+ * @param array{statut?:string,recherche?:string,etat?:string} $filtres Filtres.
+ * @return array<int,array{id:int,titre:string,statut:string,type:string,avancement:string,etat:string,tomes:int,tomes_etats:array,suggestion:bool}>
  */
 function oeuvres_equipe( array $filtres = array() ): array {
 	$statut    = (string) ( $filtres['statut'] ?? '' );
@@ -74,16 +88,32 @@ function oeuvres_equipe( array $filtres = array() ): array {
 		$args['s']              = $recherche;
 		$args['search_columns'] = array( 'post_title' );
 	}
-	$liste = array();
-	foreach ( get_posts( $args ) as $oeuvre ) {
+	$etat = (string) ( $filtres['etat'] ?? '' );
+	if ( '' !== $etat ) {
+		$args['tax_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery
+			array(
+				'taxonomy' => 'yume_statut',
+				'field'    => 'slug',
+				'terms'    => array( $etat ),
+			),
+		);
+	}
+	$oeuvres = get_posts( $args );
+	$tomes   = tomes_des_oeuvres( wp_list_pluck( $oeuvres, 'ID' ) );
+	$liste   = array();
+	foreach ( $oeuvres as $oeuvre ) {
 		$id      = (int) $oeuvre->ID;
+		$etats   = etats_tomes( $tomes[ $id ] ?? array() );
 		$liste[] = array(
-			'id'         => $id,
-			'titre'      => titre_brut( $id ),
-			'statut'     => (string) $oeuvre->post_status,
-			'type'       => nom_terme_oeuvre( $id, 'yume_type' ),
-			'avancement' => nom_terme_oeuvre( $id, 'yume_statut' ),
-			'tomes'      => count( yume_get_tomes( $id, array( 'status' => 'any' ) ) ),
+			'id'          => $id,
+			'titre'       => titre_brut( $id ),
+			'statut'      => (string) $oeuvre->post_status,
+			'type'        => nom_terme_oeuvre( $id, 'yume_type' ),
+			'avancement'  => nom_terme_oeuvre( $id, 'yume_statut' ),
+			'etat'        => etat_oeuvre( $id ),
+			'tomes'       => count( $etats ),
+			'tomes_etats' => $etats,
+			'suggestion'  => suggerer_terminee( $id, $etats ),
 		);
 	}
 	usort(
@@ -341,7 +371,7 @@ function valider_oeuvre( array $saisie, int $oeuvre_id ): ?\WP_Error {
 		return new \WP_Error( 'yume_oeuvre_type', __( 'Type d’œuvre inconnu.', 'yume-core' ), array( 'status' => 400 ) );
 	}
 	if ( '' !== $saisie['avancement'] && ! isset( termes_taxonomie_oeuvre( 'yume_statut' )[ $saisie['avancement'] ] ) ) {
-		return new \WP_Error( 'yume_oeuvre_statut', __( 'Statut de la traduction inconnu.', 'yume-core' ), array( 'status' => 400 ) );
+		return new \WP_Error( 'yume_oeuvre_statut', __( 'État de l’œuvre inconnu.', 'yume-core' ), array( 'status' => 400 ) );
 	}
 	return null;
 }
@@ -504,13 +534,16 @@ function creer_oeuvre( array $saisie, ?array $couverture, int $user_id ) {
 }
 
 /**
- * Modifie une œuvre depuis l'espace équipe (statut de publication inchangé).
+ * Modifie une œuvre depuis l'espace équipe (statut de publication inchangé). L'état de l'œuvre
+ * passe par changer_etat_oeuvre() : un état qui demande une confirmation (entrée dans
+ * « Licenciée » ou sortie) n'est pas appliqué, la clé confirmer_etat du résultat le signale
+ * (le formulaire mène alors à l'écran de confirmation). Un état vide ne change rien.
  *
  * @param int        $id         Œuvre.
  * @param array      $saisie     Saisie nettoyée (saisie_oeuvre()).
  * @param array|null $couverture Entrée de $_FILES d'une nouvelle couverture (facultative).
  * @param int        $user_id    Utilisateur.
- * @return array{id:int,avertissements:string[]}|\WP_Error
+ * @return array{id:int,avertissements:string[],confirmer_etat:string,etat:array|null}|\WP_Error
  */
 function modifier_oeuvre( int $id, array $saisie, ?array $couverture, int $user_id ) {
 	$saisie = array_merge( saisie_oeuvre( array() ), $saisie );
@@ -540,7 +573,21 @@ function modifier_oeuvre( int $id, array $saisie, ?array $couverture, int $user_
 	if ( is_wp_error( $resultat ) ) {
 		return $resultat;
 	}
-	$avert = enregistrer_champs_oeuvre( $id, $saisie, $fichier, $user_id );
+	// L'état n'est jamais écrit directement : changer_etat_oeuvre() ci-dessous.
+	$avert   = enregistrer_champs_oeuvre( $id, array_merge( $saisie, array( 'avancement' => etat_oeuvre( $id ) ) ), $fichier, $user_id );
+	$etat    = null;
+	$attente = '';
+	if ( '' !== $saisie['avancement'] ) {
+		$etat = changer_etat_oeuvre( $id, $saisie['avancement'], $user_id );
+		if ( is_wp_error( $etat ) ) {
+			if ( 'yume_oeuvre_etat_confirmation' === $etat->get_error_code() ) {
+				$attente = $saisie['avancement'];
+			} else {
+				$avert[] = $etat->get_error_message();
+			}
+			$etat = null;
+		}
+	}
 
 	/**
 	 * Une œuvre vient d'être modifiée depuis l'espace équipe.
@@ -554,6 +601,8 @@ function modifier_oeuvre( int $id, array $saisie, ?array $couverture, int $user_
 	return array(
 		'id'             => $id,
 		'avertissements' => $avert,
+		'confirmer_etat' => $attente,
+		'etat'           => $etat,
 	);
 }
 
@@ -620,9 +669,24 @@ function traiter_formulaire_oeuvre( array $post, array $files, int $user_id ): a
 		);
 	}
 	$id = $resultat['id'];
+	if ( ! empty( $resultat['confirmer_etat'] ) ) {
+		// Entrée dans « Licenciée » ou sortie : fiche enregistrée, état à confirmer à part.
+		return array(
+			'cible'     => 'yn-oeuvre-etat',
+			'type'      => 'ok',
+			/* translators: %s : titre */
+			'message'   => trim( sprintf( __( '« %s » est enregistrée. Son nouvel état touche les lecteurs : confirmez-le ci-dessous.', 'yume-core' ), titre_brut( $id ) ) . ' ' . implode( ' ', $resultat['avertissements'] ) ),
+			'oeuvre_id' => $id,
+			'changer'   => $id,
+			'vers'      => (string) $resultat['confirmer_etat'],
+		);
+	}
 	if ( isset( $post['oeuvre_id'] ) && absint( $post['oeuvre_id'] ) ) {
 		/* translators: %s : titre */
 		$message = sprintf( __( '« %s » est enregistrée.', 'yume-core' ), titre_brut( $id ) );
+		if ( ! empty( $resultat['etat']['changement'] ) ) {
+			$message .= ' ' . message_etat_oeuvre( $id, $resultat['etat'] );
+		}
 	} elseif ( 'publish' === get_post_status( $id ) ) {
 		/* translators: %s : titre */
 		$message = sprintf( __( '« %s » est créée et publiée. Ajoutez maintenant ses tomes.', 'yume-core' ), titre_brut( $id ) );
@@ -772,6 +836,13 @@ function traiter_genre( array $post, int $user_id ): array {
  */
 function rediriger_vue_oeuvres( array $retour ): void {
 	$args = ! empty( $retour['modifier'] ) ? array( 'modifier' => (int) $retour['modifier'] ) : array();
+	if ( ! empty( $retour['changer'] ) ) {
+		// Écran de confirmation d'un changement d'état (oeuvres-etat.php).
+		$args = array(
+			'changer' => (int) $retour['changer'],
+			'vers'    => (string) ( $retour['vers'] ?? '' ),
+		);
+	}
 	wp_safe_redirect( url_vue_equipe( 'oeuvres', $args ) . '#' . $retour['cible'] );
 	exit;
 }
@@ -854,11 +925,27 @@ function formulaire_oeuvre( ?array $retour, int $oeuvre_id = 0 ): string {
 		)
 	);
 	$html    .= champ_select( 'yn-oeuvre-type', 'type', __( 'Type', 'yume-core' ), array( '' => __( '— Choisir —', 'yume-core' ) ) + termes_taxonomie_oeuvre( 'yume_type' ), $val( 'type' ) );
-	$html    .= champ_select( 'yn-oeuvre-avancement', 'avancement', __( 'Statut de la traduction', 'yume-core' ), array( '' => __( '— Choisir —', 'yume-core' ) ) + termes_taxonomie_oeuvre( 'yume_statut' ), $oeuvre_id || '' !== $val( 'avancement' ) ? $val( 'avancement' ) : 'en-cours' );
-	$html    .= champ_saisie( 'yn-oeuvre-auteur', 'auteur', __( 'Auteur', 'yume-core' ), $val( 'auteur' ), 'text', array( 'maxlength' => 200 ) );
-	$html    .= champ_saisie( 'yn-oeuvre-illustrateur', 'illustrateur', __( 'Illustrateur', 'yume-core' ), $val( 'illustrateur' ), 'text', array( 'maxlength' => 200 ) );
-	$html    .= champ_saisie( 'yn-oeuvre-editeur', 'editeur_vo', __( 'Éditeur VO', 'yume-core' ), $val( 'editeur_vo' ), 'text', array( 'maxlength' => 200 ) );
-	$html    .= '</div>';
+	$etats    = yume_etats_oeuvre();
+	if ( ! $oeuvre_id || ! isset( $etats[ $val( 'avancement' ) ] ) ) {
+		$etats = array( '' => $oeuvre_id ? __( '— Non renseigné —', 'yume-core' ) : __( '— Choisir —', 'yume-core' ) ) + $etats;
+	}
+	$champ = champ_select(
+		'yn-oeuvre-avancement',
+		'avancement',
+		__( 'État de l’œuvre', 'yume-core' ),
+		$etats,
+		$oeuvre_id || '' !== $val( 'avancement' ) ? $val( 'avancement' ) : 'en-cours',
+		$oeuvre_id ? array( 'aria-describedby' => 'yn-oeuvre-avancement-aide' ) : array()
+	);
+	if ( $oeuvre_id ) {
+		// Entrée dans « Licenciée » ou sortie : écran de confirmation après l'enregistrement.
+		$champ = str_replace( '</select></p>', '</select><span class="yn-muted" id="yn-oeuvre-avancement-aide">' . esc_html__( '« Licenciée » retire la lecture en ligne et les liens PDF/EPUB : une confirmation est demandée.', 'yume-core' ) . '</span></p>', $champ );
+	}
+	$html .= $champ;
+	$html .= champ_saisie( 'yn-oeuvre-auteur', 'auteur', __( 'Auteur', 'yume-core' ), $val( 'auteur' ), 'text', array( 'maxlength' => 200 ) );
+	$html .= champ_saisie( 'yn-oeuvre-illustrateur', 'illustrateur', __( 'Illustrateur', 'yume-core' ), $val( 'illustrateur' ), 'text', array( 'maxlength' => 200 ) );
+	$html .= champ_saisie( 'yn-oeuvre-editeur', 'editeur_vo', __( 'Éditeur VO', 'yume-core' ), $val( 'editeur_vo' ), 'text', array( 'maxlength' => 200 ) );
+	$html .= '</div>';
 
 	$html .= '<p class="yn-team__champ"><label class="yn-label" for="yn-oeuvre-alt">' . esc_html__( 'Titres alternatifs (un par ligne : titre original, titre anglais…)', 'yume-core' ) . '</label>';
 	$html .= '<textarea id="yn-oeuvre-alt" class="yn-team__court" name="titres_alt" rows="2">' . esc_textarea( implode( "\n", array_map( 'strval', (array) $s['titres_alt'] ) ) ) . '</textarea></p>';
@@ -1094,7 +1181,29 @@ function section_genres( ?array $retour ): string {
 }
 
 /**
- * Ligne d'une œuvre : couverture, titre, puces, actions.
+ * Ligne de la VO d'une œuvre (« VO : 7 tomes, terminée »), ou chaîne vide.
+ *
+ * @param int $id Œuvre.
+ */
+function ligne_vo_oeuvre( int $id ): string {
+	$nb      = (int) get_post_meta( $id, 'yume_nb_tomes_vo', true );
+	$statut  = (string) get_post_meta( $id, 'yume_statut_vo', true );
+	$parties = array();
+	if ( $nb > 0 ) {
+		/* translators: %d : nombre de tomes parus en VO */
+		$parties[] = sprintf( _n( '%d tome', '%d tomes', $nb, 'yume-core' ), $nb );
+	}
+	if ( 'termine' === $statut ) {
+		$parties[] = __( 'terminée', 'yume-core' );
+	} elseif ( 'en_cours' === $statut ) {
+		$parties[] = __( 'en cours', 'yume-core' );
+	}
+	/* translators: %s : tomes et statut de la VO (« 7 tomes, terminée ») */
+	return $parties ? sprintf( __( 'VO : %s', 'yume-core' ), implode( ', ', $parties ) ) : '';
+}
+
+/**
+ * Ligne d'une œuvre : couverture, titre, puces, tomes et leur état, état de l'œuvre, actions.
  *
  * @param array<string,mixed> $oeuvre Œuvre (voir oeuvres_equipe()).
  * @param array|null          $retour Retour du dernier envoi.
@@ -1105,28 +1214,26 @@ function ligne_oeuvre_equipe( array $oeuvre, ?array $retour ): string {
 	$couverture = yume_get_cover_id( $id );
 	$contexte   = '<span class="yn-visually-hidden"> — ' . esc_html( $titre ) . '</span>';
 	$publiee    = in_array( $oeuvre['statut'], array( 'publish', 'private' ), true );
-	$html       = '<li class="yn-lecture__tome" id="yn-oeuvre-' . $id . '">';
+	$html       = '<li class="yn-lecture__tome yn-oeuvres__ligne" id="yn-oeuvre-' . $id . '">';
 	$html      .= '<span class="yn-lecture__couverture" aria-hidden="true">';
 	$html      .= $couverture ? yume_image_couverture( $couverture, 'thumbnail', array( 'alt' => '' ) ) : '<span class="yn-lecture__sans-couverture">' . esc_html( mb_strtoupper( mb_substr( $titre, 0, 1 ) ) ) . '</span>';
 	$html      .= '</span><div class="yn-lecture__infos"><p class="yn-lecture__libelle">' . esc_html( $titre ) . '</p><p class="yn-lecture__puces">';
 	$html      .= $publiee
 		? '<span class="yn-chip yn-chip--ok">' . esc_html__( 'Publiée', 'yume-core' ) . '</span>'
 		: '<span class="yn-chip">' . esc_html__( 'Brouillon', 'yume-core' ) . '</span>';
-	foreach ( array( $oeuvre['type'], $oeuvre['avancement'] ) as $puce ) {
-		if ( '' !== $puce ) {
-			$html .= '<span class="yn-chip">' . esc_html( (string) $puce ) . '</span>';
-		}
+	if ( '' !== $oeuvre['type'] ) {
+		$html .= '<span class="yn-chip">' . esc_html( (string) $oeuvre['type'] ) . '</span>';
 	}
-	$html .= '<span class="yn-muted yn-tomes__date">' . esc_html(
-		$oeuvre['tomes']
-			/* translators: %d : nombre de tomes */
-			? sprintf( _n( '%d tome', '%d tomes', (int) $oeuvre['tomes'], 'yume-core' ), (int) $oeuvre['tomes'] )
-			: __( 'Aucun tome', 'yume-core' )
-	) . '</span></p>';
+	$vo    = ligne_vo_oeuvre( $id );
+	$html .= '' !== $vo ? '<span class="yn-muted yn-tomes__date">' . esc_html( $vo ) . '</span>' : '';
+	$html .= '</p>';
+	// Tomes et leur état (Planifié, En cours de publication, Publié), regroupés.
+	$html .= puces_tomes_oeuvre( (array) ( $oeuvre['tomes_etats'] ?? array() ) );
 	$cible = 'yn-oeuvre-' . $id;
 	$html .= zone_retour( $retour && ( $retour['cible'] ?? '' ) === $cible ? $retour : null );
+	$html .= '</div>' . bloc_etat_ligne( $oeuvre );
 	// Div (et non p) : le bouton « Publier » est un formulaire.
-	$html .= '</div><div class="yn-lecture__actions">';
+	$html .= '<div class="yn-lecture__actions">';
 	if ( $publiee ) {
 		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( (string) get_permalink( $id ) ) . '">' . esc_html__( 'Voir', 'yume-core' ) . $contexte . '</a>';
 	} elseif ( current_user_can( 'publish_post', $id ) && current_user_can( 'edit_post', $id ) && in_array( $oeuvre['statut'], array( 'draft', 'pending' ), true ) ) {
@@ -1161,7 +1268,14 @@ function rendu_vue_oeuvres(): string {
 		return $html . '</div></div>';
 	}
 
-	$retour   = retour_formulaire( get_current_user_id() );
+	$retour  = retour_formulaire( get_current_user_id() );
+	$changer = get_entier( 'changer' );
+	$vers    = get_cle( 'vers' );
+	if ( $changer && isset( yume_etats_oeuvre()[ $vers ] ) && 'yume_oeuvre' === get_post_type( $changer ) && 'trash' !== get_post_status( $changer ) && current_user_can( 'edit_post', $changer ) ) {
+		// Écran de confirmation d'un changement d'état (oeuvres-etat.php).
+		$html .= rendu_confirmation_etat( $changer, $vers, $retour );
+		return $html . '</div></div>';
+	}
 	$modifier = get_entier( 'modifier' );
 	if ( $modifier && 'yume_oeuvre' === get_post_type( $modifier ) && 'trash' !== get_post_status( $modifier ) && current_user_can( 'edit_post', $modifier ) ) {
 		/* translators: %s : titre de l'œuvre */
@@ -1179,21 +1293,25 @@ function rendu_vue_oeuvres(): string {
 	$statut    = get_cle( 'statut' );
 	$statut    = isset( statuts_vue_oeuvres()[ $statut ] ) ? $statut : '';
 	$recherche = get_recherche_tomes();
+	$etat      = get_cle( 'etat' );
+	$etat      = isset( etats_vue_oeuvres()[ $etat ] ) ? $etat : '';
 	$filtres   = array_filter(
 		array(
 			'statut'    => $statut,
+			'etat'      => $etat,
 			'recherche' => $recherche,
 		)
 	);
 	$oeuvres   = oeuvres_equipe( $filtres );
 
 	$html .= tete_vue( __( 'Œuvres', 'yume-core' ), '<a class="yn-btn yn-btn--primary" href="#yn-nouvelle-oeuvre-section">' . esc_html__( 'Nouvelle œuvre', 'yume-core' ) . '</a>' );
-	$html .= '<p class="yn-muted">' . esc_html__( 'Toutes les œuvres du catalogue, brouillons compris : « Modifier » ouvre la fiche complète. Une œuvre en brouillon reste invisible du public, mais on peut déjà lui ajouter des tomes au planning.', 'yume-core' ) . '</p>';
+	$html .= '<p class="yn-muted">' . esc_html__( 'Toutes les œuvres du catalogue, brouillons compris : « Modifier » ouvre la fiche complète. Une œuvre en brouillon reste invisible du public, mais on peut déjà lui ajouter des tomes au planning. L’état de chaque œuvre se change sur sa ligne ; l’état de ses tomes est rappelé à côté.', 'yume-core' ) . '</p>';
 	$html .= '<div id="yn-oeuvres-retour">' . zone_retour( $retour && 'yn-oeuvres-retour' === ( $retour['cible'] ?? '' ) ? $retour : null ) . '</div>';
 
 	// Filtres (GET, sans JavaScript).
 	$html .= '<form class="yn-card yn-team__filtres" method="get" action="' . esc_url( strtok( url_vue_equipe(), '?' ) ) . '" role="search" aria-label="' . esc_attr__( 'Filtrer les œuvres', 'yume-core' ) . '">' . champs_caches_vue( 'oeuvres' );
 	$html .= champ_select( 'yn-o-statut', 'statut', __( 'Statut', 'yume-core' ), statuts_vue_oeuvres(), $statut );
+	$html .= champ_select( 'yn-o-etat', 'etat', __( 'État', 'yume-core' ), etats_vue_oeuvres(), $etat );
 	$html .= champ_saisie( 'yn-o-recherche', 'recherche', __( 'Titre contient', 'yume-core' ), $recherche, 'search', array( 'maxlength' => 100 ) );
 	$html .= '<p class="yn-team__action"><button type="submit" class="yn-btn">' . esc_html__( 'Filtrer', 'yume-core' ) . '</button></p>';
 	$html .= '</form>';
@@ -1223,6 +1341,7 @@ function rendu_vue_oeuvres(): string {
 		) . '</p>';
 	}
 	$html .= '</section>';
+	$html .= legende_etats_oeuvre();
 
 	$html .= '<section class="yn-team__section" id="yn-nouvelle-oeuvre-section" aria-labelledby="yn-oeuvre-form-titre"><h2 id="yn-oeuvre-form-titre">' . esc_html__( 'Nouvelle œuvre', 'yume-core' ) . '</h2>';
 	$html .= formulaire_oeuvre( $retour ) . '</section>';

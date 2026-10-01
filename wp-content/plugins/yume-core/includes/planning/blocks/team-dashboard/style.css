@@ -1365,6 +1365,123 @@
 	}
 }
 
+/* Vue « Œuvres » : état de chaque œuvre, tomes et leur état, légende, confirmation (oeuvres-etat.php). */
+.yn-team .yn-oeuvres__ligne {
+	grid-template-columns: 48px minmax(0, 1fr) minmax(220px, 280px);
+	align-items: start;
+}
+
+.yn-team .yn-oeuvres__ligne .yn-lecture__actions {
+	grid-column: 2 / -1;
+	justify-content: flex-start;
+}
+
+.yn-team .yn-oeuvre__tomes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-oeuvre-etat,
+.yn-oeuvre-etat__form {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	margin: 0;
+}
+
+.yn-oeuvre-etat__champs {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.yn-oeuvre-etat__champs select {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 38px;
+	padding-block: 6px;
+	font-size: 14px;
+}
+
+.yn-oeuvre-etat__suggestion {
+	margin: 0;
+	color: var(--wp--preset--color--succes);
+	font-size: 13px;
+}
+
+.yn-oeuvre-etat__suggestion a {
+	white-space: nowrap;
+}
+
+.yn-team .yn-oeuvres-legende {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 14px 18px;
+	margin: 0;
+	padding: 18px 20px;
+	list-style: none;
+}
+
+.yn-oeuvres-legende p {
+	margin: 8px 0 0;
+	font-size: 13px;
+}
+
+.yn-oeuvre-confirmation {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-width: 760px;
+	padding: 20px;
+}
+
+.yn-oeuvre-confirmation h3 {
+	font-size: 20px;
+}
+
+.yn-oeuvre-confirmation__etats {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+
+.yn-team .yn-oeuvre-confirmation__effets {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding-left: 20px;
+}
+
+.yn-oeuvre-confirmation__restaurer {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+}
+
+@media (max-width: 699.98px) {
+	.yn-team .yn-oeuvres__ligne {
+		grid-template-columns: 48px minmax(0, 1fr);
+	}
+
+	.yn-team .yn-oeuvres__ligne .yn-oeuvre-etat,
+	.yn-team .yn-oeuvres__ligne .yn-lecture__actions {
+		grid-column: 1 / -1;
+	}
+
+	.yn-oeuvre-confirmation {
+		padding: 16px;
+	}
+}
+
 /* Vue « Œuvres » : formulaire « Nouvelle œuvre » (oeuvres-equipe.php). */
 .yn-team__genres {
 	display: flex;

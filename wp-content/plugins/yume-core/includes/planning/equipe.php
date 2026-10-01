@@ -354,15 +354,16 @@ function resume_ligne( array $l ): string {
 }
 
 /**
- * Badge « En pause » d'un tome mis en pause par l'équipe (vide sinon ; jamais en façade
- * publique : seul l'espace équipe l'affiche).
+ * Badge « En pause » d'un tome mis en pause par l'équipe, ou « Œuvre en pause » (« Œuvre
+ * terminée »…) pour un tome pas encore publié d'une œuvre sans rappels (vide sinon ; jamais
+ * en façade publique : seul l'espace équipe l'affiche).
  *
  * @param array $l Ligne.
  */
 function badge_pause( array $l ): string {
 	$pause = infos_pause( (int) $l['tome_id'] );
 	if ( ! $pause ) {
-		return '';
+		return badge_oeuvre_sans_rappels( $l );
 	}
 	$titre = sprintf(
 		/* translators: 1: date, 2: pseudo */
@@ -371,6 +372,47 @@ function badge_pause( array $l ): string {
 		$pause['par'] ? nom_utilisateur( $pause['par'] ) : __( 'Système', 'yume-core' )
 	);
 	return ' <span class="yn-chip yn-team__pause" title="' . esc_attr( $titre ) . '"><span aria-hidden="true">❚❚</span> ' . esc_html__( 'En pause', 'yume-core' ) . '</span>';
+}
+
+/**
+ * Libellé de l'état d'une œuvre sans rappels pour ses tomes (« Œuvre en pause », « Œuvre
+ * terminée »…), ou chaîne vide si l'œuvre relance normalement.
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function libelle_oeuvre_sans_rappels( int $oeuvre_id ): string {
+	if ( ! oeuvre_sans_rappels( $oeuvre_id ) ) {
+		return '';
+	}
+	$libelles = array(
+		'en-pause'   => __( 'Œuvre en pause', 'yume-core' ),
+		'terminee'   => __( 'Œuvre terminée', 'yume-core' ),
+		'abandonnee' => __( 'Œuvre abandonnée', 'yume-core' ),
+		'licenciee'  => __( 'Œuvre licenciée', 'yume-core' ),
+	);
+	foreach ( etats_termes_oeuvre( $oeuvre_id ) as $etat ) {
+		if ( isset( $libelles[ $etat ] ) ) {
+			return $libelles[ $etat ];
+		}
+	}
+	return '';
+}
+
+/**
+ * Badge « Œuvre en pause » (« Œuvre terminée »…) d'un tome pas encore publié dont l'œuvre ne
+ * relance personne : à la place d'un retard (vide sinon).
+ *
+ * @param array $l Ligne.
+ */
+function badge_oeuvre_sans_rappels( array $l ): string {
+	if ( 'publie' === ( $l['etat'] ?? '' ) ) {
+		return '';
+	}
+	$libelle = libelle_oeuvre_sans_rappels( (int) ( $l['oeuvre_id'] ?? 0 ) );
+	if ( '' === $libelle ) {
+		return '';
+	}
+	return ' <span class="yn-chip yn-team__pause yn-team__pause--oeuvre" title="' . esc_attr__( 'Ni retard, ni rappel, ni alerte tant que l’œuvre garde cet état.', 'yume-core' ) . '"><span aria-hidden="true">❚❚</span> ' . esc_html( $libelle ) . '</span>';
 }
 
 /**
@@ -1060,6 +1102,17 @@ function cellule_csv( $valeur ): string {
 }
 
 /**
+ * Colonne « Statut » de l'export : état du planning, ou « Œuvre en pause » (« Œuvre
+ * terminée »…) pour un tome pas encore publié d'une œuvre sans rappels.
+ *
+ * @param array $l Ligne.
+ */
+function etat_csv( array $l ): string {
+	$oeuvre = 'publie' !== $l['etat'] ? libelle_oeuvre_sans_rappels( (int) ( $l['oeuvre_id'] ?? 0 ) ) : '';
+	return '' !== $oeuvre ? $oeuvre : ( etats()[ $l['etat'] ] ?? '' );
+}
+
+/**
  * Export CSV du planning complet (UTF-8 avec BOM pour Excel, séparateur « ; ») : œuvre, tome,
  * étape, statut, responsables, date cible, date programmée, dernière mise à jour, retard.
  *
@@ -1104,7 +1157,7 @@ function csv_planning( array $lignes ): string {
 			$l['oeuvre'],
 			$l['tome'] . ( '' !== $l['titre'] ? ' : ' . $l['titre'] : '' ),
 			$etapes[ $l['etape'] ] ?? $l['etape'],
-			est_en_pause( (int) $l['tome_id'] ) ? __( 'En pause', 'yume-core' ) : ( etats()[ $l['etat'] ] ?? '' ),
+			est_en_pause( (int) $l['tome_id'] ) ? __( 'En pause', 'yume-core' ) : etat_csv( $l ),
 			implode( ' · ', $resp ),
 			(string) $l['date_cible'],
 			(string) ( $l['date_programmee'] ?? '' ),

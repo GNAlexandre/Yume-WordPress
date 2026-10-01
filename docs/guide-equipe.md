@@ -74,14 +74,30 @@ fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans 
 
 ### Œuvres, nouvelle œuvre et genres (`/equipe/?vue=oeuvres`, éditeurs et gérants)
 
-Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut ou par titre. Pour
-chaque œuvre : **Voir** (publiée) ou **Publier** (brouillon), **Modifier**, **Ajouter un tome au
+Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut, par état ou par
+titre. Pour chaque œuvre : ses tomes et leur état (« T1 à T6 ✓ Publiés », « T7 ● En cours de
+publication », « T8 ○ Planifié »), son **état** à changer sur place (liste déroulante puis
+**Changer**), **Voir** (publiée) ou **Publier** (brouillon), **Modifier**, **Ajouter un tome au
 planning** (la page **Nouveau tome** s'ouvre avec l'œuvre déjà choisie) et **Ajouter des
 chapitres**.
 
+**État de l'œuvre** (aussi dans **Modifier**) — une légende le rappelle sous la liste :
+
+- **En cours de publication** : l'équipe traduit et publie ; rappels de planning actifs.
+- **Terminée**, **En pause**, **Abandonnée** : plus aucun retard, rappel ni alerte de planning
+  pour ses tomes (ils affichent « Œuvre en pause », « Œuvre terminée »… dans l'espace équipe) ;
+  rien ne change pour les lecteurs. Quand tous les tomes de la VO sont publiés (fiche détaillée :
+  VO terminée et nombre de tomes), le site propose **passer à « Terminée »** : jamais automatique.
+- **Licenciée** (une page de confirmation dit ce qui sera retiré) : les chapitres en ligne ou
+  programmés repassent en brouillon (adresses et commentaires gardés), les liens PDF et EPUB des
+  tomes sont mis de côté et les e-mails d'alerte en attente annulés ; la fiche et les tomes restent
+  en ligne avec la mention « Licenciée ». En quittant « Licenciée », la case **Remettre en ligne la
+  lecture et les liens retirés à la licence** (cochée) rétablit tout, **sans annonce ni
+  notification** ; décochée, tout reste de côté.
+
 **Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » de la page
-**Nouveau tome**) et **Modifier** utilisent le même formulaire : titre, type, statut
-de la traduction, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), genres
+**Nouveau tome**) et **Modifier** utilisent le même formulaire : titre, type, état de
+l'œuvre, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), genres
 (cases à cocher, ou « Ajouter des genres absents de la liste »), synopsis (une ligne vide sépare
 deux paragraphes ; `<strong>gras</strong>` et `<em>italique</em>` sont conservés) et couverture
 (JPG, PNG ou WebP). La partie repliable **Fiche détaillée** contient le statut et le nombre de tomes
@@ -286,7 +302,10 @@ Chaque jour vers **9 h (heure de Paris)**, le site vérifie le planning :
 Les rappels d'un même tome s'espacent : un premier rappel, une relance trois jours plus tard, puis
 **au plus un par semaine**. Au-delà de **8 semaines de retard**, plus aucun rappel : le tome reste
 seulement dans le récapitulatif des gérants (« Plus de rappel automatique ») ; mettez-le à jour,
-en pause ou retirez-le du planning. Un tome **en pause** ne reçoit jamais de rappel.
+en pause ou retirez-le du planning. Un tome **en pause**, ou dont l'œuvre est **en pause**,
+**terminée**, **abandonnée** ou **licenciée**, ne reçoit jamais de rappel : ni e-mail, ni message
+Discord, ni signalement « tome bloqué » aux gérants, ni ligne dans le récapitulatif, et il ne
+compte pas comme « en retard ». Repasser l'œuvre « En cours de publication » relance tout.
 
 Pour ne plus recevoir de rappel : mettez le tome à jour (même un petit pourcentage compte). Les
 délais, l'heure et le jour du récapitulatif sont réglés par les gérants.
