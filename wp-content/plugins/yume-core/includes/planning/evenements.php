@@ -11,7 +11,12 @@
  * - dépublication d'un tome (publish → autre statut) : étape « édition », avancements gardés,
  *   journal « depublie », date de dernière sortie de l'œuvre recalculée ; le retour en ligne
  *   rétablit « publié » par le même chemin que yume_tome_publie (SCAN-04) ;
- * - tome programmé (statut future) : la date cible suit la date programmée (SCAN-05).
+ * - tome programmé (statut future) : la date cible suit la date programmée (SCAN-05) ;
+ * - tome publié chapitre par chapitre (yume_parution = en_cours) : sa sortie ne le passe jamais
+ *   « publié » ; l'étape est gardée, l'avancement suit les chapitres en ligne (sur
+ *   yume_chapitres_prevus) et l'annonce Discord dit « Tome 2 : Prologue disponible ! » ;
+ *   yume_tome_complet (case « Le tome est complet ») le passe « publié » à 100 % et annonce sur
+ *   Discord « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ».
  *
  * Chaque mise à jour émet yume_planning_mis_a_jour.
  *
@@ -51,12 +56,55 @@ function url_lecture( int $tome_id ): string {
 }
 
 /**
- * Annonce Discord d'un tome publié.
+ * Libellé des chapitres en ligne d'un tome pour une annonce (« Prologue », « chapitres 1 à
+ * 3 ») : celui du module publication s'il est chargé, sinon « N chapitres ».
  *
  * @param int $tome_id Tome.
+ */
+function libelle_chapitres_en_ligne( int $tome_id ): string {
+	$ids = array_map( 'intval', wp_list_pluck( yume_get_chapitres( $tome_id ), 'ID' ) );
+	if ( ! $ids ) {
+		return '';
+	}
+	if ( is_callable( array( '\\Yume\\Core\\Publication\\Annonce', 'libelle_sortie' ) ) ) {
+		return (string) \Yume\Core\Publication\Annonce::libelle_sortie( $ids );
+	}
+	/* translators: %d : nombre de chapitres */
+	return sprintf( _n( '%d chapitre', '%d chapitres', count( $ids ), 'yume-core' ), count( $ids ) );
+}
+
+/**
+ * Formats téléchargeables d'un tome pour une annonce (« PDF et EPUB disponibles »), vide sans lien.
+ *
+ * @param int $tome_id Tome.
+ */
+function formats_disponibles( int $tome_id ): string {
+	$liens = yume_liens_telechargement( $tome_id );
+	if ( '' !== $liens['pdf'] && '' !== $liens['epub'] ) {
+		return __( 'PDF et EPUB disponibles', 'yume-core' );
+	}
+	if ( '' !== $liens['pdf'] ) {
+		return __( 'PDF disponible', 'yume-core' );
+	}
+	return '' !== $liens['epub'] ? __( 'EPUB disponible', 'yume-core' ) : '';
+}
+
+/**
+ * Annonce Discord d'un tome publié.
+ *
+ * Variantes : tome en cours de parution (yume_parution_tome() = en_cours, première sortie
+ * chapitre par chapitre) : « Nouvelle sortie : SukaMoka — Tome 2 : Prologue disponible ! » ;
+ * $variante = complet (yume_tome_complet) : « SukaMoka — Le tome 2 est complet : PDF et EPUB
+ * disponibles ! ». Sinon le texte habituel d'un tome complet.
+ *
+ * @param int    $tome_id  Tome.
+ * @param string $variante Vide (selon la parution du tome) ou « complet ».
  * @return array{texte:string,embeds:array}
  */
-function annonce_tome( int $tome_id ): array {
+function annonce_tome( int $tome_id, string $variante = '' ): array {
+	if ( '' === $variante && 'en_cours' === yume_parution_tome( $tome_id ) ) {
+		$variante = 'en_cours';
+	}
 	$oeuvre_id = yume_get_oeuvre_id( $tome_id );
 	$oeuvre    = $oeuvre_id ? titre_brut( $oeuvre_id ) : '';
 	$libelle   = yume_libelle_tome( $tome_id );
@@ -97,22 +145,53 @@ function annonce_tome( int $tome_id ): array {
 		$embed['image'] = array( 'url' => (string) $image );
 	}
 
-	$annonce = array(
-		'texte'  => sprintf(
+	$chapitres = 'en_cours' === $variante ? libelle_chapitres_en_ligne( $tome_id ) : '';
+	if ( '' !== $chapitres ) {
+		$texte = sprintf(
+			/* translators: 1: œuvre, 2: libellé du tome, 3: chapitres (Prologue, chapitres 1 à 3) */
+			_n( 'Nouvelle sortie : **%1$s** — %2$s : %3$s disponible !', 'Nouvelle sortie : **%1$s** — %2$s : %3$s disponibles !', max( 1, $chap['publies'] ), 'yume-core' ),
+			echapper_discord( $oeuvre ),
+			echapper_discord( $libelle ),
+			echapper_discord( $chapitres )
+		);
+	} elseif ( 'complet' === $variante ) {
+		$formats = formats_disponibles( $tome_id );
+		$texte   = sprintf(
+			/* translators: 1: œuvre, 2: libellé du tome */
+			__( 'Tome complet : **%1$s** — %2$s est complet !', 'yume-core' ),
+			echapper_discord( $oeuvre ),
+			echapper_discord( $libelle )
+		);
+		if ( '' !== $formats ) {
+			$texte = sprintf(
+				/* translators: 1: œuvre, 2: libellé du tome, 3: formats (PDF et EPUB disponibles) */
+				__( 'Tome complet : **%1$s** — %2$s est complet : %3$s !', 'yume-core' ),
+				echapper_discord( $oeuvre ),
+				echapper_discord( $libelle ),
+				$formats
+			);
+		}
+	} else {
+		$texte = sprintf(
 			/* translators: 1: œuvre, 2: libellé du tome */
 			__( 'Nouvelle sortie : **%1$s** — %2$s est disponible !', 'yume-core' ),
 			echapper_discord( $oeuvre ),
 			echapper_discord( $libelle )
-		),
+		);
+	}
+	$annonce = array(
+		'texte'  => $texte,
 		'embeds' => array( $embed ),
 	);
 	/**
 	 * Filtre l'annonce Discord d'un tome publié (texte vide : pas d'annonce).
 	 *
-	 * @param array $annonce ['texte' => string, 'embeds' => array].
-	 * @param int   $tome_id Tome.
+	 * @param array  $annonce  ['texte' => string, 'embeds' => array].
+	 * @param int    $tome_id  Tome.
+	 * @param string $variante Vide (tome complet), en_cours (première sortie chapitre par
+	 *                         chapitre) ou complet (fin de parution).
 	 */
-	$annonce = (array) apply_filters( 'yume_planning_annonce_tome', $annonce, $tome_id );
+	$annonce = (array) apply_filters( 'yume_planning_annonce_tome', $annonce, $tome_id, $variante );
 	return array(
 		'texte'  => (string) ( $annonce['texte'] ?? '' ),
 		'embeds' => (array) ( $annonce['embeds'] ?? array() ),
@@ -126,19 +205,25 @@ function annonce_tome( int $tome_id ): array {
  * la sortie est journalisée (« publie », partiel) et le tome reste dans les listes de
  * l'équipe : il passera « publié » à la sortie de son dernier chapitre (verifier_fin_sortie()).
  *
+ * Tome publié chapitre par chapitre (méta yume_parution = en_cours) : toujours une sortie
+ * partielle, même sans chapitre en attente (la suite n'est pas encore déposée) ; l'avancement
+ * suit les chapitres en ligne (avancement_chapitres()). Il passe « publié » quand l'équipe le
+ * marque complet (yume_tome_complet).
+ *
  * @param int   $tome_id Tome (publié).
  * @param int   $user_id Auteur.
  * @param array $details Données ajoutées à la ligne de journal « publie » (ex. retour => true).
  * @return bool Vrai si le tome est passé à l'étape « publié ».
  */
 function appliquer_sortie( int $tome_id, int $user_id, array $details = array() ): bool {
-	$chap    = compte_chapitres( $tome_id );
-	$attente = chapitres_en_attente( $tome_id );
-	if ( $attente > 0 ) {
+	$chap     = compte_chapitres( $tome_id );
+	$attente  = chapitres_en_attente( $tome_id );
+	$en_cours = 'en_cours' === (string) get_post_meta( $tome_id, 'yume_parution', true );
+	if ( $attente > 0 || $en_cours ) {
 		update_post_meta( $tome_id, META_SORTIE_PARTIELLE, gmt() );
 		mettre_a_jour(
 			$tome_id,
-			array(),
+			$en_cours ? avancement_chapitres( $tome_id ) : array(),
 			$user_id,
 			array(
 				'forcer'         => true,
@@ -200,7 +285,8 @@ function verifier_fin_sortie( int $tome_id, int $user_id = 0 ): bool {
 		delete_post_meta( $tome_id, META_SORTIE_PARTIELLE );
 		return false;
 	}
-	if ( chapitres_en_attente( $tome_id ) > 0 ) {
+	// Tome publié chapitre par chapitre : seul « Le tome est complet » termine sa sortie.
+	if ( chapitres_en_attente( $tome_id ) > 0 || 'en_cours' === (string) get_post_meta( $tome_id, 'yume_parution', true ) ) {
 		return false;
 	}
 	if ( 'publie' === donnees_tome( $tome_id )['etape'] ) {
@@ -209,6 +295,76 @@ function verifier_fin_sortie( int $tome_id, int $user_id = 0 ): bool {
 	}
 	return appliquer_sortie( $tome_id, $user_id, array( 'complet' => true ) );
 }
+
+/**
+ * Avancement d'un tome publié chapitre par chapitre d'après ses chapitres en ligne : si le
+ * nombre de chapitres prévus (yume_chapitres_prevus) est connu, chaque étape de travail vaut au
+ * moins la part des chapitres en ligne (un chapitre en ligne est traduit, relu et édité ;
+ * une étape plus avancée garde sa valeur). Sans chapitres prévus : rien (avancement inchangé).
+ *
+ * @param int $tome_id Tome.
+ * @return array Saisie pour mettre_a_jour() (['avancement' => …]) ou tableau vide.
+ */
+function avancement_chapitres( int $tome_id ): array {
+	$prevus = (int) get_post_meta( $tome_id, 'yume_chapitres_prevus', true );
+	if ( $prevus <= 0 ) {
+		return array();
+	}
+	$pct        = (int) min( 100, round( compte_chapitres( $tome_id )['publies'] * 100 / $prevus ) );
+	$avant      = donnees_tome( $tome_id )['avancement'];
+	$avancement = array();
+	foreach ( ETAPES_TRAVAIL as $etape ) {
+		if ( $pct > (int) ( $avant[ $etape ] ?? 0 ) ) {
+			$avancement[ $etape ] = $pct;
+		}
+	}
+	return $avancement ? array( 'avancement' => $avancement ) : array();
+}
+
+/**
+ * Met à jour l'avancement d'un tome en cours de parution d'après ses chapitres en ligne
+ * (avancement_chapitres()) ; appelé à la sortie d'un chapitre, et par le module publication
+ * après une sortie sans annonce.
+ *
+ * @param int $tome_id Tome.
+ * @param int $user_id Auteur (0 = système).
+ * @return bool Vrai si l'avancement a changé.
+ */
+function avancer_selon_chapitres( int $tome_id, int $user_id = 0 ): bool {
+	if ( 'en_cours' !== (string) get_post_meta( $tome_id, 'yume_parution', true ) || 'publish' !== get_post_status( $tome_id ) ) {
+		return false;
+	}
+	$saisie = avancement_chapitres( $tome_id );
+	if ( ! $saisie ) {
+		return false;
+	}
+	$resultat = mettre_a_jour( $tome_id, $saisie, $user_id, array( 'forcer' => true ) );
+	return ! is_wp_error( $resultat ) && ! empty( $resultat['changements'] );
+}
+
+/**
+ * Tome publié chapitre par chapitre marqué complet (action yume_tome_complet, module
+ * publication) : sortie terminée (étape « publié », 100 %, journal « publie » complet, ou sortie
+ * partielle s'il reste des chapitres programmés), puis annonce Discord « … est complet » si elle
+ * est demandée.
+ *
+ * @param int  $tome_id  Tome.
+ * @param bool $annoncer Annoncer la fin de parution sur Discord.
+ */
+function sur_tome_complet( $tome_id, $annoncer = true ): void {
+	$tome_id = (int) $tome_id;
+	if ( 'yume_tome' !== get_post_type( $tome_id ) || 'publish' !== get_post_status( $tome_id ) ) {
+		return;
+	}
+	appliquer_sortie( $tome_id, auteur_publication( $tome_id ), array( 'complet' => true ) );
+	if ( $annoncer ) {
+		$annonce = annonce_tome( $tome_id, 'complet' );
+		if ( '' !== $annonce['texte'] ) {
+			yume_discord( 'sorties', $annonce['texte'], $annonce['embeds'] );
+		}
+	}
+}
+add_action( 'yume_tome_complet', __NAMESPACE__ . '\\sur_tome_complet', 10, 2 );
 
 /**
  * Tome publié (action yume_tome_publie) : planning « publié » à 100 % (ou sortie partielle,
@@ -248,9 +404,11 @@ function sur_chapitre_publie( $chapitre_id ): void {
 	}
 	$libelle = yume_libelle_chapitre( $chapitre_id );
 	$sous    = trim( (string) get_post_meta( $chapitre_id, 'yume_sous_titre', true ) );
+	// Tome en cours de parution : l'avancement suit les chapitres en ligne.
+	$en_cours = 'en_cours' === (string) get_post_meta( $tome_id, 'yume_parution', true );
 	mettre_a_jour(
 		$tome_id,
-		array(),
+		$en_cours ? avancement_chapitres( $tome_id ) : array(),
 		auteur_publication( $chapitre_id ),
 		array(
 			'forcer'     => true,

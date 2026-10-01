@@ -1,6 +1,16 @@
 <?php
 /**
- * Formulaire de publication (bloc yume/publish-form, maquette TeamPublier) :
+ * Formulaire « Ajouter des chapitres à un tome » (bloc yume/publish-form, maquettes TeamPublier
+ * et « Ajouter des chapitres ») :
+ * - le tome d'abord : œuvre puis tome existant (liste de tous ses tomes avec leur parution,
+ *   ?tome=ID présélectionne), lien « + Nouveau tome » (filtre yume_url_nouveau_tome) ; sans tome
+ *   choisi, le tome peut encore être créé ici (nature, numéro, titre) ;
+ * - le fichier, comparé au tome (chapitres nouveaux, en ligne identiques ou modifiés —
+ *   « Garder la version en ligne » ou « Mettre à jour (sans annonce) » —, programmés,
+ *   brouillons), rien n'est jamais retiré ; la sortie des nouveaux chapitres (maintenant, un
+ *   par un au rythme, à une date), l'annonce, « Le tome est complet » avec les liens PDF/EPUB ;
+ *   champ caché mode = chapitres (Service::MODE_CHAPITRES) ; « Vérifier » et « Remplacer la
+ *   lecture en ligne » (encadré d'un tome paru) restent le remplacement en deux temps ;
  * - rendu serveur complet, utilisable sans JavaScript (envoi vers admin-post.php, nonce,
  *   messages de retour) ; le script du bloc ajoute le glisser-déposer, l'analyse immédiate
  *   du fichier déposé, le découpage manuel en chapitres (envoyé avec le fichier, champ caché
@@ -32,6 +42,33 @@ final class Formulaire {
 	 * remplacer (application, comme publier), annuler_remplacement.
 	 */
 	public const ETAPES = array( 'brouillon', 'apercu', 'publier', 'programmer', 'verifier', 'remplacer', 'annuler_remplacement' );
+
+	/**
+	 * Vue de l'espace équipe « Nouveau tome » (lien « + Nouveau tome ») ; adresse réglable par le
+	 * filtre yume_url_nouveau_tome.
+	 */
+	public const VUE_NOUVEAU_TOME = 'nouveau-tome';
+
+	/**
+	 * Adresse de création d'un tome (lien « + Nouveau tome ») : vue VUE_NOUVEAU_TOME de l'espace
+	 * équipe (url_vue_equipe() du module planning), sinon le planning.
+	 *
+	 * @param int $oeuvre_id Œuvre présélectionnée (0 : aucune).
+	 */
+	public static function url_nouveau_tome( int $oeuvre_id = 0 ): string {
+		if ( function_exists( '\Yume\Core\Planning\url_vue_equipe' ) ) {
+			$url = \Yume\Core\Planning\url_vue_equipe( self::VUE_NOUVEAU_TOME, $oeuvre_id ? array( 'oeuvre' => $oeuvre_id ) : array() );
+		} else {
+			$url = function_exists( 'yume_url_page' ) ? (string) yume_url_page( 'planning' ) : home_url( '/' );
+		}
+		/**
+		 * Filtre l'adresse du lien « + Nouveau tome » du formulaire « Ajouter des chapitres ».
+		 *
+		 * @param string $url       Adresse.
+		 * @param int    $oeuvre_id Œuvre choisie (0 : aucune).
+		 */
+		return (string) apply_filters( 'yume_url_nouveau_tome', $url, $oeuvre_id );
+	}
 
 	/**
 	 * Enregistre le bloc yume/publish-form.
@@ -139,9 +176,18 @@ final class Formulaire {
 	private static function champs_post(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce vérifié dans traiter().
 		$champs = array();
-		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'couverture_id' ) as $cle ) {
+		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'couverture_id', 'mode', 'sortie', 'intervalle', 'complet', 'annoncer' ) as $cle ) {
 			if ( isset( $_POST[ $cle ] ) && is_scalar( $_POST[ $cle ] ) ) {
 				$champs[ $cle ] = sanitize_text_field( wp_unslash( (string) $_POST[ $cle ] ) );
+			}
+		}
+		// Chapitres en ligne modifiés : « Garder la version en ligne » ou « Mettre à jour » (Service::choix()).
+		if ( isset( $_POST['choix'] ) && is_array( $_POST['choix'] ) ) {
+			$champs['choix'] = array();
+			foreach ( wp_unslash( $_POST['choix'] ) as $cle => $action ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- clés et valeurs contrôlées par Service::choix().
+				if ( is_string( $cle ) && is_scalar( $action ) ) {
+					$champs['choix'][ $cle ] = sanitize_key( (string) $action );
+				}
 			}
 		}
 		if ( isset( $_POST['credits'] ) && is_array( $_POST['credits'] ) ) {
@@ -204,6 +250,15 @@ final class Formulaire {
 				wp_die( esc_html__( 'Votre compte n’a pas le droit de publier un tome.', 'yume-core' ), esc_html__( 'Accès refusé', 'yume-core' ), array( 'response' => 403 ) );
 			}
 			$champs = self::champs_post();
+			// « Vérifier » et « Remplacer la lecture en ligne » : remplacement en deux temps explicite.
+			if ( in_array( $etape, array( 'verifier', 'remplacer' ), true ) ) {
+				$champs['mode'] = Service::MODE_REMPLACEMENT;
+			}
+			$chapitres_mode = Service::MODE_CHAPITRES === ( $champs['mode'] ?? '' );
+			if ( $chapitres_mode && 'programmer' === $etape ) {
+				$champs['sortie'] = 'date';
+			}
+			$sortie_choisie = in_array( $champs['sortie'] ?? '', Service::SORTIES, true ) ? (string) $champs['sortie'] : 'maintenant';
 			// Champs gardés pour réafficher le formulaire (le découpage suit le fichier, jamais gardé).
 			$saisis = array_diff_key( $champs, array( 'plan' => true ) );
 			if ( 'annuler_remplacement' === $etape ) {
@@ -218,7 +273,7 @@ final class Formulaire {
 				wp_safe_redirect( self::adresse_retour( $tome_id ) );
 				exit;
 			}
-			if ( 'programmer' === $etape && '' === ( $champs['date_sortie'] ?? '' ) ) {
+			if ( ( 'programmer' === $etape || ( $chapitres_mode && 'publier' === $etape && 'date' === $sortie_choisie ) ) && '' === ( $champs['date_sortie'] ?? '' ) ) {
 				self::memoriser(
 					array(
 						'type'    => 'erreur',
@@ -253,6 +308,27 @@ final class Formulaire {
 			} elseif ( 'verifier' === $etape && ! $attente ) {
 				$type    = 'erreur';
 				$message = __( 'Déposez le nouveau DOCX ou EPUB du tome, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'yume-core' );
+			} elseif ( $chapitres_mode && in_array( $etape, array( 'publier', 'programmer' ), true ) ) {
+				// Ajout de chapitres : sortie des nouveaux chapitres (maintenant, au rythme, à une date).
+				$avec_date = 'date' === $sortie_choisie || ( 'rythme' === $sortie_choisie && '' !== ( $champs['date_sortie'] ?? '' ) && '' === Service::rythme_texte( $tome_id ) );
+				$sortie    = Service::publier(
+					$tome_id,
+					$avec_date ? (string) $champs['date_sortie'] : 'maintenant',
+					array(
+						'confirmer_vide' => ! empty( $_POST['confirmer_vide'] ), // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié plus haut.
+						'sans_annonce'   => ! empty( $rapport['sans_annonce'] ),
+						'mode'           => Service::MODE_CHAPITRES,
+						'sortie'         => $sortie_choisie,
+						'intervalle'     => isset( $champs['intervalle'] ) && is_numeric( $champs['intervalle'] ) ? (int) $champs['intervalle'] : Service::INTERVALLE_DEFAUT,
+					)
+				);
+				if ( is_wp_error( $sortie ) ) {
+					$type      = 'erreur';
+					$message   = __( 'Le brouillon est enregistré, mais la publication a échoué :', 'yume-core' ) . ' ' . $sortie->get_error_message();
+					$confirmer = 'yume_tome_vide' === $sortie->get_error_code();
+				} else {
+					$message = self::message_chapitres( $sortie );
+				}
 			} elseif ( in_array( $etape, array( 'publier', 'programmer', 'remplacer' ), true ) ) {
 				$sortie = Service::publier(
 					$tome_id,
@@ -278,12 +354,18 @@ final class Formulaire {
 					/* translators: 1: titre du tome, 2: date */
 					$message = sprintf( __( '%1$s sortira le %2$s.', 'yume-core' ), $sortie['tome']['titre'], self::date_fr( ( new \DateTimeImmutable( (string) $sortie['date'], wp_timezone() ) )->getTimestamp(), 'long' ) );
 				}
+			} elseif ( 'apercu' === $etape && $chapitres_mode && '' !== self::apercu_chapitres( $rapport ) ) {
+				// Ajout de chapitres : aperçu du premier chapitre nouveau (ou mis à jour).
+				wp_safe_redirect( self::apercu_chapitres( $rapport ) );
+				exit;
 			} elseif ( 'apercu' === $etape && ( ! empty( $attente['chapitres'][0]['apercu'] ) || ! empty( $rapport['chapitres'][0]['apercu'] ) ) ) {
 				// Remplacement en attente : aperçu de la nouvelle version, jamais du chapitre en ligne.
 				wp_safe_redirect( (string) ( $attente['chapitres'][0]['apercu'] ?? $rapport['chapitres'][0]['apercu'] ) );
 				exit;
-			} elseif ( $attente && ( 'verifier' === $etape || null !== $rapport['import'] ) ) {
+			} elseif ( $attente && ( 'verifier' === $etape || null !== $rapport['import'] ) && ! $chapitres_mode ) {
 				$message = (string) $attente['message'];
+			} elseif ( $chapitres_mode && is_array( $rapport['comparaison'] ?? null ) ) {
+				$message = self::message_brouillon_chapitres( $rapport );
 			} else {
 				/* translators: 1: titre du tome, 2: nombre de chapitres */
 				$message = sprintf( _n( 'Brouillon enregistré : %1$s, %2$d chapitre.', 'Brouillon enregistré : %1$s, %2$d chapitres.', count( $rapport['chapitres'] ), 'yume-core' ), $rapport['tome']['titre'], count( $rapport['chapitres'] ) );
@@ -367,6 +449,135 @@ final class Formulaire {
 	 * @return array<int,string>
 	 */
 	private static function oeuvres(): array {
+		return self::liste_oeuvres();
+	}
+
+	/**
+	 * Aperçu du premier chapitre nouveau (ou mis à jour) d'une préparation en mode chapitres.
+	 *
+	 * @param array<string,mixed> $rapport Rapport de Service::preparer().
+	 */
+	private static function apercu_chapitres( array $rapport ): string {
+		foreach ( (array) ( $rapport['chapitres'] ?? array() ) as $chapitre ) {
+			if ( in_array( $chapitre['action'] ?? '', array( 'cree', 'maj' ), true ) && ! empty( $chapitre['apercu'] ) ) {
+				return (string) $chapitre['apercu'];
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Message d'un brouillon enregistré en mode chapitres (« Brouillon enregistré : … — 2 nouveaux
+	 * chapitres en brouillon, 3 chapitres en ligne inchangés. Rien n'a changé en ligne. »).
+	 *
+	 * @param array<string,mixed> $rapport Rapport de Service::preparer().
+	 */
+	public static function message_brouillon_chapitres( array $rapport ): string {
+		$c       = (array) $rapport['comparaison'];
+		$parties = array();
+		$nb      = (int) $c['nouveaux'] + (int) $c['brouillons'];
+		/* translators: %d : nombre de chapitres */
+		$parties[] = sprintf( _n( '%d nouveau chapitre en brouillon', '%d nouveaux chapitres en brouillon', $nb, 'yume-core' ), $nb );
+		$gardes    = (int) $c['identiques'] + (int) $c['modifies'] - (int) $c['a_mettre_a_jour'];
+		if ( $gardes > 0 ) {
+			/* translators: %d : nombre de chapitres */
+			$parties[] = sprintf( _n( '%d chapitre en ligne inchangé', '%d chapitres en ligne inchangés', $gardes, 'yume-core' ), $gardes );
+		}
+		if ( (int) $c['a_mettre_a_jour'] > 0 ) {
+			/* translators: %d : nombre de chapitres */
+			$parties[] = sprintf( _n( '%d chapitre en ligne à mettre à jour à la sortie (sans annonce)', '%d chapitres en ligne à mettre à jour à la sortie (sans annonce)', (int) $c['a_mettre_a_jour'], 'yume-core' ), (int) $c['a_mettre_a_jour'] );
+		}
+		if ( (int) $c['programmes'] > 0 ) {
+			/* translators: %d : nombre de chapitres */
+			$parties[] = sprintf( _n( '%d chapitre programmé mis à jour (date gardée)', '%d chapitres programmés mis à jour (dates gardées)', (int) $c['programmes'], 'yume-core' ), (int) $c['programmes'] );
+		}
+		return sprintf(
+			/* translators: 1: titre du tome, 2: bilan */
+			__( 'Brouillon enregistré : %1$s — %2$s. Rien n’a changé en ligne.', 'yume-core' ),
+			$rapport['tome']['titre'],
+			implode( ', ', $parties )
+		);
+	}
+
+	/**
+	 * Message de succès d'une sortie de chapitres (mode chapitres) : chapitres en ligne et
+	 * programmés, annonce, mises à jour, tome complet.
+	 *
+	 * @param array<string,mixed> $sortie Résultat de Service::publier().
+	 */
+	public static function message_chapitres( array $sortie ): string {
+		$en_ligne   = array();
+		$programmes = array();
+		foreach ( (array) ( $sortie['calendrier'] ?? array() ) as $ligne ) {
+			if ( 'publish' === $ligne['statut'] ) {
+				$en_ligne[] = $ligne;
+			} elseif ( 'future' === $ligne['statut'] ) {
+				$programmes[] = $ligne;
+			}
+		}
+		$phrases = array();
+		if ( ! $en_ligne && ! $programmes ) {
+			$phrases[] = sprintf(
+				/* translators: %s : titre du tome */
+				__( '%s : aucun nouveau chapitre à sortir.', 'yume-core' ),
+				$sortie['tome']['titre']
+			);
+		} else {
+			$parties = array();
+			if ( $en_ligne ) {
+				/* translators: %d : nombre de chapitres */
+				$parties[] = sprintf( _n( '%d chapitre en ligne', '%d chapitres en ligne', count( $en_ligne ), 'yume-core' ), count( $en_ligne ) );
+			}
+			if ( 1 === count( $programmes ) ) {
+				/* translators: 1: chapitre, 2: date */
+				$parties[] = sprintf( __( '%1$s programmé le %2$s', 'yume-core' ), $programmes[0]['libelle'], $programmes[0]['date_libelle'] );
+			} elseif ( $programmes ) {
+				$parties[] = sprintf(
+					/* translators: 1: nombre de chapitres, 2: première date, 3: dernière date */
+					__( '%1$d chapitres programmés, du %2$s au %3$s', 'yume-core' ),
+					count( $programmes ),
+					$programmes[0]['date_libelle'],
+					$programmes[ count( $programmes ) - 1 ]['date_libelle']
+				);
+			}
+			if ( ! empty( $sortie['sans_annonce'] ) ) {
+				$annonce = __( 'sans annonce (ni article, ni Discord, ni e-mail)', 'yume-core' );
+			} elseif ( ! $en_ligne ) {
+				$annonce = 'rythme' === ( $sortie['sortie'] ?? '' ) ? __( 'chaque chapitre sera annoncé à sa sortie', 'yume-core' ) : __( 'annonce à la sortie', 'yume-core' );
+			} else {
+				$annonce = __( 'annonce envoyée aux lecteurs qui suivent l’œuvre', 'yume-core' );
+			}
+			$phrases[] = sprintf(
+				/* translators: 1: titre du tome, 2: chapitres en ligne et programmés, 3: annonce */
+				__( '%1$s : %2$s ; %3$s.', 'yume-core' ),
+				$sortie['tome']['titre'],
+				implode( ', ', $parties ),
+				$annonce
+			);
+		}
+		$maj = is_array( $sortie['remplacement_applique'] ?? null ) ? (int) $sortie['remplacement_applique']['remplaces'] : 0;
+		if ( $maj > 0 ) {
+			/* translators: %d : nombre de chapitres */
+			$phrases[] = sprintf( _n( '%d chapitre en ligne mis à jour en place, sans annonce.', '%d chapitres en ligne mis à jour en place, sans annonce.', $maj, 'yume-core' ), $maj );
+		}
+		if ( 'fait' === ( $sortie['complet'] ?? '' ) ) {
+			$phrases[] = __( 'Le tome est complet : liens de téléchargement en ligne, planning à 100 %.', 'yume-core' );
+		} elseif ( 'programme' === ( $sortie['complet'] ?? '' ) && '' !== (string) $sortie['complet_le'] ) {
+			$phrases[] = sprintf(
+				/* translators: %s : date */
+				__( 'Le tome passera complet le %s, avec la sortie de son dernier chapitre.', 'yume-core' ),
+				self::date_fr( ( new \DateTimeImmutable( (string) $sortie['complet_le'] ) )->getTimestamp(), 'long' )
+			);
+		}
+		return implode( ' ', $phrases );
+	}
+
+	/**
+	 * Œuvres proposées (ID => libellé « Titre (LN) »).
+	 *
+	 * @return array<int,string>
+	 */
+	private static function liste_oeuvres(): array {
 		$posts  = get_posts(
 			array(
 				'post_type'        => 'yume_oeuvre',
@@ -418,6 +629,9 @@ final class Formulaire {
 			'couverture_id' => 0,
 			'sans_annonce'  => false,
 			'tome'          => null,
+			'sortie'        => 'maintenant',
+			'intervalle'    => Service::INTERVALLE_DEFAUT,
+			'complet'       => false,
 		);
 		$tome = isset( $_GET['tome'] ) ? get_post( absint( $_GET['tome'] ) ) : null;
 		// phpcs:enable
@@ -437,8 +651,15 @@ final class Formulaire {
 					'sans_annonce'  => Service::sans_annonce_par_defaut( $tome ),
 					'tome'          => $tome,
 					'meta'          => $meta,
+					// « Le tome est complet » demandé à la dernière préparation (brouillon).
+					'complet'       => ! empty( $meta['complet'] ),
 				)
 			);
+			foreach ( (array) ( $meta['liens'] ?? array() ) as $cle => $lien ) {
+				if ( in_array( $cle, array( 'lien_pdf', 'lien_epub' ), true ) && '' !== (string) $lien ) {
+					$v[ $cle ] = (string) $lien;
+				}
+			}
 		}
 		if ( $retour && ! empty( $retour['champs'] ) && is_array( $retour['champs'] ) ) {
 			foreach ( $retour['champs'] as $cle => $valeur ) {
@@ -448,9 +669,14 @@ final class Formulaire {
 			}
 		}
 		$v['sans_annonce'] = (bool) $v['sans_annonce'];
+		$v['complet']      = (bool) $v['complet'];
 		if ( '' === $v['nature'] || ! isset( yume_natures_tome()[ $v['nature'] ] ) ) {
 			$v['nature'] = 'tome';
 		}
+		if ( ! in_array( $v['sortie'], Service::SORTIES, true ) ) {
+			$v['sortie'] = 'maintenant';
+		}
+		$v['intervalle'] = max( 1, min( 60, (int) $v['intervalle'] ) );
 		return $v;
 	}
 
@@ -476,30 +702,36 @@ final class Formulaire {
 	}
 
 	/**
-	 * Tomes du planning proposés dans la liste « Tome du planning » : tomes non sortis
-	 * (brouillons, en attente, programmés) que l'utilisateur peut modifier, par œuvre puis
-	 * par numéro.
+	 * Tomes proposés dans la liste « Tome » du formulaire « Ajouter des chapitres » : TOUS les
+	 * tomes (brouillons, programmés, publiés) que le compte peut modifier, par œuvre puis par
+	 * numéro, avec leur parution (« Tome 2 · en cours · 3 chapitres en ligne »).
 	 *
-	 * @param int $inclure Tome à proposer quel que soit son statut (tome ouvert par ?tome=ID).
-	 * @return array<int,array<string,mixed>> Liste de {id, oeuvre_id, libelle, nature, numero, titre, date_sortie, programme, publie}.
+	 * @param int $inclure Tome à proposer même s'il manque à la liste (tome ouvert par ?tome=ID).
+	 * @return array<int,array<string,mixed>> Liste de {id, oeuvre_id, libelle, nature, numero,
+	 *                                        titre, date_sortie, programme, publie, parution,
+	 *                                        parution_libelle, en_ligne, prevus, rythme,
+	 *                                        sans_annonce, lien}.
 	 */
-	public static function tomes_planning( int $inclure = 0 ): array {
+	public static function tomes_formulaire( int $inclure = 0 ): array {
 		$posts  = get_posts(
 			array(
-				'post_type'        => 'yume_tome',
-				'post_status'      => array( 'draft', 'pending', 'future' ),
-				'posts_per_page'   => 300, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- tomes en préparation (quelques dizaines).
-				'orderby'          => 'menu_order',
-				'order'            => 'ASC',
-				'no_found_rows'    => true,
-				'suppress_filters' => true,
+				'post_type'              => 'yume_tome',
+				'post_status'            => array( 'draft', 'pending', 'future', 'publish', 'private' ),
+				'posts_per_page'         => 3000, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- tous les tomes du catalogue (quelques centaines).
+				'orderby'                => 'menu_order',
+				'order'                  => 'ASC',
+				'no_found_rows'          => true,
+				'suppress_filters'       => true,
+				'update_post_term_cache' => false,
 			)
 		);
+		$ids    = array_map( 'intval', wp_list_pluck( $posts, 'ID' ) );
 		$ouvert = $inclure ? get_post( $inclure ) : null;
-		if ( $ouvert instanceof \WP_Post && 'yume_tome' === $ouvert->post_type && ! in_array( $ouvert->post_status, array( 'draft', 'pending', 'future', 'trash', 'auto-draft' ), true ) ) {
+		if ( $ouvert instanceof \WP_Post && 'yume_tome' === $ouvert->post_type && ! in_array( (int) $ouvert->ID, $ids, true ) && ! in_array( $ouvert->post_status, array( 'trash', 'auto-draft' ), true ) ) {
 			$posts[] = $ouvert;
 		}
-		$liste = array();
+		$parutions = yume_parutions();
+		$liste     = array();
 		foreach ( $posts as $tome ) {
 			if ( ! current_user_can( 'edit_post', $tome->ID ) ) {
 				continue;
@@ -508,22 +740,33 @@ final class Formulaire {
 			if ( ! $valeurs['oeuvre_id'] ) {
 				continue;
 			}
-			$libelle = yume_libelle_tome( (int) $tome->ID );
+			$parution = yume_parution_tome( (int) $tome->ID );
+			// Chapitres en ligne : cache yume_nb_chapitres (core), sinon le compte.
+			$en_ligne = metadata_exists( 'post', $tome->ID, 'yume_nb_chapitres' ) ? (int) get_post_meta( $tome->ID, 'yume_nb_chapitres', true ) : count( yume_get_chapitres( (int) $tome->ID ) );
+			$morceaux = array( yume_libelle_tome( (int) $tome->ID ), mb_strtolower( (string) ( $parutions[ $parution ] ?? $parution ) ) );
 			if ( 'future' === $tome->post_status ) {
-				/* translators: 1: libellé du tome, 2: date */
-				$libelle = sprintf( __( '%1$s · programmé le %2$s', 'yume-core' ), $libelle, self::date_fr( (int) strtotime( $tome->post_date_gmt . ' UTC' ) ) );
-			} elseif ( 'publish' === $tome->post_status ) {
-				/* translators: %s : libellé du tome */
-				$libelle = sprintf( __( '%s · en ligne', 'yume-core' ), $libelle );
+				/* translators: %s : date */
+				$morceaux[] = sprintf( __( 'programmé le %s', 'yume-core' ), self::date_fr( (int) strtotime( $tome->post_date_gmt . ' UTC' ) ) );
+			}
+			if ( $en_ligne > 0 ) {
+				/* translators: %d : nombre de chapitres en ligne */
+				$morceaux[] = sprintf( _n( '%d chapitre en ligne', '%d chapitres en ligne', $en_ligne, 'yume-core' ), $en_ligne );
 			}
 			$liste[] = array_merge(
 				$valeurs,
 				array(
-					'id'        => (int) $tome->ID,
-					'libelle'   => $libelle,
-					'programme' => 'future' === $tome->post_status,
-					'publie'    => 'publish' === $tome->post_status,
-					'tri'       => (float) get_post_meta( $tome->ID, 'yume_numero', true ),
+					'id'               => (int) $tome->ID,
+					'libelle'          => implode( ' · ', $morceaux ),
+					'programme'        => 'future' === $tome->post_status,
+					'publie'           => 'publish' === $tome->post_status,
+					'parution'         => $parution,
+					'parution_libelle' => (string) ( $parutions[ $parution ] ?? $parution ),
+					'en_ligne'         => $en_ligne,
+					'prevus'           => (int) get_post_meta( $tome->ID, 'yume_chapitres_prevus', true ),
+					'rythme'           => Service::rythme_texte( (int) $tome->ID ),
+					'sans_annonce'     => Service::sans_annonce_par_defaut( $tome ),
+					'lien'             => 'publish' === $tome->post_status ? (string) get_permalink( $tome ) : '',
+					'tri'              => (float) get_post_meta( $tome->ID, 'yume_numero', true ),
 				)
 			);
 		}
@@ -656,11 +899,11 @@ final class Formulaire {
 			$connexion = function_exists( 'yume_url_page' ) ? yume_url_page( 'connexion' ) : wp_login_url();
 			$retour    = '' !== self::url_page() ? self::url_page() : home_url( '/' );
 			$lien      = str_contains( $connexion, 'wp-login.php' ) ? wp_login_url( $retour ) : add_query_arg( 'redirect_to', rawurlencode( $retour ), $connexion );
-			return '<div ' . $enveloppe . '><div class="yn-card yn-publish__acces"><h2>' . esc_html__( 'Publier un tome', 'yume-core' ) . '</h2><p>' . esc_html__( 'Cet espace est réservé à l’équipe Yume Novel. Connectez-vous pour publier un tome.', 'yume-core' ) . '</p><p><a class="yn-btn yn-btn--primary" href="' . esc_url( $lien ) . '">' . esc_html__( 'Se connecter', 'yume-core' ) . '</a></p></div></div>';
+			return '<div ' . $enveloppe . '><div class="yn-card yn-publish__acces"><h2>' . esc_html__( 'Ajouter des chapitres à un tome', 'yume-core' ) . '</h2><p>' . esc_html__( 'Cet espace est réservé à l’équipe Yume Novel. Connectez-vous pour ajouter des chapitres à un tome.', 'yume-core' ) . '</p><p><a class="yn-btn yn-btn--primary" href="' . esc_url( $lien ) . '">' . esc_html__( 'Se connecter', 'yume-core' ) . '</a></p></div></div>';
 		}
 		if ( ! current_user_can( 'yume_publier' ) ) {
 			$equipe = function_exists( 'yume_url_page' ) ? yume_url_page( 'equipe' ) : home_url( '/' );
-			return '<div ' . $enveloppe . '><div class="yn-card yn-publish__acces" role="alert"><h2>' . esc_html__( 'Accès réservé aux éditeurs', 'yume-core' ) . '</h2><p>' . esc_html__( 'Votre compte n’a pas le droit de publier un tome : seuls les rôles « Éditeur Yume » et « Gérant » le peuvent. Demandez à un gérant si vous devez publier.', 'yume-core' ) . '</p>'
+			return '<div ' . $enveloppe . '><div class="yn-card yn-publish__acces" role="alert"><h2>' . esc_html__( 'Accès réservé aux éditeurs', 'yume-core' ) . '</h2><p>' . esc_html__( 'Votre compte n’a pas le droit de publier des chapitres : seuls les rôles « Éditeur Yume » et « Gérant » le peuvent. Demandez à un gérant si vous devez publier.', 'yume-core' ) . '</p>'
 				. ( current_user_can( 'yume_voir_equipe' ) ? '<p><a class="yn-btn" href="' . esc_url( $equipe ) . '">' . esc_html__( 'Retour à l’espace équipe', 'yume-core' ) . '</a></p>' : '' ) . '</div></div>';
 		}
 

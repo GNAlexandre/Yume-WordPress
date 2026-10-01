@@ -25,6 +25,12 @@
  * Tome non publié, ou publié sans chapitre en ligne : pas de préparation séparée, les chapitres
  * sont créés ou mis à jour directement (comportement de Service::preparer()).
  *
+ * Ajout de chapitres (Service::MODE_CHAPITRES) : pas de remplacement en deux temps ; seuls les
+ * chapitres en ligne que l'équipe choisit de « Mettre à jour (sans annonce) » deviennent des
+ * versions en attente (état mode = chapitres), appliquées par la sortie suivante (Service::publier()
+ * en mode chapitres), sans encadré « Remplacer la lecture en ligne ». Un remplacement complet en
+ * attente n'est jamais appliqué par une sortie en mode chapitres.
+ *
  * @package Yume\Core
  */
 
@@ -293,6 +299,7 @@ final class Remplacement {
 				delete_post_meta( $vid, self::META_DE );
 				delete_post_meta( $vid, self::META_ACTION );
 				delete_post_meta( $vid, self::META_MEDIAS );
+				Service::noter_empreinte( $vid );
 				self::rattacher( $medias, $vid );
 				$traites[ $vid ] = true;
 				++$stats['nouveaux'];
@@ -332,6 +339,7 @@ final class Remplacement {
 				delete_post_meta( $cible, 'yume_numero' );
 			}
 			delete_post_meta( $cible, Service::META_RETIRE );
+			Service::noter_empreinte( $cible );
 			self::rattacher( $medias, $cible );
 			wp_delete_post( $vid, true );
 			$traites[ $cible ] = true;
@@ -545,6 +553,16 @@ final class Remplacement {
 			__( 'Vérification terminée, rien n’a changé en ligne : %s. Contrôlez les aperçus, puis cliquez sur « Remplacer la lecture en ligne maintenant » (ou « Annuler le remplacement »).', 'yume-core' ),
 			$resultat['bilan']
 		);
+		// Ajout de chapitres (Service::MODE_CHAPITRES) : seules les mises à jour choisies attendent.
+		$resultat['mode'] = Service::MODE_CHAPITRES === ( $etat['mode'] ?? '' ) ? Service::MODE_CHAPITRES : Service::MODE_REMPLACEMENT;
+		if ( Service::MODE_CHAPITRES === $resultat['mode'] ) {
+			$nb                  = (int) $resultat['remplaces'] + (int) $resultat['inchanges'];
+			$resultat['message'] = sprintf(
+				/* translators: %d : nombre de chapitres en ligne à mettre à jour */
+				_n( '%d chapitre en ligne sera mis à jour à la sortie, sans annonce ; rien n’a changé en ligne pour l’instant.', '%d chapitres en ligne seront mis à jour à la sortie, sans annonce ; rien n’a changé en ligne pour l’instant.', $nb, 'yume-core' ),
+				$nb
+			);
+		}
 		return $resultat;
 	}
 

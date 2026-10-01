@@ -15,7 +15,11 @@
  *                   seulement à la sortie, annulable, nettoyé après 7 jours ;
  * - Rest          : POST /yume/v1/publications/analyse, /publications, /publications/{id}/publier,
  *                   DELETE /publications/{id}/remplacement ;
- * - Formulaire    : bloc yume/publish-form, envoi sans JavaScript (admin-post.php), menu d'administration.
+ * - Formulaire    : bloc yume/publish-form (« Ajouter des chapitres à un tome » : tome choisi,
+ *                   fichier comparé au tome, sortie maintenant / au rythme / à une date, tome
+ *                   complet), envoi sans JavaScript (admin-post.php), menu d'administration ;
+ * - publication chapitre par chapitre : Service (mode « chapitres »), passage « complet » programmé
+ *                   (tâche cron yume_publication_tome_complet), action yume_tome_complet.
  *
  * Au chargement, le module n'appelle aucun autre module : il accroche ses hooks.
  *
@@ -49,4 +53,5 @@ add_action( 'admin_menu', array( Formulaire::class, 'menu' ), 20 );
 add_action( 'admin_post_yume_publication', array( Formulaire::class, 'traiter' ) );
 add_action( 'admin_post_nopriv_yume_publication', array( Formulaire::class, 'traiter_anonyme' ) );
 add_action( Service::HOOK_GROUPE, array( Service::class, 'sortie_groupee_programmee' ), 10, 2 );
+add_action( Service::HOOK_COMPLET, array( Service::class, 'complet_programme' ) );
 add_action( 'transition_post_status', array( Annonce::class, 'suivre_tome' ), 10, 3 );
