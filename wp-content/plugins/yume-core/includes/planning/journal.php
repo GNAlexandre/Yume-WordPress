@@ -32,7 +32,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre' );
 }
 
 /**
@@ -438,6 +438,10 @@ function texte_changement( $ligne, bool $equipe ): string {
 			$manquant = array_filter( array_map( __NAMESPACE__ . '\\libelle_role_manquant', (array) ( $infos['manquants'] ?? array() ) ) );
 			/* translators: %s : rôles manquants */
 			return sprintf( __( 'signalé aux gérants : %s', 'yume-core' ), $manquant ? implode( ', ', $manquant ) : __( 'tome bloqué', 'yume-core' ) );
+
+		case 'etat_oeuvre':
+			// Changement d'état d'une œuvre (oeuvres-etat.php) : équipe seulement.
+			return $equipe ? texte_etat_oeuvre_journal( is_array( $nouveau ) ? $nouveau : array() ) : '';
 
 		case 'glossaire':
 			// Module glossaire (import d'un glossaire d'œuvre) : équipe seulement.

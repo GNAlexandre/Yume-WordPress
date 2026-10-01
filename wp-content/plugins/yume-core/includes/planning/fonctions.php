@@ -60,6 +60,12 @@ const ETAPES_TRAVAIL = array( 'traduction', 'relecture', 'edition' );
 /** Nombre maximal de tentatives d'envoi d'un e-mail. */
 const TENTATIVES_MAX = 3;
 
+/**
+ * États d'œuvre (slugs yume_statut) où le planning ne relance personne : mêmes états que
+ * yume_oeuvre_sans_rappels() (en pause, abandonnée, licenciée, terminée).
+ */
+const ETATS_OEUVRE_SANS_RAPPELS = array( 'en-pause', 'abandonnee', 'licenciee', 'terminee' );
+
 /*
  * -----------------------------------------------------------------------------
  * Tables
@@ -886,4 +892,58 @@ function est_apercu_editeur(): bool {
 	}
 	$uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	return str_contains( rawurldecode( $uri ), '/wp/v2/block-renderer/' );
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * État de l'œuvre et rappels (lot E)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Slugs des états (termes yume_statut) d'une œuvre, lus par get_the_terms() : le cache des
+ * termes sert, donc au plus une requête par œuvre et non une par tome (yume_oeuvre_sans_rappels()
+ * interroge la base à chaque appel).
+ *
+ * @param int $oeuvre_id Œuvre.
+ * @return string[]
+ */
+function etats_termes_oeuvre( int $oeuvre_id ): array {
+	if ( $oeuvre_id <= 0 || ! taxonomy_exists( 'yume_statut' ) ) {
+		return array();
+	}
+	$termes = get_the_terms( $oeuvre_id, 'yume_statut' );
+	return is_array( $termes ) ? array_values( array_map( 'strval', wp_list_pluck( $termes, 'slug' ) ) ) : array();
+}
+
+/**
+ * État d'une œuvre (slug du terme yume_statut, le premier s'il y en a plusieurs), ou chaîne
+ * vide.
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function etat_oeuvre( int $oeuvre_id ): string {
+	$etats = etats_termes_oeuvre( $oeuvre_id );
+	return $etats ? $etats[0] : '';
+}
+
+/**
+ * L'œuvre est-elle dans un état où le planning ne relance personne (en pause, terminée,
+ * abandonnée, licenciée) ? Même règle que yume_oeuvre_sans_rappels(), lue par le cache des
+ * termes.
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function oeuvre_sans_rappels( int $oeuvre_id ): bool {
+	return (bool) array_intersect( etats_termes_oeuvre( $oeuvre_id ), ETATS_OEUVRE_SANS_RAPPELS );
+}
+
+/**
+ * Le tome est-il hors des rappels et des alertes du planning : tome en pause (yume_pause), ou
+ * tome d'une œuvre en pause, terminée, abandonnée ou licenciée ?
+ *
+ * @param int $tome_id Tome.
+ */
+function tome_sans_rappels( int $tome_id ): bool {
+	return est_en_pause( $tome_id ) || oeuvre_sans_rappels( (int) yume_get_oeuvre_id( $tome_id ) );
 }

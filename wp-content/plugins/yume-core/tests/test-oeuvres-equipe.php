@@ -316,7 +316,7 @@ yume_toe_test(
 			array(),
 			$editeur
 		);
-		yume_assert_contains( 'Statut de la traduction inconnu', $statut['message'] );
+		yume_assert_contains( 'État de l’œuvre inconnu', $statut['message'] );
 		$nonce = traiter_formulaire_oeuvre(
 			wp_slash(
 				array(
@@ -401,8 +401,8 @@ yume_toe_test(
 		yume_assert_contains( 'Message de création', $html );
 		yume_assert_contains( 'Web novel', $html );
 		yume_assert_contains( 'name="action" value="yume_oeuvre_publier"', $html );
-		yume_assert_contains( 'name="oeuvre_id" value="' . $brouillon . '"', $html );
-		yume_assert_not_contains( 'name="oeuvre_id" value="' . $publiee . '"', $html, 'pas de « Publier » pour une œuvre publiée' );
+		yume_assert_contains( 'value="yume_oeuvre_publier"><input type="hidden" name="oeuvre_id" value="' . $brouillon . '"', $html );
+		yume_assert_not_contains( 'value="yume_oeuvre_publier"><input type="hidden" name="oeuvre_id" value="' . $publiee . '"', $html, 'pas de « Publier » pour une œuvre publiée' );
 		yume_assert_contains( esc_url( (string) get_permalink( $publiee ) ), $html );
 		yume_assert_contains( '>Modifier<', $html );
 		yume_assert_contains( esc_url( url_vue_equipe( 'oeuvres', array( 'modifier' => $brouillon ) ) ), $html );

@@ -62,6 +62,20 @@ function oeuvre_arretee( int $oeuvre_id ): bool {
 }
 
 /**
+ * Un tome d'une œuvre en pause, terminée, abandonnée ou licenciée n'est jamais « en retard »
+ * (yume_planning_etat), comme un tome en pause (etat_hors_pause()) : il sort des retards du
+ * tableau de bord, de « Mes tâches », des indicateurs, du planning, des rappels et du
+ * récapitulatif. Bloqué et publié restent inchangés.
+ *
+ * @param string $etat    État calculé.
+ * @param int    $tome_id Tome.
+ */
+function etat_hors_oeuvre_sans_rappels( $etat, $tome_id = 0 ) {
+	return 'en_retard' === $etat && oeuvre_sans_rappels( (int) yume_get_oeuvre_id( (int) $tome_id ) ) ? 'a_lheure' : $etat;
+}
+add_filter( 'yume_planning_etat', __NAMESPACE__ . '\\etat_hors_oeuvre_sans_rappels', 5, 2 );
+
+/**
  * Ligne complète (usage interne et équipe) du planning d'un tome.
  *
  * @param int $tome_id Tome.
