@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.6 — 2026-10-01
+
+- Guide de l'équipe en Word (docs/guide-equipe) : procédures illustrées, généré depuis procedures.md par tools/guide, vérifié en CI.
+
 ## 2.1.5-dev.5 — 2026-10-01
 
 - États : libellés équipe d’un tome (Planifié, En cours de publication, Publié) et d’une œuvre, œuvres sans rappels de planning (socle).
