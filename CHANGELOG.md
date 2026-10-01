@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.3 — 2026-10-01
+
+- Tomes : parution (à paraître, en cours, complet), chapitres prévus et rythme de sortie (socle de la publication chapitre par chapitre).
+
 ## 2.1.5-dev.2 — 2026-10-01
 
 - Import : les descriptions d’image générées par Word (« Une image contenant… », « Le contenu généré par l’IA peut être incorrect ») ne sont plus reprises comme texte alternatif ni comme titre des illustrations ; avertissement à l’import.

@@ -632,3 +632,104 @@ function yume_est_page_illustrations(): bool {
 function yume_url_illustrations_avant( int $chapitre_id ): string {
 	return url_illustrations_avant( $chapitre_id );
 }
+
+/**
+ * Parution d'un tome (publication chapitre par chapitre) :
+ *
+ * - « a_paraitre » : aucun chapitre lisible (tome en brouillon, programmé ou en attente) ;
+ * - « en_cours » : tome en ligne dont des chapitres restent à sortir (méta yume_parution =
+ *   en_cours, posée à la publication d'un chapitre sans « Tome complet ») ;
+ * - « complet » : méta yume_parution = complet (case « Tome complet »), ou tome en ligne
+ *   antérieur à cette méta qui n'est pas une sortie progressive en cours.
+ *
+ * Tomes antérieurs (méta vide) : un arc, un recueil « Chapitres » ou un tome de web novel en
+ * ligne reste « en_cours » tant que des chapitres sont programmés ou en brouillon, ou que son
+ * étape de planning n'est pas « publié » (règle historique de la bibliothèque) ; tout autre tome
+ * en ligne est « complet ».
+ *
+ * @param int $tome_id Tome.
+ * @return string a_paraitre | en_cours | complet
+ */
+function yume_parution_tome( int $tome_id ): string {
+	$tome_id = yume_get_tome_id( $tome_id );
+	if ( ! $tome_id ) {
+		return 'a_paraitre';
+	}
+	$meta = (string) get_post_meta( $tome_id, 'yume_parution', true );
+	if ( 'publish' !== get_post_status( $tome_id ) ) {
+		$etat = 'complet' === $meta ? 'complet' : 'a_paraitre';
+	} elseif ( 'complet' === $meta || 'en_cours' === $meta ) {
+		$etat = $meta;
+	} else {
+		$etat = yume_parution_historique( $tome_id );
+	}
+	/**
+	 * Filtre la parution d'un tome.
+	 *
+	 * @param string $etat    a_paraitre | en_cours | complet.
+	 * @param int    $tome_id Tome.
+	 */
+	return (string) apply_filters( 'yume_parution_tome', $etat, $tome_id );
+}
+
+/**
+ * Parution d'un tome en ligne sans méta yume_parution (tomes antérieurs) : voir
+ * yume_parution_tome().
+ *
+ * @param int $tome_id Tome publié.
+ * @return string en_cours | complet
+ */
+function yume_parution_historique( int $tome_id ): string {
+	$nature      = (string) get_post_meta( $tome_id, 'yume_nature', true );
+	$oeuvre_id   = yume_get_oeuvre_id( $tome_id );
+	$progressive = in_array( $nature, array( 'arc', 'chapitres' ), true ) || ( $oeuvre_id > 0 && has_term( 'web-novel', 'yume_type', $oeuvre_id ) );
+	if ( ! $progressive ) {
+		return 'complet';
+	}
+	$etape = (string) get_post_meta( $tome_id, 'yume_etape', true );
+	if ( '' !== $etape && 'publie' !== $etape ) {
+		return 'en_cours';
+	}
+	return yume_get_chapitres( $tome_id, array( 'status' => array( 'future', 'draft', 'pending' ) ) ) ? 'en_cours' : 'complet';
+}
+
+/**
+ * Libellés des parutions (clé => libellé).
+ *
+ * @return array<string,string>
+ */
+function yume_parutions(): array {
+	return array(
+		'a_paraitre' => __( 'À paraître', 'yume-core' ),
+		'en_cours'   => __( 'En cours', 'yume-core' ),
+		'complet'    => __( 'Complet', 'yume-core' ),
+	);
+}
+
+/**
+ * Prochaine date de sortie selon le rythme du tome (méta yume_rythme), strictement après
+ * $apres (défaut : maintenant), dans le fuseau du site ; null si le tome n'a pas de rythme.
+ *
+ * @param int                     $tome_id Tome.
+ * @param \DateTimeImmutable|null $apres   Référence.
+ */
+function yume_prochaine_sortie_rythme( int $tome_id, ?\DateTimeImmutable $apres = null ): ?\DateTimeImmutable {
+	$rythme = get_post_meta( $tome_id, 'yume_rythme', true );
+	if ( ! is_array( $rythme ) || empty( $rythme['jour'] ) ) {
+		return null;
+	}
+	$jours = array_keys( yume_jours_semaine() );
+	$rang  = array_search( (string) $rythme['jour'], $jours, true );
+	if ( false === $rang ) {
+		return null;
+	}
+	$heure = preg_match( '/^(\d{2}):(\d{2})$/', (string) ( $rythme['heure'] ?? '' ), $m ) ? array( (int) $m[1], (int) $m[2] ) : array( 18, 0 );
+	$apres = ( $apres ?? new \DateTimeImmutable( 'now', wp_timezone() ) )->setTimezone( wp_timezone() );
+	$date  = $apres->setTime( $heure[0], $heure[1] );
+	$ecart = ( (int) $rang + 1 - (int) $date->format( 'N' ) + 7 ) % 7;
+	$date  = $date->modify( '+' . $ecart . ' days' );
+	if ( $date <= $apres ) {
+		$date = $date->modify( '+7 days' );
+	}
+	return $date;
+}
