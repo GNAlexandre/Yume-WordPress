@@ -29,7 +29,7 @@ const PREFIXE_CACHE = 'yume_bib_';
  * Format des données en cache : à changer quand leur calcul change (les transients d'une
  * version précédente du code ne sont alors plus lus).
  */
-const FORMAT_CACHE = '2';
+const FORMAT_CACHE = '3';
 
 /** Statuts des chapitres lus par les statistiques d'un tome (publiés et à venir). */
 const STATUTS_STATS = array( 'publish', 'future', 'draft', 'pending' );
@@ -196,14 +196,15 @@ function invalider_transition( $nouveau, $ancien, $post ): void {
 add_action( 'transition_post_status', __NAMESPACE__ . '\\invalider_transition', 20, 3 );
 
 /**
- * Métadonnées qui changent les listes (rattachements, numéros, natures, caches de core).
+ * Métadonnées qui changent les listes (rattachements, numéros, natures, caches de core) ou les
+ * statistiques des tomes (étape, parution, chapitres prévus, rythme de sortie).
  *
  * @param int|int[] $meta_id   ID(s) de la métadonnée.
  * @param int       $object_id ID du contenu.
  * @param string    $meta_key  Clé.
  */
 function invalider_meta( $meta_id, $object_id, $meta_key ): void {
-	$cles = array( 'yume_oeuvre_id', 'yume_tome_id', 'yume_numero', 'yume_nature', 'yume_derniere_sortie', 'yume_nb_chapitres', 'yume_nb_mots', 'yume_temps_lecture', 'yume_etape', '_yume_publication' );
+	$cles = array( 'yume_oeuvre_id', 'yume_tome_id', 'yume_numero', 'yume_nature', 'yume_derniere_sortie', 'yume_nb_chapitres', 'yume_nb_mots', 'yume_temps_lecture', 'yume_etape', 'yume_parution', 'yume_chapitres_prevus', 'yume_rythme', '_yume_publication' );
 	if ( in_array( $meta_key, $cles, true ) && est_contenu_yume( (int) $object_id ) ) {
 		invalider();
 	}
@@ -491,7 +492,8 @@ function compter_groupe_statuts( array $oeuvres, array $filtres, array $statuts 
  */
 
 /**
- * Le tome sort-il chapitre par chapitre (arc, recueil de chapitres, ou œuvre web novel) ?
+ * Le tome sort-il chapitre par chapitre selon la règle historique (arc, recueil de chapitres, ou
+ * œuvre web novel) ? Ne dit pas s'il est « en cours » : voir parution_tome().
  *
  * @param int $tome_id ID du tome.
  */
@@ -505,12 +507,47 @@ function sortie_progressive( int $tome_id ): bool {
 }
 
 /**
+ * Le tome sort-il (ou est-il sorti) chapitre par chapitre ? Règle historique (sortie_progressive())
+ * ou parution posée par l'équipe (méta yume_parution : publication au fil de l'eau) : ses
+ * chapitres à venir sont lus, et sa sortie est datée de son dernier chapitre publié.
+ *
+ * @param int $tome_id ID du tome.
+ */
+function sortie_par_chapitres( int $tome_id ): bool {
+	return '' !== (string) get_post_meta( $tome_id, 'yume_parution', true ) || sortie_progressive( $tome_id );
+}
+
+/**
+ * Parution d'un tome (a_paraitre, en_cours, complet) : yume_parution_tome() du module core, seule
+ * source de vérité ; à défaut (module core absent), la règle historique.
+ *
+ * @param int $tome_id ID du tome.
+ * @param int $a_venir Chapitres programmés, en brouillon ou en attente (règle historique).
+ */
+function parution_tome( int $tome_id, int $a_venir = 0 ): string {
+	if ( function_exists( 'yume_parution_tome' ) ) {
+		return yume_parution_tome( $tome_id );
+	}
+	if ( 'publish' !== get_post_status( $tome_id ) ) {
+		return 'a_paraitre';
+	}
+	$etape = (string) get_post_meta( $tome_id, 'yume_etape', true );
+	return sortie_progressive( $tome_id ) && ( $a_venir > 0 || ( '' !== $etape && 'publie' !== $etape ) ) ? 'en_cours' : 'complet';
+}
+
+/**
  * Statistiques d'un tome, calculées sans cache.
  *
  * @param int             $tome_id   ID du tome.
  * @param \WP_Post[]|null $chapitres Chapitres du tome (publiés, programmés, brouillons, en attente)
  *                                   dans l'ordre de yume_get_chapitres(), s'ils sont déjà chargés.
- * @return array{chapitres:int,speciaux:array<string,int>,publies:int,mots:int,minutes:int,premier:int,dernier:int,dernier_ts:int,a_venir:int,en_cours:bool}
+ *
+ * Clés : chapitres (chapitres ordinaires publiés), speciaux (nature => nombre), publies (tous les
+ * chapitres publiés), mots, minutes, premier et dernier (chapitres publiés), dernier_ts, a_venir
+ * (chapitres programmés, en brouillon ou en attente), prochain (horodatage du prochain chapitre
+ * programmé, 0 si aucun), parution (parution_tome()) et en_cours (parution « en_cours »).
+ *
+ * @return array{chapitres:int,speciaux:array<string,int>,publies:int,mots:int,minutes:int,premier:int,dernier:int,dernier_ts:int,a_venir:int,prochain:int,parution:string,en_cours:bool}
  */
 function calculer_stats_tome( int $tome_id, ?array $chapitres = null ): array {
 	$stats = array(
@@ -523,6 +560,8 @@ function calculer_stats_tome( int $tome_id, ?array $chapitres = null ): array {
 		'dernier'    => 0,
 		'dernier_ts' => 0,
 		'a_venir'    => 0,
+		'prochain'   => 0,
+		'parution'   => 'a_paraitre',
 		'en_cours'   => false,
 	);
 	if ( $tome_id <= 0 || ( null === $chapitres && ! function_exists( 'yume_get_chapitres' ) ) ) {
@@ -534,6 +573,10 @@ function calculer_stats_tome( int $tome_id, ?array $chapitres = null ): array {
 	foreach ( $chapitres as $chapitre ) {
 		if ( 'publish' !== $chapitre->post_status ) {
 			++$stats['a_venir'];
+			if ( 'future' === $chapitre->post_status ) {
+				$ts                = horodatage( $chapitre );
+				$stats['prochain'] = $stats['prochain'] ? min( $stats['prochain'], $ts ) : $ts;
+			}
 			continue;
 		}
 		$id     = (int) $chapitre->ID;
@@ -552,8 +595,8 @@ function calculer_stats_tome( int $tome_id, ?array $chapitres = null ): array {
 		$stats['dernier']    = $id;
 		$stats['dernier_ts'] = max( $stats['dernier_ts'], horodatage( $chapitre ) );
 	}
-	$etape             = (string) get_post_meta( $tome_id, 'yume_etape', true );
-	$stats['en_cours'] = sortie_progressive( $tome_id ) && ( $stats['a_venir'] > 0 || ( '' !== $etape && 'publie' !== $etape ) );
+	$stats['parution'] = parution_tome( $tome_id, $stats['a_venir'] );
+	$stats['en_cours'] = 'en_cours' === $stats['parution'];
 	return $stats;
 }
 
@@ -652,11 +695,11 @@ function stats_oeuvre( int $oeuvre_id ): array {
 			$tomes = yume_get_tomes( $oeuvre_id );
 			// Chapitres de tous les tomes en une requête (au lieu d'une par tome) ; un tome dont
 			// le cache yume_nb_chapitres vaut 0 et qui ne sort pas chapitre par chapitre n'a rien
-			// à compter (ses chapitres non publiés ne servent qu'au badge « En cours »).
+			// à compter (ses chapitres non publiés ne servent qu'aux tomes en cours).
 			$a_lire = array();
 			foreach ( $tomes as $tome ) {
 				$id = (int) $tome->ID;
-				if ( ! metadata_exists( 'post', $id, 'yume_nb_chapitres' ) || nb_chapitres_tome( $id ) > 0 || sortie_progressive( $id ) ) {
+				if ( ! metadata_exists( 'post', $id, 'yume_nb_chapitres' ) || nb_chapitres_tome( $id ) > 0 || sortie_par_chapitres( $id ) ) {
 					$a_lire[] = $id;
 				}
 			}
@@ -695,8 +738,9 @@ function stats_tome( int $tome_id ): array {
 /**
  * Dernières sorties : une entrée par tome (le plus récent d'abord). La date d'un tome publié
  * d'un coup est celle de sa sortie (date_sortie_tome() : date du tome, ou de la mise en
- * lecture en ligne d'un tome déjà publié) ; celle d'un arc ou d'un tome de web novel publié
- * chapitre par chapitre est celle de son dernier chapitre publié.
+ * lecture en ligne d'un tome déjà publié) ; celle d'un tome publié chapitre par chapitre (arc,
+ * tome de web novel, ou tome dont la parution est posée : sortie_par_chapitres()) est celle de
+ * son dernier chapitre publié.
  *
  * @param int $nombre Nombre d'entrées.
  * @return array<int,array{tome:int,ts:int,oeuvre:int,stats:array}>
@@ -808,7 +852,7 @@ function calculer_dernieres_sorties( int $nombre ): array {
 			continue;
 		}
 		$ts = date_sortie_tome( $tome );
-		if ( sortie_progressive( $tome_id ) ) {
+		if ( sortie_par_chapitres( $tome_id ) ) {
 			$stats = stats_tome( $tome_id );
 			$ts    = max( $ts, (int) $stats['dernier_ts'] );
 		}

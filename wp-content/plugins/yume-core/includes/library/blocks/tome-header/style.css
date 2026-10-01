@@ -89,6 +89,18 @@
 	font-size: 14px;
 }
 
+/* Tome en cours : rythme de sortie et téléchargement à venir. */
+.yn-tome-header__rythme {
+	color: var(--wp--preset--color--texte);
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.yn-tome-header__telechargement {
+	max-width: 720px;
+	font-size: 14px;
+}
+
 .yn-tome-header__equivalence {
 	max-width: 720px;
 	color: var(--wp--preset--color--texte);
