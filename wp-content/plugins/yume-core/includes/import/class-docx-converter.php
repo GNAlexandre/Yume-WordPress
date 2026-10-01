@@ -17,7 +17,8 @@
  * - notes de bas de page et de fin → appels + liste yn-notes en fin de chapitre ;
  * - images JPG/PNG/WebP/GIF conservées (jeton) ; EMF/WMF/EMZ/WMZ converties en PNG quand elles
  *   portent une image bitmap (Metafichier), sinon ignorées et signalées avec leur raison ;
- *   images placées avant le premier chapitre → galerie du tome (front_images) ;
+ *   images placées avant le premier chapitre → galerie du tome (front_images) ; texte de
+ *   remplacement repris sauf s'il est généré par Word (Texte::alt_automatique()) ;
  * - sauts de page et de section relevés (débuts de chapitre possibles du découpage manuel),
  *   en-têtes et pieds de page, zones de texte ignorés.
  *
@@ -154,11 +155,12 @@ final class Docx_Converter {
 	 * @var array<string,int>
 	 */
 	private array $compteurs = array(
-		'sauts_de_page'   => 0,
-		'sections'        => 0,
-		'zones_de_texte'  => 0,
-		'images_ignorees' => 0,
-		'objets'          => 0,
+		'sauts_de_page'    => 0,
+		'sections'         => 0,
+		'zones_de_texte'   => 0,
+		'images_ignorees'  => 0,
+		'objets'           => 0,
+		'alt_automatiques' => 0,
 	);
 
 	/**
@@ -964,6 +966,13 @@ final class Docx_Converter {
 				break;
 			}
 		}
+		// Description générée par la reconnaissance d'image de Word (« Une image contenant… ») :
+		// aucun sens pour le lecteur, jamais reprise (le texte alternatif est alors celui que
+		// la publication génère).
+		$automatique = '' !== $alt && Texte::alt_automatique( $alt );
+		if ( $automatique ) {
+			$alt = '';
+		}
 		$references = array();
 		foreach ( $el->getElementsByTagNameNS( '*', 'blip' ) as $blip ) {
 			if ( ! $blip instanceof \DOMElement ) {
@@ -991,6 +1000,9 @@ final class Docx_Converter {
 		}
 		if ( 'object' === $el->localName && ! $references ) {
 			++$this->compteurs['objets'];
+		}
+		if ( $automatique && $references ) {
+			++$this->compteurs['alt_automatiques'];
 		}
 		foreach ( array_unique( $references ) as $rid ) {
 			$rel = $this->relations[ $rid ] ?? null;
@@ -1226,6 +1238,9 @@ final class Docx_Converter {
 		if ( $this->compteurs['objets'] > 0 ) {
 			$this->resultat->avertir( sprintf( '%d objet(s) incorporé(s) (formule, graphique…) ignoré(s).', $this->compteurs['objets'] ) );
 		}
+		if ( $this->compteurs['alt_automatiques'] > 0 ) {
+			$this->resultat->avertir( self::avertissement_alt_automatiques( $this->compteurs['alt_automatiques'] ) );
+		}
 		$stats                          = &$this->resultat->stats;
 		$stats['format']                = 'docx';
 		$stats['fichier']               = basename( $this->chemin );
@@ -1238,7 +1253,23 @@ final class Docx_Converter {
 		$stats['sauts_de_page']         = $this->compteurs['sauts_de_page'];
 		$stats['sections']              = $this->compteurs['sections'];
 		$stats['zones_de_texte']        = $this->compteurs['zones_de_texte'];
+		$stats['alt_automatiques']      = $this->compteurs['alt_automatiques'];
 		$stats['duree_ms']              = (int) round( ( microtime( true ) - $debut ) * 1000 );
 		$stats['memoire_max_mo']        = round( memory_get_peak_usage( true ) / 1048576, 1 );
+	}
+
+	/**
+	 * Avertissement récapitulatif des descriptions d'image générées par Word et ignorées
+	 * (Texte::alt_automatique()), partagé avec le convertisseur EPUB.
+	 *
+	 * @param int $nombre Nombre de descriptions ignorées.
+	 */
+	public static function avertissement_alt_automatiques( int $nombre ): string {
+		return sprintf(
+			1 === $nombre
+				? '%d description automatique de Word ignorée (« Une image contenant… ») : rédigez le texte alternatif dans Word si l’image porte un sens.'
+				: '%d descriptions automatiques de Word ignorées (« Une image contenant… ») : rédigez le texte alternatif dans Word si l’image porte un sens.',
+			$nombre
+		);
 	}
 }

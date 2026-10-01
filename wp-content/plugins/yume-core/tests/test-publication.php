@@ -271,19 +271,23 @@ yume_test(
 				yume_assert_contains( 'class="wp-image-' . $id . '"', $html );
 				$meta = wp_get_attachment_metadata( $id );
 				yume_assert_true( max( (int) $meta['width'], (int) $meta['height'] ) <= Medias::COTE_MAX, 'Redimensionnée : ' . $meta['width'] );
+				// Titre du média : toujours le libellé généré, jamais le texte du document.
+				yume_assert_same( 'Grimgar de test, Tome 10, Chapitre 1 — illustration', get_post( $id )->post_title );
 				if ( 0 === $i ) {
 					yume_assert_same( 1600, (int) $meta['width'] );
 					yume_assert_same( $webp ? 'image/webp' : 'image/png', get_post_mime_type( $id ) );
-					yume_assert_same( 'Illustration de la brume', get_post_meta( $id, '_wp_attachment_image_alt', true ) );
+					yume_assert_same( 'Illustration de la brume', get_post_meta( $id, '_wp_attachment_image_alt', true ), 'texte alternatif du document' );
 				}
 				if ( 1 === $i ) {
 					yume_assert_same( 'image/gif', get_post_mime_type( $id ), 'Le GIF reste un GIF' );
+					yume_assert_same( 'Grimgar de test, Tome 10, Chapitre 1 — illustration', get_post_meta( $id, '_wp_attachment_image_alt', true ), 'sans texte alternatif dans le document : libellé généré' );
 				}
 			}
 			$galerie = get_post_meta( $tome, 'yume_illustrations', true );
 			yume_assert_same( 2, count( $galerie ) );
 			foreach ( $galerie as $id ) {
 				yume_assert_same( $tome, (int) wp_get_post_parent_id( $id ) );
+				yume_assert_same( 'Illustration — Grimgar de test — Tome 10', get_post( $id )->post_title );
 			}
 			yume_assert_same( 5, count( array_unique( $ctx->medias ) ) );
 		}

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.2 — 2026-10-01
+
+- Import : les descriptions d’image générées par Word (« Une image contenant… », « Le contenu généré par l’IA peut être incorrect ») ne sont plus reprises comme texte alternatif ni comme titre des illustrations ; avertissement à l’import.
+
 ## 2.1.5-dev.1 — 2026-10-01
 
 - Documentation : état de production au 1er octobre 2026, journal des décisions, règle de livraison d'après-lancement, contrôles CI obligatoires alignés sur ci.yml, modèle de données et guides remis à jour.

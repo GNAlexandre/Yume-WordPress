@@ -684,21 +684,28 @@ final class Service {
 	/**
 	 * Verse une image du Result (avec cache par clé) ; avertissement en cas d'échec.
 	 *
+	 * Le titre du média est toujours le libellé généré (« Œuvre, Tome 7, Chapitre 3 —
+	 * illustration ») ; son texte alternatif est celui du document s'il en porte un (hors
+	 * description générée par Word, Texte::alt_automatique()), sinon ce même libellé.
+	 *
 	 * @param Result            $resultat Résultat.
 	 * @param string            $cle      Clé.
 	 * @param int               $rattachement Contenu de rattachement.
 	 * @param int               $tome_id  Tome.
-	 * @param string            $alt      Texte alternatif.
+	 * @param string            $libelle  Libellé généré : titre du média et texte alternatif par défaut.
 	 * @param array<string,int> $cache    Clé => ID déjà versé (modifié).
 	 * @param string[]          $avert    Avertissements (modifié).
 	 */
-	private static function image( Result $resultat, string $cle, int $rattachement, int $tome_id, string $alt, array &$cache, array &$avert ): int {
+	private static function image( Result $resultat, string $cle, int $rattachement, int $tome_id, string $libelle, array &$cache, array &$avert ): int {
 		if ( isset( $cache[ $cle ] ) ) {
 			return $cache[ $cle ];
 		}
 		$image = $resultat->images[ $cle ] ?? array();
-		$alt   = '' !== (string) ( $image['alt'] ?? '' ) ? (string) $image['alt'] : $alt;
-		$id    = Medias::importer( $resultat, $cle, $rattachement, $tome_id, $alt, $alt );
+		$alt   = (string) ( $image['alt'] ?? '' );
+		if ( '' === $alt || Texte::alt_automatique( $alt ) ) {
+			$alt = $libelle;
+		}
+		$id = Medias::importer( $resultat, $cle, $rattachement, $tome_id, $alt, $libelle );
 		if ( is_wp_error( $id ) ) {
 			$avert[]       = $id->get_error_message();
 			$cache[ $cle ] = 0;

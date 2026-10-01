@@ -4,8 +4,8 @@ Ce guide s'adresse aux traducteurs, relecteurs, graphistes, éditeurs et gérant
 explique comment se connecter, tenir le planning à jour, publier un tome et s'occuper des lecteurs,
 **sans passer par le code ni par les réglages techniques de WordPress**.
 
-> Les écrans de la v2 sont en cours de construction : les libellés peuvent encore bouger un peu.
-> Ce guide suit le fonctionnement arrêté par l'équipe (maquettes validées et contrat technique).
+> Ce guide suit le fonctionnement arrêté par l'équipe (maquettes validées et contrat technique) et
+> le site tel qu'il est en ligne depuis le 29 septembre 2026.
 
 ## 1. Qui peut faire quoi
 
@@ -41,9 +41,14 @@ voir tous les menus.
 - Traducteurs, relecteurs et graphistes travaillent uniquement dans l'espace équipe : s'ils ouvrent
   l'administration WordPress (`/wp-admin/`), ils y sont renvoyés automatiquement (seule la page
   **Profil** reste accessible).
-- Sécurité : un mot de passe propre à Yume (gestionnaire de mots de passe recommandé) ; activez la
-  **validation en deux étapes** proposée par WordPress.com / Jetpack si vous publiez. Ne partagez
-  jamais un compte : chaque action est enregistrée au nom de son auteur dans le journal.
+- Sécurité : un mot de passe propre à Yume (gestionnaire de mots de passe recommandé). La
+  **validation en deux étapes de WordPress.com** ne protège que la page de connexion WordPress
+  (celle des administrateurs) : elle ne s'applique pas au formulaire `/connexion/`. Pour les
+  éditeurs et les gérants, la recommandation est l'extension **Two-Factor** (installée sur le site,
+  à activer par un administrateur) : chacun la configure dans *Profil → Options de double
+  authentification* (application TOTP et codes de secours), et elle s'applique aussi à
+  `/connexion/`. Ne partagez jamais un compte : chaque action est enregistrée au nom de son auteur
+  dans le journal.
 
 ## 3. L'espace équipe (`/equipe/`)
 
@@ -143,9 +148,10 @@ journal sur ce tome.
 ### Réglages (`/equipe/?vue=reglages`, gérants et administrateurs)
 
 L'entrée **Réglages** du menu affiche tous les réglages du site dans l'espace équipe, sans passer
-par l'administration : *Site et réseaux*, *Planning et rappels*, *Annonces et notifications*,
-*Partenaires* (et *Mises à jour* pour l'administrateur seulement ; voir la section 8 pour le
-détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
+par l'administration : *Site et réseaux*, *Planning et rappels*, *Annonces et notifications*
+(webhooks Discord, e-mails aux lecteurs, modèle d'annonce, notifications navigateur),
+*Partenaires*, *Recrutement* (et *Mises à jour* pour l'administrateur seulement ; voir la
+section 8 pour le détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
 bas de page) : un message en haut de la vue confirme l'enregistrement ou liste ce qui a été
 refusé (par exemple un partenaire sans lien valide, ou un lien qui n'est pas un webhook Discord ;
 l'ancienne valeur est alors conservée).
@@ -268,6 +274,13 @@ il suffit d'utiliser les bons styles :
 Les ornements Word au format EMF/WMF, les en-têtes et pieds de page sont ignorés (et signalés dans
 le rapport). Les sauts de page ne changent rien au texte, mais ils sont proposés comme débuts de
 chapitre possibles (5.2 bis). Un EPUB est accepté en dépannage, mais le DOCX reste la référence.
+
+Le **texte de remplacement** d'une image dans Word devient sa description pour les lecteurs
+d'écran. Les descriptions que Word génère tout seul (« Une image contenant texte, oiseau… », « Le
+contenu généré par l'IA peut être incorrect ») sont ignorées et comptées dans le rapport : si
+l'illustration porte un sens, rédigez vous-même une phrase courte (clic droit sur l'image →
+**Afficher le texte de remplacement**, décochez « Marquer comme décoratif » si besoin). Sans texte,
+le site utilise « Œuvre, Tome N, Chapitre N — illustration ».
 
 ### 5.2 Remplir le formulaire
 
@@ -517,7 +530,11 @@ chapitres ; ceux d'un article d'un autre compte passent par un gérant).
 
 Les lecteurs connectés ont un lien **Signaler** sous chaque commentaire (motif facultatif, un
 signalement par compte). Au **3ᵉ signalement**, le commentaire est masqué et repasse en attente
-jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté de votre pseudo.
+jusqu'à votre décision. Deux exceptions : seuls les signalements de comptes inscrits depuis
+**7 jours ou plus** comptent dans ce seuil (des comptes créés à la chaîne ne suffisent pas à faire
+disparaître un commentaire ; les autres signalements restent visibles dans la liste), et un
+commentaire d'un **membre de l'équipe** n'est jamais masqué automatiquement : il reste en ligne,
+signalé, jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté de votre pseudo.
 
 ## 8. Pour les gérants
 
@@ -537,13 +554,16 @@ jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté d
   page de connexion ; pour un changement d'e-mail ou un compte bloqué, c'est l'administrateur qui
   s'en charge.
 - **Réglages** (menu de l'espace équipe, ou *Yume → Réglages* dans l'administration) :
-  - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
+  - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X, recherche dans les
+    chapitres, lecture hors ligne ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),
     heure des rappels, jour du récapitulatif ;
   - *Annonces et notifications* : webhooks Discord (sorties, équipe), e-mails aux lecteurs, modèle
-    du texte d'annonce ;
+    du texte d'annonce, **notifications navigateur** (case à décocher pour couper les notifications
+    push de tout le site, voir « Listes de lecture, cloche et notifications des lecteurs ») ;
   - *Partenaires* : la section « Nos partenaires » de l'accueil (voir ci-dessous) ;
-  - *Recrutement* : la page « Rejoindre l'équipe » (voir ci-dessous) ;
+  - *Recrutement* : la page « Rejoindre l'équipe » : introduction, postes ouverts ou fermés, lien du
+    test de traduction, consigne pour postuler (voir ci-dessous) ;
   - *Mises à jour* : section réservée aux administrateurs (invisible pour les gérants).
 - Le lien **Contact** du menu ouvre le **Discord** de Yume (lien d'invitation réglé dans *Site et
   réseaux*).
@@ -664,7 +684,7 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | Un tome est arrêté mais reste « en retard » et déclenche des rappels | *Planning complet* → dépliez sa ligne → **Mettre en pause** ; **Reprendre** le jour où il repart. |
 | J'ai ajouté un tome au planning par erreur | *Planning complet* → dépliez sa ligne → **Retirer du planning** (brouillon sans chapitre publié). |
 | Un lien PDF ou EPUB est mort | *Yume → Tomes → Modifier* le tome et remplacez le lien. |
-| Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. |
+| Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. Si le document ne peut pas être corrigé, délimitez les chapitres vous-même dans l'aperçu (§5.2 bis). |
 | Un lecteur ne veut plus d'e-mails | Chaque e-mail d'alerte a un lien de désabonnement (une œuvre, les réponses aux commentaires ou tout) : il confirme sans se connecter. Il peut aussi tout régler dans *Mon compte*. |
 | Un lecteur ne reçoit pas les alertes | Il doit avoir l'œuvre en favori avec une alerte active (page *Mon compte*) ; les e-mails aux lecteurs doivent être activés dans *Yume → Réglages*. |
 | J'ai oublié mon mot de passe | Lien « Mot de passe oublié ? » sur la page de connexion. |
