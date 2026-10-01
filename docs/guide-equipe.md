@@ -6,6 +6,10 @@ explique comment se connecter, tenir le planning à jour, publier un tome et s'o
 
 > Ce guide suit le fonctionnement arrêté par l'équipe (maquettes validées et contrat technique) et
 > le site tel qu'il est en ligne depuis le 29 septembre 2026.
+>
+> **Version Word à distribuer à l'équipe**, procédures pas à pas avec captures :
+> [guide-equipe/Guide-equipe-Yume-Novel.docx](guide-equipe/Guide-equipe-Yume-Novel.docx) (source :
+> [guide-equipe/procedures.md](guide-equipe/procedures.md)).
 
 ## 1. Qui peut faire quoi
 

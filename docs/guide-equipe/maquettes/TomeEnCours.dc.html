@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — modifier le tome</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;border-radius:6px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:32px;padding:0 10px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #4a3b6e;white-space:nowrap;color:#ebe3f2}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}
+.muted{color:#b7a9cc}
+.fld{display:flex;flex-direction:column;gap:6px}
+.inp{height:42px;box-sizing:border-box;padding:0 12px;border:1px solid #7f6aa8;border-radius:6px;background:#241740;color:#fff8fb;font:inherit;font-size:15px;width:100%}
+.side a{display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:6px;color:#ebe3f2;font-size:15px;border-left:3px solid transparent}
+.side a.cur{background:#3a2a63;color:#fff8fb;border-left-color:#f3a6c8}
+.side a.sub{padding-left:28px}
+.grp{padding:8px 14px;font-weight:600;color:#fff8fb;font-size:15px}
+.row{display:grid;grid-template-columns:44px minmax(0,1.5fr) 130px 170px auto;gap:14px;align-items:center;padding:11px 18px;border-top:1px solid #3f3060;font-size:14px}
+.num{font-family:"Outfit",sans-serif;font-weight:700;color:#fff8fb;font-size:17px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1400px; box-sizing: border-box; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; padding: 40px 48px">
+  <nav class="side card" style="padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; align-self: start" aria-label="Espace équipe">
+    <a href="#">Tableau de bord</a>
+    <a href="#">Mes tâches</a>
+    <div class="grp">▾ Catalogue</div>
+    <a href="#" class="sub">Œuvres</a>
+    <a href="TousLesTomes.dc.html" class="sub cur">Tous les tomes</a>
+    <a href="Chapitre.dc.html" class="sub">Ajouter des chapitres</a>
+    <a href="#" class="sub">Lecture à compléter</a>
+    <a href="#" class="sub">Glossaires</a>
+    <div class="grp">▸ Planning</div>
+    <div class="grp">▸ Équipe</div>
+    <div class="grp">▸ Site</div>
+  </nav>
+
+  <main style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+    <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <a href="TousLesTomes.dc.html" style="font-size: 14px">← Tous les tomes</a>
+        <h1 style="font-size: 36px; font-weight: 800">Modifier le tome : SukaMoka — Tome 2</h1>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"><span class="chip ok">● En cours</span><span class="chip ok">3 chapitres sur 12 en ligne</span><span class="muted" style="font-size: 13px">Depuis le 27 sept. 2026 · modifié par Cerale le 30 sept.</span></div>
+      </div>
+      <div style="display: flex; gap: 10px"><a href="#" class="btn">Voir le tome</a><a href="Chapitre.dc.html" class="btn pri">Ajouter des chapitres</a></div>
+    </header>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start">
+      <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+        <section class="card" style="padding: 20px 22px; display: flex; flex-direction: column; gap: 16px">
+          <div class="lbl">Le tome</div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1.4fr) 170px 110px; gap: 16px">
+            <div class="fld"><label class="lbl" for="oeuvre" style="color: #b7a9cc">Œuvre</label><select id="oeuvre" class="inp"><option>SukaMoka (LN)</option></select></div>
+            <div class="fld"><label class="lbl" for="nature" style="color: #b7a9cc">Nature</label><select id="nature" class="inp"><option>Tome</option></select></div>
+            <div class="fld"><label class="lbl" for="numero" style="color: #b7a9cc">Numéro</label><input id="numero" class="inp" value="2"></div>
+          </div>
+          <div class="fld"><label class="lbl" for="titre" style="color: #b7a9cc">Titre (facultatif)</label><input id="titre" class="inp" placeholder="Ex. : Un bon jour pour attendre un meilleur jour"></div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+            <div class="fld"><label class="lbl" for="rt" style="color: #b7a9cc">Responsable traduction</label><select id="rt" class="inp"><option>Cerale</option></select></div>
+            <div class="fld"><label class="lbl" for="rr" style="color: #b7a9cc">Responsable relecture</label><select id="rr" class="inp"><option>Shadowadow</option></select></div>
+            <div class="fld"><label class="lbl" for="re" style="color: #b7a9cc">Responsable édition</label><select id="re" class="inp"><option>— Personne —</option></select></div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+            <div class="fld"><label class="lbl" for="cible" style="color: #b7a9cc">Date cible du tome</label><input id="cible" class="inp" value="06/12/2026"></div>
+            <div class="fld"><label class="lbl" for="prevus" style="color: #b7a9cc">Chapitres prévus</label><input id="prevus" class="inp" value="12"></div>
+            <div class="fld"><label class="lbl" for="rythme" style="color: #b7a9cc">Rythme</label><select id="rythme" class="inp"><option>Chaque samedi, 18 h</option></select></div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+            <div class="fld"><label class="lbl" for="ct" style="color: #b7a9cc">Crédit traduction</label><input id="ct" class="inp" value="Cerale"></div>
+            <div class="fld"><label class="lbl" for="cr" style="color: #b7a9cc">Crédit relecture</label><input id="cr" class="inp" value="Shadowadow"></div>
+            <div class="fld"><label class="lbl" for="ce" style="color: #b7a9cc">Crédit édition / couverture</label><input id="ce" class="inp"></div>
+          </div>
+        </section>
+
+        <section class="card" style="display: flex; flex-direction: column">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 18px 10px">
+            <h2 style="font-size: 18px">Chapitres</h2>
+            <a href="Chapitre.dc.html" style="font-size: 14px">Ajouter des chapitres</a>
+          </div>
+          <div class="row" style="border-top: 0; padding-top: 2px"><span></span><span class="lbl" style="color: #b7a9cc">Chapitre</span><span class="lbl" style="color: #b7a9cc">État</span><span class="lbl" style="color: #b7a9cc">Sortie</span><span></span></div>
+          <div class="row"><span class="num">P</span><span><strong style="color: #fff8fb">Prologue</strong> <span class="muted">· 13 min</span></span><span><span class="chip ok">En ligne</span></span><span>27 sept. 18 h</span><span style="display: flex; gap: 6px"><a href="#" class="btn sm">Voir</a><a href="#" class="btn sm">Retirer</a></span></div>
+          <div class="row"><span class="num">1</span><span><strong style="color: #fff8fb">Le marché des lanternes</strong> <span class="muted">· 19 min</span></span><span><span class="chip ok">En ligne</span></span><span>4 oct. 18 h</span><span style="display: flex; gap: 6px"><a href="#" class="btn sm">Voir</a><a href="#" class="btn sm">Retirer</a></span></div>
+          <div class="row"><span class="num">2</span><span><strong style="color: #fff8fb">Sous la pluie de cendres</strong> <span class="muted">· 17 min</span></span><span><span class="chip ok">En ligne</span></span><span>4 oct. 18 h</span><span style="display: flex; gap: 6px"><a href="#" class="btn sm">Voir</a><a href="#" class="btn sm">Retirer</a></span></div>
+          <div class="row" style="background: #241740"><span class="num">3</span><span><strong style="color: #fff8fb">La ville sans ciel</strong> <span class="muted">· 18 min</span></span><span><span class="chip info">Programmé</span></span><span><input class="inp" style="height: 32px; font-size: 13px" value="11/10/2026 18:00" aria-label="Date de sortie du chapitre 3"></span><span style="display: flex; gap: 6px"><a href="#" class="btn sm">Aperçu</a><a href="#" class="btn sm">Publier maintenant</a></span></div>
+          <div class="row"><span class="num" style="color: #7f6aa8">4–12</span><span class="muted">Pas encore déposés</span><span><span class="chip">À venir</span></span><span class="muted">au rythme : 18 oct. → 6 déc.</span><span></span></div>
+        </section>
+      </div>
+
+      <aside style="display: flex; flex-direction: column; gap: 20px">
+        <section class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center">
+          <div style="width: 150px; height: 214px; border-radius: 6px; background: linear-gradient(160deg, #5b3a7a, #2d1f4f 55%, #c2437e)"></div>
+          <div style="display: flex; gap: 8px"><button type="button" class="btn sm">Changer la couverture</button><button type="button" class="btn sm">Cadrage</button></div>
+        </section>
+        <section class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+          <div class="lbl">Tome complet</div>
+          <label style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px"><input type="checkbox" style="margin-top: 4px"><span>Tous les chapitres sont en ligne : passer le tome à <strong style="color: #fff8fb">Complet</strong></span></label>
+          <div class="fld"><label class="lbl" for="pdf" style="color: #b7a9cc">Lien PDF</label><input id="pdf" class="inp" placeholder="https://…"></div>
+          <div class="fld"><label class="lbl" for="epub" style="color: #b7a9cc">Lien EPUB</label><input id="epub" class="inp" placeholder="https://…"></div>
+          <label style="display: flex; gap: 10px; align-items: center; font-size: 14px"><input type="checkbox" checked>Annoncer le tome complet</label>
+        </section>
+        <section class="card" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; background: #241740; font-size: 14px">
+          <div class="lbl" style="color: #b7a9cc">Planning</div>
+          <div>Étape <strong style="color: #fff8fb">Relecture</strong> · 25 %</div>
+          <a href="#">Ouvrir dans le planning</a>
+        </section>
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <button type="button" class="btn pri" style="height: 46px">Enregistrer</button>
+          <a href="#" class="muted" style="font-size: 13px; text-align: center">Édition avancée (administration WordPress)</a>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

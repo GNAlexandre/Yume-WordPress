@@ -24,6 +24,7 @@ tools/docx2chapters/, tools/migrate/   outils en ligne de commande (import DOCX,
 tools/wordend/                    découpe de la planche de Chtholly (easter egg, Python, ponctuel)
 tools/preprod/                    préproduction locale (MariaDB) construite de zéro + parcours Playwright
 tools/ci/                         contrôle de rendu de la CI (rendu.sh, rendu.js, rendu-attendus.js)
+tools/guide/                      guide de l'équipe en Word : captures des maquettes, construction du DOCX
 .github/workflows/                ci.yml (intégration continue), release.yml (publication)
 phpcs.xml.dist                    normes de code
 docs/, design/                    documentation, maquettes validées (design/maquettes/*.dc.html)
@@ -134,6 +135,10 @@ Rappel du contrat (§0) :
   lecture et les formulaires dynamiques de l'équipe.
 - Pas de build : JavaScript ES2019 « vanilla » avec les globaux WordPress (`wp.element`,
   `wp.apiFetch`…), CSS natif avec les variables de `theme.json` (contrat §15).
+- Guide de l'équipe : toute modification d'un écran de l'espace équipe met à jour
+  `docs/guide-equipe/procedures.md` et régénère le DOCX (`node tools/guide/construire.js`, captures
+  par `node tools/guide/captures.js` si une maquette change ; voir `tools/guide/README.md`). La CI
+  vérifie que le DOCX commité correspond à sa source (job « Guide de l'équipe »).
 
 ### Syntaxe et normes de code
 
@@ -183,13 +188,14 @@ manuel : Actions → CI → *Run workflow*.
 | Tests WordPress (6.6 sous PHP 8.1, dernière version sous PHP 8.4 ; chacune sur SQLite et sur MariaDB 10.11) | `tools/localenv/setup.sh --source wp-cli --langue fr_FR --bloquer-http [--version 6.6]` (avec `YUME_DB_ENGINE=mysql` et un service `mariadb:10.11` pour MariaDB), puis `wp eval-file wp-content/plugins/yume-core/tests/runner.php` ; contrôle de `debug.log` |
 | Rendu WordPress (6.6 sous PHP 8.1, dernière version sous PHP 8.4 ; SQLite) | même installation que les tests, démo `tools/playground/demo.php`, puis `tools/ci/rendu.sh` : styles calculés des blocs vérifiés dans Chromium et audit d'accessibilité axe-core (voir ci-dessous) ; artefact `rendu-mesures-<version>` |
 | Rendu identique sur WordPress 6.6 et la dernière | `node tools/ci/rendu.js --comparer` sur les deux artefacts `rendu-mesures-*` |
+| Guide de l'équipe (DOCX à jour) | `npm ci` dans `tools/guide/`, puis `node tools/guide/construire.js --verifier` : l'empreinte de `docs/guide-equipe/procedures.md` et de ses images doit être celle écrite dans `Guide-equipe-Yume-Novel.docx` (ni Chromium ni LibreOffice) |
 | Archives | `tools/build/zip.sh`, artefact `yume-archives-<version>-<n°>` (à décompresser : il contient `yume-core.zip`, `yume.zip`, `SHA256SUMS`) |
 
 Protection de la branche principale (docs/05 §7.2, docs/mise-en-production.md §9.2) : PR
 obligatoire, une relecture, et tous les jobs de `ci.yml` requis : *Syntaxe PHP* (8.1, 8.2, 8.3,
 8.4), *Normes de code (PHPCS)*, *Tests WordPress* (les 4 combinaisons : 6.6 et latest, SQLite et
 MariaDB), *Rendu WordPress* (6.6 et latest), *Rendu identique sur WordPress 6.6 et la dernière*,
-*Archives*.
+*Guide de l'équipe (DOCX à jour)*, *Archives*.
 
 ### Contrôle de rendu (job « Rendu »)
 

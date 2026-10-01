@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — tous les tomes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:6px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #4a3b6e;white-space:nowrap;color:#ebe3f2}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}
+.muted{color:#b7a9cc}
+.inp{height:42px;box-sizing:border-box;padding:0 12px;border:1px solid #7f6aa8;border-radius:6px;background:#241740;color:#fff8fb;font:inherit;font-size:15px;width:100%}
+.side a{display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:6px;color:#ebe3f2;font-size:15px;border-left:3px solid transparent}
+.side a.cur{background:#3a2a63;color:#fff8fb;border-left-color:#f3a6c8}
+.side a.sub{padding-left:28px}
+.grp{padding:8px 14px;font-weight:600;color:#fff8fb;font-size:15px}
+.tome{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:center;padding:14px 20px;border-top:1px solid #3f3060}
+.cov{width:48px;height:68px;border-radius:4px;background:linear-gradient(160deg,#5b3a7a,#2d1f4f 55%,#c2437e)}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1180px; box-sizing: border-box; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; padding: 40px 48px">
+  <nav class="side card" style="padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; align-self: start" aria-label="Espace équipe">
+    <a href="#">Tableau de bord</a>
+    <a href="#">Mes tâches</a>
+    <div class="grp">▾ Catalogue</div>
+    <a href="#" class="sub">Œuvres</a>
+    <a href="#" class="sub cur">Tous les tomes</a>
+    <a href="Chapitre.dc.html" class="sub">Ajouter des chapitres</a>
+    <a href="#" class="sub">Lecture à compléter</a>
+    <a href="#" class="sub">Glossaires</a>
+    <div class="grp">▸ Planning</div>
+    <div class="grp">▸ Équipe</div>
+    <div class="grp">▸ Site</div>
+    <div style="border-top: 1px solid #4a3b6e; margin: 10px 4px 6px"></div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 4px 12px">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #4a3b6e; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff8fb">A</div>
+      <div><div style="font-weight: 700; color: #fff8fb">Angeloids</div><div class="lbl" style="font-size: 10px">Administrateur</div></div>
+    </div>
+    <a href="#" style="min-height: 30px; text-decoration: underline; color: #ebe3f2">Se déconnecter</a>
+  </nav>
+
+  <main style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+    <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px">
+      <h1 style="font-size: 36px; font-weight: 800">Tous les tomes</h1>
+      <div style="display: flex; gap: 10px"><a href="Main.dc.html" class="btn">Nouveau tome</a><a href="Chapitre.dc.html" class="btn pri">Ajouter des chapitres</a></div>
+    </header>
+    <p class="muted" style="margin: 0; max-width: 92ch">Tous les tomes du catalogue, publiés compris. « Ajouter des chapitres » ouvre le formulaire avec le tome déjà choisi. « Modifier » ouvre la fiche du tome ici, dans l’espace équipe.</p>
+
+    <form class="card" style="padding: 16px 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 12px 16px; align-items: end" aria-label="Filtrer les tomes">
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="f-oeuvre" style="color: #b7a9cc">Œuvre</label><select id="f-oeuvre" class="inp"><option>Toutes</option></select></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="f-statut" style="color: #b7a9cc">Statut</label><select id="f-statut" class="inp"><option>Tous</option><option>À paraître</option><option>En cours</option><option>Complets</option><option>Programmés</option></select></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="f-titre" style="color: #b7a9cc">Titre contient</label><input id="f-titre" class="inp" type="search"></div>
+      <button type="button" class="btn">Filtrer</button>
+    </form>
+
+    <h2 style="font-size: 20px">55 tomes</h2>
+
+    <section class="card" style="display: flex; flex-direction: column; overflow: hidden">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 16px 20px 12px"><h3 style="font-size: 18px">SukaMoka</h3><span class="muted">2 tomes</span></div>
+      <div class="tome">
+        <div class="cov"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><div style="font-weight: 700; color: #fff8fb">Tome 1</div><div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"><span class="chip ok">Complet</span><span class="muted" style="font-size: 13px">Paru le 12 juin 2026</span><span class="chip ok">14 chapitres en ligne</span><span class="chip">PDF · EPUB</span></div></div>
+        <div style="display: flex; gap: 8px"><a href="Chapitre.dc.html" class="btn sm pri">Ajouter des chapitres</a><a href="#" class="btn sm">Voir</a><a href="TomeEnCours.dc.html" class="btn sm">Modifier</a></div>
+      </div>
+      <div class="tome" style="background: #33245a">
+        <div class="cov"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><div style="font-weight: 700; color: #fff8fb">Tome 2</div><div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"><span class="chip ok">● En cours</span><span class="muted" style="font-size: 13px">Depuis le 27 sept. 2026</span><span class="chip ok">3 chapitres sur 12 en ligne</span><span class="chip info">Chapitre 3 programmé le 11 oct.</span></div></div>
+        <div style="display: flex; gap: 8px"><a href="Chapitre.dc.html" class="btn sm pri">Ajouter des chapitres</a><a href="#" class="btn sm">Voir</a><a href="TomeEnCours.dc.html" class="btn sm">Modifier</a></div>
+      </div>
+    </section>
+
+    <section class="card" style="display: flex; flex-direction: column; overflow: hidden">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 16px 20px 12px"><h3 style="font-size: 18px">Secrets Of The Silent Witch</h3><span class="muted">12 tomes</span></div>
+      <div class="tome">
+        <div class="cov"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><div style="font-weight: 700; color: #fff8fb">Arc 7</div><div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"><span class="chip ok">● En cours</span><span class="muted" style="font-size: 13px">Depuis le 2 sept. 2026</span><span class="chip ok">10 chapitres en ligne</span></div></div>
+        <div style="display: flex; gap: 8px"><a href="Chapitre.dc.html" class="btn sm pri">Ajouter des chapitres</a><a href="#" class="btn sm">Voir</a><a href="TomeEnCours.dc.html" class="btn sm">Modifier</a></div>
+      </div>
+      <div class="tome">
+        <div class="cov" style="background: #3a2a63; border: 1px dashed #7f6aa8; box-sizing: border-box"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><div style="font-weight: 700; color: #fff8fb">Arc 8</div><div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"><span class="chip warn">À paraître</span><span class="muted" style="font-size: 13px">Traduction · date cible 15 janv. 2027</span><span class="chip">Pas encore de chapitre</span></div></div>
+        <div style="display: flex; gap: 8px"><a href="Chapitre.dc.html" class="btn sm pri">Ajouter des chapitres</a><a href="TomeEnCours.dc.html" class="btn sm">Modifier</a></div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
