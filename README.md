@@ -30,6 +30,7 @@ sans ce Go. Décisions et jalons : [docs/journal-des-decisions.md](docs/journal-
 | [docs/mise-en-production.md](docs/mise-en-production.md) | Liste de contrôle de mise en production : comptes et 2FA, Jetpack, sauvegardes, `wp-config.php`, réglages GitHub |
 | [docs/tester-en-local.md](docs/tester-en-local.md) | Lancer le site sur son ordinateur (Playground, environnement PHP, préproduction) |
 | [docs/guide-equipe.md](docs/guide-equipe.md) | Guide de l'équipe : se connecter, espace équipe, planning et rappels, publier un tome, corriger un chapitre, œuvres et glossaires, modération des commentaires, indicateurs et santé du site, réglages, questions fréquentes |
+| [docs/guide-equipe/Guide-equipe-Yume-Novel.docx](docs/guide-equipe/Guide-equipe-Yume-Novel.docx) | Guide de l'équipe en Word, à distribuer : procédures pas à pas avec captures (planning, œuvres, nouveau tome, fichier Word, ajouter des chapitres, terminer et modifier un tome, état des tomes et des œuvres, lecteurs, questions fréquentes). Source : [docs/guide-equipe/procedures.md](docs/guide-equipe/procedures.md), mise à jour : [tools/guide/README.md](tools/guide/README.md) |
 | [docs/guide-developpeur.md](docs/guide-developpeur.md) | Guide développeur : modules, tests, CI, release |
 | [docs/journal-des-decisions.md](docs/journal-des-decisions.md) | Journal daté des décisions et des jalons (plan, Go, releases) et décisions en attente |
 | [docs/glossaire.md](docs/glossaire.md) | Glossaire des œuvres : format YAML de Yume-Trad, page publique, espace équipe, envoi direct par l'application (API) |
