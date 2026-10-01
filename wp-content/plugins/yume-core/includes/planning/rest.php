@@ -140,33 +140,54 @@ function routes(): void {
 			'callback'            => __NAMESPACE__ . '\\rest_ajouter_tome',
 			'permission_callback' => __NAMESPACE__ . '\\permission_ajout',
 			'args'                => array(
-				'oeuvre_id'    => array(
+				'oeuvre_id'        => array(
 					'description' => __( 'Œuvre du tome.', 'yume-core' ),
 					'type'        => 'integer',
 					'required'    => true,
 					'minimum'     => 1,
 				),
-				'nature'       => array(
+				'nature'           => array(
 					'type'    => 'string',
 					'default' => 'tome',
 					'enum'    => array_keys( yume_natures_tome() ),
 				),
-				'numero'       => array(
+				'numero'           => array(
 					'description' => __( 'Numéro (ex. 9 ou 26,5).', 'yume-core' ),
 					'type'        => array( 'number', 'string' ),
 				),
-				'titre'        => array(
+				'titre'            => array(
 					'type'              => 'string',
 					'sanitize_callback' => 'sanitize_text_field',
 				),
-				'responsables' => schema_trio_entiers( __( 'Responsables (ID utilisateur, 0 = personne).', 'yume-core' ) ),
-				'date_cible'   => array(
+				'responsables'     => schema_trio_entiers( __( 'Responsables (ID utilisateur, 0 = personne).', 'yume-core' ) ),
+				'date_cible'       => array(
 					'description' => __( 'Date de sortie visée (AAAA-MM-JJ).', 'yume-core' ),
 					'type'        => 'string',
 				),
-				'etape'        => array(
+				'etape'            => array(
 					'type' => 'string',
 					'enum' => array( 'a_faire', 'traduction', 'relecture', 'edition' ),
+				),
+				'chapitres_prevus' => array(
+					'description' => __( 'Nombre de chapitres prévus (0 : inconnu).', 'yume-core' ),
+					'type'        => 'integer',
+					'minimum'     => 0,
+					'maximum'     => 999,
+				),
+				'rythme'           => array(
+					'description'          => __( 'Rythme de sortie des chapitres : jour (lundi…dimanche, vide : libre) et heure (HH:MM, 18:00 par défaut).', 'yume-core' ),
+					'type'                 => 'object',
+					'properties'           => array(
+						'jour'  => array(
+							'type' => 'string',
+							'enum' => array_merge( array( '' ), array_keys( yume_jours_semaine() ) ),
+						),
+						'heure' => array(
+							'type'    => 'string',
+							'pattern' => '^([01][0-9]|2[0-3]):[0-5][0-9]$',
+						),
+					),
+					'additionalProperties' => false,
 				),
 			),
 		)
@@ -384,7 +405,7 @@ function permission_ajout() {
 function rest_ajouter_tome( \WP_REST_Request $requete ) {
 	$params = $requete->get_params();
 	$saisie = array();
-	foreach ( array( 'oeuvre_id', 'nature', 'numero', 'titre', 'responsables', 'date_cible', 'etape' ) as $cle ) {
+	foreach ( array( 'oeuvre_id', 'nature', 'numero', 'titre', 'responsables', 'date_cible', 'etape', 'chapitres_prevus', 'rythme' ) as $cle ) {
 		if ( array_key_exists( $cle, $params ) ) {
 			$saisie[ $cle ] = $requete->get_param( $cle );
 		}

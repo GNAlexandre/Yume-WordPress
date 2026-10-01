@@ -782,10 +782,10 @@ yume_test(
 			$libelles = array_column( $publier, 1 );
 			yume_assert_same( array_column( $tableau, 1 ), $libelles, 'mêmes entrées que le tableau de bord' );
 			yume_assert_same( array_column( $tableau, 0 ), array_column( $publier, 0 ), 'mêmes cibles' );
-			yume_assert_contains( 'Publier un tome', implode( '|', $libelles ) );
+			yume_assert_contains( 'Ajouter des chapitres', implode( '|', $libelles ) );
 			yume_assert_not_contains( 'edit.php?post_type=yume_tome', $m[0] );
 			yume_assert_same( 1, substr_count( $m[0], 'aria-current="page"' ) );
-			yume_assert_true( (bool) preg_match( '#aria-current="page"[^>]*>Publier un tome#', $m[0] ), 'page courante : Publier un tome' );
+			yume_assert_true( (bool) preg_match( '#aria-current="page"[^>]*>Ajouter des chapitres#', $m[0] ), 'page courante : Ajouter des chapitres' );
 		}
 	)
 );

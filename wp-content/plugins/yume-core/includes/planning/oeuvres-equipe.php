@@ -15,7 +15,7 @@
  *
  * Pour chaque œuvre : couverture, titre, statut, type, statut de la traduction, nombre de tomes
  * et les actions « Voir » (publiée), « Publier » (brouillon), « Modifier », « Ajouter un tome au
- * planning » et « Publier un tome ».
+ * planning » (vue « Nouveau tome », œuvre présélectionnée) et « Ajouter des chapitres ».
  *
  * Genres (capacités edit_terms / delete_terms de yume_genre) : ajout et suppression dans la vue.
  *
@@ -1137,9 +1137,11 @@ function ligne_oeuvre_equipe( array $oeuvre, ?array $retour ): string {
 	if ( current_user_can( 'edit_post', $id ) ) {
 		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( url_vue_equipe( 'oeuvres', array( 'modifier' => $id ) ) . '#yn-oeuvre-form' ) . '">' . esc_html__( 'Modifier', 'yume-core' ) . $contexte . '</a>';
 	}
-	$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( url_vue_equipe( '', array( 'oeuvre_ajout' => $id ) ) . '#yn-ajouter-tome-section' ) . '">' . esc_html__( 'Ajouter un tome au planning', 'yume-core' ) . $contexte . '</a>';
+	if ( current_user_can( 'yume_maj_planning_tous' ) ) {
+		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( url_nouveau_tome( $id, 'oeuvres' ) ) . '">' . esc_html__( 'Ajouter un tome au planning', 'yume-core' ) . $contexte . '</a>';
+	}
 	if ( current_user_can( 'yume_publier' ) ) {
-		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( add_query_arg( 'oeuvre', $id, yume_url_page( 'publier' ) ) ) . '">' . esc_html__( 'Publier un tome', 'yume-core' ) . $contexte . '</a>';
+		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( add_query_arg( 'oeuvre', $id, yume_url_page( 'publier' ) ) ) . '">' . esc_html__( 'Ajouter des chapitres', 'yume-core' ) . $contexte . '</a>';
 	}
 	return $html . '</div></li>';
 }

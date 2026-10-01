@@ -260,7 +260,7 @@ yume_te_test(
 		yume_assert_contains( '<details open><summary>Catalogue</summary>', navigation_equipe( 'tomes' ), 'menu de la page affichée ouvert' );
 		$entrees  = $de_base( yume_te_nav( $nav ) );
 		$libelles = array_column( $entrees, 0 );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Publier un tome', 'Lecture à compléter', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Ajouter des chapitres', 'Lecture à compléter', 'Planning complet', 'Journal', 'Membres et rôles', 'Réglages' ), $libelles );
 		yume_assert_same( url_vue_equipe( 'reglages' ), $entrees[9][1], 'réglages dans l’espace équipe' );
 		yume_assert_same( url_vue_equipe( 'lecture' ), $entrees[5][1], 'lecture à compléter dans l’espace équipe' );
 		yume_assert_not_contains( 'page=yume-reglages', $nav, 'plus la page de l’administration' );

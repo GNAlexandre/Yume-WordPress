@@ -3,8 +3,8 @@
  *
  * - Curseurs : valeur affichée et remplissage (--v) mis à jour pendant le glissement.
  * - « Enregistrer » : PATCH /yume/v1/tomes/{id}/planning (nonce wp_rest en X-WP-Nonce),
- *   résultat annoncé dans la zone aria-live du formulaire.
- * - « Ajouter au planning » : POST /yume/v1/planning/tomes.
+ *   résultat annoncé dans la zone aria-live du formulaire. « Nouveau tome » est un formulaire
+ *   ordinaire (admin-post.php) : il mène à la fiche du tome ou au formulaire de publication.
  *
  * - Confirmation (data-yn-confirmer sur le formulaire ou le bouton) : « Retirer du planning »,
  *   « Retirer de l’équipe » d'un membre encore responsable de tomes.
@@ -113,7 +113,7 @@
 	var nonce = racine.getAttribute( 'data-yn-nonce' ) || '';
 	var icones = { a_lheure: '●', en_retard: '▲', bloque: '■', publie: '✓' };
 	var variantes = { a_lheure: 'ok', en_retard: 'warn', bloque: 'err', publie: 'ok' };
-	var champsTexte = [ 'etape', 'date_cible', 'note_equipe', 'bloque_raison', 'nature', 'numero', 'titre' ];
+	var champsTexte = [ 'etape', 'date_cible', 'note_equipe', 'bloque_raison' ];
 
 	function message( cle, defaut ) {
 		return racine.getAttribute( 'data-yn-msg-' + cle ) || defaut;
@@ -139,7 +139,7 @@
 		}
 	} );
 
-	function donnees( formulaire, ajout ) {
+	function donnees( formulaire ) {
 		var d = {};
 		new window.FormData( formulaire ).forEach( function ( valeur, cle ) {
 			var m = /^(avancement|responsables)\[(traduction|relecture|edition)\]$/.exec( cle );
@@ -148,21 +148,11 @@
 				d[ m[ 1 ] ][ m[ 2 ] ] = parseInt( valeur, 10 ) || 0;
 				return;
 			}
-			if ( cle === 'oeuvre_id' ) {
-				d.oeuvre_id = parseInt( valeur, 10 ) || 0;
-				return;
-			}
 			if ( champsTexte.indexOf( cle ) !== -1 ) {
 				d[ cle ] = String( valeur );
 			}
 		} );
-		if ( ajout ) {
-			[ 'numero', 'titre', 'date_cible' ].forEach( function ( cle ) {
-				if ( d[ cle ] === '' ) {
-					delete d[ cle ];
-				}
-			} );
-		} else if ( formulaire.querySelector( '[name="bloque_present"]' ) ) {
+		if ( formulaire.querySelector( '[name="bloque_present"]' ) ) {
 			var caseBloque = formulaire.querySelector( '[name="bloque"]' );
 			d.bloque = !! ( caseBloque && caseBloque.checked );
 		}
@@ -201,7 +191,7 @@
 		carte.classList.toggle( 'yn-team__tache--retard', tome.etat === 'en_retard' );
 	}
 
-	function envoyer( formulaire, url, methode, ajout ) {
+	function envoyer( formulaire, url, methode ) {
 		var zone = formulaire.querySelector( '[data-yn-retour]' );
 		var bouton = formulaire.querySelector( '[type="submit"]' );
 		if ( bouton ) {
@@ -218,7 +208,7 @@
 				Accept: 'application/json',
 				'X-WP-Nonce': nonce,
 			},
-			body: JSON.stringify( donnees( formulaire, ajout ) ),
+			body: JSON.stringify( donnees( formulaire ) ),
 		} )
 			.then( function ( reponse ) {
 				return reponse
@@ -233,11 +223,7 @@
 			.then( function ( resultat ) {
 				if ( resultat.ok ) {
 					annoncer( zone, resultat.json.message || '', 'ok' );
-					if ( ajout ) {
-						formulaire.reset();
-					} else {
-						majPastille( formulaire, resultat.json.tome );
-					}
+					majPastille( formulaire, resultat.json.tome );
 					return;
 				}
 				var texte = resultat.json.message || message( 'erreur', 'L’enregistrement a échoué.' );
@@ -264,10 +250,7 @@
 		}
 		if ( formulaire.hasAttribute( 'data-yn-planning' ) ) {
 			evenement.preventDefault();
-			envoyer( formulaire, route( 'yume/v1/tomes/' + encodeURIComponent( formulaire.getAttribute( 'data-yn-planning' ) ) + '/planning' ), 'PATCH', false );
-		} else if ( formulaire.hasAttribute( 'data-yn-planning-ajout' ) ) {
-			evenement.preventDefault();
-			envoyer( formulaire, route( 'yume/v1/planning/tomes' ), 'POST', true );
+			envoyer( formulaire, route( 'yume/v1/tomes/' + encodeURIComponent( formulaire.getAttribute( 'data-yn-planning' ) ) + '/planning' ), 'PATCH' );
 		}
 	} );
 } )();

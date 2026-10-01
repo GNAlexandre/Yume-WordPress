@@ -540,17 +540,13 @@ function message_mise_a_jour( int $tome_id, array $changements ): string {
 }
 
 /**
- * Ajoute un tome au planning (brouillon) : œuvre, nature, numéro, titre facultatif,
- * responsables, date cible, étape de départ.
+ * Identité d'un tome saisie (création ou modification) : œuvre existante, nature connue,
+ * numéro (obligatoire pour un tome ou un arc, virgule acceptée), titre facultatif.
  *
- * @param array $saisie  oeuvre_id, nature, numero, titre, responsables, date_cible, etape.
- * @param int   $user_id Auteur (capacité yume_maj_planning_tous).
- * @return int|\WP_Error ID du tome créé.
+ * @param array $saisie oeuvre_id, nature, numero, titre.
+ * @return array{oeuvre_id:int,nature:string,numero:?float,titre:string}|\WP_Error
  */
-function ajouter_tome( array $saisie, int $user_id ) {
-	if ( ! user_can( $user_id, 'yume_maj_planning_tous' ) ) {
-		return erreur( 'yume_planning_interdit', __( 'Seuls les éditeurs et les gérants peuvent ajouter un tome au planning.', 'yume-core' ), 403 );
-	}
+function valider_identite_tome( array $saisie ) {
 	$oeuvre_id = isset( $saisie['oeuvre_id'] ) && is_numeric( $saisie['oeuvre_id'] ) ? (int) $saisie['oeuvre_id'] : 0;
 	$oeuvre    = $oeuvre_id ? get_post( $oeuvre_id ) : null;
 	if ( ! $oeuvre || 'yume_oeuvre' !== $oeuvre->post_type || in_array( $oeuvre->post_status, array( 'trash', 'auto-draft' ), true ) ) {
@@ -571,7 +567,79 @@ function ajouter_tome( array $saisie, int $user_id ) {
 	if ( null === $numero && in_array( $nature, array( 'tome', 'arc' ), true ) ) {
 		return erreur( 'yume_numero_invalide', __( 'Indiquez le numéro du tome ou de l’arc.', 'yume-core' ), 400 );
 	}
-	$titre = isset( $saisie['titre'] ) && is_scalar( $saisie['titre'] ) ? mb_substr( sanitize_text_field( (string) $saisie['titre'] ), 0, 150 ) : '';
+	return array(
+		'oeuvre_id' => $oeuvre_id,
+		'nature'    => $nature,
+		'numero'    => $numero,
+		'titre'     => isset( $saisie['titre'] ) && is_scalar( $saisie['titre'] ) ? mb_substr( sanitize_text_field( (string) $saisie['titre'] ), 0, 150 ) : '',
+	);
+}
+
+/**
+ * Nombre de chapitres prévus saisi (vide ou 0 : inconnu), de 0 à 999.
+ *
+ * @param mixed $valeur Valeur saisie.
+ * @return int|\WP_Error
+ */
+function valider_chapitres_prevus( $valeur ) {
+	if ( null === $valeur || ( is_scalar( $valeur ) && '' === trim( (string) $valeur ) ) ) {
+		return 0;
+	}
+	if ( ! is_scalar( $valeur ) || ! preg_match( '/^\d{1,3}$/', trim( (string) $valeur ) ) ) {
+		return erreur( 'yume_chapitres_prevus_invalide', __( 'Chapitres prévus : indiquez un nombre entier de 0 à 999.', 'yume-core' ), 400 );
+	}
+	return (int) trim( (string) $valeur );
+}
+
+/**
+ * Rythme de sortie saisi : array{jour, heure} (jour de la semaine, heure HH:MM, 18:00 par
+ * défaut), ou chaîne vide pour une sortie libre (jour vide).
+ *
+ * @param mixed $valeur array{jour?:string,heure?:string}, objet ou vide.
+ * @return array{jour:string,heure:string}|string|\WP_Error
+ */
+function valider_rythme( $valeur ) {
+	$valeur = is_object( $valeur ) ? (array) $valeur : $valeur;
+	if ( ! is_array( $valeur ) || '' === (string) ( is_scalar( $valeur['jour'] ?? null ) ? $valeur['jour'] : '' ) ) {
+		return '';
+	}
+	if ( ! array_key_exists( (string) $valeur['jour'], yume_jours_semaine() ) ) {
+		return erreur( 'yume_rythme_invalide', __( 'Rythme : jour de la semaine inconnu.', 'yume-core' ), 400 );
+	}
+	$heure = is_scalar( $valeur['heure'] ?? null ) ? trim( (string) $valeur['heure'] ) : '';
+	if ( '' !== $heure && ! preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', $heure ) ) {
+		return erreur( 'yume_rythme_invalide', __( 'Rythme : heure invalide (format attendu : HH:MM).', 'yume-core' ), 400 );
+	}
+	return array(
+		'jour'  => (string) $valeur['jour'],
+		'heure' => '' !== $heure ? $heure : '18:00',
+	);
+}
+
+/**
+ * Ajoute un tome au planning (brouillon) : œuvre, nature, numéro, titre facultatif,
+ * responsables, date cible, étape de départ, chapitres prévus et rythme de sortie
+ * (facultatifs). Parution « à paraître » : aucun chapitre n'est encore lisible.
+ *
+ * @param array $saisie  oeuvre_id, nature, numero, titre, responsables, date_cible, etape,
+ *                       chapitres_prevus (entier, 0 : inconnu), rythme (array{jour, heure} ;
+ *                       jour vide : libre).
+ * @param int   $user_id Auteur (capacité yume_maj_planning_tous).
+ * @return int|\WP_Error ID du tome créé ; erreur yume_tome_existe (409, données tome_id) si
+ *                       l'œuvre a déjà un tome de même nature et de même numéro.
+ */
+function ajouter_tome( array $saisie, int $user_id ) {
+	if ( ! user_can( $user_id, 'yume_maj_planning_tous' ) ) {
+		return erreur( 'yume_planning_interdit', __( 'Seuls les éditeurs et les gérants peuvent ajouter un tome au planning.', 'yume-core' ), 403 );
+	}
+	$identite = valider_identite_tome( $saisie );
+	if ( is_wp_error( $identite ) ) {
+		return $identite;
+	}
+	$oeuvre_id = $identite['oeuvre_id'];
+	$nature    = $identite['nature'];
+	$numero    = $identite['numero'];
+	$titre     = $identite['titre'];
 
 	$planning = array_intersect_key( $saisie, array_flip( array( 'responsables', 'date_cible', 'etape' ) ) );
 	if ( isset( $planning['etape'] ) && 'publie' === $planning['etape'] ) {
@@ -581,30 +649,32 @@ function ajouter_tome( array $saisie, int $user_id ) {
 	if ( is_wp_error( $propre ) ) {
 		return $propre;
 	}
-
-	// Doublon : même œuvre, même nature, même numéro (ou même titre sans numéro).
-	foreach ( yume_get_tomes( $oeuvre_id, array( 'status' => 'any' ) ) as $existant ) {
-		$n_nature = (string) get_post_meta( $existant->ID, 'yume_nature', true );
-		$n_numero = get_post_meta( $existant->ID, 'yume_numero', true );
-		$n_numero = is_numeric( $n_numero ) ? round( (float) $n_numero, 3 ) : null;
-		if ( ( '' === $n_nature ? 'tome' : $n_nature ) === $nature && $n_numero === $numero
-			&& ( null !== $numero || 0 === strcasecmp( sous_titre_tome( (int) $existant->ID ), $titre ) ) ) {
-			return erreur(
-				'yume_tome_existe',
-				sprintf(
-					/* translators: %s : tome */
-					__( '%s existe déjà.', 'yume-core' ),
-					cible_journal( (int) $existant->ID )
-				),
-				409,
-				array( 'tome_id' => (int) $existant->ID )
-			);
-		}
+	$prevus = valider_chapitres_prevus( $saisie['chapitres_prevus'] ?? null );
+	if ( is_wp_error( $prevus ) ) {
+		return $prevus;
+	}
+	$rythme = valider_rythme( $saisie['rythme'] ?? '' );
+	if ( is_wp_error( $rythme ) ) {
+		return $rythme;
 	}
 
-	$natures = yume_natures_tome();
-	$libelle = $natures[ $nature ] . ( null !== $numero ? ' ' . str_replace( '.', ',', rtrim( rtrim( number_format( $numero, 3, '.', '' ), '0' ), '.' ) ) : '' );
-	$titre_p = titre_brut( $oeuvre_id ) . ' — ' . $libelle . ( '' !== $titre ? ' : ' . $titre : '' );
+	// Doublon : même œuvre, même nature, même numéro (ou même titre sans numéro).
+	$existant = tome_en_double( $oeuvre_id, $nature, $numero, $titre );
+	if ( $existant ) {
+		return erreur(
+			'yume_tome_existe',
+			sprintf(
+				/* translators: %s : tome */
+				__( '%s existe déjà.', 'yume-core' ),
+				cible_journal( $existant )
+			),
+			409,
+			array( 'tome_id' => $existant )
+		);
+	}
+
+	$libelle = libelle_nouveau_tome( $nature, $numero );
+	$titre_p = titre_tome_planning( $oeuvre_id, $nature, $numero, $titre );
 
 	$meta = array(
 		'yume_oeuvre_id'    => $oeuvre_id,
@@ -620,6 +690,12 @@ function ajouter_tome( array $saisie, int $user_id ) {
 	}
 	if ( ! empty( $propre['date_cible'] ) ) {
 		$meta['yume_date_cible'] = $propre['date_cible'];
+	}
+	if ( $prevus > 0 ) {
+		$meta['yume_chapitres_prevus'] = $prevus;
+	}
+	if ( is_array( $rythme ) ) {
+		$meta['yume_rythme'] = $rythme;
 	}
 
 	// wp_insert_post() attend des données « slashées » (titre, métadonnées).
@@ -660,6 +736,54 @@ function ajouter_tome( array $saisie, int $user_id ) {
 		$user_id
 	);
 	return $tome_id;
+}
+
+/**
+ * Tome existant de l'œuvre de même nature et de même numéro (sans numéro : même titre), ou 0.
+ *
+ * @param int        $oeuvre_id Œuvre.
+ * @param string     $nature    Nature (yume_natures_tome()).
+ * @param float|null $numero    Numéro (arrondi au millième) ou null.
+ * @param string     $titre     Titre facultatif (comparé quand il n'y a pas de numéro).
+ * @param int        $sauf      Tome à ignorer (celui qu'on modifie).
+ */
+function tome_en_double( int $oeuvre_id, string $nature, ?float $numero, string $titre, int $sauf = 0 ): int {
+	foreach ( yume_get_tomes( $oeuvre_id, array( 'status' => 'any' ) ) as $existant ) {
+		if ( (int) $existant->ID === $sauf ) {
+			continue;
+		}
+		$n_nature = (string) get_post_meta( $existant->ID, 'yume_nature', true );
+		$n_numero = get_post_meta( $existant->ID, 'yume_numero', true );
+		$n_numero = is_numeric( $n_numero ) ? round( (float) $n_numero, 3 ) : null;
+		if ( ( '' === $n_nature ? 'tome' : $n_nature ) === $nature && $n_numero === $numero
+			&& ( null !== $numero || 0 === strcasecmp( sous_titre_tome( (int) $existant->ID ), $titre ) ) ) {
+			return (int) $existant->ID;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Libellé d'un tome d'après sa nature et son numéro (« Tome 2 », « Arc 7,5 »).
+ *
+ * @param string     $nature Nature.
+ * @param float|null $numero Numéro.
+ */
+function libelle_nouveau_tome( string $nature, ?float $numero ): string {
+	$natures = yume_natures_tome();
+	return ( $natures[ $nature ] ?? $natures['tome'] ) . ( null !== $numero ? ' ' . str_replace( '.', ',', rtrim( rtrim( number_format( $numero, 3, '.', '' ), '0' ), '.' ) ) : '' );
+}
+
+/**
+ * Titre d'un tome créé ou modifié dans l'espace équipe : « Œuvre — Tome 2 : Titre ».
+ *
+ * @param int        $oeuvre_id Œuvre.
+ * @param string     $nature    Nature.
+ * @param float|null $numero    Numéro.
+ * @param string     $titre     Titre facultatif.
+ */
+function titre_tome_planning( int $oeuvre_id, string $nature, ?float $numero, string $titre ): string {
+	return titre_brut( $oeuvre_id ) . ' — ' . libelle_nouveau_tome( $nature, $numero ) . ( '' !== $titre ? ' : ' . $titre : '' );
 }
 
 /**
