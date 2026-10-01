@@ -1763,7 +1763,8 @@ yume_tp_test(
 				yume_assert_contains( '2 relectures', $html );
 				yume_assert_not_contains( 'id="yn-tous-les-tomes"', $html );
 				yume_assert_not_contains( 'yume_planning_ajout', $html );
-				yume_assert_not_contains( 'Publier un tome', $html );
+				yume_assert_not_contains( 'vue=tomes&#038;nouveau=1', $html, 'pas de « Nouveau tome » pour un traducteur' );
+				yume_assert_not_contains( 'Ajouter des chapitres', $html );
 				yume_assert_not_contains( 'name="responsables[', $html );
 				yume_assert_contains( 'Journal de l’équipe', $html );
 				yume_assert_contains( 'Rappels automatiques', $html );
@@ -1785,10 +1786,12 @@ yume_tp_test(
 				yume_assert_contains( 'id="yn-tous-les-tomes"', $html );
 				yume_assert_contains( 'id="yn-tome-' . $d['witches2'] . '"', $html );
 				yume_assert_contains( 'name="responsables[relecture]"', $html );
-				yume_assert_contains( 'name="action" value="yume_planning_ajout"', $html );
+				// « Ajouter un tome au planning » : lien vers la vue « Nouveau tome » (plus de formulaire intégré).
+				yume_assert_contains( 'id="yn-ajouter-tome-section"', $html );
 				yume_assert_contains( 'Ajouter un tome au planning', $html );
-				yume_assert_contains( '<option value="' . $d['grimgar'] . '">Grimgar of Fantasy and Ash</option>', $html );
-				yume_assert_contains( 'Publier un tome', $html );
+				yume_assert_contains( esc_url( \Yume\Core\Planning\url_nouveau_tome( 0, 'tableau' ) ), $html );
+				yume_assert_not_contains( 'name="action" value="yume_planning_ajout"', $html );
+				yume_assert_contains( 'Ajouter des chapitres', $html );
 				yume_assert_contains( '>Réglages</a>', $html );
 				yume_assert_contains( esc_url( \Yume\Core\Planning\url_vue_equipe( 'reglages' ) ), $html );
 				yume_assert_contains( 'Membres et rôles', $html );
@@ -2217,7 +2220,7 @@ yume_tp_test(
 		preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0], $liens, PREG_SET_ORDER );
 		$libelles = array_map( static fn( $l ) => html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), $liens );
 		$du_menu  = static fn( string $groupe ): array => array_column( array_filter( $ajoutees, static fn( $v ) => $groupe === $v['groupe'] ), 'libelle' );
-		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Publier un tome', 'Lecture à compléter' ), $du_menu( 'catalogue' ), array( 'Planning complet', 'Journal', 'Membres et rôles' ), $du_menu( 'equipe' ), $du_menu( 'site' ), array( 'Réglages' ) ), $libelles );
+		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Ajouter des chapitres', 'Lecture à compléter' ), $du_menu( 'catalogue' ), array( 'Planning complet', 'Journal', 'Membres et rôles' ), $du_menu( 'equipe' ), $du_menu( 'site' ), array( 'Réglages' ) ), $libelles );
 		$equipe   = esc_url( yume_url_page( 'equipe' ) );
 		yume_assert_same( $equipe, $liens[0][1] );
 		yume_assert_same( esc_url( \Yume\Core\Planning\url_vue_equipe( 'taches' ) ), $liens[1][1] );

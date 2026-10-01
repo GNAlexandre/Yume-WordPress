@@ -16,9 +16,10 @@ namespace Yume\Core\Planning;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Chapitres des tomes par statut (publiés, en préparation), en une requête.
+ * Chapitres des tomes par statut, en une requête : publiés, en préparation (brouillons, en
+ * attente, programmés) et, parmi eux, programmés.
  *
- * @return array<int,array{publies:int,attente:int}> Tome => nombres.
+ * @return array<int,array{publies:int,attente:int,programmes:int}> Tome => nombres.
  */
 function chapitres_par_tome(): array {
 	global $wpdb;
@@ -38,11 +39,15 @@ function chapitres_par_tome(): array {
 			continue;
 		}
 		$nombres[ $tome_id ]          = $nombres[ $tome_id ] ?? array(
-			'publies' => 0,
-			'attente' => 0,
+			'publies'    => 0,
+			'attente'    => 0,
+			'programmes' => 0,
 		);
 		$cle                          = 'publish' === $ligne->statut ? 'publies' : 'attente';
 		$nombres[ $tome_id ][ $cle ] += (int) $ligne->nb;
+		if ( 'future' === $ligne->statut ) {
+			$nombres[ $tome_id ]['programmes'] += (int) $ligne->nb;
+		}
 	}
 	return $nombres;
 }
@@ -185,7 +190,7 @@ function rendu_vue_lecture(): string {
 	$donnes = $oeuvre ? lecture_a_completer( $oeuvre ) : $tout;
 	$reste  = $donnes['total'] - $donnes['avec'];
 
-	$html .= tete_vue( __( 'Lecture en ligne à compléter', 'yume-core' ), '<a class="yn-btn" href="' . esc_url( yume_url_page( 'publier' ) ) . '">' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a>' );
+	$html .= tete_vue( __( 'Lecture en ligne à compléter', 'yume-core' ), '<a class="yn-btn" href="' . esc_url( yume_url_page( 'publier' ) ) . '">' . esc_html__( 'Ajouter des chapitres', 'yume-core' ) . '</a>' );
 	$html .= '<p class="yn-muted">' . esc_html__( 'Tomes déjà parus qui n’ont que leurs liens PDF ou EPUB. « Ajouter le DOCX » ouvre le formulaire de publication prérempli, en mode « Ajout au catalogue » : les chapitres sont mis en ligne sans annonce (ni article, ni Discord, ni e-mail) et le tome quitte cette liste.', 'yume-core' ) . '</p>';
 
 	// Progression.

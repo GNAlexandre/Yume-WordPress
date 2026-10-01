@@ -1597,3 +1597,290 @@
 	min-height: 0;
 	padding: 0;
 }
+
+/* Fiches de tome (tome-fiche-equipe.php) : « Nouveau tome » et « Modifier le tome ». Formulaire
+   en deux colonnes (champs, puis couverture / état / boutons), une seule sous 1000 px. */
+.yn-team .yn-fiche {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+	align-items: start;
+	gap: 22px;
+}
+
+.yn-fiche__principal,
+.yn-fiche__cote {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	min-width: 0;
+}
+
+/* Heure du rythme et date-heure d'un chapitre : même apparence que les autres champs du thème
+   (dont la règle commune ne couvre pas ces deux types). */
+.yn-team input[type="time"],
+.yn-team input[type="datetime-local"] {
+	box-sizing: border-box;
+	max-width: 100%;
+	min-height: 38px;
+	padding: 6px 12px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius);
+	background: var(--wp--preset--color--bande);
+	color: var(--wp--preset--color--texte);
+	color-scheme: dark light;
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+.yn-team .yn-fiche__retour {
+	font-size: 14px;
+}
+
+.yn-team .yn-fiche__boutons {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.yn-team .yn-fiche__boutons .yn-btn {
+	justify-content: center;
+	width: 100%;
+	text-align: center;
+}
+
+.yn-team .yn-fiche__avancee {
+	font-size: 13px;
+	text-align: center;
+}
+
+.yn-team .yn-fiche__case {
+	align-items: flex-start;
+	font-size: 14px;
+	white-space: normal;
+}
+
+.yn-team .yn-fiche__case input[type="checkbox"] {
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.yn-team .yn-fiche__liste,
+.yn-team .yn-fiche__tomes {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-fiche__liste li {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+.yn-team .yn-fiche__tomes li {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 6px 10px;
+}
+
+.yn-fiche__coche {
+	display: inline-flex;
+	flex-shrink: 0;
+	justify-content: center;
+	align-items: center;
+	width: 22px;
+	height: 22px;
+	border: 1.5px solid var(--wp--preset--color--succes);
+	border-radius: 50%;
+	color: var(--wp--preset--color--succes);
+	font-size: 12px;
+}
+
+.yn-fiche__coche--non {
+	border-color: var(--wp--preset--color--filet);
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-team .yn-fiche__couverture .yn-cadrage__cadre {
+	width: 140px;
+}
+
+/* Les trois états de parution. */
+.yn-team .yn-parutions {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 14px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-parutions__etat {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 14px 16px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+	font-size: 14px;
+}
+
+.yn-team .yn-parutions__etat strong,
+.yn-team .yn-chapitres__titre strong {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+/* Chapitres du tome : repère, titre et état, actions. */
+.yn-team .yn-chapitres {
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+	overflow: hidden;
+}
+
+.yn-team .yn-chapitres__tete {
+	padding: 16px 20px 10px;
+}
+
+.yn-team .yn-chapitres__tete > h3 {
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 18px;
+}
+
+.yn-team .yn-chapitres__note {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 0 20px 12px;
+	font-size: 14px;
+}
+
+.yn-team .yn-chapitres__note:empty {
+	display: none;
+}
+
+.yn-team .yn-chapitres__liste {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-chapitres__ligne {
+	display: grid;
+	grid-template-columns: 52px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 8px 14px;
+	margin: 0;
+	padding: 12px 20px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	scroll-margin-top: 24px;
+}
+
+.yn-chapitres__repere {
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 17px;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+.yn-chapitres__ligne--a-venir .yn-chapitres__repere {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-chapitres__infos {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.yn-team .yn-chapitres__etat {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	font-size: 13px;
+}
+
+.yn-chapitres__actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+}
+
+.yn-team .yn-chapitres__form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+}
+
+.yn-team .yn-chapitres__date input[type="datetime-local"] {
+	max-width: 100%;
+	min-height: 32px;
+	padding: 4px 8px;
+	font-size: 13px;
+}
+
+.yn-chapitres__retour,
+.yn-chapitres__confirmation {
+	grid-column: 1 / -1;
+}
+
+.yn-team .yn-chapitres__confirmation {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px 14px;
+	border: 1px solid var(--wp--preset--color--erreur);
+	border-radius: var(--yn-radius-card);
+	font-size: 14px;
+}
+
+@media (max-width: 999.98px) {
+	.yn-team .yn-fiche {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 699.98px) {
+	.yn-team .yn-chapitres__tete,
+	.yn-team .yn-chapitres__note {
+		padding-inline: 16px;
+	}
+
+	.yn-team .yn-chapitres__ligne {
+		grid-template-columns: 40px minmax(0, 1fr);
+		padding: 12px 16px;
+	}
+
+	.yn-chapitres__actions {
+		grid-column: 1 / -1;
+		justify-content: stretch;
+	}
+
+	.yn-chapitres__actions > .yn-btn,
+	.yn-team .yn-chapitres__form {
+		flex: 1 1 140px;
+	}
+
+	.yn-team .yn-chapitres__form .yn-btn {
+		flex: 1 1 auto;
+		justify-content: center;
+	}
+
+	.yn-team .yn-chapitres__date input[type="datetime-local"] {
+		flex: 1 1 100%;
+	}
+}

@@ -1,8 +1,9 @@
 <?php
 /**
  * Espace équipe (bloc yume/team-dashboard, maquette TeamDashboard) : chiffres, « Mes tâches »
- * (curseur d'avancement, étape, date cible, blocage, note), « Tomes en préparation » et « Ajouter
- * un tome au planning » (yume_maj_planning_tous), retards, rappels récents, journal de l'équipe.
+ * (curseur d'avancement, étape, date cible, blocage, note), « Tomes en préparation » et le lien
+ * « Ajouter un tome au planning » vers « Nouveau tome » (yume_maj_planning_tous), retards, rappels
+ * récents, journal de l'équipe.
  *
  * Vues de la même page (paramètre « vue », sans page supplémentaire) : « Planning complet »
  * (?vue=planning : tous les tomes vivants, filtres œuvre / état / statut / responsable, tri
@@ -11,13 +12,15 @@
  * « Journal » (?vue=journal : tout le journal, paginé, filtrable par tome) et
  * « Réglages » (?vue=reglages, capacité yume_reglages : voir reglages-equipe.php), « Lecture à
  * compléter » (?vue=lecture, capacité yume_publier : voir lecture-a-completer.php), « Tous les
- * tomes » (?vue=tomes, capacité yume_publier, publiés compris : voir tomes-equipe.php), « Mes
+ * tomes » (?vue=tomes, capacité yume_publier, publiés compris : voir tomes-equipe.php ; « Nouveau
+ * tome » et « Modifier le tome » : voir tome-fiche-equipe.php), « Mes
  * tâches » (?vue=taches : voir mes-taches.php) et « Œuvres » (?vue=oeuvres, capacité
  * edit_yume_oeuvres : œuvres du catalogue et formulaire « Nouvelle œuvre », voir oeuvres-equipe.php).
  *
- * Les formulaires passent par la REST en JavaScript (view.js) et, sans JavaScript, par
- * admin-post.php (actions yume_planning_maj, yume_planning_ajout, yume_planning_retrait et
- * yume_planning_pause, nonce) ; l'export CSV passe par admin-post.php (action
+ * Les formulaires de mise à jour passent par la REST en JavaScript (view.js) et, sans
+ * JavaScript, par admin-post.php (actions yume_planning_maj, yume_planning_retrait et
+ * yume_planning_pause, nonce) ; « Nouveau tome » est envoyé à admin-post.php (action
+ * yume_planning_ajout, nonce) ; l'export CSV passe par admin-post.php (action
  * yume_planning_export, nonce, capacité yume_voir_equipe).
  *
  * @package Yume\Core
@@ -590,46 +593,6 @@ function formulaire_retrait( array $l ): string {
 	return $html . '</form>';
 }
 
-/**
- * Formulaire « Ajouter un tome au planning ».
- *
- * @param array      $membres Membres.
- * @param array|null $retour  Retour sans JavaScript.
- */
-function formulaire_ajout( array $membres, ?array $retour ): string {
-	$oeuvres = choix_oeuvres( __( '— Choisir une œuvre —', 'yume-core' ) );
-	$html    = '<form class="yn-card yn-team__ajout" id="yn-ajouter-tome-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-yn-planning-ajout aria-labelledby="yn-ajouter-tome">';
-	$html   .= '<input type="hidden" name="action" value="yume_planning_ajout">' . wp_nonce_field( 'yume_planning_ajout', '_yume_nonce', true, false );
-	$html   .= '<div class="yn-team__grille">';
-	// Œuvre présélectionnée depuis la vue « Œuvres » (?oeuvre_ajout=ID).
-	$choisie = get_entier( 'oeuvre_ajout' );
-	$html   .= champ_select( 'yn-ajout-oeuvre', 'oeuvre_id', __( 'Œuvre', 'yume-core' ), $oeuvres, isset( $oeuvres[ (string) $choisie ] ) ? (string) $choisie : '', array( 'required' => true ) );
-	$html   .= champ_select( 'yn-ajout-nature', 'nature', __( 'Nature', 'yume-core' ), yume_natures_tome(), 'tome' );
-	$html   .= champ_saisie(
-		'yn-ajout-numero',
-		'numero',
-		__( 'Numéro', 'yume-core' ),
-		'',
-		'number',
-		array(
-			'min'  => 0,
-			'step' => '0.5',
-		)
-	);
-	$html   .= champ_saisie( 'yn-ajout-titre', 'titre', __( 'Titre (facultatif)', 'yume-core' ), '', 'text', array( 'maxlength' => 150 ) );
-	$html   .= champ_saisie( 'yn-ajout-date', 'date_cible', __( 'Date cible', 'yume-core' ), '', 'date' );
-	$depart  = yume_etapes();
-	unset( $depart['publie'] );
-	$html .= champ_select( 'yn-ajout-etape', 'etape', __( 'Étape de départ', 'yume-core' ), $depart, 'a_faire' );
-	$choix = array( '0' => __( '— Personne —', 'yume-core' ) ) + $membres;
-	foreach ( ETAPES_TRAVAIL as $e ) {
-		/* translators: %s : étape */
-		$html .= champ_select( 'yn-ajout-resp-' . $e, 'responsables[' . $e . ']', sprintf( __( 'Responsable %s', 'yume-core' ), libelle_etape_min( $e ) ), $choix, '0' );
-	}
-	$html .= '</div><p class="yn-team__action"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Ajouter au planning', 'yume-core' ) . '</button></p>';
-	return $html . zone_retour( $retour ) . '</form>';
-}
-
 /*
  * -----------------------------------------------------------------------------
  * Rendu
@@ -790,7 +753,7 @@ function entrees_navigation_equipe(): array {
 		// Tout le catalogue, publiés compris (la section du tableau de bord ne liste que les
 		// tomes en préparation) : retrouver un tome paru pour remplacer sa lecture en ligne.
 		$ajouter( 'catalogue', 'tomes', __( 'Tous les tomes', 'yume-core' ), url_vue_equipe( 'tomes' ) );
-		$ajouter( 'catalogue', 'publier', __( 'Publier un tome', 'yume-core' ), yume_url_page( 'publier' ) );
+		$ajouter( 'catalogue', 'publier', __( 'Ajouter des chapitres', 'yume-core' ), yume_url_page( 'publier' ) );
 		$ajouter( 'catalogue', 'lecture', __( 'Lecture à compléter', 'yume-core' ), url_vue_equipe( 'lecture' ) );
 	}
 	// Vue de gestion de tout le planning (le planning public reste accessible par le bouton
@@ -1185,10 +1148,10 @@ function rendu_vue_planning(): string {
 
 	$boutons = '<a class="yn-btn" href="' . esc_url( yume_url_page( 'planning' ) ) . '">' . esc_html__( 'Voir le planning public', 'yume-core' ) . '</a>';
 	if ( $tous ) {
-		$boutons .= '<a class="yn-btn" href="' . esc_url( url_vue_equipe() . '#yn-ajouter-tome-section' ) . '">' . esc_html__( 'Ajouter un tome au planning', 'yume-core' ) . '</a>';
+		$boutons .= '<a class="yn-btn" href="' . esc_url( url_nouveau_tome( $f['oeuvre'], 'planning' ) ) . '">' . esc_html__( 'Ajouter un tome au planning', 'yume-core' ) . '</a>';
 	}
 	if ( current_user_can( 'yume_publier' ) ) {
-		$boutons .= '<a class="yn-btn yn-btn--primary" href="' . esc_url( yume_url_page( 'publier' ) ) . '"><span aria-hidden="true">+</span> ' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a>';
+		$boutons .= '<a class="yn-btn yn-btn--primary" href="' . esc_url( yume_url_page( 'publier' ) ) . '"><span aria-hidden="true">+</span> ' . esc_html__( 'Ajouter des chapitres', 'yume-core' ) . '</a>';
 	}
 	$html .= tete_vue( __( 'Planning complet', 'yume-core' ), $boutons );
 	$html .= '<p class="yn-muted">' . esc_html(
@@ -1441,7 +1404,7 @@ function rendu_team_dashboard(): string {
 	$html .= '<h2 class="yn-team__bonjour">' . esc_html( sprintf( __( 'Bonjour %s', 'yume-core' ), $user->display_name ) ) . '</h2></div>';
 	$html .= '<p class="yn-team__boutons"><a class="yn-btn" href="' . esc_url( yume_url_page( 'planning' ) ) . '">' . esc_html__( 'Voir le planning public', 'yume-core' ) . '</a>';
 	if ( current_user_can( 'yume_publier' ) ) {
-		$html .= '<a class="yn-btn yn-btn--primary" href="' . esc_url( yume_url_page( 'publier' ) ) . '"><span aria-hidden="true">+</span> ' . esc_html__( 'Publier un tome', 'yume-core' ) . '</a>';
+		$html .= '<a class="yn-btn yn-btn--primary" href="' . esc_url( yume_url_page( 'publier' ) ) . '"><span aria-hidden="true">+</span> ' . esc_html__( 'Ajouter des chapitres', 'yume-core' ) . '</a>';
 	}
 	$html .= '</p></div>';
 
@@ -1515,11 +1478,11 @@ function rendu_team_dashboard(): string {
 			$html .= '<p class="yn-card yn-team__vide yn-muted">' . esc_html__( 'Aucun tome en préparation.', 'yume-core' ) . '</p>';
 		}
 		$html .= '</section>';
+		// Ancienne section du formulaire d'ajout (ancre #yn-ajouter-tome-section conservée pour les
+		// liens existants) : le formulaire est désormais la vue « Nouveau tome ».
 		$html .= '<section class="yn-team__section" id="yn-ajouter-tome-section" aria-labelledby="yn-ajouter-tome"><h2 id="yn-ajouter-tome">' . esc_html__( 'Ajouter un tome au planning', 'yume-core' ) . '</h2>';
-		if ( current_user_can( CAPACITE_OEUVRES ) ) {
-			$html .= '<p class="yn-muted">' . esc_html__( 'L’œuvre n’existe pas encore ?', 'yume-core' ) . ' <a href="' . esc_url( url_vue_equipe( 'oeuvres' ) . '#yn-nouvelle-oeuvre-section' ) . '">' . esc_html__( 'Créer une nouvelle œuvre', 'yume-core' ) . '</a></p>';
-		}
-		$html .= formulaire_ajout( $membres, $retour_pour( 'yn-ajouter-tome-form' ) ) . '</section>';
+		$html .= '<div class="yn-card yn-team__ajout" id="yn-ajouter-tome-form"><p class="yn-muted">' . esc_html__( 'Le tome est créé sans fichier, avec son planning, ses chapitres prévus et son rythme de sortie ; ses chapitres arrivent ensuite avec « Ajouter des chapitres ».', 'yume-core' ) . '</p>';
+		$html .= '<p class="yn-team__action"><a class="yn-btn yn-btn--primary" href="' . esc_url( url_nouveau_tome( get_entier( 'oeuvre_ajout' ), 'tableau' ) ) . '">' . esc_html__( 'Nouveau tome', 'yume-core' ) . '</a></p></div></section>';
 	}
 	$html .= '</div><div class="yn-team__droite"><h2>' . esc_html__( 'Rappels et journal', 'yume-core' ) . '</h2>';
 
@@ -1674,46 +1637,87 @@ function traiter_formulaire_maj( array $post, int $user_id ): array {
 }
 
 /**
- * Traite le formulaire « Ajouter un tome au planning ».
+ * Traite le formulaire « Nouveau tome » (ancien « Ajouter un tome au planning ») : même
+ * service que POST /yume/v1/planning/tomes (ajouter_tome()), avec les chapitres prévus, le
+ * rythme (rythme_jour, rythme_heure) et le bouton choisi (suite = fiche | chapitre).
  *
  * @param array $post    Données POST.
  * @param int   $user_id Utilisateur.
- * @return array{type:string,message:string,cible:string,tome_id:int}
+ * @return array{type:string,message:string,cible:string,tome_id:int,suite:string,saisie:array}
+ *         tome_id : tome créé, ou tome existant (même œuvre, nature et numéro) dont la fiche
+ *         s'ouvre ; saisie : champs à reprendre dans le formulaire en cas d'erreur.
  */
 function traiter_formulaire_ajout( array $post, int $user_id ): array {
-	$nonce = is_scalar( $post['_yume_nonce'] ?? null ) ? sanitize_text_field( wp_unslash( (string) $post['_yume_nonce'] ) ) : '';
-	$base  = array( 'cible' => 'yn-ajouter-tome-form' );
-	if ( ! wp_verify_nonce( $nonce, 'yume_planning_ajout' ) ) {
-		return $base + array(
-			'type'    => 'erreur',
-			'message' => __( 'Votre session a expiré : rechargez la page puis réessayez.', 'yume-core' ),
-			'tome_id' => 0,
-		);
-	}
+	$nonce  = is_scalar( $post['_yume_nonce'] ?? null ) ? sanitize_text_field( wp_unslash( (string) $post['_yume_nonce'] ) ) : '';
+	$suite  = 'chapitre' === ( is_scalar( $post['suite'] ?? null ) ? (string) $post['suite'] : '' ) ? 'chapitre' : 'fiche';
 	$saisie = array();
-	foreach ( array( 'oeuvre_id', 'nature', 'numero', 'titre', 'date_cible', 'etape' ) as $cle ) {
+	foreach ( array( 'oeuvre_id', 'nature', 'numero', 'titre', 'date_cible', 'etape', 'chapitres_prevus' ) as $cle ) {
 		$valeur = champ_post( $post, $cle );
-		if ( null !== $valeur && '' !== $valeur ) {
-			$saisie[ $cle ] = $valeur;
+		if ( is_scalar( $valeur ) && '' !== (string) $valeur ) {
+			$saisie[ $cle ] = sanitize_text_field( (string) $valeur );
 		}
 	}
 	$resp = champ_post( $post, 'responsables' );
 	if ( is_array( $resp ) ) {
-		$saisie['responsables'] = $resp;
+		$saisie['responsables'] = array_map( 'absint', array_intersect_key( array_filter( $resp, 'is_scalar' ), array_flip( ETAPES_TRAVAIL ) ) );
+	}
+	$jour = champ_post( $post, 'rythme_jour' );
+	if ( is_scalar( $jour ) && '' !== (string) $jour ) {
+		$heure            = champ_post( $post, 'rythme_heure' );
+		$saisie['rythme'] = array(
+			'jour'  => sanitize_key( (string) $jour ),
+			'heure' => is_scalar( $heure ) ? sanitize_text_field( (string) $heure ) : '',
+		);
+	}
+	$base = array(
+		'cible'   => 'yn-nouveau-tome-form',
+		'suite'   => $suite,
+		'saisie'  => $saisie,
+		'tome_id' => 0,
+	);
+	if ( ! wp_verify_nonce( $nonce, 'yume_planning_ajout' ) ) {
+		return array_merge(
+			$base,
+			array(
+				'type'    => 'erreur',
+				'message' => __( 'Votre session a expiré : rechargez la page puis réessayez.', 'yume-core' ),
+			)
+		);
 	}
 	$tome_id = ajouter_tome( $saisie, $user_id );
 	if ( is_wp_error( $tome_id ) ) {
-		return $base + array(
-			'type'    => 'erreur',
-			'message' => $tome_id->get_error_message(),
-			'tome_id' => 0,
+		$donnees  = $tome_id->get_error_data();
+		$existant = 'yume_tome_existe' === $tome_id->get_error_code() && is_array( $donnees ) ? (int) ( $donnees['tome_id'] ?? 0 ) : 0;
+		if ( $existant ) {
+			// Le tome existe déjà : sa fiche s'ouvre, avec ce message en tête.
+			return array_merge(
+				$base,
+				array(
+					'cible'   => 'yn-tome-fiche',
+					'type'    => 'erreur',
+					/* translators: %s : tome */
+					'message' => sprintf( __( '%s existe déjà : voici sa fiche, aucun tome n’a été créé.', 'yume-core' ), cible_journal( $existant ) ),
+					'tome_id' => $existant,
+				)
+			);
+		}
+		return array_merge(
+			$base,
+			array(
+				'type'    => 'erreur',
+				'message' => $tome_id->get_error_message(),
+			)
 		);
 	}
-	return $base + array(
-		'type'    => 'ok',
-		/* translators: %s : tome */
-		'message' => sprintf( __( '%s ajouté au planning.', 'yume-core' ), cible_journal( $tome_id ) ),
-		'tome_id' => $tome_id,
+	return array_merge(
+		$base,
+		array(
+			'cible'   => 'yn-tome-fiche',
+			'type'    => 'ok',
+			/* translators: %s : tome */
+			'message' => sprintf( __( '%s ajouté au planning.', 'yume-core' ), cible_journal( $tome_id ) ),
+			'tome_id' => $tome_id,
+		)
 	);
 }
 
@@ -1823,8 +1827,7 @@ function rediriger_retour( array $retour ): void {
 	$page   = wp_get_referer();
 	$page   = $page ? wp_validate_redirect( $page, $equipe ) : $equipe;
 	$page   = remove_query_arg( array( 'yume_planning' ), (string) strtok( $page, '#' ) );
-	$ancre  = 'ok' === $retour['type'] && str_starts_with( $retour['cible'], 'yn-ajouter' ) ? 'yn-ajouter-tome-form' : $retour['cible'];
-	wp_safe_redirect( add_query_arg( 'yume_planning', 'ok' === $retour['type'] ? 'ok' : 'erreur', $page ) . '#' . $ancre );
+	wp_safe_redirect( add_query_arg( 'yume_planning', 'ok' === $retour['type'] ? 'ok' : 'erreur', $page ) . '#' . $retour['cible'] );
 	exit;
 }
 
@@ -1840,13 +1843,19 @@ function admin_post_maj(): void {
 add_action( 'admin_post_yume_planning_maj', __NAMESPACE__ . '\\admin_post_maj' );
 
 /**
- * Formulaire d'ajout envoyé sans JavaScript (admin-post.php, action yume_planning_ajout).
+ * Formulaire « Nouveau tome » (admin-post.php, action yume_planning_ajout) : vers le formulaire
+ * de publication (« Créer le tome et ajouter un chapitre »), la fiche du tome créé ou existant,
+ * ou de nouveau le formulaire en cas d'erreur (adresse_apres_ajout()).
  */
 function admin_post_ajout(): void {
 	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié dans traiter_formulaire_ajout().
-	$retour = traiter_formulaire_ajout( $_POST, get_current_user_id() );
-	retour_formulaire( get_current_user_id(), $retour );
-	rediriger_retour( $retour );
+	$retour  = traiter_formulaire_ajout( $_POST, get_current_user_id() );
+	$adresse = adresse_apres_ajout( $retour );
+	if ( 'ok' !== $retour['type'] || 'chapitre' !== $retour['suite'] ) {
+		retour_formulaire( get_current_user_id(), $retour );
+	}
+	wp_safe_redirect( $adresse );
+	exit;
 }
 add_action( 'admin_post_yume_planning_ajout', __NAMESPACE__ . '\\admin_post_ajout' );
 

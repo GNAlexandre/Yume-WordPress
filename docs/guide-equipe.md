@@ -59,7 +59,7 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Publier un tome, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; pour les gérants
+- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Ajouter des chapitres, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; pour les gérants
   **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
@@ -72,11 +72,11 @@ fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans 
 
 Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut ou par titre. Pour
 chaque œuvre : **Voir** (publiée) ou **Publier** (brouillon), **Modifier**, **Ajouter un tome au
-planning** (le formulaire du tableau de bord s'ouvre avec l'œuvre déjà choisie) et **Publier un
-tome**.
+planning** (la page **Nouveau tome** s'ouvre avec l'œuvre déjà choisie) et **Ajouter des
+chapitres**.
 
-**Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » sous
-« Ajouter un tome au planning ») et **Modifier** utilisent le même formulaire : titre, type, statut
+**Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » de la page
+**Nouveau tome**) et **Modifier** utilisent le même formulaire : titre, type, statut
 de la traduction, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), genres
 (cases à cocher, ou « Ajouter des genres absents de la liste »), synopsis (une ligne vide sépare
 deux paragraphes ; `<strong>gras</strong>` et `<em>italique</em>` sont conservés) et couverture
@@ -101,6 +101,46 @@ de la VO, la source de la traduction, les jours de sortie, l'équipe affichée e
 Aventure, Isekai, Romance, Slice of life…). Ajoutez-en (plusieurs à la fois, séparés par des
 virgules) ou supprimez-en ; un genre supprimé est retiré des œuvres qui l'avaient et n'est pas
 recréé aux mises à jour.
+
+### Tous les tomes, nouveau tome et fiche d'un tome (`/equipe/?vue=tomes`, éditeurs et gérants)
+
+**Tous les tomes** liste le catalogue, publiés compris, par œuvre. Filtre **Statut** : À paraître,
+En cours, Complets, Programmés (tome ou chapitre programmé), Brouillons. Chaque tome montre sa
+parution, « 3 chapitres sur 12 en ligne » quand le nombre de chapitres prévus est connu et le
+prochain chapitre programmé (« Chapitre 3 programmé le 11 oct. ») ; boutons **Ajouter des
+chapitres** (formulaire de publication, tome déjà choisi), **Voir** et **Modifier**.
+
+**États de parution** : rien à choisir, l'état suit les chapitres.
+
+| État | Quand |
+| --- | --- |
+| **À paraître** | Dès la création, tant qu'aucun chapitre n'est en ligne (un tome programmé reste « à paraître » jusqu'à sa sortie). |
+| **En cours** | Au premier chapitre publié : le tome se lit en ligne, ses chapitres sortent au fil de l'eau. |
+| **Complet** | Quand l'équipe coche **Tome complet** : tous les chapitres sont en ligne, les liens PDF et EPUB s'ajoutent. |
+
+**Nouveau tome** (bouton de *Tous les tomes* ; « Ajouter un tome au planning » du tableau de bord,
+du *Planning complet* et de la vue *Œuvres* mènent à la même page) : œuvre, nature, numéro, titre
+facultatif, étape de départ, responsables, date cible, et, facultatifs, **Chapitres prévus** et
+**Rythme** (« Libre » ou un jour de la semaine, 18 h par défaut : la date du chapitre suivant est
+alors proposée). Le tome est créé en brouillon, sans fichier ni annonce.
+**Créer le tome** ouvre sa fiche ; **Créer le tome et ajouter un chapitre** ouvre le formulaire de
+publication. Si l'œuvre a déjà un tome de même nature et de même numéro, sa fiche s'ouvre au lieu
+d'en créer un second.
+
+**Modifier** (fiche du tome, dans l'espace équipe) :
+
+- les champs du tome (œuvre, nature, numéro, titre, responsables, date cible, chapitres prévus,
+  rythme), les **crédits** affichés sur la page du tome et la **couverture** (avec son cadrage) ;
+- l'encadré **Tome complet** : la case passe le tome à « Complet » et enregistre les liens PDF et
+  EPUB, **sans annonce** (décochée, un tome en ligne repasse « En cours ») ;
+- la liste des **chapitres** (en ligne, programmés, brouillons) : **Voir** ou **Aperçu**, **Publier
+  maintenant** et **Changer la date** (programmé ou brouillon, tome déjà en ligne ; la date proposée
+  suit le rythme), **Retirer** (en ligne ou programmé : un écran demande confirmation, le chapitre
+  repasse en brouillon, son adresse et ses commentaires sont gardés). Une ligne **À venir** compte
+  les chapitres prévus pas encore déposés. La première sortie d'un tome passe toujours par
+  **Ajouter des chapitres** (annonce comprise) ;
+- un résumé du **planning** (étape, avancement, lien vers sa ligne) et, en bas, **Édition avancée
+  (administration WordPress)**.
 
 ### Planning complet (`/equipe/?vue=planning`)
 
@@ -405,11 +445,10 @@ refait) :
 
 1. Espace équipe → **Tous les tomes** (`/equipe/?vue=tomes`, éditeurs et gérants) : tous les tomes,
    **publiés compris** (la section « Tomes en préparation » du tableau de bord ne montre que le
-   planning à venir). Filtrez par œuvre, par statut (publiés, programmés, brouillons) ou tapez une
-   partie du titre.
-2. Sur la ligne du tome : **Remplacer la lecture en ligne** (le tome a déjà des chapitres en ligne)
-   ou **Lecture en ligne : ajouter le DOCX/EPUB** (il n'en a aucun). **Voir** ouvre la fiche publique,
-   **Modifier** l'administration.
+   planning à venir). Filtrez par œuvre, par statut (à paraître, en cours, complets, programmés,
+   brouillons) ou tapez une partie du titre.
+2. Sur la ligne du tome : **Ajouter des chapitres**. **Voir** ouvre la fiche publique, **Modifier**
+   la fiche du tome dans l'espace équipe.
 3. Le formulaire de publication s'ouvre déjà rempli. En haut, l'encadré **« Remplacer la lecture en
    ligne (N chapitres actuels) »** rappelle ce qui va se passer. **Rien ne change pour les lecteurs
    tant que vous n'avez pas cliqué sur « Remplacer la lecture en ligne maintenant ».**
@@ -683,7 +722,7 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | Le tome publié n'apparaît pas | Il est en brouillon ou programmé : vérifiez son statut dans *Planning complet* (filtre *Statut*) ou dans *Yume → Tomes*. |
 | Un tome est arrêté mais reste « en retard » et déclenche des rappels | *Planning complet* → dépliez sa ligne → **Mettre en pause** ; **Reprendre** le jour où il repart. |
 | J'ai ajouté un tome au planning par erreur | *Planning complet* → dépliez sa ligne → **Retirer du planning** (brouillon sans chapitre publié). |
-| Un lien PDF ou EPUB est mort | *Yume → Tomes → Modifier* le tome et remplacez le lien. |
+| Un lien PDF ou EPUB est mort | *Tous les tomes* → **Modifier** le tome → encadré **Tome complet** : remplacez le lien, puis **Enregistrer**. |
 | Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. Si le document ne peut pas être corrigé, délimitez les chapitres vous-même dans l'aperçu (§5.2 bis). |
 | Un lecteur ne veut plus d'e-mails | Chaque e-mail d'alerte a un lien de désabonnement (une œuvre, les réponses aux commentaires ou tout) : il confirme sans se connecter. Il peut aussi tout régler dans *Mon compte*. |
 | Un lecteur ne reçoit pas les alertes | Il doit avoir l'œuvre en favori avec une alerte active (page *Mon compte*) ; les e-mails aux lecteurs doivent être activés dans *Yume → Réglages*. |

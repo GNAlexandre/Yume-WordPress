@@ -2,9 +2,12 @@
 /**
  * Tests de la vue « Tous les tomes » de l'espace équipe (?vue=tomes, includes/planning/
  * tomes-equipe.php) : droits (yume_publier), listing (publiés, programmés, brouillons, par
- * œuvre), filtres œuvre / statut / recherche, pagination, liens d'action, entrées de navigation
- * (tableau de bord, formulaire de publication), section « Tomes en préparation » du tableau de
- * bord ; remplacement de la lecture en ligne d'un tome déjà paru par le formulaire de
+ * œuvre, parution), filtres œuvre / statut (parution) / recherche, pagination, liens d'action
+ * (« Modifier » dans l'espace équipe), entrées de navigation (tableau de bord, formulaire de
+ * publication), section « Tomes en préparation » du tableau de bord ; « Nouveau tome »
+ * (?vue=tomes&nouveau=1 : création d'un tome vide avec chapitres prévus et rythme, tome existant)
+ * et « Modifier le tome » (?vue=tomes&modifier=ID : droits, champs, « Tome complet », actions sur
+ * les chapitres), includes/planning/tome-fiche-equipe.php ; remplacement de la lecture en ligne d'un tome déjà paru par le formulaire de
  * publication (?tome=ID) : chapitres mis à jour sans doublon, chapitres disparus signalés, sans
  * nouvelle annonce ni changement de la date de sortie ; remplacement en deux temps (version en
  * attente : brouillon, « Vérifier » et aperçu ne changent rien en ligne, aperçu réservé à l'équipe ;
@@ -21,7 +24,16 @@ use Yume\Core\Publication\Formulaire;
 use Yume\Core\Publication\Remplacement;
 use Yume\Core\Publication\Service;
 
+use function Yume\Core\Planning\adresse_apres_ajout;
+use function Yume\Core\Planning\modifier_tome;
 use function Yume\Core\Planning\navigation_equipe;
+use function Yume\Core\Planning\saisie_tome;
+use function Yume\Core\Planning\traiter_action_chapitre;
+use function Yume\Core\Planning\traiter_formulaire_ajout;
+use function Yume\Core\Planning\traiter_formulaire_tome;
+use function Yume\Core\Planning\url_modifier_tome;
+use function Yume\Core\Planning\url_nouveau_tome;
+use function Yume\Core\Planning\url_publier_tome;
 use function Yume\Core\Planning\url_vue_equipe;
 
 defined( 'ABSPATH' ) || exit;
@@ -172,6 +184,61 @@ function yume_tte_chapitre( int $tome, int $numero, string $statut = 'publish' )
 	} finally {
 		remove_filter( 'yume_core_notifier', '__return_false' );
 	}
+}
+
+/**
+ * Chapitre programmé d'un tome (date de sortie à venir, sans notification).
+ *
+ * @param int $tome   Tome.
+ * @param int $numero Numéro.
+ * @param int $ts     Horodatage de sortie (à venir).
+ */
+function yume_tte_chapitre_programme( int $tome, int $numero, int $ts ): int {
+	add_filter( 'yume_core_notifier', '__return_false' );
+	try {
+		return yume_factory_post(
+			array(
+				'post_type'     => 'yume_chapitre',
+				'post_title'    => 'Chapitre ' . $numero,
+				'post_status'   => 'future',
+				'post_date_gmt' => gmdate( 'Y-m-d H:i:s', $ts ),
+				'post_date'     => get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $ts ) ),
+				'post_content'  => '<!-- wp:paragraph --><p>Texte.</p><!-- /wp:paragraph -->',
+				'meta_input'    => array(
+					'yume_tome_id' => $tome,
+					'yume_numero'  => $numero,
+					'yume_nature'  => 'chapitre',
+				),
+			)
+		);
+	} finally {
+		remove_filter( 'yume_core_notifier', '__return_false' );
+	}
+}
+
+/**
+ * Exécute une action admin-post et renvoie l'adresse de redirection (exit évité : la
+ * redirection lève une exception).
+ *
+ * @param callable $action Fonction admin_post_*.
+ * @param array    $post   Champs POST.
+ */
+function yume_tte_admin_post( callable $action, array $post ): string {
+	$redirige = static function ( $url ) {
+		throw new RuntimeException( 'redirection:' . $url );
+	};
+	add_filter( 'wp_redirect', $redirige, 1 );
+	$_POST   = $post;
+	$adresse = '';
+	try {
+		$action();
+	} catch ( RuntimeException $e ) {
+		$adresse = substr( $e->getMessage(), strlen( 'redirection:' ) );
+	} finally {
+		remove_filter( 'wp_redirect', $redirige, 1 );
+		$_POST = array();
+	}
+	return $adresse;
 }
 
 /**
@@ -397,7 +464,7 @@ yume_tte_test(
  */
 
 yume_tte_test(
-	'tomes-equipe : tous les tomes (publiés, programmés, brouillons) par œuvre, statut, date, chapitres en ligne, liens d’action',
+	'tomes-equipe : tous les tomes (publiés, programmés, brouillons) par œuvre, parution, date, chapitres en ligne, liens d’action (« Modifier » dans l’espace équipe)',
 	function () {
 		$raven   = yume_tte_oeuvre( 'Raven' );
 		$grimgar = yume_tte_oeuvre( 'Grimgar' );
@@ -426,30 +493,34 @@ yume_tte_test(
 		};
 		$publier = static fn( int $id ): string => esc_url( add_query_arg( 'tome', $id, yume_url_page( 'publier' ) ) );
 
-		// Publié avec lecture en ligne : remplacer, voir, modifier.
+		// Tome paru (règle historique : complet) avec lecture en ligne : ajouter, voir, modifier.
 		$l = $ligne( $g1 );
-		yume_assert_contains( '>Publié</span>', $l );
+		yume_assert_contains( '<span aria-hidden="true">✓</span> Complet</span>', $l );
 		yume_assert_contains( 'Paru le ', $l );
 		yume_assert_contains( '2 chapitres en ligne', $l );
 		yume_assert_contains( '1 chapitre préparé, pas encore en ligne', $l );
-		yume_assert_contains( $publier( $g1 ) . '">Remplacer la lecture en ligne<span class="yn-visually-hidden"> — Grimgar, Tome 1</span>', $l );
+		yume_assert_contains( '>PDF</span>', $l, 'lien PDF présent' );
+		yume_assert_contains( $publier( $g1 ) . '">Ajouter des chapitres<span class="yn-visually-hidden"> — Grimgar, Tome 1</span>', $l );
 		yume_assert_contains( esc_url( get_permalink( $g1 ) ) . '">Voir<', $l );
+		yume_assert_contains( esc_url( url_modifier_tome( $g1 ) ) . '">Modifier<', $l, '« Modifier » ouvre la fiche dans l’espace équipe' );
 		wp_set_current_user( $editeur );
-		yume_assert_contains( esc_url( get_edit_post_link( $g1 ) ) . '">Modifier<', $l );
+		yume_assert_not_contains( esc_url( (string) get_edit_post_link( $g1 ) ), $l, 'plus l’écran d’édition de l’administration' );
+		yume_assert_not_contains( 'wp-admin', $l );
 
-		// Publié sans lecture en ligne : ajouter.
+		// Publié sans lecture en ligne : « Ajouter des chapitres » aussi.
 		$l = $ligne( $g2 );
 		yume_assert_contains( 'Pas de lecture en ligne', $l );
-		yume_assert_contains( $publier( $g2 ) . '">Lecture en ligne : ajouter le DOCX/EPUB', $l );
+		yume_assert_contains( $publier( $g2 ) . '">Ajouter des chapitres', $l );
 		yume_assert_not_contains( 'Remplacer', $l );
 
-		// Programmé et brouillon : pas de « Voir ».
+		// Programmé et brouillon : à paraître, pas de « Voir ».
 		$l = $ligne( $g3 );
-		yume_assert_contains( '>Programmé</span>', $l );
+		yume_assert_contains( '<span class="yn-chip yn-chip--warn">À paraître</span>', $l );
 		yume_assert_contains( 'Sortie le ', $l );
+		yume_assert_contains( 'Pas encore de chapitre', $l );
 		yume_assert_not_contains( '">Voir<', $l );
 		$l = $ligne( $g4 );
-		yume_assert_contains( '>Brouillon</span>', $l );
+		yume_assert_contains( '<span class="yn-chip yn-chip--warn">À paraître</span>', $l );
 		yume_assert_contains( 'Modifié le ', $l );
 		yume_assert_not_contains( '">Voir<', $l );
 
@@ -469,7 +540,7 @@ yume_tte_test(
 );
 
 yume_tte_test(
-	'tomes-equipe : filtres œuvre, statut et recherche (GET, sans JavaScript), pagination',
+	'tomes-equipe : filtres œuvre, statut (parution, programmés, brouillons) et recherche (GET, sans JavaScript), pagination',
 	function () {
 		$grimgar = yume_tte_oeuvre( 'Grimgar' );
 		$raven   = yume_tte_oeuvre( 'Raven' );
@@ -477,6 +548,9 @@ yume_tte_test(
 		$g2      = yume_tte_tome( $grimgar, 2, 'future' );
 		$g3      = yume_tte_tome( $grimgar, 3, 'draft' );
 		$r1      = yume_tte_tome( $raven, 1 );
+		update_post_meta( $r1, 'yume_parution', 'en_cours' );
+		yume_tte_chapitre( $r1, 1 );
+		yume_tte_chapitre_programme( $r1, 2, time() + 3 * DAY_IN_SECONDS );
 		$editeur = yume_tte_membre( 'yume_editeur' );
 		$liste   = static function ( array $get ) use ( $editeur ): array {
 			$html = yume_tte_rendu( $editeur, array_merge( array( 'vue' => 'tomes' ), $get ) );
@@ -493,9 +567,29 @@ yume_tte_test(
 		yume_assert_not_contains( 'Effacer les filtres', $html );
 
 		yume_assert_same( array( $g1, $g2, $g3 ), $liste( array( 'oeuvre' => (string) $grimgar ) ), 'œuvre' );
-		yume_assert_same( array( $g1, $r1 ), $liste( array( 'statut' => 'publie' ) ), 'publiés' );
-		yume_assert_same( array( $g2 ), $liste( array( 'statut' => 'programme' ) ), 'programmés' );
+		$options = static function () use ( $html ): array {
+			preg_match( '#<select id="yn-t-statut".*?</select>#s', $html, $m );
+			preg_match_all( '#<option value="([^"]*)"[^>]*>([^<]*)#', $m[0] ?? '', $o );
+			return array_combine( $o[1], $o[2] );
+		};
+		yume_assert_same(
+			array(
+				''           => 'Tous',
+				'a_paraitre' => 'À paraître',
+				'en_cours'   => 'En cours',
+				'complet'    => 'Complets',
+				'programme'  => 'Programmés',
+				'brouillon'  => 'Brouillons',
+			),
+			$options(),
+			'filtre « Statut » fondé sur la parution'
+		);
+		yume_assert_same( array( $g2, $g3 ), $liste( array( 'statut' => 'a_paraitre' ) ), 'à paraître' );
+		yume_assert_same( array( $r1 ), $liste( array( 'statut' => 'en_cours' ) ), 'en cours' );
+		yume_assert_same( array( $g1 ), $liste( array( 'statut' => 'complet' ) ), 'complets' );
+		yume_assert_same( array( $g2, $r1 ), $liste( array( 'statut' => 'programme' ) ), 'programmés : tome ou chapitre' );
 		yume_assert_same( array( $g3 ), $liste( array( 'statut' => 'brouillon' ) ), 'brouillons' );
+		yume_assert_same( array( $g1, $g2, $g3, $r1 ), $liste( array( 'statut' => 'publie' ) ), 'ancien statut ignoré' );
 		yume_assert_same( array( $g1, $g2, $g3, $r1 ), $liste( array( 'statut' => 'nimporte' ) ), 'statut inconnu ignoré' );
 		yume_assert_same( array( $r1 ), $liste( array( 'recherche' => 'raven' ) ), 'recherche dans le titre' );
 		yume_assert_same( array( $g1 ), $liste( array( 'recherche' => 'Grimgar — Tome 1' ) ) );
@@ -1154,5 +1248,713 @@ yume_tte_test(
 		yume_assert_same( null, $r['remplacement'] );
 		yume_assert_same( 4, count( yume_get_chapitres( $tome, array( 'status' => 'draft' ) ) ) );
 		yume_assert_same( array(), Remplacement::versions( $tome ) );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Nouveau tome et Modifier le tome (tome-fiche-equipe.php)
+ * -----------------------------------------------------------------------------
+ */
+
+yume_tte_test(
+	'nouveau tome : une seule vue (?vue=tomes&nouveau=1) — champs, œuvre présélectionnée, origine, rubrique « Tous les tomes » ; boutons du tableau de bord, du planning, des œuvres et de « Tous les tomes » ; réservée aux éditeurs et gérants',
+	function () {
+		$oeuvre  = yume_tte_oeuvre( 'Grimgar' );
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		yume_tte_tome( $oeuvre, 1 );
+
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'     => 'tomes',
+				'nouveau' => '1',
+				'oeuvre'  => (string) $oeuvre,
+				'depuis'  => 'planning',
+			)
+		);
+		yume_assert_same( ' aria-current="page"', yume_tte_nav( $html )['Tous les tomes'][1], 'rubrique courante : Tous les tomes' );
+		yume_assert_contains( '<h2 class="yn-team__bonjour">Nouveau tome</h2>', $html );
+		yume_assert_contains( 'name="action" value="yume_planning_ajout"', $html );
+		yume_assert_contains( 'name="_yume_nonce"', $html );
+		yume_assert_not_contains( 'data-yn-planning-ajout', $html, 'formulaire sans JavaScript' );
+		yume_assert_contains( '<option value="' . $oeuvre . '" selected=\'selected\'>Grimgar</option>', $html, 'œuvre présélectionnée' );
+		foreach ( array( 'name="nature"', 'name="numero"', 'name="titre"', 'name="date_cible"', 'name="etape"', 'name="responsables[traduction]"', 'name="responsables[relecture]"', 'name="responsables[edition]"', 'name="chapitres_prevus"', 'name="rythme_jour"' ) as $champ ) {
+			yume_assert_contains( $champ, $html, $champ );
+		}
+		yume_assert_contains( 'type="time" id="yn-nt-heure" name="rythme_heure" value="18:00"', $html, 'heure par défaut' );
+		yume_assert_contains( '<option value="" selected=\'selected\'>Libre</option>', $html, 'rythme libre par défaut' );
+		yume_assert_contains( '<option value="samedi">Chaque samedi</option>', $html );
+		yume_assert_contains( 'name="suite" value="chapitre">Créer le tome et ajouter un chapitre</button>', $html );
+		yume_assert_contains( 'name="suite" value="fiche">Créer le tome</button>', $html );
+		yume_assert_contains( 'Parution : l’état suit les chapitres, rien à choisir', $html );
+		yume_assert_contains( 'Quand l’équipe coche « Tome complet ».', $html );
+		yume_assert_contains( esc_url( url_vue_equipe( 'planning' ) ) . '">Revenir au planning', $html );
+		yume_assert_contains( 'Tomes de l’œuvre</h3><p class="yn-muted">Grimgar</p>', $html );
+		yume_assert_contains( 'Créer une nouvelle œuvre', $html );
+		$ancien = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'          => 'tomes',
+				'nouveau'      => '1',
+				'oeuvre_ajout' => (string) $oeuvre,
+			)
+		);
+		yume_assert_contains( '<option value="' . $oeuvre . '" selected=\'selected\'>', $ancien, 'ancien paramètre ?oeuvre_ajout=' );
+
+		// Les boutons « Ajouter un tome au planning » et « Nouveau tome » y mènent.
+		$gerant  = yume_tte_membre( 'yume_gerant' );
+		$tableau = yume_tte_rendu( $gerant );
+		yume_assert_contains( 'id="yn-ajouter-tome-section"', $tableau, 'ancre conservée' );
+		yume_assert_contains( esc_url( url_nouveau_tome( 0, 'tableau' ) ) . '">Nouveau tome</a>', $tableau );
+		yume_assert_not_contains( 'name="action" value="yume_planning_ajout"', $tableau, 'plus de formulaire intégré au tableau de bord' );
+		yume_assert_contains( esc_url( url_nouveau_tome( $oeuvre, 'tableau' ) ), yume_tte_rendu( $gerant, array( 'oeuvre_ajout' => (string) $oeuvre ) ), 'anciens liens ?oeuvre_ajout=' );
+		yume_assert_contains( esc_url( url_nouveau_tome( 0, 'planning' ) ) . '">Ajouter un tome au planning', yume_tte_rendu( $gerant, array( 'vue' => 'planning' ) ) );
+		$filtre = yume_tte_rendu(
+			$gerant,
+			array(
+				'vue'    => 'planning',
+				'oeuvre' => (string) $oeuvre,
+			)
+		);
+		yume_assert_contains( esc_url( url_nouveau_tome( $oeuvre, 'planning' ) ), $filtre, 'planning filtré : œuvre présélectionnée' );
+		yume_assert_contains( esc_url( url_nouveau_tome( $oeuvre, 'oeuvres' ) ) . '">Ajouter un tome au planning', yume_tte_rendu( $gerant, array( 'vue' => 'oeuvres' ) ) );
+		$tomes = yume_tte_rendu( $gerant, array( 'vue' => 'tomes' ) );
+		yume_assert_contains( esc_url( url_nouveau_tome( 0, 'tomes' ) ) . '">Nouveau tome</a>', $tomes );
+		yume_assert_contains( esc_url( yume_url_page( 'publier' ) ) . '">Ajouter des chapitres</a>', $tomes );
+		yume_assert_contains( 'Tous les tomes du catalogue, publiés compris. « Ajouter des chapitres » ouvre le formulaire de publication avec le tome déjà choisi', $tomes );
+
+		// Réservée aux éditeurs et gérants (yume_maj_planning_tous).
+		$trad = yume_tte_rendu(
+			yume_tte_membre( 'yume_traducteur' ),
+			array(
+				'vue'     => 'tomes',
+				'nouveau' => '1',
+			)
+		);
+		yume_assert_contains( 'peuvent ajouter un tome au planning', $trad );
+		yume_assert_not_contains( 'yume_planning_ajout', $trad );
+	}
+);
+
+yume_tte_test(
+	'nouveau tome : tome vide avec chapitres prévus et rythme (formulaire et REST) ; « Créer le tome » → sa fiche, « … et ajouter un chapitre » → publication ; tome existant → sa fiche, rien de créé ; erreurs reprises dans le formulaire',
+	function () {
+		$oeuvre  = yume_tte_oeuvre( 'Grimgar' );
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$champs = array(
+			'action'           => 'yume_planning_ajout',
+			'_yume_nonce'      => wp_create_nonce( 'yume_planning_ajout' ),
+			'oeuvre_id'        => (string) $oeuvre,
+			'nature'           => 'tome',
+			'numero'           => '2',
+			'titre'            => '',
+			'date_cible'       => '2026-12-06',
+			'etape'            => 'traduction',
+			'chapitres_prevus' => '12',
+			'rythme_jour'      => 'samedi',
+			'rythme_heure'     => '',
+			'responsables'     => array(
+				'traduction' => (string) $editeur,
+				'relecture'  => '0',
+				'edition'    => '0',
+			),
+			'suite'            => 'fiche',
+		);
+
+		$retour = traiter_formulaire_ajout( $champs, $editeur );
+		yume_assert_same( 'ok', $retour['type'], $retour['message'] );
+		$tome = (int) $retour['tome_id'];
+		yume_assert_same( 'draft', get_post_status( $tome ) );
+		yume_assert_same( 'Grimgar — Tome 2', get_post_field( 'post_title', $tome ) );
+		yume_assert_same( 12, (int) get_post_meta( $tome, 'yume_chapitres_prevus', true ) );
+		yume_assert_same(
+			array(
+				'jour'  => 'samedi',
+				'heure' => '18:00',
+			),
+			get_post_meta( $tome, 'yume_rythme', true ),
+			'heure par défaut'
+		);
+		yume_assert_same( '2026-12-06', get_post_meta( $tome, 'yume_date_cible', true ) );
+		yume_assert_same( 'traduction', get_post_meta( $tome, 'yume_etape', true ) );
+		yume_assert_same( $editeur, (int) get_post_meta( $tome, 'yume_responsables', true )['traduction'] );
+		yume_assert_same( 'a_paraitre', yume_parution_tome( $tome ), 'à paraître dès la création' );
+		yume_assert_same( array(), yume_get_chapitres( $tome, array( 'status' => 'any' ) ), 'sans chapitre' );
+		yume_assert_same( url_modifier_tome( $tome ) . '#yn-tome-fiche', adresse_apres_ajout( $retour ), '« Créer le tome » : sa fiche' );
+		yume_assert_same( url_publier_tome( $tome ), adresse_apres_ajout( array_merge( $retour, array( 'suite' => 'chapitre' ) ) ) );
+
+		// Même œuvre, nature et numéro : la fiche du tome existant, aucun second tome.
+		$avant   = count( yume_get_tomes( $oeuvre, array( 'status' => 'any' ) ) );
+		$adresse = yume_tte_admin_post(
+			'Yume\\Core\\Planning\\admin_post_ajout',
+			array_merge(
+				$champs,
+				array(
+					'numero' => '2,0',
+					'suite'  => 'chapitre',
+				)
+			)
+		);
+		yume_assert_same( url_modifier_tome( $tome ) . '#yn-tome-fiche', $adresse, 'fiche du tome existant' );
+		yume_assert_same( $avant, count( yume_get_tomes( $oeuvre, array( 'status' => 'any' ) ) ), 'aucun second tome' );
+		$fiche = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $tome,
+			)
+		);
+		yume_assert_contains( 'Grimgar T.2 existe déjà : voici sa fiche, aucun tome n’a été créé.', $fiche, 'message en tête de la fiche' );
+
+		// « Créer le tome et ajouter un chapitre » : formulaire de publication, tome choisi.
+		$adresse = yume_tte_admin_post(
+			'Yume\\Core\\Planning\\admin_post_ajout',
+			array_merge(
+				$champs,
+				array(
+					'numero' => '3',
+					'suite'  => 'chapitre',
+				)
+			)
+		);
+		parse_str( (string) wp_parse_url( $adresse, PHP_URL_QUERY ), $args );
+		$t3 = (int) ( $args['tome'] ?? 0 );
+		yume_assert_same( url_publier_tome( $t3 ), $adresse );
+		yume_assert_same( 3.0, (float) get_post_meta( $t3, 'yume_numero', true ) );
+		yume_assert_false( (bool) get_transient( 'yume_planning_retour_' . $editeur ), 'aucun message laissé en attente' );
+
+		// Erreurs : message et saisie repris dans le formulaire.
+		$retour = traiter_formulaire_ajout(
+			array_merge(
+				$champs,
+				array(
+					'numero'      => '4',
+					'rythme_jour' => 'jamais',
+				)
+			),
+			$editeur
+		);
+		yume_assert_same( 'erreur', $retour['type'] );
+		yume_assert_contains( 'Rythme', $retour['message'] );
+		$retour = traiter_formulaire_ajout(
+			array_merge(
+				$champs,
+				array(
+					'numero'           => '4',
+					'chapitres_prevus' => 'douze',
+				)
+			),
+			$editeur
+		);
+		yume_assert_same( 'erreur', $retour['type'] );
+		yume_assert_same( url_nouveau_tome( $oeuvre ) . '#yn-nouveau-tome-form', adresse_apres_ajout( $retour ) );
+		set_transient( 'yume_planning_retour_' . $editeur, $retour, 60 );
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'     => 'tomes',
+				'nouveau' => '1',
+				'oeuvre'  => (string) $oeuvre,
+			)
+		);
+		yume_assert_contains( 'Chapitres prévus : indiquez un nombre entier de 0 à 999.', $html );
+		yume_assert_contains( 'name="numero" value="4"', $html );
+		yume_assert_contains( '<option value="samedi" selected=\'selected\'>Chaque samedi</option>', $html );
+		yume_assert_same( 2, count( yume_get_tomes( $oeuvre, array( 'status' => 'any' ) ) ), 'rien de créé (tomes 2 et 3 seulement)' );
+		$faux = traiter_formulaire_ajout(
+			array_merge(
+				$champs,
+				array(
+					'numero'      => '5',
+					'_yume_nonce' => 'faux',
+				)
+			),
+			$editeur
+		);
+		yume_assert_same( 'erreur', $faux['type'], 'nonce' );
+		$trad = yume_tte_membre( 'yume_traducteur' );
+		wp_set_current_user( $trad );
+		$refus = traiter_formulaire_ajout(
+			array_merge(
+				$champs,
+				array(
+					'numero'      => '5',
+					'_yume_nonce' => wp_create_nonce( 'yume_planning_ajout' ),
+				)
+			),
+			$trad
+		);
+		yume_assert_same( 'erreur', $refus['type'], 'traducteur refusé' );
+
+		// REST : même service, mêmes champs.
+		$reponse = yume_rest(
+			'POST',
+			'/yume/v1/planning/tomes',
+			array(
+				'oeuvre_id'        => $oeuvre,
+				'nature'           => 'arc',
+				'numero'           => 7,
+				'chapitres_prevus' => 20,
+				'rythme'           => array(
+					'jour'  => 'mercredi',
+					'heure' => '12:30',
+				),
+			),
+			$editeur
+		);
+		yume_assert_same( 201, $reponse->get_status() );
+		$arc = (int) $reponse->get_data()['tome_id'];
+		yume_assert_same( 20, (int) get_post_meta( $arc, 'yume_chapitres_prevus', true ) );
+		yume_assert_same(
+			array(
+				'jour'  => 'mercredi',
+				'heure' => '12:30',
+			),
+			get_post_meta( $arc, 'yume_rythme', true )
+		);
+		$invalide = yume_rest(
+			'POST',
+			'/yume/v1/planning/tomes',
+			array(
+				'oeuvre_id' => $oeuvre,
+				'numero'    => 8,
+				'rythme'    => array( 'jour' => 'jamais' ),
+			),
+			$editeur
+		);
+		yume_assert_same( 400, $invalide->get_status() );
+	}
+);
+
+yume_tte_test(
+	'modifier le tome : fiche dans l’espace équipe (?vue=tomes&modifier=ID) avec édition avancée ; un traducteur ne peut ni l’ouvrir ni l’enregistrer ; enregistrement (titre, œuvre, planning, prévus, rythme, crédits), doublon refusé',
+	function () {
+		$grimgar = yume_tte_oeuvre( 'Grimgar' );
+		$raven   = yume_tte_oeuvre( 'Raven' );
+		$tome    = yume_tte_tome( $grimgar, 2, 'draft' );
+		$autre   = yume_tte_tome( $grimgar, 4, 'draft' );
+		update_post_meta( $tome, 'yume_chapitres_prevus', 12 );
+		update_post_meta(
+			$tome,
+			'yume_rythme',
+			array(
+				'jour'  => 'samedi',
+				'heure' => '18:00',
+			)
+		);
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		$trad    = yume_tte_membre( 'yume_traducteur' );
+
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $tome,
+			)
+		);
+		yume_assert_same( ' aria-current="page"', yume_tte_nav( $html )['Tous les tomes'][1], 'rubrique courante : Tous les tomes' );
+		yume_assert_contains( 'Modifier le tome : Grimgar — Tome 2', $html );
+		yume_assert_contains( 'name="action" value="yume_tome_modifier"', $html );
+		yume_assert_contains( 'enctype="multipart/form-data"', $html );
+		yume_assert_contains( 'name="tome_id" value="' . $tome . '"', $html );
+		yume_assert_contains( 'name="chapitres_prevus" value="12"', $html );
+		yume_assert_contains( '<option value="samedi" selected=\'selected\'>Chaque samedi</option>', $html );
+		yume_assert_contains( 'name="credits[traduction]"', $html );
+		yume_assert_contains( 'name="lien_pdf" value="https://www.clictune.com/pdf2"', $html );
+		yume_assert_contains( 'passer le tome à « Complet » (sans annonce)', $html );
+		yume_assert_contains( 'name="cadrage_x"', $html, 'cadrage de la couverture' );
+		yume_assert_contains( 'Ouvrir dans le planning', $html );
+		yume_assert_contains( '0 chapitres sur 12 en ligne', $html );
+		yume_assert_contains( '<span class="yn-chip yn-chip--warn">À paraître</span>', $html );
+		yume_assert_contains( esc_url( get_edit_post_link( $tome, 'raw' ) ) . '">Édition avancée (administration WordPress)', $html );
+		yume_assert_contains( esc_url( url_publier_tome( $tome ) ) . '">Ajouter des chapitres', $html );
+		yume_assert_contains( '12 chapitres pas encore déposés (sur 12 prévus)', $html, 'ligne « À venir »' );
+
+		// Traducteur : ni la fiche ni l'enregistrement.
+		$refus = yume_tte_rendu(
+			$trad,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $tome,
+			)
+		);
+		yume_assert_contains( 'peuvent modifier les tomes', $refus );
+		yume_assert_not_contains( 'yume_tome_modifier', $refus );
+		wp_set_current_user( $trad );
+		$r = modifier_tome(
+			$tome,
+			saisie_tome(
+				array(
+					'oeuvre_id' => (string) $grimgar,
+					'numero'    => '3',
+				)
+			),
+			null,
+			$trad
+		);
+		yume_assert_true( is_wp_error( $r ), 'traducteur refusé' );
+		yume_assert_same( 403, $r->get_error_data()['status'] );
+		$r = traiter_formulaire_tome(
+			array(
+				'tome_id'     => (string) $tome,
+				'_yume_nonce' => wp_create_nonce( 'yume_tome_modifier_' . $tome ),
+				'oeuvre_id'   => (string) $grimgar,
+				'numero'      => '3',
+			),
+			array(),
+			$trad
+		);
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_same( 2.0, (float) get_post_meta( $tome, 'yume_numero', true ), 'rien de modifié' );
+
+		// Éditeur : enregistrement.
+		wp_set_current_user( $editeur );
+		$post = array(
+			'tome_id'          => (string) $tome,
+			'_yume_nonce'      => wp_create_nonce( 'yume_tome_modifier_' . $tome ),
+			'oeuvre_id'        => (string) $raven,
+			'nature'           => 'tome',
+			'numero'           => '3',
+			'titre'            => wp_slash( 'L’éveil' ),
+			'responsables'     => array(
+				'traduction' => (string) $editeur,
+				'relecture'  => '0',
+				'edition'    => '0',
+			),
+			'date_cible'       => '2027-01-15',
+			'chapitres_prevus' => '10',
+			'rythme_jour'      => 'vendredi',
+			'rythme_heure'     => '20:00',
+			'credits'          => array(
+				'traduction' => 'Cerale',
+				'relecture'  => 'Shadowadow',
+				'edition'    => '',
+			),
+			'complet'          => '0',
+			'lien_pdf'         => '',
+			'lien_epub'        => '',
+		);
+		yume_assert_same( 'erreur', traiter_formulaire_tome( array_merge( $post, array( '_yume_nonce' => 'faux' ) ), array(), $editeur )['type'], 'nonce' );
+		$r = traiter_formulaire_tome( $post, array(), $editeur );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		clean_post_cache( $tome );
+		yume_assert_same( 'Raven — Tome 3 : L’éveil', get_post_field( 'post_title', $tome ) );
+		yume_assert_same( $raven, (int) get_post_meta( $tome, 'yume_oeuvre_id', true ) );
+		yume_assert_same( 3.0, (float) get_post_meta( $tome, 'yume_numero', true ) );
+		yume_assert_same( 'draft', get_post_status( $tome ), 'statut inchangé' );
+		yume_assert_same( 10, (int) get_post_meta( $tome, 'yume_chapitres_prevus', true ) );
+		yume_assert_same(
+			array(
+				'jour'  => 'vendredi',
+				'heure' => '20:00',
+			),
+			get_post_meta( $tome, 'yume_rythme', true )
+		);
+		yume_assert_same(
+			array(
+				'traduction' => 'Cerale',
+				'relecture'  => 'Shadowadow',
+				'edition'    => '',
+			),
+			get_post_meta( $tome, 'yume_credits', true )
+		);
+		yume_assert_same( '2027-01-15', get_post_meta( $tome, 'yume_date_cible', true ) );
+		yume_assert_same( $editeur, (int) get_post_meta( $tome, 'yume_responsables', true )['traduction'] );
+		yume_assert_same( '', (string) get_post_meta( $tome, 'yume_lien_pdf', true ), 'lien PDF vidé' );
+
+		// Rythme libre, chapitres prévus vidés : métas supprimées.
+		$r = traiter_formulaire_tome(
+			array_merge(
+				$post,
+				array(
+					'rythme_jour'      => '',
+					'chapitres_prevus' => '',
+				)
+			),
+			array(),
+			$editeur
+		);
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_false( metadata_exists( 'post', $tome, 'yume_rythme' ) );
+		yume_assert_false( metadata_exists( 'post', $tome, 'yume_chapitres_prevus' ) );
+		yume_assert_same(
+			'Aucun changement à enregistrer.',
+			traiter_formulaire_tome(
+				array_merge(
+					$post,
+					array(
+						'rythme_jour'      => '',
+						'chapitres_prevus' => '',
+					)
+				),
+				array(),
+				$editeur
+			)['message']
+		);
+
+		// Doublon : l'œuvre a déjà un tome de ce numéro.
+		$r = traiter_formulaire_tome(
+			array_merge(
+				$post,
+				array(
+					'oeuvre_id' => (string) $grimgar,
+					'numero'    => '4',
+				)
+			),
+			array(),
+			$editeur
+		);
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_contains( 'existe déjà', $r['message'] );
+		yume_assert_same( $raven, (int) get_post_meta( $tome, 'yume_oeuvre_id', true ), 'rien de modifié' );
+		yume_assert_same( 4.0, (float) get_post_meta( $autre, 'yume_numero', true ) );
+	}
+);
+
+yume_tte_test(
+	'modifier le tome : « Tome complet » pose la parution « complet » et les liens PDF / EPUB, sans annonce ; décochée, le tome en ligne repasse « en cours » ; lien invalide refusé',
+	function () {
+		$oeuvre = yume_tte_oeuvre( 'Grimgar' );
+		$tome   = yume_tte_tome( $oeuvre, 2 );
+		update_post_meta( $tome, 'yume_parution', 'en_cours' );
+		yume_tte_chapitre( $tome, 1 );
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$post = array(
+			'tome_id'     => (string) $tome,
+			'_yume_nonce' => wp_create_nonce( 'yume_tome_modifier_' . $tome ),
+			'oeuvre_id'   => (string) $oeuvre,
+			'nature'      => 'tome',
+			'numero'      => '2',
+			'titre'       => '',
+			'complet'     => '1',
+			'lien_pdf'    => 'https://exemple.test/t2.pdf',
+			'lien_epub'   => 'https://exemple.test/t2.epub',
+		);
+		$n    = yume_tte_compter(
+			function () use ( $post, $editeur ) {
+				$r = traiter_formulaire_tome( $post, array(), $editeur );
+				yume_assert_same( 'ok', $r['type'], $r['message'] );
+			}
+		);
+		yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->alertes, $n->discord, $n->articles ), 'aucune annonce' );
+		yume_assert_same( 0, $n->mails, 'aucun e-mail' );
+		yume_assert_same( 'complet', get_post_meta( $tome, 'yume_parution', true ) );
+		yume_assert_same( 'complet', yume_parution_tome( $tome ) );
+		yume_assert_same( 'https://exemple.test/t2.pdf', get_post_meta( $tome, 'yume_lien_pdf', true ) );
+		yume_assert_same( 'https://exemple.test/t2.epub', get_post_meta( $tome, 'yume_lien_epub', true ) );
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $tome,
+			)
+		);
+		yume_assert_true( (bool) preg_match( '#name="complet" value="1" checked#', $html ), 'case cochée' );
+		yume_assert_contains( '<span aria-hidden="true">✓</span> Complet</span>', $html );
+		yume_assert_contains( '>PDF · EPUB</span>', $html );
+
+		// Décochée : le tome en ligne repasse « en cours ».
+		wp_set_current_user( $editeur );
+		$r = traiter_formulaire_tome( array_merge( $post, array( 'complet' => '0' ) ), array(), $editeur );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_same( 'en_cours', yume_parution_tome( $tome ) );
+
+		// Lien invalide : refusé, rien de modifié.
+		$r = traiter_formulaire_tome( array_merge( $post, array( 'lien_epub' => 'javascript:alert(1)' ) ), array(), $editeur );
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_contains( 'Lien EPUB invalide', $r['message'] );
+		yume_assert_same( 'en_cours', yume_parution_tome( $tome ), 'rien de modifié' );
+	}
+);
+
+yume_tte_test(
+	'modifier le tome : chapitres (états, actions selon le statut, ligne « À venir ») ; publier maintenant, changer la date, retirer avec confirmation — nonces et droits',
+	function () {
+		global $wpdb;
+		$oeuvre = yume_tte_oeuvre( 'Grimgar' );
+		$tome   = yume_tte_tome( $oeuvre, 2 );
+		update_post_meta( $tome, 'yume_parution', 'en_cours' );
+		update_post_meta( $tome, 'yume_chapitres_prevus', 6 );
+		update_post_meta(
+			$tome,
+			'yume_rythme',
+			array(
+				'jour'  => 'samedi',
+				'heure' => '18:00',
+			)
+		);
+		$c1 = yume_tte_chapitre( $tome, 1 );
+		update_post_meta( $c1, 'yume_temps_lecture', 19 );
+		$c2        = yume_tte_chapitre_programme( $tome, 2, time() + 3 * DAY_IN_SECONDS );
+		$c3        = yume_tte_chapitre( $tome, 3, 'draft' );
+		$corbeille = yume_tte_chapitre( $tome, 9, 'draft' );
+		wp_trash_post( $corbeille );
+		$attente = yume_tte_chapitre( $tome, 10, 'draft' );
+		$wpdb->update( $wpdb->posts, array( 'post_status' => Remplacement::STATUT ), array( 'ID' => $attente ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		clean_post_cache( $attente );
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		$vue     = array(
+			'vue'      => 'tomes',
+			'modifier' => (string) $tome,
+		);
+		$html    = yume_tte_rendu( $editeur, $vue );
+		$ligne   = static function ( int $id ) use ( &$html ): string {
+			preg_match( '#<li class="yn-chapitres__ligne" id="yn-chapitre-' . $id . '">.*?</li>#s', $html, $m );
+			return $m[0] ?? '';
+		};
+
+		yume_assert_contains( 'Chapitres (3)', $html );
+		yume_assert_not_contains( 'id="yn-chapitre-' . $corbeille . '"', $html, 'corbeille exclue' );
+		yume_assert_not_contains( 'id="yn-chapitre-' . $attente . '"', $html, 'version en attente exclue' );
+		$l = $ligne( $c1 );
+		yume_assert_contains( '>En ligne</span>', $l );
+		yume_assert_contains( '· 19 min', $l );
+		yume_assert_contains( esc_url( get_permalink( $c1 ) ) . '">Voir', $l );
+		yume_assert_contains( esc_url( url_modifier_tome( $tome, array( 'retirer' => $c1 ) ) . '#yn-chapitre-' . $c1 ) . '">Retirer', $l );
+		yume_assert_not_contains( 'Publier maintenant', $l );
+		$l = $ligne( $c2 );
+		yume_assert_contains( '>Programmé</span>', $l );
+		yume_assert_contains( esc_url( get_preview_post_link( $c2 ) ) . '">Aperçu', $l );
+		yume_assert_contains( 'name="op" value="publier"', $l );
+		yume_assert_contains( 'Publier maintenant', $l );
+		yume_assert_contains( 'type="datetime-local"', $l );
+		yume_assert_contains( 'value="' . wp_date( 'Y-m-d\TH:i', (int) get_post_time( 'U', true, $c2 ) ) . '"', $l, 'date actuelle dans le champ' );
+		yume_assert_contains( 'Changer la date', $l );
+		yume_assert_contains( '">Retirer', $l, 'programmé : peut être retiré' );
+		$l        = $ligne( $c3 );
+		$proposee = yume_prochaine_sortie_rythme( $tome, ( new DateTimeImmutable( '@' . get_post_time( 'U', true, $c2 ) ) )->setTimezone( wp_timezone() ) );
+		yume_assert_contains( '>Brouillon</span>', $l );
+		yume_assert_contains( 'Publier maintenant', $l );
+		yume_assert_contains( 'value="' . $proposee->format( 'Y-m-d\TH:i' ) . '"', $l, 'brouillon : date proposée selon le rythme' );
+		yume_assert_not_contains( '">Retirer', $l );
+		yume_assert_contains( 'yn-chapitres__ligne--a-venir', $html );
+		yume_assert_contains( '>4–6</span>', $html );
+		yume_assert_contains( '3 chapitres pas encore déposés (sur 6 prévus)', $html );
+		yume_assert_contains( 'au rythme : ', $html );
+		yume_assert_contains( '1 chapitre sur 6 en ligne', $html );
+		yume_assert_contains( 'Chapitre 2 programmé le ', $html );
+
+		// Nonce invalide, droits : rien ne change.
+		wp_set_current_user( $editeur );
+		$r = traiter_action_chapitre(
+			array(
+				'chapitre_id' => (string) $c2,
+				'op'          => 'publier',
+				'_yume_nonce' => 'faux',
+			),
+			$editeur
+		);
+		yume_assert_same( 'erreur', $r['type'], 'nonce' );
+		yume_assert_same( 'future', get_post_status( $c2 ) );
+		$trad = yume_tte_membre( 'yume_traducteur' );
+		wp_set_current_user( $trad );
+		$r = traiter_action_chapitre(
+			array(
+				'chapitre_id' => (string) $c2,
+				'op'          => 'publier',
+				'_yume_nonce' => wp_create_nonce( 'yume_tome_chapitre_' . $c2 ),
+			),
+			$trad
+		);
+		yume_assert_same( 'erreur', $r['type'], 'traducteur' );
+		yume_assert_contains( 'Votre rôle ne permet pas', $r['message'] );
+		yume_assert_same( 'future', get_post_status( $c2 ) );
+		yume_assert_not_contains( 'yume_tome_chapitre', yume_tte_rendu( $trad, $vue ) );
+
+		// Publier maintenant : en ligne tout de suite, sortie annoncée comme un chapitre programmé.
+		$action = static function ( int $id, string $op, array $plus = array() ) use ( $editeur ): array {
+			wp_set_current_user( $editeur );
+			return traiter_action_chapitre(
+				array_merge(
+					array(
+						'chapitre_id' => (string) $id,
+						'op'          => $op,
+						'_yume_nonce' => wp_create_nonce( 'yume_tome_chapitre_' . $id ),
+					),
+					$plus
+				),
+				$editeur
+			);
+		};
+		// Nouvelle requête : le tome n'est pas « publié dans cette requête » (sortie groupée).
+		\Yume\Core\Core\etat_set( 'publies_yume_tome', array() );
+		$n = yume_tte_compter(
+			function () use ( $action, $c2 ) {
+				$r = $action( $c2, 'publier' );
+				yume_assert_same( 'ok', $r['type'], $r['message'] );
+				yume_assert_same( 'yn-chapitre-' . $c2, $r['cible'] );
+			}
+		);
+		clean_post_cache( $c2 );
+		yume_assert_same( 'publish', get_post_status( $c2 ) );
+		yume_assert_true( abs( time() - (int) get_post_time( 'U', true, $c2 ) ) < 120, 'daté de maintenant' );
+		yume_assert_same( array( $c2 ), $n->chap, 'sortie du chapitre (yume_chapitre_publie)' );
+		yume_assert_same( 'erreur', $action( $c2, 'publier' )['type'], 'déjà en ligne' );
+
+		// Changer la date : date passée refusée, date à venir → programmé.
+		$r = $action( $c3, 'date', array( 'date' => wp_date( 'Y-m-d\TH:i', time() - HOUR_IN_SECONDS ) ) );
+		yume_assert_same( 'erreur', $r['type'], 'date passée' );
+		yume_assert_same( 'draft', get_post_status( $c3 ) );
+		$quand = time() + 5 * DAY_IN_SECONDS;
+		$r     = $action( $c3, 'date', array( 'date' => wp_date( 'Y-m-d\TH:i', $quand ) ) );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_contains( 'programmé le', $r['message'] );
+		clean_post_cache( $c3 );
+		yume_assert_same( 'future', get_post_status( $c3 ) );
+		yume_assert_same( wp_date( 'Y-m-d H:i', $quand ), substr( (string) get_post_field( 'post_date', $c3 ), 0, 16 ) );
+
+		// Retirer : écran de confirmation (sans JavaScript), puis brouillon.
+		$html = yume_tte_rendu( $editeur, array_merge( $vue, array( 'retirer' => (string) $c1 ) ) );
+		$l    = $ligne( $c1 );
+		yume_assert_contains( 'class="yn-chapitres__confirmation"', $l );
+		yume_assert_contains( 'name="op" value="retirer"', $l );
+		yume_assert_contains( 'name="confirmer" value="1"', $l );
+		yume_assert_contains( 'Oui, retirer', $l );
+		yume_assert_not_contains( 'class="yn-chapitres__confirmation"', $ligne( $c3 ), 'seul le chapitre demandé' );
+		$r = $action( $c1, 'retirer' );
+		yume_assert_same( 'erreur', $r['type'], 'sans confirmation' );
+		yume_assert_same( 'publish', get_post_status( $c1 ) );
+		$r = $action( $c1, 'retirer', array( 'confirmer' => '1' ) );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		clean_post_cache( $c1 );
+		yume_assert_same( 'draft', get_post_status( $c1 ) );
+		yume_assert_same( '1', (string) get_post_meta( $c1, '_yume_retire', true ), 'marqué retiré : jamais republié d’office' );
+
+		// Admin-post : retour vers la fiche, message dans la ligne du chapitre.
+		wp_set_current_user( $editeur );
+		$adresse = yume_tte_admin_post(
+			'Yume\\Core\\Planning\\admin_post_chapitre_tome',
+			array(
+				'chapitre_id' => (string) $c1,
+				'op'          => 'publier',
+				'_yume_nonce' => wp_create_nonce( 'yume_tome_chapitre_' . $c1 ),
+			)
+		);
+		yume_assert_same( url_modifier_tome( $tome ) . '#yn-chapitre-' . $c1, $adresse );
+		clean_post_cache( $c1 );
+		yume_assert_same( 'publish', get_post_status( $c1 ) );
+		yume_assert_false( metadata_exists( 'post', $c1, '_yume_retire' ), 'plus marqué retiré' );
+		$html = yume_tte_rendu( $editeur, $vue );
+		yume_assert_contains( '« Chapitre 1 » est en ligne.', $ligne( $c1 ) );
+
+		// Tome pas encore en ligne : sa première sortie passe par « Ajouter des chapitres ».
+		$brouillon = yume_tte_tome( $oeuvre, 5, 'draft' );
+		$cb        = yume_tte_chapitre( $brouillon, 1, 'draft' );
+		$r         = $action( $cb, 'publier' );
+		yume_assert_same( 'erreur', $r['type'] );
+		yume_assert_contains( 'Ajouter des chapitres', $r['message'] );
+		yume_assert_same( 'draft', get_post_status( $cb ) );
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $brouillon,
+			)
+		);
+		yume_assert_not_contains( 'Publier maintenant', $html );
+		yume_assert_contains( 'Le tome n’est pas encore en ligne', $html );
 	}
 );
