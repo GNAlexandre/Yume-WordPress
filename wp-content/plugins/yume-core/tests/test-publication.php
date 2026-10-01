@@ -193,6 +193,122 @@ if ( ! function_exists( 'yume_tpub' ) ) {
 	}
 }
 
+if ( ! function_exists( 'yume_tpub_tome_migre' ) ) {
+	/**
+	 * Tome migré : publié il y a un mois avec ses seuls liens PDF/EPUB, jamais annoncé.
+	 *
+	 * @param int $oeuvre Œuvre.
+	 * @param int $numero Numéro.
+	 * @return array{0:int,1:string} Tome, date GMT de sortie.
+	 */
+	function yume_tpub_tome_migre( int $oeuvre, int $numero = 10 ): array {
+		$ancienne = gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS );
+		add_filter( 'yume_core_notifier', '__return_false' );
+		try {
+			$tome = yume_factory_post(
+				array(
+					'post_type'     => 'yume_tome',
+					'post_title'    => 'Tome migré — Tome ' . $numero,
+					'post_name'     => 'tome-' . $numero,
+					'post_status'   => 'publish',
+					'post_date'     => get_date_from_gmt( $ancienne ),
+					'post_date_gmt' => $ancienne,
+					'meta_input'    => array(
+						'yume_oeuvre_id' => $oeuvre,
+						'yume_numero'    => $numero,
+						'yume_nature'    => 'tome',
+						'yume_lien_pdf'  => 'https://www.clictune.com/pdf' . $numero,
+					),
+				)
+			);
+		} finally {
+			remove_filter( 'yume_core_notifier', '__return_false' );
+		}
+		if ( function_exists( 'Yume\Core\Core\etat_set' ) ) {
+			\Yume\Core\Core\etat_set( 'publies_yume_tome', array() );
+		}
+		return array( $tome, $ancienne );
+	}
+
+	/**
+	 * Compte les événements de sortie et les appels Discord pendant $corps.
+	 *
+	 * @param callable $corps Corps (reçoit le compteur).
+	 * @return stdClass tome, chapitre, alertes (IDs reçus), discord (URL appelées).
+	 */
+	function yume_tpub_compter( callable $corps ): stdClass {
+		$n          = new stdClass();
+		$n->tome    = array();
+		$n->chap    = array();
+		$n->alertes = array();
+		$n->discord = array();
+		$tome       = static function ( $id ) use ( $n ) {
+			$n->tome[] = (int) $id;
+		};
+		$chap       = static function ( $id ) use ( $n ) {
+			$n->chap[] = (int) $id;
+		};
+		$alertes    = static function ( $id ) use ( $n ) {
+			$n->alertes[] = (int) $id;
+		};
+		$http       = static function ( $pre, $args, $url ) use ( $n ) {
+			if ( str_contains( (string) $url, 'discord.com' ) ) {
+				$n->discord[] = (string) $url;
+				return array(
+					'headers'  => array(),
+					'body'     => '',
+					'response' => array(
+						'code'    => 204,
+						'message' => '',
+					),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			}
+			return $pre;
+		};
+		$reglages   = get_option( 'yume_reglages', array() );
+		update_option( 'yume_reglages', array_merge( is_array( $reglages ) ? $reglages : array(), array( 'discord_webhook_sorties' => 'https://discord.com/api/webhooks/1/sorties' ) ) );
+		add_action( 'yume_tome_publie', $tome, 1 );
+		add_action( 'yume_chapitre_publie', $chap, 1 );
+		add_action( 'yume_alertes_envoyees', $alertes, 1 );
+		add_filter( 'pre_http_request', $http, 10, 3 );
+		try {
+			$corps( $n );
+		} finally {
+			remove_action( 'yume_tome_publie', $tome, 1 );
+			remove_action( 'yume_chapitre_publie', $chap, 1 );
+			remove_action( 'yume_alertes_envoyees', $alertes, 1 );
+			remove_filter( 'pre_http_request', $http, 10 );
+			update_option( 'yume_reglages', $reglages );
+		}
+		return $n;
+	}
+
+	/**
+	 * Articles de la catégorie « Sorties » (tous statuts vivants).
+	 *
+	 * @return int[]
+	 */
+	function yume_tpub_sorties(): array {
+		return get_posts(
+			array(
+				'post_type'        => 'post',
+				'post_status'      => array( 'publish', 'future', 'draft', 'pending', 'private' ),
+				'category_name'    => 'sorties',
+				'posts_per_page'   => 100,
+				'fields'           => 'ids',
+				'suppress_filters' => true,
+			)
+		);
+	}
+}
+
+// Inclusion par test-publication-chapitres.php pour ses seules fonctions d'aide.
+if ( ! empty( $GLOBALS['yume_tests_publication_aides_seules'] ) ) {
+	return;
+}
+
 /*
  * -----------------------------------------------------------------------------
  * Service
@@ -1129,14 +1245,23 @@ yume_test(
 				'name="source"',
 				'name="credits[traduction]"',
 				'value="publier"',
-				'value="programmer"',
 				'value="brouillon"',
 				'value="apercu"',
 				'data-rest="' . esc_url( rest_url( 'yume/v1/' ) ) . '"',
 				'data-nonce="',
 				'Silent Witch de test',
-				'Publier un tome ou un arc',
+				'Ajouter des chapitres à un tome',
 				'<label for="yn-publish-source"',
+				// Ajout de chapitres : mode, sortie, annonce, tome complet.
+				'name="mode" value="chapitres"',
+				'name="sortie" value="maintenant"',
+				'name="sortie" value="rythme"',
+				'name="sortie" value="date"',
+				'name="intervalle"',
+				'name="annoncer"',
+				'name="complet"',
+				'data-yn-comparaison',
+				'data-yn-recap',
 			) as $attendu ) {
 				yume_assert_contains( $attendu, $html );
 			}
@@ -1586,7 +1711,7 @@ yume_test(
 );
 
 yume_test(
-	'SCAN-07 : liste « Tome du planning » (brouillons et programmés), préremplissage et cible sans doublon',
+	'SCAN-07 : liste « Tome » (tous les tomes, avec leur parution), préremplissage et cible sans doublon',
 	yume_tpub(
 		function ( $ctx ) {
 			$editeur = yume_factory_user( 'yume_editeur' );
@@ -1631,10 +1756,10 @@ yume_test(
 			);
 			$html      = yume_render_block( 'yume/publish-form' );
 			yume_assert_contains( 'name="tome_planning"', $html );
-			yume_assert_contains( 'Tome du planning', $html );
+			yume_assert_contains( '<label for="yn-publish-planning" class="yn-label">Tome</label>', $html );
 			yume_assert_true( (bool) preg_match( '#<option value="' . $planifie . '" data-oeuvre="' . $oeuvre . '" data-nature="arc" data-numero="26,5"#', $html ), 'brouillon proposé avec ses données' );
 			yume_assert_true( (bool) preg_match( '#<option value="' . $programme . '"[^>]*>[^<]*programmé le#', $html ), 'programmé proposé' );
-			yume_assert_not_contains( '<option value="' . $publie . '"', $html, 'tome sorti non proposé' );
+			yume_assert_true( (bool) preg_match( '#<option value="' . $publie . '"[^>]*>Tome 1 · complet</option>#', $html ), 'tome sorti proposé, avec sa parution' );
 			yume_assert_contains( '<optgroup label="Planning vers publication', $html );
 
 			// ?tome=ID : toujours prérempli, et sélectionné dans la liste.
@@ -1686,117 +1811,6 @@ yume_test(
  * Ajout au catalogue (sans annonce)
  * -----------------------------------------------------------------------------
  */
-
-if ( ! function_exists( 'yume_tpub_tome_migre' ) ) {
-	/**
-	 * Tome migré : publié il y a un mois avec ses seuls liens PDF/EPUB, jamais annoncé.
-	 *
-	 * @param int $oeuvre Œuvre.
-	 * @param int $numero Numéro.
-	 * @return array{0:int,1:string} Tome, date GMT de sortie.
-	 */
-	function yume_tpub_tome_migre( int $oeuvre, int $numero = 10 ): array {
-		$ancienne = gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS );
-		add_filter( 'yume_core_notifier', '__return_false' );
-		try {
-			$tome = yume_factory_post(
-				array(
-					'post_type'     => 'yume_tome',
-					'post_title'    => 'Tome migré — Tome ' . $numero,
-					'post_name'     => 'tome-' . $numero,
-					'post_status'   => 'publish',
-					'post_date'     => get_date_from_gmt( $ancienne ),
-					'post_date_gmt' => $ancienne,
-					'meta_input'    => array(
-						'yume_oeuvre_id' => $oeuvre,
-						'yume_numero'    => $numero,
-						'yume_nature'    => 'tome',
-						'yume_lien_pdf'  => 'https://www.clictune.com/pdf' . $numero,
-					),
-				)
-			);
-		} finally {
-			remove_filter( 'yume_core_notifier', '__return_false' );
-		}
-		if ( function_exists( 'Yume\Core\Core\etat_set' ) ) {
-			\Yume\Core\Core\etat_set( 'publies_yume_tome', array() );
-		}
-		return array( $tome, $ancienne );
-	}
-
-	/**
-	 * Compte les événements de sortie et les appels Discord pendant $corps.
-	 *
-	 * @param callable $corps Corps (reçoit le compteur).
-	 * @return stdClass tome, chapitre, alertes (IDs reçus), discord (URL appelées).
-	 */
-	function yume_tpub_compter( callable $corps ): stdClass {
-		$n          = new stdClass();
-		$n->tome    = array();
-		$n->chap    = array();
-		$n->alertes = array();
-		$n->discord = array();
-		$tome       = static function ( $id ) use ( $n ) {
-			$n->tome[] = (int) $id;
-		};
-		$chap       = static function ( $id ) use ( $n ) {
-			$n->chap[] = (int) $id;
-		};
-		$alertes    = static function ( $id ) use ( $n ) {
-			$n->alertes[] = (int) $id;
-		};
-		$http       = static function ( $pre, $args, $url ) use ( $n ) {
-			if ( str_contains( (string) $url, 'discord.com' ) ) {
-				$n->discord[] = (string) $url;
-				return array(
-					'headers'  => array(),
-					'body'     => '',
-					'response' => array(
-						'code'    => 204,
-						'message' => '',
-					),
-					'cookies'  => array(),
-					'filename' => null,
-				);
-			}
-			return $pre;
-		};
-		$reglages   = get_option( 'yume_reglages', array() );
-		update_option( 'yume_reglages', array_merge( is_array( $reglages ) ? $reglages : array(), array( 'discord_webhook_sorties' => 'https://discord.com/api/webhooks/1/sorties' ) ) );
-		add_action( 'yume_tome_publie', $tome, 1 );
-		add_action( 'yume_chapitre_publie', $chap, 1 );
-		add_action( 'yume_alertes_envoyees', $alertes, 1 );
-		add_filter( 'pre_http_request', $http, 10, 3 );
-		try {
-			$corps( $n );
-		} finally {
-			remove_action( 'yume_tome_publie', $tome, 1 );
-			remove_action( 'yume_chapitre_publie', $chap, 1 );
-			remove_action( 'yume_alertes_envoyees', $alertes, 1 );
-			remove_filter( 'pre_http_request', $http, 10 );
-			update_option( 'yume_reglages', $reglages );
-		}
-		return $n;
-	}
-
-	/**
-	 * Articles de la catégorie « Sorties » (tous statuts vivants).
-	 *
-	 * @return int[]
-	 */
-	function yume_tpub_sorties(): array {
-		return get_posts(
-			array(
-				'post_type'        => 'post',
-				'post_status'      => array( 'publish', 'future', 'draft', 'pending', 'private' ),
-				'category_name'    => 'sorties',
-				'posts_per_page'   => 100,
-				'fields'           => 'ids',
-				'suppress_filters' => true,
-			)
-		);
-	}
-}
 
 yume_test(
 	'catalogue : tome migré (PDF seul) mis en lecture en ligne sans annonce — aucun événement, article, Discord ni alerte',
@@ -1957,9 +1971,11 @@ yume_test(
 			$html = $rendu( (int) $brouillon['tome']['id'] );
 			preg_match( $case, $html, $m );
 			yume_assert_not_contains( 'checked', $m[0], 'brouillon : décochée' );
+			yume_assert_contains( 'disabled', $m[0], 'brouillon : case « Ajout au catalogue » désactivée (masquée)' );
+			yume_assert_true( (bool) preg_match( '#<input id="yn-publish-annoncer" type="checkbox" name="annoncer" value="1"[^>]*checked#', $html ), 'brouillon : « Annoncer les nouveaux chapitres » cochée' );
 			yume_assert_contains( '<li data-yn-recap-annonce >', $html );
 			yume_assert_contains( '<li data-yn-recap-catalogue hidden>', $html );
-			yume_assert_contains( 'Ce tome a déjà 13 chapitres. Un nouveau fichier les remplace en place', $html, 'note de remplacement' );
+			yume_assert_contains( 'Ce tome a déjà 13 chapitres : le fichier leur est comparé', $html, 'note : comparaison avec le tome' );
 
 			$html = yume_render_block( 'yume/publish-form' );
 			preg_match( $case, $html, $m );

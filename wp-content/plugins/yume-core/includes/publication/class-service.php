@@ -36,6 +36,21 @@
  * (_yume_publie_notifie = « catalogue »), comme le tome : une sortie ultérieure (nouveaux
  * chapitres) est annoncée comme telle, jamais le contenu ancien comme une nouveauté.
  *
+ * Ajout de chapitres à un tome (mode « chapitres », formulaire « Ajouter des chapitres à un
+ * tome ») : le tome est CHOISI (tome_id), sa nature et son numéro ne sont jamais réécrits. Le
+ * fichier est comparé au tome (comparer() : nouveau, en ligne identique, en ligne modifié,
+ * programmé, brouillon ; empreinte du texte _yume_empreinte_texte) : les chapitres nouveaux
+ * sont créés directement en brouillon, ceux en ligne ne sont pas touchés, sauf choix « Mettre à
+ * jour (sans annonce) » (version en attente appliquée à la sortie, voir Remplacement) ; rien
+ * n'est retiré. Sortie (publier() avec mode « chapitres ») : maintenant (une annonce groupée),
+ * un par un au rythme du tome (yume_prochaine_sortie_rythme(), une annonce par chapitre) ou à
+ * une date. Parution : première sortie sans « Tome complet » → yume_parution = en_cours (annonce
+ * « SukaMoka, Tome 2 : Prologue disponible ! ») ; « Tome complet » → marquer_complet() (liens
+ * PDF/EPUB, yume_parution = complet, planning « publié », annonce « … est complet »), tout de
+ * suite ou à la sortie du dernier chapitre programmé. Un tome complet publié d'un coup se
+ * comporte comme une publication de tome classique. Sans mode (API, outil en ligne de
+ * commande) ou en mode « remplacement » : comportement historique ci-dessus.
+ *
  * @package Yume\Core
  */
 
@@ -82,6 +97,33 @@ final class Service {
 
 	/** Tâche cron (unique) de la sortie groupée programmée d'un tome déjà en ligne. */
 	public const HOOK_GROUPE = 'yume_publication_sortie_groupee';
+
+	/**
+	 * Méta d'un chapitre : empreinte de son texte {contenu: md5 du titre et du contenu
+	 * enregistrés, texte: empreinte du texte normalisé} (comparaison avec un nouveau fichier).
+	 */
+	public const META_EMPREINTE = '_yume_empreinte_texte';
+
+	/** Méta du tome : passage « complet » programmé {ts, annoncer, liens}. */
+	public const META_COMPLET = '_yume_complet_programme';
+
+	/** Tâche cron (unique) du passage « complet » d'un tome à la sortie de son dernier chapitre. */
+	public const HOOK_COMPLET = 'yume_publication_tome_complet';
+
+	/** Mode « Ajouter des chapitres à un tome » (formulaire) : voir l'en-tête du fichier. */
+	public const MODE_CHAPITRES = 'chapitres';
+
+	/** Mode « Remplacer la lecture en ligne » explicite (en deux temps, Remplacement). */
+	public const MODE_REMPLACEMENT = 'remplacement';
+
+	/** Sorties des nouveaux chapitres (mode chapitres) : ensemble maintenant, un par un, à une date. */
+	public const SORTIES = array( 'maintenant', 'rythme', 'date' );
+
+	/** Clé de rapprochement d'un chapitre (« chapitre:3#1 », « postface:#1 »). */
+	public const MOTIF_CLE = '/^[a-z]{1,20}:[0-9.]{0,12}#[0-9]{1,5}\z/';
+
+	/** Intervalle par défaut (jours) d'une sortie un par un sans rythme de tome. */
+	public const INTERVALLE_DEFAUT = 7;
 
 	/**
 	 * Relève les limites de temps et de mémoire pendant un traitement lourd.
@@ -303,8 +345,14 @@ final class Service {
 	 * Analyse un fichier téléversé sans rien créer (le fichier est ensuite supprimé). Le rapport
 	 * contient les débuts de chapitre possibles (candidats) et les découpages rapides.
 	 *
+	 * Comparaison avec le tome (mode « Ajouter des chapitres ») : comparaison (comparer() :
+	 * état de chaque chapitre du fichier par rapport au tome), tome (infos_tome() : parution,
+	 * chapitres en ligne, rythme, prochaines dates de sortie au rythme pour les chapitres à
+	 * sortir).
+	 *
 	 * @param array<string,mixed> $fichier Entrée de $_FILES.
-	 * @param array<string,mixed> $champs  oeuvre_id, nature, numero (facultatifs : tome existant),
+	 * @param array<string,mixed> $champs  tome_id (tome choisi), sinon oeuvre_id, nature, numero
+	 *                                     (facultatifs : tome existant), choix (voir choix()),
 	 *                                     plan (découpage manuel à essayer, voir plan()).
 	 * @return array<string,mixed>|\WP_Error
 	 */
@@ -314,6 +362,10 @@ final class Service {
 			$plan = self::plan( $champs['plan'] ?? null );
 			if ( is_wp_error( $plan ) ) {
 				return $plan;
+			}
+			$choix = self::choix( $champs['choix'] ?? array() );
+			if ( is_wp_error( $choix ) ) {
+				return $choix;
 			}
 			$source = Fichiers::source( $fichier );
 			if ( is_wp_error( $source ) ) {
@@ -325,14 +377,18 @@ final class Service {
 			}
 			$rapport                  = self::rapport_analyse( $resultat, $source );
 			$rapport['tome_existant'] = null;
+			$tome                     = self::tome_choisi( absint( $champs['tome_id'] ?? 0 ) );
 			$oeuvre_id                = absint( $champs['oeuvre_id'] ?? 0 );
-			if ( $oeuvre_id && 'yume_oeuvre' === get_post_type( $oeuvre_id ) ) {
+			if ( ! $tome && $oeuvre_id && 'yume_oeuvre' === get_post_type( $oeuvre_id ) ) {
 				$nature = sanitize_key( (string) ( $champs['nature'] ?? 'tome' ) );
 				$tome   = self::trouver_tome( $oeuvre_id, isset( yume_natures_tome()[ $nature ] ) ? $nature : 'tome', self::numero( $champs['numero'] ?? '' ) );
-				if ( $tome ) {
-					$rapport['tome_existant'] = self::resume_contenu( $tome );
-				}
 			}
+			if ( $tome ) {
+				$rapport['tome_existant'] = self::resume_contenu( $tome );
+			}
+			$rapport['comparaison'] = self::comparer( $tome ? (int) $tome->ID : 0, $resultat, $choix );
+			$a_sortir               = (int) $rapport['comparaison']['nouveaux'] + (int) $rapport['comparaison']['brouillons'];
+			$rapport['tome']        = $tome ? self::infos_tome( (int) $tome->ID, $a_sortir ) : null;
 			return $rapport;
 		} finally {
 			Fichiers::supprimer( $fichier );
@@ -405,7 +461,7 @@ final class Service {
 		if ( ! isset( $natures[ $nature ] ) ) {
 			return new \WP_Error( 'yume_nature_invalide', __( 'Nature de tome inconnue.', 'yume-core' ), array( 'status' => 400 ) );
 		}
-		$champs       = array(
+		$champs = array(
 			'oeuvre_id'       => absint( $brut['oeuvre_id'] ?? 0 ),
 			'tome_id'         => absint( $brut['tome_id'] ?? 0 ),
 			'nature'          => $nature,
@@ -416,12 +472,29 @@ final class Service {
 			'retirer_absents' => rest_sanitize_boolean( $brut['retirer_absents'] ?? false ),
 			// Null : selon le tome (déjà paru : sans annonce), voir sans_annonce_par_defaut().
 			'sans_annonce'    => isset( $brut['sans_annonce'] ) && '' !== $brut['sans_annonce'] ? rest_sanitize_boolean( $brut['sans_annonce'] ) : null,
+			'mode'            => sanitize_key( is_scalar( $brut['mode'] ?? '' ) ? (string) ( $brut['mode'] ?? '' ) : '' ),
+			// Null : selon la préparation (mode chapitres), voir publier().
+			'complet'         => isset( $brut['complet'] ) && '' !== $brut['complet'] ? rest_sanitize_boolean( $brut['complet'] ) : null,
+			'choix'           => array(),
 		);
-		$numero_saisi = $brut['numero'] ?? '';
+		if ( ! in_array( $champs['mode'], array( '', self::MODE_CHAPITRES, self::MODE_REMPLACEMENT ), true ) ) {
+			return new \WP_Error( 'yume_mode_invalide', __( 'Mode de publication inconnu (chapitres ou remplacement).', 'yume-core' ), array( 'status' => 400 ) );
+		}
+		// Case « Annoncer les nouveaux chapitres » : l'inverse d'« Ajout au catalogue » (sans_annonce l'emporte).
+		if ( null === $champs['sans_annonce'] && isset( $brut['annoncer'] ) && '' !== $brut['annoncer'] ) {
+			$champs['sans_annonce'] = ! rest_sanitize_boolean( $brut['annoncer'] );
+		}
+		$choix = self::choix( $brut['choix'] ?? array() );
+		if ( is_wp_error( $choix ) ) {
+			return $choix;
+		}
+		$champs['choix'] = $choix;
+		$numero_saisi    = $brut['numero'] ?? '';
 		if ( null === $champs['numero'] && ( ! is_scalar( $numero_saisi ) || '' !== trim( (string) $numero_saisi ) ) ) {
 			return new \WP_Error( 'yume_numero_invalide', __( 'Numéro invalide : indiquez un nombre (10, 26,5…).', 'yume-core' ), array( 'status' => 400 ) );
 		}
-		if ( null === $champs['numero'] && ! in_array( $nature, array( 'ex', 'bonus' ), true ) ) {
+		// Numéro obligatoire pour créer un tome (pas pour un tome existant choisi : voir preparer()).
+		if ( null === $champs['numero'] && ! $champs['tome_id'] && ! in_array( $nature, array( 'ex', 'bonus' ), true ) ) {
 			return new \WP_Error( 'yume_numero_manquant', __( 'Indiquez le numéro du tome.', 'yume-core' ), array( 'status' => 400 ) );
 		}
 		foreach ( array(
@@ -456,15 +529,67 @@ final class Service {
 	}
 
 	/**
-	 * Mode « Ajout au catalogue (sans annonce) » par défaut : oui pour un tome déjà paru
-	 * (statut publish : tome migré avec ses seuls PDF/EPUB), non pour un nouveau tome, un
-	 * brouillon ou un tome programmé.
+	 * Choix « Garder la version en ligne » / « Mettre à jour (sans annonce) » des chapitres en
+	 * ligne modifiés (mode chapitres) : clé de rapprochement (comparer()) => garder | maj.
+	 *
+	 * @param mixed $valeur Valeur reçue (tableau, ou JSON).
+	 * @return array<string,string>|\WP_Error
+	 */
+	public static function choix( $valeur ) {
+		if ( is_string( $valeur ) && '' !== $valeur ) {
+			$valeur = strlen( $valeur ) <= self::PLAN_OCTETS_MAX ? json_decode( $valeur, true, 4 ) : null;
+		}
+		if ( null === $valeur || '' === $valeur || array() === $valeur ) {
+			return array();
+		}
+		if ( ! is_array( $valeur ) || count( $valeur ) > Chapter_Builder::PLAN_MAX ) {
+			return new \WP_Error( 'yume_choix_invalide', __( 'Choix des chapitres à mettre à jour illisible : analysez à nouveau le fichier.', 'yume-core' ), array( 'status' => 400 ) );
+		}
+		$choix = array();
+		foreach ( $valeur as $cle => $action ) {
+			if ( ! is_string( $cle ) || ! preg_match( self::MOTIF_CLE, $cle ) || ! in_array( $action, array( 'garder', 'maj' ), true ) ) {
+				return new \WP_Error( 'yume_choix_invalide', __( 'Choix des chapitres à mettre à jour illisible : analysez à nouveau le fichier.', 'yume-core' ), array( 'status' => 400 ) );
+			}
+			$choix[ $cle ] = $action;
+		}
+		return $choix;
+	}
+
+	/**
+	 * Liens PDF et EPUB fournis (clés présentes seulement), contrôlés par lien_externe().
+	 *
+	 * @param array<string,mixed> $brut Champs reçus (lien_pdf, lien_epub).
+	 * @return array<string,string>|\WP_Error lien_pdf, lien_epub.
+	 */
+	public static function liens( array $brut ) {
+		$liens = array();
+		foreach ( array(
+			'lien_pdf'  => 'PDF',
+			'lien_epub' => 'EPUB',
+		) as $cle => $libelle ) {
+			if ( array_key_exists( $cle, $brut ) && null !== $brut[ $cle ] ) {
+				$lien = self::lien_externe( $brut[ $cle ], $libelle );
+				if ( is_wp_error( $lien ) ) {
+					return $lien;
+				}
+				$liens[ $cle ] = $lien;
+			}
+		}
+		return $liens;
+	}
+
+	/**
+	 * Mode « Ajout au catalogue (sans annonce) » par défaut : oui pour un tome déjà paru et
+	 * complet (statut publish : tome migré avec ses seuls PDF/EPUB, yume_parution_tome() =
+	 * complet), non pour un nouveau tome, un brouillon, un tome programmé ou un tome en cours
+	 * de parution (ses nouveaux chapitres sont annoncés).
 	 *
 	 * @param int|\WP_Post|null $tome Tome (ou null : nouveau tome).
 	 */
 	public static function sans_annonce_par_defaut( $tome ): bool {
 		$tome = $tome ? get_post( $tome ) : null;
-		return $tome instanceof \WP_Post && 'yume_tome' === $tome->post_type && 'publish' === $tome->post_status;
+		return $tome instanceof \WP_Post && 'yume_tome' === $tome->post_type && 'publish' === $tome->post_status
+			&& 'en_cours' !== yume_parution_tome( (int) $tome->ID );
 	}
 
 	/**
@@ -613,7 +738,346 @@ final class Service {
 	}
 
 	/**
-	 * Crée ou met à jour le tome.
+	 * Tome existant choisi par l'équipe (hors corbeille, modifiable par le compte courant), ou null.
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	public static function tome_choisi( int $tome_id ): ?\WP_Post {
+		$tome = $tome_id ? get_post( $tome_id ) : null;
+		if ( ! $tome instanceof \WP_Post || 'yume_tome' !== $tome->post_type || in_array( $tome->post_status, array( 'trash', 'auto-draft' ), true ) ) {
+			return null;
+		}
+		return current_user_can( 'edit_post', $tome->ID ) ? $tome : null;
+	}
+
+	/**
+	 * Texte brut normalisé d'un contenu de chapitre (blocs enregistrés ou issus d'un fichier) :
+	 * illustrations retirées (jetons du fichier comme images enregistrées), balises et commentaires
+	 * de blocs retirés, entités décodées, toutes les espaces (insécables comprises) réduites à une.
+	 *
+	 * @param string $html Contenu (blocs).
+	 */
+	public static function texte_normalise( string $html ): string {
+		$html  = (string) preg_replace( '#<!--\s*wp:image\b.*?<!--\s*/wp:image\s*-->#s', ' ', $html );
+		$texte = Texte::texte( $html );
+		return trim( (string) preg_replace( '/[\s\p{Z}\x{200B}-\x{200D}\x{2060}\x{FEFF}]+/u', ' ', $texte ) );
+	}
+
+	/**
+	 * Empreinte du texte d'un chapitre (titre et contenu normalisés, texte_normalise()) : deux
+	 * versions de même texte ont la même empreinte, quelles que soient leurs illustrations.
+	 *
+	 * @param string $titre   Titre du chapitre.
+	 * @param string $contenu Contenu (blocs).
+	 */
+	public static function empreinte_texte( string $titre, string $contenu ): string {
+		return md5( self::texte_normalise( $titre ) . "\n" . self::texte_normalise( $contenu ) );
+	}
+
+	/**
+	 * Empreinte du texte d'un chapitre enregistré : méta META_EMPREINTE si elle correspond encore
+	 * au titre et au contenu (chapitre non retouché depuis), sinon calculée à la volée (chapitres
+	 * plus anciens que la méta, ou corrigés dans l'éditeur).
+	 *
+	 * @param \WP_Post $post Chapitre.
+	 */
+	public static function empreinte_chapitre( \WP_Post $post ): string {
+		$meta = get_post_meta( $post->ID, self::META_EMPREINTE, true );
+		if ( is_array( $meta ) && is_string( $meta['texte'] ?? null ) && md5( $post->post_title . "\n" . $post->post_content ) === ( $meta['contenu'] ?? '' ) ) {
+			return $meta['texte'];
+		}
+		return self::empreinte_texte( (string) $post->post_title, (string) $post->post_content );
+	}
+
+	/**
+	 * Enregistre l'empreinte du texte d'un chapitre (après sa création ou sa mise à jour).
+	 *
+	 * @param int $chapitre_id Chapitre.
+	 */
+	public static function noter_empreinte( int $chapitre_id ): void {
+		clean_post_cache( $chapitre_id );
+		$post = get_post( $chapitre_id );
+		if ( ! $post ) {
+			return;
+		}
+		update_post_meta(
+			$chapitre_id,
+			self::META_EMPREINTE,
+			array(
+				'contenu' => md5( $post->post_title . "\n" . $post->post_content ),
+				'texte'   => self::empreinte_texte( (string) $post->post_title, (string) $post->post_content ),
+			)
+		);
+	}
+
+	/**
+	 * Libellé, sous-titre et titre enregistré d'un chapitre du fichier (« Chapitre 3 — La ville
+	 * sans ciel ») : du texte, jamais du balisage.
+	 *
+	 * @param array<string,mixed> $chapitre Chapitre du Result.
+	 * @return array{libelle:string,sous_titre:string,titre:string}
+	 */
+	private static function titres_chapitre( array $chapitre ): array {
+		$numero     = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
+		$libelle    = self::texte_titre( (string) $chapitre['titre'] );
+		$sous_titre = self::texte_titre( (string) $chapitre['sous_titre'] );
+		if ( '' === $libelle ) {
+			$libelle = __( 'Chapitre', 'yume-core' ) . ( null !== $numero ? ' ' . Texte::numero_fr( $numero ) : '' );
+		}
+		return array(
+			'libelle'    => $libelle,
+			'sous_titre' => $sous_titre,
+			'titre'      => $libelle . ( '' !== $sous_titre ? ' — ' . $sous_titre : '' ),
+		);
+	}
+
+	/**
+	 * Chapitres actuels du tome (tous statuts actifs, hors versions en attente) par clé de
+	 * rapprochement (nature + numéro + rang).
+	 *
+	 * @param int $tome_id Tome (0 : aucun).
+	 * @return array<string,\WP_Post>
+	 */
+	private static function chapitres_par_cle( int $tome_id ): array {
+		$existants = array();
+		$rangs     = array();
+		foreach ( $tome_id ? yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) : array() as $post ) {
+			$cle               = self::cle_chapitre( (string) get_post_meta( $post->ID, 'yume_nature', true ), self::numero( get_post_meta( $post->ID, 'yume_numero', true ) ), $rangs );
+			$existants[ $cle ] = $post;
+		}
+		return $existants;
+	}
+
+	/**
+	 * Compare les chapitres d'un fichier au tome (mode « Ajouter des chapitres ») : pour chaque
+	 * chapitre du fichier, dans l'ordre, son état par rapport au tome et ce qui en sera fait.
+	 *
+	 * - nouveau (aucun chapitre de même nature et numéro) : créé (action « cree ») ;
+	 * - en ligne, identique (même texte, empreinte_texte()) : rien n'est touché (« inchange ») ;
+	 * - en ligne, modifié : « garder » (défaut, rien n'est touché) ou « maj » (choix de l'équipe :
+	 *   mis à jour en place, sans annonce, à la sortie) ;
+	 * - programmé ou brouillon (pas encore visible des lecteurs) : mis à jour en place
+	 *   (« programme » : sa date est gardée ; « brouillon » : il sort avec les nouveaux).
+	 *
+	 * @param int                  $tome_id  Tome (0 : nouveau tome, tout est nouveau).
+	 * @param Result               $resultat Résultat de la conversion.
+	 * @param array<string,string> $choix    Choix des chapitres modifiés (choix()).
+	 * @return array{lignes:array<int,array<string,mixed>>,nouveaux:int,identiques:int,modifies:int,a_mettre_a_jour:int,programmes:int,brouillons:int}
+	 */
+	public static function comparer( int $tome_id, Result $resultat, array $choix = array() ): array {
+		$existants = self::chapitres_par_cle( $tome_id );
+		$etats     = array(
+			'nouveau'   => __( 'Nouveau', 'yume-core' ),
+			'identique' => __( 'En ligne, identique', 'yume-core' ),
+			'modifie'   => __( 'En ligne, modifié', 'yume-core' ),
+			'programme' => __( 'Programmé', 'yume-core' ),
+			'brouillon' => __( 'Brouillon', 'yume-core' ),
+		);
+		$bilan     = array(
+			'lignes'          => array(),
+			'nouveaux'        => 0,
+			'identiques'      => 0,
+			'modifies'        => 0,
+			'a_mettre_a_jour' => 0,
+			'programmes'      => 0,
+			'brouillons'      => 0,
+		);
+		$rangs     = array();
+		foreach ( $resultat->chapters as $i => $chapitre ) {
+			$numero = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
+			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs );
+			$noms   = self::titres_chapitre( $chapitre );
+			$post   = $existants[ $cle ] ?? null;
+			$ligne  = array(
+				'index'      => (int) $i,
+				'cle'        => $cle,
+				'numero'     => $numero,
+				'nature'     => (string) $chapitre['nature'],
+				'libelle'    => $noms['libelle'],
+				'sous_titre' => $noms['sous_titre'],
+				'titre'      => $noms['titre'],
+				'nb_mots'    => (int) $chapitre['nb_mots'],
+				'existant'   => null,
+				'etat'       => 'nouveau',
+				'action'     => 'cree',
+				'choix'      => '',
+			);
+			if ( $post ) {
+				$ligne['existant'] = array(
+					'id'           => (int) $post->ID,
+					'statut'       => $post->post_status,
+					'lien'         => 'publish' === $post->post_status ? (string) get_permalink( $post ) : '',
+					'date'         => 'future' === $post->post_status ? mysql_to_rfc3339( $post->post_date ) : '',
+					'date_libelle' => 'future' === $post->post_status ? Formulaire::date_fr( (int) strtotime( $post->post_date_gmt . ' UTC' ), 'court' ) : '',
+				);
+				if ( in_array( $post->post_status, array( 'publish', 'private' ), true ) ) {
+					$fichier = Blocks::remplacer_images(
+						(string) $chapitre['blocks'],
+						static function (): string {
+							return '';
+						}
+					);
+					if ( self::empreinte_chapitre( $post ) === self::empreinte_texte( $noms['titre'], $fichier ) ) {
+						$ligne['etat']   = 'identique';
+						$ligne['action'] = 'inchange';
+					} else {
+						$ligne['etat']   = 'modifie';
+						$ligne['choix']  = 'maj' === ( $choix[ $cle ] ?? '' ) ? 'maj' : 'garder';
+						$ligne['action'] = $ligne['choix'];
+					}
+				} elseif ( 'future' === $post->post_status ) {
+					$ligne['etat']   = 'programme';
+					$ligne['action'] = 'programme';
+				} else {
+					$ligne['etat']   = 'brouillon';
+					$ligne['action'] = 'brouillon';
+				}
+			}
+			$ligne['etat_libelle'] = $etats[ $ligne['etat'] ];
+			$compteur              = array(
+				'nouveau'   => 'nouveaux',
+				'identique' => 'identiques',
+				'modifie'   => 'modifies',
+				'programme' => 'programmes',
+				'brouillon' => 'brouillons',
+			)[ $ligne['etat'] ];
+			++$bilan[ $compteur ];
+			if ( 'maj' === $ligne['action'] ) {
+				++$bilan['a_mettre_a_jour'];
+			}
+			$bilan['lignes'][] = $ligne;
+		}
+		return $bilan;
+	}
+
+	/**
+	 * Date du dernier chapitre programmé du tome (fuseau du site), ou null.
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	private static function dernier_programme( int $tome_id ): ?\DateTimeImmutable {
+		$dernier = null;
+		foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'future' ) ) as $chapitre ) {
+			$date = date_create_immutable( $chapitre->post_date_gmt, new \DateTimeZone( 'UTC' ) );
+			if ( $date && ( null === $dernier || $date > $dernier ) ) {
+				$dernier = $date;
+			}
+		}
+		return $dernier ? $dernier->setTimezone( wp_timezone() ) : null;
+	}
+
+	/**
+	 * Rythme de sortie d'un tome en clair (« chaque samedi à 18 h »), vide sans rythme.
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	public static function rythme_texte( int $tome_id ): string {
+		$rythme = get_post_meta( $tome_id, 'yume_rythme', true );
+		$jours  = yume_jours_semaine();
+		if ( ! is_array( $rythme ) || ! isset( $jours[ (string) ( $rythme['jour'] ?? '' ) ] ) ) {
+			return '';
+		}
+		$heure = preg_match( '/^(\d{2}):(\d{2})$/', (string) ( $rythme['heure'] ?? '' ), $m ) ? array( (int) $m[1], (int) $m[2] ) : array( 18, 0 );
+		return sprintf(
+			/* translators: 1: jour (samedi), 2: heure (18 h, 18 h 30) */
+			__( 'chaque %1$s à %2$s', 'yume-core' ),
+			mb_strtolower( $jours[ (string) $rythme['jour'] ] ),
+			$heure[0] . ' h' . ( $heure[1] ? ' ' . sprintf( '%02d', $heure[1] ) : '' )
+		);
+	}
+
+	/**
+	 * Calendrier d'une sortie de chapitres : une date par chapitre (null : maintenant).
+	 *
+	 * - maintenant : tous maintenant ; à une date : tous à cette date ;
+	 * - un par un (rythme) : tome avec un rythme → dates successives du rythme
+	 *   (yume_prochaine_sortie_rythme()), la première après le dernier chapitre déjà programmé du
+	 *   tome, après maintenant et après la date de départ si elle est donnée ; sans rythme → date
+	 *   de départ (ou maintenant), puis tous les $intervalle jours.
+	 *
+	 * @param int                     $tome_id    Tome.
+	 * @param int                     $nb         Nombre de chapitres.
+	 * @param string                  $sortie     maintenant | rythme | date.
+	 * @param \DateTimeImmutable|null $date       Date choisie (départ du rythme), ou null.
+	 * @param int                     $intervalle Jours entre deux chapitres sans rythme (1 à 60).
+	 * @return array<int,\DateTimeImmutable|null>
+	 */
+	public static function calendrier( int $tome_id, int $nb, string $sortie, ?\DateTimeImmutable $date, int $intervalle = self::INTERVALLE_DEFAUT ): array {
+		if ( $nb <= 0 ) {
+			return array();
+		}
+		if ( 'rythme' !== $sortie ) {
+			return array_fill( 0, $nb, 'maintenant' === $sortie ? null : $date );
+		}
+		$dates = array();
+		if ( null !== yume_prochaine_sortie_rythme( $tome_id ) ) {
+			$ref     = new \DateTimeImmutable( 'now', wp_timezone() );
+			$dernier = self::dernier_programme( $tome_id );
+			if ( $dernier && $dernier > $ref ) {
+				$ref = $dernier;
+			}
+			if ( $date && $date->modify( '-1 second' ) > $ref ) {
+				$ref = $date->modify( '-1 second' );
+			}
+			for ( $i = 0; $i < $nb; $i++ ) {
+				$ref     = yume_prochaine_sortie_rythme( $tome_id, $ref );
+				$dates[] = $ref;
+			}
+			return $dates;
+		}
+		$intervalle = max( 1, min( 60, $intervalle ) );
+		$depart     = $date ?? new \DateTimeImmutable( 'now', wp_timezone() );
+		for ( $i = 0; $i < $nb; $i++ ) {
+			$dates[] = 0 === $i ? $date : $depart->modify( '+' . ( $i * $intervalle ) . ' days' );
+		}
+		return $dates;
+	}
+
+	/**
+	 * Informations d'un tome pour le formulaire « Ajouter des chapitres » : parution (à paraître,
+	 * en cours, complet), chapitres en ligne et prévus, rythme, prochaines dates au rythme.
+	 *
+	 * @param int $tome_id  Tome.
+	 * @param int $a_sortir Chapitres à sortir (dates au rythme calculées pour eux).
+	 * @return array<string,mixed>
+	 */
+	public static function infos_tome( int $tome_id, int $a_sortir = 0 ): array {
+		$parutions = yume_parutions();
+		$parution  = yume_parution_tome( $tome_id );
+		$en_ligne  = wp_list_pluck( yume_get_chapitres( $tome_id ), 'ID' );
+		$dernier   = self::dernier_programme( $tome_id );
+		$rythme    = self::rythme_texte( $tome_id );
+		$dates     = array();
+		if ( '' !== $rythme && $a_sortir > 0 ) {
+			foreach ( self::calendrier( $tome_id, min( $a_sortir, 200 ), 'rythme', null ) as $date ) {
+				$dates[] = array(
+					'date'    => $date ? $date->format( DATE_ATOM ) : '',
+					'libelle' => $date ? Formulaire::date_fr( $date->getTimestamp(), 'court' ) : '',
+				);
+			}
+		}
+		return array(
+			'id'                => $tome_id,
+			'libelle'           => yume_libelle_tome( $tome_id ),
+			'statut'            => (string) get_post_status( $tome_id ),
+			'parution'          => $parution,
+			'parution_libelle'  => (string) ( $parutions[ $parution ] ?? $parution ),
+			'en_ligne'          => count( $en_ligne ),
+			'en_ligne_libelle'  => $en_ligne ? self::libelle_groupe( array_map( 'intval', $en_ligne ) ) : '',
+			'programmes'        => count( yume_get_chapitres( $tome_id, array( 'status' => 'future' ) ) ),
+			'dernier_programme' => $dernier ? $dernier->format( DATE_ATOM ) : '',
+			'prevus'            => (int) get_post_meta( $tome_id, 'yume_chapitres_prevus', true ),
+			'rythme'            => $rythme,
+			'dates_rythme'      => $dates,
+			'sans_annonce'      => self::sans_annonce_par_defaut( $tome_id ),
+			'lien'              => 'publish' === get_post_status( $tome_id ) ? (string) get_permalink( $tome_id ) : '',
+		);
+	}
+
+	/**
+	 * Crée ou met à jour le tome. Un tome existant garde TOUJOURS sa nature et son numéro (ils
+	 * lui appartiennent, choisis à sa création) : le libellé de son titre vient de ses propres
+	 * métadonnées, jamais des champs nature et numéro reçus.
 	 *
 	 * @param \WP_Post|null       $tome   Tome existant.
 	 * @param array<string,mixed> $champs Champs.
@@ -621,13 +1085,15 @@ final class Service {
 	 * @return int|\WP_Error ID du tome.
 	 */
 	private static function enregistrer_tome( ?\WP_Post $tome, array $champs, \WP_Post $oeuvre ) {
-		$libelle = self::libelle_tome( $champs['nature'], $champs['numero'] );
+		$libelle = null === $tome ? self::libelle_tome( $champs['nature'], $champs['numero'] ) : yume_libelle_tome( (int) $tome->ID );
 		$titre   = $oeuvre->post_title . ' — ' . $libelle . ( '' !== $champs['titre'] ? ' : ' . $champs['titre'] : '' );
-		$meta    = array(
-			'yume_oeuvre_id' => (int) $oeuvre->ID,
-			'yume_nature'    => $champs['nature'],
-		);
-		if ( null !== $champs['numero'] ) {
+		$meta    = array( 'yume_oeuvre_id' => (int) $oeuvre->ID );
+		// Tome existant : nature et numéro posés seulement s'ils manquent (tome créé sans eux
+		// dans l'administration), jamais remplacés.
+		if ( null === $tome || '' === (string) get_post_meta( $tome->ID, 'yume_nature', true ) ) {
+			$meta['yume_nature'] = $champs['nature'];
+		}
+		if ( null !== $champs['numero'] && ( null === $tome || ! metadata_exists( 'post', $tome->ID, 'yume_numero' ) ) ) {
 			$meta['yume_numero'] = $champs['numero'];
 		}
 		foreach ( array( 'lien_pdf', 'lien_epub' ) as $cle ) {
@@ -669,14 +1135,11 @@ final class Service {
 		if ( self::slug_a_poser( $tome ) ) {
 			// Brouillon du planning ou de l'administration : adresse du contrat §3 (« tome-10 »),
 			// et non celle que WordPress tirerait du titre à la publication.
-			$donnees['post_name'] = self::slug_tome( $champs['nature'], $champs['numero'] );
+			$donnees['post_name'] = self::slug_tome_existant( (int) $tome->ID );
 		}
 		$id = wp_update_post( wp_slash( $donnees ), true );
 		if ( is_wp_error( $id ) ) {
 			return $id;
-		}
-		if ( null === $champs['numero'] ) {
-			delete_post_meta( (int) $tome->ID, 'yume_numero' );
 		}
 		return (int) $tome->ID;
 	}
@@ -723,21 +1186,23 @@ final class Service {
 	 * (Remplacement::META_DE) ; aucun chapitre existant n'est modifié, les images nouvelles sont
 	 * versées sans rattachement et les absents seulement signalés.
 	 *
-	 * @param int                 $tome_id  Tome.
-	 * @param Result              $resultat Résultat.
-	 * @param array<string,mixed> $champs   Champs.
-	 * @param array<string,int>   $cache    Images déjà versées (modifié).
-	 * @param string[]            $avert    Avertissements (modifié).
-	 * @param bool                $attente  Préparation séparée (remplacement d'une lecture en ligne).
+	 * Ajout de chapitres ($comparaison, mode chapitres, voir comparer()) : les chapitres nouveaux
+	 * sont créés en brouillon (placés après les chapitres du tome), les chapitres en ligne
+	 * identiques ou gardés ne sont pas touchés, ceux à mettre à jour deviennent une version en
+	 * attente (appliquée à la sortie), les chapitres programmés ou en brouillon sont mis à jour
+	 * en place (date et ordre gardés) ; aucun chapitre absent du fichier n'est signalé ni retiré.
+	 *
+	 * @param int                      $tome_id     Tome.
+	 * @param Result                   $resultat    Résultat.
+	 * @param array<string,mixed>      $champs      Champs.
+	 * @param array<string,int>        $cache       Images déjà versées (modifié).
+	 * @param string[]                 $avert       Avertissements (modifié).
+	 * @param bool                     $attente     Préparation séparée (remplacement d'une lecture en ligne).
+	 * @param array<string,mixed>|null $comparaison Comparaison avec le tome (mode chapitres), ou null.
 	 * @return array{chapitres:array<int,array<string,mixed>>,disparus:array<int,array<string,mixed>>}
 	 */
-	private static function enregistrer_chapitres( int $tome_id, Result $resultat, array $champs, array &$cache, array &$avert, bool $attente = false ): array {
-		$existants = array();
-		$rangs     = array();
-		foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $post ) {
-			$cle               = self::cle_chapitre( (string) get_post_meta( $post->ID, 'yume_nature', true ), self::numero( get_post_meta( $post->ID, 'yume_numero', true ) ), $rangs );
-			$existants[ $cle ] = $post;
-		}
+	private static function enregistrer_chapitres( int $tome_id, Result $resultat, array $champs, array &$cache, array &$avert, bool $attente = false, ?array $comparaison = null ): array {
+		$existants = self::chapitres_par_cle( $tome_id );
 		$oeuvre_id = yume_get_oeuvre_id( $tome_id );
 		$prefixe   = ( $oeuvre_id ? get_the_title( $oeuvre_id ) . ', ' : '' ) . yume_libelle_tome( $tome_id );
 		$credits   = $champs['credits'] ?? get_post_meta( $tome_id, 'yume_credits', true );
@@ -747,9 +1212,14 @@ final class Service {
 			'hash'       => (string) ( $resultat->stats['hash'] ?? '' ),
 			'importe_le' => current_time( 'mysql', true ),
 		);
-		$rangs     = array();
-		$vus       = array();
-		$lignes    = array();
+		// Ajout de chapitres : les nouveaux se placent après les chapitres actuels du tome.
+		$ordre_max = 0;
+		foreach ( $existants as $post ) {
+			$ordre_max = max( $ordre_max, (int) $post->menu_order );
+		}
+		$rangs  = array();
+		$vus    = array();
+		$lignes = array();
 		foreach ( $resultat->chapters as $i => $chapitre ) {
 			$numero = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
 			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs );
@@ -757,13 +1227,36 @@ final class Service {
 			// Titre et sous-titre extraits du document : du texte, jamais du balisage (le titre
 			// est affiché sans échappement par core/post-title, et kses ne s'applique pas à un
 			// compte unfiltered_html).
-			$libelle    = self::texte_titre( (string) $chapitre['titre'] );
-			$sous_titre = self::texte_titre( (string) $chapitre['sous_titre'] );
-			if ( '' === $libelle ) {
-				$libelle = __( 'Chapitre', 'yume-core' ) . ( null !== $numero ? ' ' . Texte::numero_fr( $numero ) : '' );
+			$noms       = self::titres_chapitre( $chapitre );
+			$libelle    = $noms['libelle'];
+			$sous_titre = $noms['sous_titre'];
+			$titre      = $noms['titre'];
+			$comparee   = null !== $comparaison ? ( $comparaison['lignes'][ $i ] ?? null ) : null;
+			if ( $comparee && $post && in_array( $comparee['action'], array( 'inchange', 'garder' ), true ) ) {
+				// Chapitre en ligne identique, ou modifié mais gardé : rien n'est touché.
+				$vus[ (int) $post->ID ] = true;
+				$lignes[]               = array_merge(
+					self::resume_contenu( $post ),
+					array(
+						'numero'     => $numero,
+						'nature'     => (string) $chapitre['nature'],
+						'libelle'    => $libelle,
+						'sous_titre' => $sous_titre,
+						'nb_mots'    => (int) $chapitre['nb_mots'],
+						'action'     => 'inchange' === $comparee['action'] ? 'inchange' : 'garde',
+						'cle'        => $cle,
+					)
+				);
+				continue;
 			}
-			$titre = $libelle . ( '' !== $sous_titre ? ' — ' . $sous_titre : '' );
-			$meta  = array(
+			// Version en attente : remplacement complet, ou chapitre en ligne à mettre à jour.
+			$version = $attente || ( $comparee && $post && 'maj' === $comparee['action'] );
+			if ( null !== $comparaison ) {
+				$ordre = $post ? (int) $post->menu_order : ++$ordre_max;
+			} else {
+				$ordre = $i + 1;
+			}
+			$meta = array(
 				'yume_tome_id'       => $tome_id,
 				'yume_nature'        => (string) $chapitre['nature'],
 				'yume_sous_titre'    => sanitize_text_field( $sous_titre ),
@@ -777,7 +1270,7 @@ final class Service {
 			if ( $credits ) {
 				$meta['yume_credits'] = $credits;
 			}
-			if ( $attente ) {
+			if ( $version ) {
 				$id = wp_insert_post(
 					wp_slash(
 						array(
@@ -786,7 +1279,7 @@ final class Service {
 							'post_title'   => $titre,
 							'post_name'    => self::slug_chapitre( $chapitre ),
 							'post_content' => '',
-							'menu_order'   => $i + 1,
+							'menu_order'   => $ordre,
 							'post_author'  => get_current_user_id(),
 							'meta_input'   => array(
 								'yume_tome_id'        => $tome_id,
@@ -813,7 +1306,7 @@ final class Service {
 							'post_title'   => $titre,
 							'post_name'    => self::slug_chapitre( $chapitre ),
 							'post_content' => '',
-							'menu_order'   => $i + 1,
+							'menu_order'   => $ordre,
 							'post_author'  => get_current_user_id(),
 							'meta_input'   => array(
 								'yume_tome_id' => $tome_id,
@@ -837,8 +1330,8 @@ final class Service {
 			$alt = $prefixe . ', ' . $libelle . ' — ' . __( 'illustration', 'yume-core' );
 			$ids = array();
 			foreach ( (array) $chapitre['images'] as $cle_image ) {
-				// Préparation séparée : aucune image (même réutilisée) n'est rattachée avant l'application.
-				$ids[ $cle_image ] = self::image( $resultat, (string) $cle_image, $attente ? 0 : $id, $tome_id, $alt, $cache, $avert );
+				// Version en attente : aucune image (même réutilisée) n'est rattachée avant l'application.
+				$ids[ $cle_image ] = self::image( $resultat, (string) $cle_image, $version ? 0 : $id, $tome_id, $alt, $cache, $avert );
 			}
 			$contenu = Blocks::remplacer_images(
 				(string) $chapitre['blocks'],
@@ -854,10 +1347,10 @@ final class Service {
 			);
 			// Contenu tel qu'il sera enregistré (filtres de sauvegarde, kses pour un compte sans unfiltered_html).
 			$enregistre = wp_unslash( (string) apply_filters( 'content_save_pre', wp_slash( $contenu ) ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtre du cœur.
-			if ( $post && $post->post_content === $enregistre && $post->post_title === $titre && (int) $post->menu_order === $i + 1 ) {
+			if ( $post && $post->post_content === $enregistre && $post->post_title === $titre && (int) $post->menu_order === $ordre ) {
 				$action = 'inchange';
 			}
-			if ( $attente ) {
+			if ( $version ) {
 				$meta[ Remplacement::META_ACTION ] = $action;
 				$meta[ Remplacement::META_MEDIAS ] = array_values( array_filter( array_map( 'intval', $ids ) ) );
 			}
@@ -867,7 +1360,7 @@ final class Service {
 						'ID'           => $id,
 						'post_title'   => $titre,
 						'post_content' => $contenu,
-						'menu_order'   => $i + 1,
+						'menu_order'   => $ordre,
 						'meta_input'   => $meta,
 					)
 				),
@@ -882,15 +1375,18 @@ final class Service {
 				delete_post_meta( $id, 'yume_numero' );
 			}
 			delete_post_meta( $id, self::META_RETIRE );
-			$vus[ $post && $attente ? (int) $post->ID : $id ] = true;
+			if ( ! $version ) {
+				self::noter_empreinte( $id );
+			}
+			$vus[ $post && $version ? (int) $post->ID : $id ] = true;
 			$resume = self::resume_contenu( get_post( $id ) );
-			if ( $attente ) {
+			if ( $version ) {
 				// Version en attente : aperçu réservé à l'équipe, jamais ouverte dans l'éditeur.
 				$resume['lien']     = $post && 'publish' === $post->post_status ? (string) get_permalink( $post ) : '';
 				$resume['edition']  = '';
 				$resume['remplace'] = $post ? (int) $post->ID : 0;
 			}
-			$ligne    = array_merge(
+			$ligne = array_merge(
 				$resume,
 				array(
 					'numero'     => $numero,
@@ -901,7 +1397,19 @@ final class Service {
 					'action'     => $action,
 				)
 			);
+			if ( null !== $comparaison ) {
+				$ligne['cle'] = $cle;
+			}
 			$lignes[] = $ligne;
+		}
+
+		// Ajout de chapitres : rien n'est jamais retiré, les chapitres absents du fichier ne
+		// sont pas signalés (le fichier peut ne contenir qu'un chapitre).
+		if ( null !== $comparaison ) {
+			return array(
+				'chapitres' => $lignes,
+				'disparus'  => array(),
+			);
 		}
 
 		// Chapitres du tome absents du nouveau fichier.
@@ -948,10 +1456,16 @@ final class Service {
 	 *                                      couverture_id, retirer_absents, tome_id, sans_annonce
 	 *                                      (null ou absent : sans_annonce_par_defaut() ; vrai :
 	 *                                      aucun article d'annonce créé ni mis à jour), plan
-	 *                                      (découpage manuel du fichier source, voir plan()).
+	 *                                      (découpage manuel du fichier source, voir plan()),
+	 *                                      annoncer (inverse de sans_annonce), mode (chapitres :
+	 *                                      ajout de chapitres au tome choisi, voir l'en-tête ;
+	 *                                      remplacement ; vide : comportement historique), choix
+	 *                                      (voir choix()), complet (mode chapitres : liens PDF/EPUB
+	 *                                      gardés pour la sortie).
 	 * @param array<string,mixed> $fichiers Fichiers ($_FILES) : source (DOCX/EPUB), couverture.
 	 * @return array<string,mixed>|\WP_Error Rapport : tome, chapitres, disparus, article, import,
-	 *                                      avertissements, sans_annonce, remplacement (préparation
+	 *                                      avertissements, sans_annonce, mode, comparaison (mode
+	 *                                      chapitres : comparer()), parution, remplacement (préparation
 	 *                                      en attente : Remplacement::etat(), sinon null). Tome paru
 	 *                                      avec sa lecture en ligne : chapitres = versions en attente
 	 *                                      (aperçus), rien n'est modifié en ligne ; 409
@@ -970,9 +1484,24 @@ final class Service {
 			if ( is_wp_error( $plan ) ) {
 				return $plan;
 			}
+			$chapitres_mode = self::MODE_CHAPITRES === $champs['mode'];
+			// Tome choisi (tome_id) : la cible, quels que soient la nature et le numéro reçus.
+			$choisi = self::tome_choisi( $champs['tome_id'] );
+			if ( ! $choisi && $champs['tome_id'] && $chapitres_mode ) {
+				return new \WP_Error( 'yume_tome_invalide', __( 'Tome introuvable : choisissez un tome de la liste.', 'yume-core' ), array( 'status' => 404 ) );
+			}
+			if ( $choisi && ! $champs['oeuvre_id'] ) {
+				$champs['oeuvre_id'] = yume_get_oeuvre_id( (int) $choisi->ID );
+			}
 			$oeuvre = $champs['oeuvre_id'] ? get_post( $champs['oeuvre_id'] ) : null;
 			if ( ! $oeuvre || 'yume_oeuvre' !== $oeuvre->post_type || 'trash' === $oeuvre->post_status ) {
 				return new \WP_Error( 'yume_oeuvre_invalide', __( 'Choisissez l’œuvre du tome.', 'yume-core' ), array( 'status' => 400 ) );
+			}
+			if ( $choisi && yume_get_oeuvre_id( (int) $choisi->ID ) && yume_get_oeuvre_id( (int) $choisi->ID ) !== (int) $oeuvre->ID ) {
+				return new \WP_Error( 'yume_tome_autre_oeuvre', __( 'Ce tome appartient à une autre œuvre : choisissez l’œuvre puis l’un de ses tomes.', 'yume-core' ), array( 'status' => 400 ) );
+			}
+			if ( ! $choisi && null === $champs['numero'] && ! in_array( $champs['nature'], array( 'ex', 'bonus' ), true ) ) {
+				return new \WP_Error( 'yume_numero_manquant', __( 'Indiquez le numéro du tome.', 'yume-core' ), array( 'status' => 400 ) );
 			}
 			$resultat = null;
 			$source   = null;
@@ -998,22 +1527,41 @@ final class Service {
 			if ( null !== $plan && ! $resultat ) {
 				$avert[] = __( 'Découpage manuel ignoré : il s’applique au fichier DOCX ou EPUB, à déposer à nouveau avec lui.', 'yume-core' );
 			}
-			$tome = self::trouver_tome( (int) $oeuvre->ID, $champs['nature'], $champs['numero'] );
-			if ( ! $tome && $champs['tome_id'] && 'yume_tome' === get_post_type( $champs['tome_id'] ) && 'trash' !== get_post_status( $champs['tome_id'] ) && current_user_can( 'edit_post', $champs['tome_id'] ) ) {
-				$tome = get_post( $champs['tome_id'] );
-			}
+			$tome         = $choisi ? $choisi : self::trouver_tome( (int) $oeuvre->ID, $champs['nature'], $champs['numero'] );
 			$reutilise    = null !== $tome;
 			$sans_annonce = null === $champs['sans_annonce'] ? self::sans_annonce_par_defaut( $tome ) : (bool) $champs['sans_annonce'];
-			// Tome paru avec sa lecture en ligne : le nouveau fichier attend l'application.
-			$attente = $resultat && $tome && Remplacement::mode( $tome );
+			// Ajout de chapitres : comparaison du fichier avec le tome (rien n'est retiré).
+			$comparaison  = $chapitres_mode && $resultat ? self::comparer( $tome ? (int) $tome->ID : 0, $resultat, $champs['choix'] ) : null;
+			$mises_a_jour = $comparaison && $comparaison['a_mettre_a_jour'] > 0;
+			// Tome paru avec sa lecture en ligne (hors ajout de chapitres) : le nouveau fichier
+			// attend l'application (remplacement en deux temps).
+			$attente = $resultat && $tome && ! $chapitres_mode && Remplacement::mode( $tome );
+			$etat    = null;
 			if ( $tome ) {
-				Remplacement::nettoyer_si_expiree( (int) $tome->ID );
+				$etat = Remplacement::nettoyer_si_expiree( (int) $tome->ID );
 			}
-			if ( $attente ) {
+			if ( $attente || $mises_a_jour ) {
 				$verrou = Remplacement::verrou( (int) $tome->ID );
 				if ( $verrou ) {
 					return $verrou;
 				}
+				if ( $mises_a_jour && $etat && self::MODE_CHAPITRES !== ( $etat['mode'] ?? '' ) ) {
+					return new \WP_Error(
+						'yume_remplacement_en_attente',
+						__( 'Un remplacement complet de la lecture en ligne de ce tome attend déjà : appliquez-le ou annulez-le avant de mettre à jour des chapitres en ligne.', 'yume-core' ),
+						array( 'status' => 409 )
+					);
+				}
+			} elseif ( $comparaison && $etat && self::MODE_CHAPITRES === ( $etat['mode'] ?? '' ) && (int) ( $etat['par'] ?? 0 ) === get_current_user_id() ) {
+				// La nouvelle préparation remplace la précédente : plus aucun chapitre à mettre à jour.
+				Remplacement::annuler( (int) $tome->ID );
+			}
+			// Ajout de chapitres : les liens PDF/EPUB accompagnent « Le tome est complet » et ne
+			// sont posés qu'à ce moment (marquer_complet()).
+			$liens_complet = array();
+			if ( $chapitres_mode ) {
+				$liens_complet = array_intersect_key( $champs, array_flip( array( 'lien_pdf', 'lien_epub' ) ) );
+				unset( $champs['lien_pdf'], $champs['lien_epub'] );
 			}
 			$tome_id = self::enregistrer_tome( $tome, $champs, $oeuvre );
 			if ( is_wp_error( $tome_id ) ) {
@@ -1038,18 +1586,22 @@ final class Service {
 				'disparus'  => array(),
 			);
 			if ( $resultat ) {
-				// Préparation séparée : images versées suivies (supprimées à l'annulation).
-				$medias = $attente ? Remplacement::debuter( $tome_id ) : array();
+				// Préparation séparée (remplacement, ou chapitres en ligne à mettre à jour) : images
+				// versées suivies (supprimées à l'annulation).
+				$suivi  = $attente || $mises_a_jour;
+				$medias = $suivi ? Remplacement::debuter( $tome_id ) : array();
 				$suivre = static function ( $id ) use ( &$medias ) {
 					$medias[] = (int) $id;
 				};
-				if ( $attente ) {
+				if ( $suivi ) {
 					add_action( 'add_attachment', $suivre );
 				}
 				try {
 					$galerie = array();
 					$alt     = sprintf( /* translators: %s : titre du tome */ __( 'Illustration — %s', 'yume-core' ), get_the_title( $tome_id ) );
-					foreach ( $resultat->front_images as $cle ) {
+					// Ajout de chapitres : la galerie du tome n'est posée que s'il n'en a pas encore.
+					$images_avant = $chapitres_mode && get_post_meta( $tome_id, 'yume_illustrations', true ) ? array() : $resultat->front_images;
+					foreach ( $images_avant as $cle ) {
 						$id = self::image( $resultat, (string) $cle, $attente ? 0 : $tome_id, $tome_id, $alt, $cache, $avert );
 						if ( $id ) {
 							$galerie[] = $id;
@@ -1063,11 +1615,11 @@ final class Service {
 					if ( $couv_epub && ! $attente ) {
 						set_post_thumbnail( $tome_id, $couv_epub );
 					}
-					$chapitres = self::enregistrer_chapitres( $tome_id, $resultat, $champs, $cache, $avert, $attente );
+					$chapitres = self::enregistrer_chapitres( $tome_id, $resultat, $champs, $cache, $avert, $attente, $comparaison );
 				} finally {
 					remove_action( 'add_attachment', $suivre );
 				}
-				if ( $attente ) {
+				if ( $suivi ) {
 					Remplacement::terminer(
 						$tome_id,
 						array(
@@ -1078,10 +1630,12 @@ final class Service {
 								'hash'   => (string) ( $resultat->stats['hash'] ?? '' ),
 							) : array(),
 							'resume'          => self::resume( $resultat ),
-							'galerie'         => $galerie ? $galerie : null,
-							'couverture'      => $couv_epub,
-							'retirer_absents' => ! empty( $champs['retirer_absents'] ),
+							'galerie'         => $attente && $galerie ? $galerie : null,
+							'couverture'      => $attente ? $couv_epub : 0,
+							'retirer_absents' => $attente && ! empty( $champs['retirer_absents'] ),
 							'absents'         => array_map( 'intval', array_column( $chapitres['disparus'], 'id' ) ),
+							// Ajout de chapitres : seules les mises à jour choisies attendent la sortie.
+							'mode'            => $attente ? self::MODE_REMPLACEMENT : self::MODE_CHAPITRES,
 						),
 						$medias,
 						array_values( $cache )
@@ -1119,9 +1673,15 @@ final class Service {
 			$precedent = is_array( $precedent ) ? $precedent : array();
 			update_post_meta( $tome_id, self::META, array_merge( $precedent, array( 'titre' => $champs['titre'] ) ) );
 
-			// Article d'annonce (aucun pour un ajout au catalogue sans annonce).
+			// Article d'annonce (aucun pour un ajout au catalogue sans annonce). Ajout de chapitres :
+			// seulement pour la première sortie du tome (variante « chapitres disponibles » sans
+			// « Tome complet »), régénéré à la sortie avec les chapitres qui sortent alors.
 			$article_id = 0;
-			if ( ! $sans_annonce ) {
+			if ( $chapitres_mode ) {
+				if ( ! $sans_annonce && 'publish' !== get_post_status( $tome_id ) ) {
+					$article_id = self::preparer_annonce( $tome_id, empty( $champs['complet'] ) ? 'en_cours' : '', null, $avert );
+				}
+			} elseif ( ! $sans_annonce ) {
 				$speciaux = array();
 				$nb       = 0;
 				foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chap ) {
@@ -1169,6 +1729,11 @@ final class Service {
 				);
 				$meta['resume']  = self::resume( $resultat );
 			}
+			if ( $chapitres_mode ) {
+				// « Le tome est complet » et ses liens : repris par publier() s'il ne les reçoit pas.
+				$meta['complet'] = ! empty( $champs['complet'] );
+				$meta['liens']   = $meta['complet'] ? $liens_complet : array();
+			}
 			update_post_meta( $tome_id, self::META, $meta );
 
 			$tome_post = get_post( $tome_id );
@@ -1193,6 +1758,10 @@ final class Service {
 				'sans_annonce'   => $sans_annonce,
 				// Remplacement en attente (tome paru avec sa lecture en ligne), sinon null.
 				'remplacement'   => Remplacement::etat( $tome_id ),
+				'mode'           => $champs['mode'],
+				// Ajout de chapitres : état de chaque chapitre du fichier par rapport au tome.
+				'comparaison'    => $comparaison,
+				'parution'       => yume_parution_tome( $tome_id ),
 			);
 			if ( null !== $rapport['import'] ) {
 				foreach ( $rapport['import']['chapitres'] as $i => $c ) {
@@ -1497,10 +2066,15 @@ final class Service {
 	 * Remplacement de lecture en ligne en attente (Remplacement) : appliqué en place d'abord
 	 * (résultat « remplacement_applique » : remplaces, inchanges, nouveaux, retires).
 	 *
+	 * Mode « chapitres » (option mode) : voir publier_chapitres().
+	 *
 	 * @param int                 $tome_id Tome.
 	 * @param string              $quand   « maintenant » ou date ISO.
 	 * @param array<string,mixed> $options confirmer_vide (bool, défaut false), sans_annonce
-	 *                                     (bool, défaut false).
+	 *                                     (bool, défaut false), mode (chapitres : ajout de
+	 *                                     chapitres), sortie (maintenant | rythme | date),
+	 *                                     intervalle (jours), complet (bool ou null : repris de la
+	 *                                     préparation), liens (lien_pdf, lien_epub).
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function publier( int $tome_id, string $quand = 'maintenant', array $options = array() ) {
@@ -1514,6 +2088,9 @@ final class Service {
 		$date = self::date_sortie( $quand );
 		if ( is_wp_error( $date ) ) {
 			return $date;
+		}
+		if ( self::MODE_CHAPITRES === ( $options['mode'] ?? '' ) ) {
+			return self::publier_chapitres( $tome, $date, $options );
 		}
 		$immediat = null === $date;
 		if ( $immediat ) {
@@ -1647,6 +2224,551 @@ final class Service {
 			'sans_annonce'          => false,
 			'remplacement_applique' => $applique,
 		);
+	}
+
+	/**
+	 * Sortie de chapitres ajoutés à un tome (mode « chapitres », formulaire « Ajouter des
+	 * chapitres à un tome ») :
+	 *
+	 * - les mises à jour choisies (« Mettre à jour (sans annonce) ») sont appliquées en place tout
+	 *   de suite, sans annonce ; un remplacement complet en attente n'est jamais appliqué ici ;
+	 * - les chapitres à sortir (brouillons du tome, hors chapitres retirés) sortent maintenant
+	 *   (une seule annonce), un par un au rythme du tome (calendrier() ; une annonce par chapitre
+	 *   à sa sortie) ou ensemble à une date ; les chapitres déjà programmés gardent leur date ;
+	 * - première sortie du tome : le tome sort avec ses premiers chapitres ; sans « Tome
+	 *   complet », yume_parution = en_cours et l'annonce dit « SukaMoka, Tome 2 : Prologue
+	 *   disponible ! » ; tome complet publié d'un coup : yume_parution = complet, liens posés,
+	 *   annonce et planning habituels ;
+	 * - « Tome complet » d'un tome déjà en cours (ou sorti un par un) : marquer_complet()
+	 *   maintenant, ou à la sortie du dernier chapitre programmé (tâche HOOK_COMPLET) ;
+	 * - sans annonce (option sans_annonce) : comme un ajout au catalogue, rien n'est annoncé.
+	 *
+	 * @param \WP_Post                $tome    Tome.
+	 * @param \DateTimeImmutable|null $date    Date choisie (null : maintenant).
+	 * @param array<string,mixed>     $options Voir publier().
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	private static function publier_chapitres( \WP_Post $tome, ?\DateTimeImmutable $date, array $options ) {
+		$tome_id    = (int) $tome->ID;
+		$deja_sorti = 'publish' === $tome->post_status;
+		$sortie     = in_array( $options['sortie'] ?? '', self::SORTIES, true ) ? (string) $options['sortie'] : ( null === $date ? 'maintenant' : 'date' );
+		if ( 'date' === $sortie && null === $date ) {
+			return new \WP_Error( 'yume_date_manquante', __( 'Indiquez la date et l’heure de sortie des nouveaux chapitres.', 'yume-core' ), array( 'status' => 400 ) );
+		}
+		$meta    = get_post_meta( $tome_id, self::META, true );
+		$meta    = is_array( $meta ) ? $meta : array();
+		$complet = isset( $options['complet'] ) && null !== $options['complet'] ? (bool) $options['complet'] : ! empty( $meta['complet'] );
+		$liens   = self::liens( isset( $options['liens'] ) && is_array( $options['liens'] ) && $options['liens'] ? $options['liens'] : (array) ( $meta['liens'] ?? array() ) );
+		if ( is_wp_error( $liens ) ) {
+			return $liens;
+		}
+		$muet = ! empty( $options['sans_annonce'] );
+
+		// Chapitres en ligne à mettre à jour (choix de l'équipe) : appliqués maintenant, en place.
+		Remplacement::nettoyer_si_expiree( $tome_id );
+		$etat     = Remplacement::lire( $tome_id );
+		$applique = $etat && self::MODE_CHAPITRES === ( $etat['mode'] ?? '' ) ? Remplacement::appliquer( $tome_id ) : null;
+
+		$a_publier = array_values(
+			array_filter(
+				yume_get_chapitres( $tome_id, array( 'status' => array( 'draft', 'pending' ) ) ),
+				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true ) && ! metadata_exists( 'post', $c->ID, Remplacement::META_DE )
+			)
+		);
+		if ( ! $deja_sorti && empty( $options['confirmer_vide'] ) && self::tome_vide( $tome_id ) && ! ( $complet && array_filter( $liens ) ) ) {
+			return new \WP_Error(
+				'yume_tome_vide',
+				__( 'Ce tome n’a aucun chapitre ni lien de téléchargement PDF ou EPUB : les lecteurs prévenus n’auraient rien à lire. Déposez le fichier du tome ou indiquez un lien, ou confirmez la publication d’un tome vide.', 'yume-core' ),
+				array(
+					'status'       => 409,
+					'confirmation' => 'confirmer_vide',
+				)
+			);
+		}
+		$dates    = self::calendrier( $tome_id, count( $a_publier ), $sortie, $date, (int) ( $options['intervalle'] ?? self::INTERVALLE_DEFAUT ) );
+		$premiere = $a_publier ? $dates[0] : ( 'maintenant' === $sortie ? null : $date );
+		$fin      = null;
+		$creneaux = array();
+		foreach ( $dates as $d ) {
+			$creneaux[ $d ? $d->getTimestamp() : 0 ] = true;
+			if ( $d && ( null === $fin || $d > $fin ) ) {
+				$fin = $d;
+			}
+		}
+		// Tome complet publié d'un coup (tous ses chapitres ensemble) : sortie de tome habituelle.
+		$complet_direct = $complet && ! $deja_sorti && count( $creneaux ) <= 1;
+		if ( ! $deja_sorti ) {
+			update_post_meta( $tome_id, 'yume_parution', $complet_direct ? 'complet' : 'en_cours' );
+			if ( $complet_direct ) {
+				self::ecrire_liens( $tome_id, $liens );
+			}
+		}
+		// Une sortie groupée programmée auparavant (chapitres déjà programmés) n'est pas touchée.
+		$faite = $muet
+			? self::sortie_muette( $tome, $a_publier, $dates, $premiere )
+			: self::sortie_annoncee( $tome, $a_publier, $dates, $premiere, $complet_direct );
+		if ( is_wp_error( $faite ) ) {
+			return $faite;
+		}
+
+		// « Le tome est complet » : maintenant, ou à la sortie du dernier chapitre programmé.
+		$etat_complet    = $complet_direct ? 'fait' : '';
+		$complet_le      = '';
+		$article_complet = null;
+		if ( $complet && ! $complet_direct ) {
+			if ( null === $fin && 'publish' === get_post_status( $tome_id ) ) {
+				$fait = self::marquer_complet( $tome_id, $liens, ! $muet );
+				if ( ! is_wp_error( $fait ) ) {
+					$etat_complet    = 'fait';
+					$article_complet = $fait['article'];
+				}
+			} else {
+				$quand = $fin ? $fin : ( $premiere ? $premiere : new \DateTimeImmutable( 'now', wp_timezone() ) );
+				self::programmer_complet( $tome_id, $quand->getTimestamp(), $liens, ! $muet );
+				$etat_complet = 'programme';
+				$complet_le   = $quand->format( DATE_ATOM );
+			}
+		}
+		// Sortie sans annonce : aucun événement, l'avancement du planning suit quand même.
+		if ( $muet && function_exists( '\Yume\Core\Planning\avancer_selon_chapitres' ) ) {
+			\Yume\Core\Planning\avancer_selon_chapitres( $tome_id, get_current_user_id() );
+		}
+
+		$meta = get_post_meta( $tome_id, self::META, true );
+		$meta = is_array( $meta ) ? $meta : array();
+		update_post_meta(
+			$tome_id,
+			self::META,
+			array_merge(
+				$meta,
+				array(
+					'sortie'       => null === $premiere ? 'maintenant' : $premiere->format( DATE_ATOM ),
+					'sortie_par'   => get_current_user_id(),
+					'sortie_le'    => current_time( 'mysql', true ),
+					'sans_annonce' => $muet,
+					// « Tome complet » traité : il ne s'appliquera pas à une prochaine sortie.
+					'complet'      => false,
+					'liens'        => array(),
+				)
+			)
+		);
+		clean_post_cache( $tome_id );
+		$tome = get_post( $tome_id );
+		return array(
+			'tome'                  => array_merge( self::resume_contenu( $tome ), array( 'libelle' => yume_libelle_tome( $tome_id ) ) ),
+			'statut'                => $tome->post_status,
+			'date'                  => mysql_to_rfc3339( $tome->post_date ),
+			'chapitres'             => (int) $faite['publies'],
+			'calendrier'            => $faite['calendrier'],
+			'article'               => $faite['article'] ? self::resume_contenu( get_post( $faite['article'] ) ) : null,
+			'article_complet'       => $article_complet,
+			'sans_annonce'          => $muet,
+			'remplacement_applique' => $applique,
+			'mode'                  => self::MODE_CHAPITRES,
+			'sortie'                => $sortie,
+			'parution'              => yume_parution_tome( $tome_id ),
+			'complet'               => $etat_complet,
+			'complet_le'            => $complet_le,
+			'en_ligne'              => count( yume_get_chapitres( $tome_id ) ),
+		);
+	}
+
+	/**
+	 * Statut et dates (locale, GMT) d'une sortie : maintenant (null) ou programmée.
+	 *
+	 * @param \DateTimeImmutable|null $date Date.
+	 * @return array{0:string,1:string,2:string} statut, date locale, date GMT.
+	 */
+	private static function horodatage( ?\DateTimeImmutable $date ): array {
+		if ( null === $date ) {
+			return array( 'publish', current_time( 'mysql' ), current_time( 'mysql', true ) );
+		}
+		return array(
+			'future',
+			$date->setTimezone( wp_timezone() )->format( 'Y-m-d H:i:s' ),
+			$date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ),
+		);
+	}
+
+	/**
+	 * Publie maintenant ou programme un chapitre ou un tome.
+	 *
+	 * @param int                     $post_id Contenu.
+	 * @param \DateTimeImmutable|null $date    Date (null : maintenant).
+	 * @param string                  $slug    Adresse à poser (vide : inchangée).
+	 * @return int|\WP_Error
+	 */
+	private static function sortir_contenu( int $post_id, ?\DateTimeImmutable $date, string $slug = '' ) {
+		list( $statut, $local, $gmt ) = self::horodatage( $date );
+		$donnees                      = array(
+			'ID'            => $post_id,
+			'post_status'   => $statut,
+			'post_date'     => $local,
+			'post_date_gmt' => $gmt,
+			'edit_date'     => true,
+		);
+		if ( '' !== $slug ) {
+			$donnees['post_name'] = $slug;
+		}
+		return wp_update_post( $donnees, true );
+	}
+
+	/**
+	 * Ligne du calendrier de sortie d'un chapitre (réponses, récapitulatif).
+	 *
+	 * @param int $chapitre_id Chapitre.
+	 * @return array<string,mixed>
+	 */
+	private static function ligne_calendrier( int $chapitre_id ): array {
+		clean_post_cache( $chapitre_id );
+		$post = get_post( $chapitre_id );
+		return array(
+			'id'           => $chapitre_id,
+			'libelle'      => yume_libelle_chapitre( $chapitre_id ),
+			'titre'        => self::titre_texte( $post ),
+			'statut'       => $post ? $post->post_status : '',
+			'date'         => $post ? mysql_to_rfc3339( $post->post_date ) : '',
+			'date_libelle' => $post ? Formulaire::date_fr( (int) strtotime( $post->post_date_gmt . ' UTC' ), 'court' ) : '',
+			'lien'         => $post && 'publish' === $post->post_status ? (string) get_permalink( $post ) : (string) get_preview_post_link( $post ),
+		);
+	}
+
+	/**
+	 * Sortie annoncée de chapitres (voir publier_chapitres()).
+	 *
+	 * - Première sortie du tome : le tome sort avec ses premiers chapitres (yume_tome_publie
+	 *   émis une fois, ou par core à la date programmée) et son article d'annonce (variante
+	 *   « chapitres disponibles », ou modèle habituel pour un tome complet publié d'un coup) ;
+	 *   les chapitres programmés ensuite sont annoncés un par un à leur sortie (core).
+	 * - Tome déjà en ligne : les chapitres sortis maintenant forment une seule annonce
+	 *   (annoncer_groupe()) ; plusieurs chapitres programmés à la même date aussi (sortie groupée
+	 *   programmée), sauf si une autre sortie groupée attend déjà ; un chapitre programmé seul
+	 *   est annoncé à sa sortie (core).
+	 *
+	 * @param \WP_Post                           $tome           Tome.
+	 * @param \WP_Post[]                         $a_publier      Chapitres à sortir.
+	 * @param array<int,\DateTimeImmutable|null> $dates          Date de chaque chapitre.
+	 * @param \DateTimeImmutable|null            $premiere       Date de sortie du tome.
+	 * @param bool                               $complet_direct Tome complet publié d'un coup.
+	 * @return array{publies:int,calendrier:array<int,array<string,mixed>>,article:int}|\WP_Error
+	 */
+	private static function sortie_annoncee( \WP_Post $tome, array $a_publier, array $dates, ?\DateTimeImmutable $premiere, bool $complet_direct ) {
+		$tome_id    = (int) $tome->ID;
+		$deja_sorti = 'publish' === $tome->post_status;
+		if ( ! $deja_sorti || in_array( null, $dates, true ) ) {
+			/** This action is documented in includes/publication/class-service.php */
+			do_action( 'yume_publication_en_cours', $tome_id );
+		}
+		$maintenant = array();
+		$par_date   = array();
+		$calendrier = array();
+		foreach ( $a_publier as $i => $chapitre ) {
+			$d  = $dates[ $i ] ?? null;
+			$ok = self::sortir_contenu( (int) $chapitre->ID, $d );
+			if ( is_wp_error( $ok ) ) {
+				continue;
+			}
+			if ( null === $d ) {
+				$maintenant[] = (int) $chapitre->ID;
+			} else {
+				$par_date[ $d->getTimestamp() ][] = (int) $chapitre->ID;
+			}
+			$calendrier[] = self::ligne_calendrier( (int) $chapitre->ID );
+		}
+		$article_id = 0;
+		if ( ! $deja_sorti ) {
+			$ok = self::sortir_contenu( $tome_id, $premiere, self::slug_a_poser( $tome ) ? self::slug_tome_existant( $tome_id ) : '' );
+			if ( is_wp_error( $ok ) ) {
+				return $ok;
+			}
+			$premiers = null === $premiere ? $maintenant : ( $par_date[ $premiere->getTimestamp() ] ?? array() );
+			$avert    = array();
+			self::preparer_annonce( $tome_id, $complet_direct ? '' : 'en_cours', $premiers, $avert );
+			list( $statut, $local, $gmt ) = self::horodatage( $premiere );
+			$article_id                   = Annonce::sortir( $tome_id, $statut, $local, $gmt );
+			if ( $premiere && 'future' === get_post_status( $tome_id ) ) {
+				self::caler_date_cible( $tome_id, $premiere );
+			}
+			clean_post_cache( $tome_id );
+			if ( null === $premiere && ! metadata_exists( 'post', $tome_id, self::META_NOTIFIE ) && 'publish' === get_post_status( $tome_id ) ) {
+				/** This action is documented in includes/publication/class-service.php */
+				do_action( 'yume_tome_publie', $tome_id );
+			}
+		} else {
+			if ( $maintenant ) {
+				self::annoncer_groupe( $tome_id, $maintenant );
+			}
+			foreach ( $par_date as $ts => $ids ) {
+				$groupe = get_post_meta( $tome_id, self::META_GROUPE, true );
+				// Une seule sortie groupée programmée par tome : si une autre attend, ces chapitres
+				// seront annoncés un par un à leur sortie.
+				if ( count( $ids ) > 1 && ! ( is_array( $groupe ) && (int) ( $groupe['ts'] ?? 0 ) > time() ) ) {
+					self::programmer_sortie_groupee( $tome_id, $ids, (int) $ts );
+				}
+			}
+		}
+		return array(
+			'publies'    => count( $calendrier ),
+			'calendrier' => $calendrier,
+			'article'    => (int) $article_id,
+		);
+	}
+
+	/**
+	 * Sortie sans annonce de chapitres (option sans_annonce du mode chapitres), comme un ajout
+	 * au catalogue (ajouter_au_catalogue()) : aucun événement ni article, chapitres et tome
+	 * marqués « catalogue ». Tome déjà paru et complet, sortie immédiate : les chapitres prennent
+	 * la date du tome ; tome en cours : ils sont datés de leur sortie.
+	 *
+	 * @param \WP_Post                           $tome      Tome.
+	 * @param \WP_Post[]                         $a_publier Chapitres à sortir.
+	 * @param array<int,\DateTimeImmutable|null> $dates     Date de chaque chapitre.
+	 * @param \DateTimeImmutable|null            $premiere  Date de sortie du tome.
+	 * @return array{publies:int,calendrier:array<int,array<string,mixed>>,article:int}|\WP_Error
+	 */
+	private static function sortie_muette( \WP_Post $tome, array $a_publier, array $dates, ?\DateTimeImmutable $premiere ) {
+		$tome_id    = (int) $tome->ID;
+		$deja_sorti = 'publish' === $tome->post_status;
+		$date_tome  = $deja_sorti && 'en_cours' !== yume_parution_tome( $tome_id ) && '' !== (string) $tome->post_date_gmt && ! str_starts_with( (string) $tome->post_date_gmt, '0000-00-00' );
+		$muet       = static function (): bool {
+			return false;
+		};
+		$calendrier = array();
+		add_filter( 'yume_core_notifier', $muet, 99 );
+		try {
+			$notifie = (string) get_post_meta( $tome_id, self::META_NOTIFIE, true );
+			if ( '' === $notifie || 'ignore' === $notifie ) {
+				update_post_meta( $tome_id, self::META_NOTIFIE, self::NOTIFIE_CATALOGUE );
+			}
+			delete_post_meta( $tome_id, '_yume_notification_en_attente' );
+			foreach ( $a_publier as $i => $chapitre ) {
+				$chapitre_id = (int) $chapitre->ID;
+				$valeur      = (string) get_post_meta( $chapitre_id, self::META_NOTIFIE, true );
+				if ( '' === $valeur || 'ignore' === $valeur ) {
+					update_post_meta( $chapitre_id, self::META_NOTIFIE, self::NOTIFIE_CATALOGUE );
+				}
+				$d = $dates[ $i ] ?? null;
+				if ( null === $d && $date_tome ) {
+					$ok = wp_update_post(
+						array(
+							'ID'            => $chapitre_id,
+							'post_status'   => 'publish',
+							'post_date'     => (string) $tome->post_date,
+							'post_date_gmt' => (string) $tome->post_date_gmt,
+							'edit_date'     => true,
+						),
+						true
+					);
+				} else {
+					$ok = self::sortir_contenu( $chapitre_id, $d );
+				}
+				if ( ! is_wp_error( $ok ) ) {
+					$calendrier[] = self::ligne_calendrier( $chapitre_id );
+				}
+			}
+			if ( ! $deja_sorti ) {
+				$ok = self::sortir_contenu( $tome_id, $premiere, self::slug_a_poser( $tome ) ? self::slug_tome_existant( $tome_id ) : '' );
+				if ( is_wp_error( $ok ) ) {
+					return $ok;
+				}
+			}
+		} finally {
+			remove_filter( 'yume_core_notifier', $muet, 99 );
+		}
+		if ( $premiere && 'future' === get_post_status( $tome_id ) ) {
+			self::caler_date_cible( $tome_id, $premiere );
+		}
+		clean_post_cache( $tome_id );
+		self::planning_catalogue( $tome_id, $deja_sorti, null === $premiere, count( $calendrier ) );
+		return array(
+			'publies'    => count( $calendrier ),
+			'calendrier' => $calendrier,
+			'article'    => 0,
+		);
+	}
+
+	/**
+	 * Crée ou régénère l'article d'annonce de la première sortie d'un tome (mode chapitres).
+	 *
+	 * @param int        $tome_id   Tome.
+	 * @param string     $parution  en_cours (variante « chapitres disponibles ») ou vide
+	 *                              (modèle habituel d'un tome complet).
+	 * @param int[]|null $chapitres Chapitres de la sortie (null : brouillons du tome).
+	 * @param string[]   $avert     Avertissements (modifié).
+	 */
+	private static function preparer_annonce( int $tome_id, string $parution, ?array $chapitres, array &$avert ): int {
+		$speciaux   = array();
+		$nb         = 0;
+		$brouillons = array();
+		foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chap ) {
+			if ( get_post_meta( $chap->ID, self::META_RETIRE, true ) ) {
+				continue;
+			}
+			if ( in_array( $chap->post_status, array( 'draft', 'pending' ), true ) ) {
+				$brouillons[] = (int) $chap->ID;
+			}
+			$nature = (string) get_post_meta( $chap->ID, 'yume_nature', true );
+			if ( '' === $nature || 'chapitre' === $nature ) {
+				++$nb;
+			} else {
+				$speciaux[] = yume_libelle_chapitre( (int) $chap->ID );
+			}
+		}
+		$credits    = get_post_meta( $tome_id, 'yume_credits', true );
+		$article_id = Annonce::preparer(
+			$tome_id,
+			array(
+				'nb_chapitres' => $nb,
+				'speciaux'     => $speciaux,
+				'credits'      => is_array( $credits ) ? $credits : array(),
+				'sortie'       => array(
+					'parution'  => $parution,
+					'chapitres' => null === $chapitres ? $brouillons : $chapitres,
+				),
+			)
+		);
+		if ( is_wp_error( $article_id ) ) {
+			$avert[] = $article_id->get_error_message();
+			return 0;
+		}
+		return (int) $article_id;
+	}
+
+	/**
+	 * Enregistre les liens PDF / EPUB fournis (clés présentes seulement).
+	 *
+	 * @param int                  $tome_id Tome.
+	 * @param array<string,string> $liens   lien_pdf, lien_epub (contrôlés par liens()).
+	 */
+	private static function ecrire_liens( int $tome_id, array $liens ): void {
+		foreach ( array( 'lien_pdf', 'lien_epub' ) as $cle ) {
+			if ( array_key_exists( $cle, $liens ) ) {
+				update_post_meta( $tome_id, 'yume_' . $cle, (string) $liens[ $cle ] );
+			}
+		}
+	}
+
+	/**
+	 * Marque un tome publié chapitre par chapitre comme complet (case « Le tome est complet avec
+	 * ces chapitres ») : liens PDF / EPUB enregistrés, yume_parution = complet, passage complet
+	 * programmé annulé. Tome en ligne qui n'était pas encore complet : action yume_tome_complet
+	 * (planning « publié » 100 %, journal, Discord) et, s'il était en cours de parution et que
+	 * $annoncer est vrai, article « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles »
+	 * (Annonce::complet()). Un tome pas encore en ligne est seulement marqué : il sortira comme un
+	 * tome complet. Réutilisable par l'espace équipe (« Modifier le tome »).
+	 *
+	 * @param int                  $tome_id  Tome.
+	 * @param array<string,string> $liens    lien_pdf, lien_epub (clés présentes seulement).
+	 * @param bool                 $annoncer Annoncer (article, Discord) le tome complet.
+	 * @return array<string,mixed>|\WP_Error tome, parution, annonce (bool), article (ou null).
+	 */
+	public static function marquer_complet( int $tome_id, array $liens = array(), bool $annoncer = true ) {
+		$tome = get_post( $tome_id );
+		if ( ! $tome || 'yume_tome' !== $tome->post_type || in_array( $tome->post_status, array( 'trash', 'auto-draft' ), true ) ) {
+			return new \WP_Error( 'yume_tome_introuvable', __( 'Tome introuvable.', 'yume-core' ), array( 'status' => 404 ) );
+		}
+		$liens = self::liens( $liens );
+		if ( is_wp_error( $liens ) ) {
+			return $liens;
+		}
+		$avant = yume_parution_tome( $tome_id );
+		self::ecrire_liens( $tome_id, $liens );
+		update_post_meta( $tome_id, 'yume_parution', 'complet' );
+		self::annuler_complet_programme( $tome_id );
+		$annonce    = false;
+		$article_id = 0;
+		if ( 'publish' === $tome->post_status && 'complet' !== $avant ) {
+			$annonce = $annoncer && 'en_cours' === $avant;
+			if ( $annonce ) {
+				$article_id = Annonce::complet( $tome_id );
+				$article_id = is_wp_error( $article_id ) ? 0 : (int) $article_id;
+			}
+			clean_post_cache( $tome_id );
+			/**
+			 * Un tome publié chapitre par chapitre est désormais complet (contrat §8).
+			 *
+			 * @param int  $tome_id  Tome.
+			 * @param bool $annoncer Annonce publique (Discord) de la fin de parution.
+			 */
+			do_action( 'yume_tome_complet', $tome_id, $annonce );
+		}
+		return array(
+			'tome'     => array_merge( self::resume_contenu( get_post( $tome_id ) ), array( 'libelle' => yume_libelle_tome( $tome_id ) ) ),
+			'parution' => yume_parution_tome( $tome_id ),
+			'annonce'  => $annonce,
+			'article'  => $article_id ? self::resume_contenu( get_post( $article_id ) ) : null,
+		);
+	}
+
+	/**
+	 * Programme le passage « complet » d'un tome à la sortie de son dernier chapitre.
+	 *
+	 * @param int                  $tome_id  Tome.
+	 * @param int                  $ts       Horodatage.
+	 * @param array<string,string> $liens    Liens PDF / EPUB.
+	 * @param bool                 $annoncer Annoncer la fin de parution.
+	 */
+	private static function programmer_complet( int $tome_id, int $ts, array $liens, bool $annoncer ): void {
+		update_post_meta(
+			$tome_id,
+			self::META_COMPLET,
+			array(
+				'ts'       => $ts,
+				'annoncer' => $annoncer,
+				'liens'    => $liens,
+			)
+		);
+		wp_clear_scheduled_hook( self::HOOK_COMPLET, array( $tome_id ) );
+		wp_schedule_single_event( $ts, self::HOOK_COMPLET, array( $tome_id ) );
+	}
+
+	/**
+	 * Annule le passage « complet » programmé d'un tome.
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	private static function annuler_complet_programme( int $tome_id ): void {
+		delete_post_meta( $tome_id, self::META_COMPLET );
+		wp_clear_scheduled_hook( self::HOOK_COMPLET, array( $tome_id ) );
+	}
+
+	/**
+	 * Tâche cron du passage « complet » programmé : publie d'abord les chapitres arrivés à
+	 * échéance (ordre des tâches non garanti) ; s'il reste des chapitres programmés plus tard
+	 * (ajoutés depuis), le passage est repoussé à la sortie du dernier ; sinon marquer_complet().
+	 *
+	 * @param int $tome_id Tome.
+	 */
+	public static function complet_programme( $tome_id ): void {
+		$tome_id = (int) $tome_id;
+		$prog    = get_post_meta( $tome_id, self::META_COMPLET, true );
+		if ( ! is_array( $prog ) || 'yume_tome' !== get_post_type( $tome_id ) ) {
+			return;
+		}
+		$plus_tard = 0;
+		foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'future' ) ) as $chapitre ) {
+			$ts = (int) strtotime( $chapitre->post_date_gmt . ' UTC' );
+			if ( $ts <= time() ) {
+				check_and_publish_future_post( $chapitre );
+				clean_post_cache( $chapitre->ID );
+			} else {
+				$plus_tard = max( $plus_tard, $ts );
+			}
+		}
+		$statut = (string) get_post_status( $tome_id );
+		if ( 'future' === $statut ) {
+			$plus_tard = max( $plus_tard, (int) strtotime( (string) get_post_field( 'post_date_gmt', $tome_id ) . ' UTC' ) );
+		} elseif ( 'publish' !== $statut ) {
+			// Tome retiré du site entre-temps : le passage est abandonné (à refaire à son retour).
+			self::annuler_complet_programme( $tome_id );
+			return;
+		}
+		if ( $plus_tard > 0 ) {
+			// Chapitres programmés après (ajoutés depuis), ou tome pas encore sorti : le passage attend.
+			self::programmer_complet( $tome_id, max( $plus_tard, time() + MINUTE_IN_SECONDS ), (array) ( $prog['liens'] ?? array() ), ! empty( $prog['annoncer'] ) );
+			return;
+		}
+		self::marquer_complet( $tome_id, (array) ( $prog['liens'] ?? array() ), ! empty( $prog['annoncer'] ) );
 	}
 
 	/**
@@ -1789,7 +2911,10 @@ final class Service {
 	 */
 	private static function planning_catalogue( int $tome_id, bool $deja_sorti, bool $immediat, int $publies ): void {
 		$user_id = get_current_user_id();
-		if ( ! $deja_sorti && $immediat && 'publish' === get_post_status( $tome_id ) && function_exists( '\Yume\Core\Planning\mettre_a_jour' ) ) {
+		// Tome en cours de parution (chapitre par chapitre) : l'étape reste, l'avancement suit
+		// les chapitres (Planning\avancer_selon_chapitres()).
+		$en_cours = 'en_cours' === (string) get_post_meta( $tome_id, 'yume_parution', true );
+		if ( ! $deja_sorti && $immediat && ! $en_cours && 'publish' === get_post_status( $tome_id ) && function_exists( '\Yume\Core\Planning\mettre_a_jour' ) ) {
 			\Yume\Core\Planning\mettre_a_jour(
 				$tome_id,
 				array(

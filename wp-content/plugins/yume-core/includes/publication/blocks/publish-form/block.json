@@ -5,7 +5,7 @@
 	"title": "Formulaire de publication",
 	"category": "yume",
 	"icon": "upload",
-	"description": "Espace équipe : publier un tome ou un arc à partir de son DOCX (ou EPUB), avec couverture, liens PDF/EPUB externes et crédits.",
+	"description": "Espace équipe : ajouter des chapitres à un tome (un, plusieurs ou le tome entier) à partir d’un DOCX (ou EPUB) comparé au tome, sortie maintenant, au rythme ou à une date, tome complet avec ses liens PDF/EPUB externes.",
 	"keywords": [ "publier", "docx", "epub", "tome", "équipe" ],
 	"textdomain": "yume-core",
 	"attributes": {},

@@ -65,9 +65,27 @@ un fichier illisible n'est jamais envoyé.
 - **Annonce** : `--sans-annonce` met la lecture en ligne sans article d'annonce, ni message
   Discord, ni e-mail aux lecteurs (ajout au catalogue d'un tome déjà paru) ; `--avec-annonce`
   force l'annonce. Sans l'une ni l'autre, le site choisit : **sans annonce pour un tome déjà
-  publié**, avec annonce pour un nouveau tome, un brouillon ou un tome programmé (paramètre REST
-  `sans_annonce`, contrat §12). Les chapitres d'un tome déjà paru ajoutés sans annonce prennent la
-  date de sortie du tome.
+  publié et complet**, avec annonce pour un nouveau tome, un brouillon, un tome programmé ou un
+  tome en cours de parution (paramètre REST `sans_annonce`, contrat §12). Les chapitres d'un tome
+  déjà paru et complet ajoutés sans annonce prennent la date de sortie du tome.
+- **Ajouter des chapitres à un tome existant** (publication chapitre par chapitre) : `--tome ID
+  --chapitres` (paramètre REST `mode=chapitres`). Le tome choisi garde sa nature et son numéro
+  (`--numero` et `--nature` deviennent inutiles) ; le fichier, qui peut ne contenir qu'un
+  chapitre, est comparé au tome : les chapitres nouveaux sont ajoutés, ceux déjà en ligne restent
+  tels quels (même modifiés : pour les remplacer, utilisez le formulaire), rien n'est retiré.
+  `--sortie maintenant` (défaut avec `--publier maintenant` : une seule annonce), `--sortie
+  rythme` (un par un, au rythme du tome, ou tous les `--intervalle` jours depuis la date de
+  `--publier`), `--sortie date` (ensemble, à la date de `--publier`). `--complet` (avec `--pdf`,
+  `--epub`) : le tome est complet avec ces chapitres (parution « complet », planning à 100 %,
+  annonce de fin).
+
+  ```sh
+  php tools/docx2chapters/docx2chapters.php publish chapitre-3.docx --site … --user … \
+    --oeuvre 12 --tome 345 --chapitres --publier maintenant
+  php tools/docx2chapters/docx2chapters.php publish fin.docx --site … --user … --oeuvre 12 \
+    --tome 345 --chapitres --complet --pdf https://www.clictune.com/x --epub https://www.clictune.com/y \
+    --publier maintenant
+  ```
 - **Liens PDF / EPUB** : uniquement des liens externes (ClicTune, Mega…). Les fichiers PDF et EPUB
   ne sont jamais hébergés sur le site.
 - Le DOCX envoyé n'est pas conservé sur le serveur : il est supprimé après le découpage.

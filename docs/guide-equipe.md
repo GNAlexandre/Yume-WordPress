@@ -522,6 +522,79 @@ vient du fichier `glossaire.yaml` de Yume-Trad :
 - Une entrée peut être masquée derrière « Révéler (spoiler) » avec `spoiler: true` (et `tome: N`)
   dans le fichier.
 
+### 5.7 Publier un tome chapitre par chapitre
+
+La page `/equipe/publier/` s'intitule désormais **« Ajouter des chapitres à un tome »**. Un seul
+formulaire pour tous les cas : un chapitre, plusieurs, ou le tome entier. Exemple : SukaMoka
+Tome 2, d'abord le prologue, puis un chapitre chaque samedi, puis « tome complet » avec les liens
+PDF et EPUB.
+
+**1 · Le tome.** Choisissez l'**œuvre**, puis le **tome** dans la liste : tous les tomes de
+l'œuvre y figurent, avec leur parution (« Tome 2 · en cours · 3 chapitres en ligne », « Tome 1 ·
+complet », « Tome 3 · à paraître »). Ouvert depuis un tome (par exemple depuis « Tous les
+tomes »), le formulaire arrive avec ce tome déjà choisi. Une fiche rappelle sa parution, les chapitres en ligne, « 3 sur 12 » si le nombre de
+chapitres prévus est connu, et son rythme de sortie (« chaque samedi à 18 h »).
+
+- La **nature et le numéro appartiennent au tome**, choisis à sa création : ce formulaire ne les
+  modifie jamais (un tome 2 ne peut plus devenir « Chapitres 2 » par erreur).
+- Le tome n'existe pas encore ? **« + Nouveau tome »** mène à sa création (avec son rythme et son
+  nombre de chapitres prévus). En dépannage, « Le tome n'existe pas encore ? Le créer ici » propose
+  encore nature, numéro et titre quand aucun tome n'est choisi.
+
+**2 · Le fichier.** Déposez le DOCX (ou l'EPUB) : le chapitre seul, ou le tome avec ses chapitres
+déjà parus, les deux marchent. Après l'analyse, chaque chapitre du fichier est **comparé au tome** :
+
+| État | Ce qui se passe |
+| --- | --- |
+| **Nouveau** | Le chapitre est ajouté au tome (il sortira selon l'étape 3). |
+| **En ligne, identique** | Rien ne change (même adresse, mêmes commentaires). |
+| **En ligne, modifié** | Au choix : **« Garder la version en ligne »** (par défaut, rien ne change) ou **« Mettre à jour (sans annonce) »** : le chapitre est remplacé en place à la sortie (même adresse, mêmes commentaires, même date), sans aucune annonce. |
+| **Programmé** / **Brouillon** | Pas encore visible des lecteurs : mis à jour ; un chapitre programmé garde sa date, un brouillon sort avec les nouveaux. |
+
+**Rien n'est jamais retiré** : un chapitre en ligne absent du fichier reste en ligne. Pour refaire
+toute la lecture en ligne d'un tome (nouvelle traduction, corrections en masse), utilisez l'encadré
+« Remplacer la lecture en ligne », sous le formulaire (voir 5.4 bis).
+
+**3 · La sortie des nouveaux chapitres.**
+
+- **Maintenant** : les nouveaux chapitres ensemble, une seule annonce ;
+- **Un par un, au rythme** : chaque chapitre est programmé à la date suivante du rythme du tome
+  (« chaque samedi à 18 h »), après le dernier chapitre déjà programmé ; une annonce par chapitre,
+  à sa sortie. Si le tome n'a pas de rythme : à partir de la date choisie (ou maintenant), puis un
+  chapitre tous les N jours (7 par défaut) ;
+- **À une date** : les nouveaux chapitres ensemble, le jour choisi.
+
+**« Annoncer les nouveaux chapitres »** est cochée par défaut (Discord #sorties et e-mail aux
+lecteurs qui suivent l'œuvre) ; décochez-la pour un ajout silencieux. Un chapitre **mis à jour**
+n'est jamais annoncé. Pour un tome **déjà paru et complet** (lecture en ligne d'un tome migré),
+c'est la case **« Ajout au catalogue »** qui apparaît, cochée d'office, comme en 5.4.
+
+**« Le tome est complet avec ces chapitres »** : cochez-la au dernier envoi (les champs des liens
+PDF et EPUB s'activent alors). Le tome passe « Complet », les liens s'affichent, le planning passe
+à « Publié », 100 %, et l'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB
+disponibles ». Si les derniers chapitres sont programmés, tout cela se fait à la sortie du dernier.
+
+**Ce qui va se passer** (à droite) récapitule l'envoi avant de cliquer : chapitres créés et leur
+date, chapitres mis à jour, annonce(s), planning (« en cours, 5 sur 12 au 18 oct. »), chapitres
+inchangés. Le bouton dit « Publier 2 chapitres » ou « Programmer 2 chapitres ». **Enregistrer en
+brouillon** et **Prévisualiser** ne changent rien en ligne.
+
+Ce qui se passe, en résumé :
+
+| Situation | Annonce | Planning |
+| --- | --- | --- |
+| Première sortie d'un tome (le prologue seul, par exemple) | Article et Discord « SukaMoka, Tome 2 : Prologue disponible ! », e-mail aux abonnés | En cours : l'étape reste, l'avancement suit les chapitres en ligne (sur les chapitres prévus) |
+| Nouveaux chapitres d'un tome en cours | « Nouveau chapitre » (Discord, e-mail) à chaque sortie, ou une annonce groupée | Avancement mis à jour |
+| « Le tome est complet » | Article et Discord « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles » | « Publié », 100 % |
+| Tome complet publié d'un coup (DOCX entier, case cochée) | Comme avant : « Le tome 2 de SukaMoka est disponible ! » | « Publié », 100 % |
+| Tome migré déjà complet, lecture en ligne ajoutée | Aucune (ajout au catalogue) | Inchangé |
+
+Sans JavaScript, le formulaire fonctionne aussi : la comparaison n'est pas affichée avant
+l'envoi et les chapitres en ligne modifiés sont gardés (pour les mettre à jour, utilisez le
+remplacement de 5.4 bis). En ligne de commande : `docx2chapters.php publish … --tome ID
+--chapitres [--sortie rythme] [--complet --pdf URL --epub URL] --publier maintenant` (voir
+`tools/docx2chapters/README.md`).
+
 ## 6. Corriger un chapitre
 
 Pour une coquille signalée par un lecteur (Éditeurs Yume et Gérants) :

@@ -49,6 +49,18 @@ convertis en PNG : 2 dans la galerie, 4 dans les chapitres 11 et 19 ; avant la v
 étaient ignorés), 2 sauts de page ignorés. Un rapport d'import est joint à la publication (nombre de mots par chapitre,
 avertissements) et l'éditeur peut **prévisualiser chaque chapitre** avant de publier.
 
+### 2.3 Fichier comparé à un tome existant (ajout de chapitres)
+
+Pour la publication chapitre par chapitre (formulaire « Ajouter des chapitres à un tome », contrat
+§8), le fichier peut ne contenir qu'un chapitre, ou le tome avec ses chapitres déjà parus. Chaque
+chapitre converti est rapproché du tome par nature + numéro (le prologue vaut 0) et comparé au
+chapitre en ligne sur son **texte** : titre et contenu, illustrations, balises, commentaires de
+blocs et entités retirés, toutes les espaces (insécables comprises) réduites à une
+(`Service::texte_normalise()`). Une illustration changée ne rend donc pas un chapitre « modifié » ;
+une phrase corrigée, si. L'empreinte de chaque chapitre est notée à sa création
+(`_yume_empreinte_texte`) et recalculée depuis `post_content` pour les chapitres plus anciens ou
+retouchés dans l'éditeur.
+
 ## 3. Conversion EPUB → chapitres
 
 1. Lire `META-INF/container.xml` → OPF → `manifest` + `spine`.
