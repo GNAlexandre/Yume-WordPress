@@ -56,7 +56,9 @@ final class Formulaire {
 	 * @param int $oeuvre_id Œuvre présélectionnée (0 : aucune).
 	 */
 	public static function url_nouveau_tome( int $oeuvre_id = 0 ): string {
-		if ( function_exists( '\Yume\Core\Planning\url_vue_equipe' ) ) {
+		if ( function_exists( '\Yume\Core\Planning\url_nouveau_tome' ) ) {
+			$url = \Yume\Core\Planning\url_nouveau_tome( $oeuvre_id, 'publier' );
+		} elseif ( function_exists( '\Yume\Core\Planning\url_vue_equipe' ) ) {
 			$url = \Yume\Core\Planning\url_vue_equipe( self::VUE_NOUVEAU_TOME, $oeuvre_id ? array( 'oeuvre' => $oeuvre_id ) : array() );
 		} else {
 			$url = function_exists( 'yume_url_page' ) ? (string) yume_url_page( 'planning' ) : home_url( '/' );

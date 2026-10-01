@@ -1722,7 +1722,7 @@ yume_tte_test(
 		yume_tte_chapitre( $tome, 1 );
 		$editeur = yume_tte_membre( 'yume_editeur' );
 		wp_set_current_user( $editeur );
-		$post = array(
+		$post     = array(
 			'tome_id'     => (string) $tome,
 			'_yume_nonce' => wp_create_nonce( 'yume_tome_modifier_' . $tome ),
 			'oeuvre_id'   => (string) $oeuvre,
@@ -1733,12 +1733,20 @@ yume_tte_test(
 			'lien_pdf'    => 'https://exemple.test/t2.pdf',
 			'lien_epub'   => 'https://exemple.test/t2.epub',
 		);
-		$n    = yume_tte_compter(
+		$complets = array();
+		$suivre   = static function ( $id, $annoncer ) use ( &$complets ) {
+			$complets[] = array( (int) $id, (bool) $annoncer );
+		};
+		add_action( 'yume_tome_complet', $suivre, 10, 2 );
+		$n = yume_tte_compter(
 			function () use ( $post, $editeur ) {
 				$r = traiter_formulaire_tome( $post, array(), $editeur );
 				yume_assert_same( 'ok', $r['type'], $r['message'] );
 			}
 		);
+		remove_action( 'yume_tome_complet', $suivre, 10 );
+		yume_assert_same( array( array( $tome, false ) ), $complets, 'passage complet par le service de publication, sans annonce' );
+		yume_assert_same( 'publie', get_post_meta( $tome, 'yume_etape', true ), 'planning « publié »' );
 		yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->alertes, $n->discord, $n->articles ), 'aucune annonce' );
 		yume_assert_same( 0, $n->mails, 'aucun e-mail' );
 		yume_assert_same( 'complet', get_post_meta( $tome, 'yume_parution', true ) );

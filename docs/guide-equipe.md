@@ -287,10 +287,13 @@ en pause ou retirez-le du planning. Un tome **en pause** ne reçoit jamais de ra
 Pour ne plus recevoir de rappel : mettez le tome à jour (même un petit pourcentage compte). Les
 délais, l'heure et le jour du récapitulatif sont réglés par les gérants.
 
-## 5. Publier un tome (`/equipe/publier/`)
+## 5. Ajouter des chapitres à un tome (`/equipe/publier/`)
 
-Réservé aux **Éditeurs Yume** et aux **Gérants**. Un seul formulaire crée le tome, ses chapitres de
-lecture en ligne, l'annonce, la mise à jour du planning et les notifications.
+Réservé aux **Éditeurs Yume** et aux **Gérants**. Un seul formulaire sert à tous les cas : un
+chapitre, plusieurs, ou le tome entier. Il crée les pages de lecture, l'annonce, la mise à jour du
+planning et les notifications. Le tome doit d'abord exister : créez-le avec **Nouveau tome**
+(« Tous les tomes » ou le planning), puis ajoutez-lui ses chapitres ici. Le parcours chapitre par
+chapitre est détaillé en 5.7.
 
 ### 5.1 Préparer le DOCX
 
@@ -324,21 +327,19 @@ le site utilise « Œuvre, Tome N, Chapitre N — illustration ».
 
 ### 5.2 Remplir le formulaire
 
-1. **Œuvre** (liste), puis **Tome du planning** : choisissez le tome déjà prévu au planning (sa
-   nature, son numéro et son titre sont repris, sans créer de doublon) ou « — Nouveau tome — ».
-   Sinon, **Nature** (*Tome*, *Arc*, *Chapitre*, *EX / bonus*), **Numéro**, et un **Titre**
-   facultatif.
-2. **Liens PDF et EPUB** : collez les liens de téléchargement (ClicTune ou autre). **Les fichiers PDF
-   et EPUB ne sont jamais envoyés sur le site** : ce ne sont que des liens.
-3. **Couverture** : glissez l'image (JPG, PNG ou WebP ; 1400 × 2000 px conseillé).
-4. **Déposez le DOCX** du tome. Le site l'analyse et affiche aussitôt :
-   - les **chapitres détectés** avec leur nombre de mots ;
-   - les **avertissements** (par exemple un titre mal formé corrigé automatiquement, des images
-     ignorées) ;
-   - un bouton pour **prévisualiser** un chapitre.
-   Si le découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez les
-   styles dans Word et déposez à nouveau le fichier.
-5. **Crédits** : traduction, relecture, édition / couverture (affichés sur le tome et les chapitres).
+1. **Le tome** : choisissez l'**œuvre**, puis le **tome** dans la liste (tous les tomes de l'œuvre,
+   avec leur parution : à paraître, en cours, complet). « + Nouveau tome » ouvre la création d'un
+   tome. Le formulaire ne modifie jamais la nature ni le numéro d'un tome existant. Il reste
+   possible de créer un tome ici (nature, numéro, titre) si aucun tome n'est choisi, mais « Nouveau
+   tome » est préférable : il enregistre aussi les chapitres prévus et le rythme de sortie.
+2. **Le fichier** : déposez le DOCX (ou l'EPUB). Il peut contenir le seul chapitre à publier, ou le
+   tome avec ses chapitres déjà parus. Le site l'analyse et compare chaque chapitre au tome :
+   **Nouveau**, **En ligne, identique**, **En ligne, modifié** (au choix : « Garder la version en
+   ligne » ou « Mettre à jour (sans annonce) »), **Programmé** ou **Brouillon**. Rien n'est jamais
+   retiré. Si le découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez
+   les styles dans Word et déposez à nouveau le fichier.
+3. **Couverture** (facultative) : glissez l'image (JPG, PNG ou WebP ; 1400 × 2000 px conseillé).
+4. **Crédits** : traduction, relecture, édition / couverture (affichés sur le tome et les chapitres).
 
 ### 5.2 bis Délimiter les chapitres soi-même
 
@@ -379,28 +380,32 @@ chapitre.
 
 ### 5.3 Publier
 
-- **Publier maintenant** : tout est mis en ligne immédiatement ;
-- **Programmer** : choisissez la date et l'heure de sortie ;
-- **Enregistrer en brouillon** : rien n'est visible des lecteurs, vous pourrez reprendre plus tard.
+Choisissez la **sortie des nouveaux chapitres** :
 
-Un tome **sans chapitre ni lien PDF / EPUB** n'est publié qu'après confirmation (« Publier quand
-même ce tome sans chapitre ni lien de téléchargement »).
+- **Maintenant** : les nouveaux chapitres ensemble, une seule annonce ;
+- **Un par un, au rythme** : chaque nouveau chapitre est programmé à la date suivante du rythme du
+  tome (par exemple chaque samedi à 18 h), avec une annonce à chaque sortie ; sans rythme, indiquez
+  une date de départ et un intervalle en jours ;
+- **À une date** : les nouveaux chapitres ensemble, le jour choisi.
 
-À la publication, le site :
+Puis :
 
-- crée le **tome** (couverture, liens PDF / EPUB, crédits) et ses **pages de lecture** (sommaire,
-  navigation chapitre précédent / suivant) ;
-- rédige l'**article d'annonce** « Le tome N de … est disponible ! » (modifiable ensuite comme un
-  article normal) ;
-- passe le planning du tome à **Publié, 100 %** (un arc publié chapitre par chapitre garde son étape
-  jusqu'à la sortie de son dernier chapitre) ;
-- prévient : message sur le salon Discord des sorties, e-mail aux lecteurs qui suivent l'œuvre,
-  newsletter si elle est activée.
+- **Annoncer les nouveaux chapitres** (coché par défaut) : Discord #sorties et e-mail aux lecteurs
+  qui suivent l'œuvre, plus l'article d'annonce à la première sortie du tome (« SukaMoka, Tome 2 :
+  Prologue disponible ! »). Un chapitre mis à jour n'est jamais annoncé ;
+- **Le tome est complet avec ces chapitres** : à cocher au dernier envoi (ou pour un tome publié d'un
+  coup) avec les **liens PDF et EPUB**. Le tome passe « Complet », le planning à **Publié, 100 %**,
+  et l'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ». **Les fichiers
+  PDF et EPUB ne sont jamais envoyés sur le site** : ce ne sont que des liens.
 
-Si le tome a **déjà des chapitres**, le formulaire le rappelle sous la zone de dépôt : un nouveau
-fichier les **remplace en place**, par numéro (mêmes adresses, commentaires conservés) ; les
-chapitres absents du nouveau fichier restent en ligne, sauf si vous cochez « Mettre en brouillon les
-chapitres absents du nouveau fichier ».
+Le bouton **Publier les nouveaux chapitres** (ou **Programmer**) applique ces choix ; **Enregistrer
+en brouillon** ne montre rien aux lecteurs. Un tome **sans chapitre ni lien PDF / EPUB** n'est publié
+qu'après confirmation.
+
+Tant que le tome n'est pas complet, il reste **en cours** : sur le site, « Tome 2 · En cours · 3
+chapitres sur 12 · prochain chapitre samedi » ; au planning, l'étape suit les chapitres en ligne au
+lieu de passer à « Publié ». Un tome complet publié d'un coup se comporte comme avant : une annonce
+« Le tome N de … est disponible ! » et le planning à **Publié, 100 %**.
 
 Le DOCX n'est **pas conservé** sur le serveur : seuls les chapitres et les illustrations restent.
 La publication est réversible : dépublier un tome le retire du site, remet son annonce en brouillon

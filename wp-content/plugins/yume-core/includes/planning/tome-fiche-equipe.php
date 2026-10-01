@@ -87,6 +87,7 @@ function origines_nouveau_tome(): array {
 		'planning' => array( __( 'Planning complet', 'yume-core' ), __( 'Revenir au planning', 'yume-core' ) ),
 		'oeuvres'  => array( __( 'Œuvres', 'yume-core' ), __( 'Revenir aux œuvres', 'yume-core' ) ),
 		'tableau'  => array( __( 'Tableau de bord', 'yume-core' ), __( 'Revenir au tableau de bord', 'yume-core' ) ),
+		'publier'  => array( __( 'Ajouter des chapitres', 'yume-core' ), __( 'Revenir à « Ajouter des chapitres »', 'yume-core' ) ),
 	);
 }
 
@@ -104,6 +105,8 @@ function url_origine_nouveau_tome( string $depuis, int $oeuvre_id = 0 ): string 
 			return url_vue_equipe( 'oeuvres' ) . ( $oeuvre_id ? '#yn-oeuvre-' . $oeuvre_id : '' );
 		case 'tableau':
 			return url_vue_equipe();
+		case 'publier':
+			return function_exists( 'yume_url_page' ) ? (string) yume_url_page( 'publier' ) : url_vue_equipe( 'tomes' );
 		default:
 			return url_vue_equipe( 'tomes' );
 	}
@@ -550,7 +553,10 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 	} else {
 		$nouvelle = $parution;
 	}
-	$credits = \Yume\Core\Core\san_trio_textes( $saisie['credits'] );
+	// Passage à « complet » d'un tome en ligne : par le service de publication (planning « publié »
+	// à 100 %, action yume_tome_complet), sans annonce depuis cette vue.
+	$par_service = 'complet' === $nouvelle && 'complet' !== $parution && 'publish' === $post->post_status && method_exists( '\Yume\Core\Publication\Service', 'marquer_complet' );
+	$credits     = \Yume\Core\Core\san_trio_textes( $saisie['credits'] );
 	foreach (
 		array(
 			'yume_chapitres_prevus' => $prevus > 0 ? $prevus : '',
@@ -558,7 +564,7 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 			'yume_credits'          => array_filter( $credits ) ? $credits : '',
 			'yume_lien_pdf'         => $liens['yume_lien_pdf'],
 			'yume_lien_epub'        => $liens['yume_lien_epub'],
-			'yume_parution'         => $nouvelle,
+			'yume_parution'         => $par_service ? $parution : $nouvelle,
 		) as $cle => $valeur
 	) {
 		$actuelle = get_post_meta( $id, $cle, true );
@@ -573,6 +579,21 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 			update_post_meta( $id, $cle, wp_slash( $valeur ) );
 			$changements[] = $cle;
 		}
+	}
+
+	if ( $par_service ) {
+		$complet = \Yume\Core\Publication\Service::marquer_complet(
+			$id,
+			array(
+				'lien_pdf'  => $liens['yume_lien_pdf'],
+				'lien_epub' => $liens['yume_lien_epub'],
+			),
+			false
+		);
+		if ( is_wp_error( $complet ) ) {
+			return $complet;
+		}
+		$changements[] = 'yume_parution';
 	}
 
 	$avert = array();
@@ -1149,7 +1170,7 @@ function formulaire_tome( int $id, ?array $retour ): string {
 	$html .= '<p class="yn-team__champ--case"><input type="hidden" name="complet" value="0"><label class="yn-team__case yn-fiche__case" for="yn-tome-case-complet"><input type="checkbox" id="yn-tome-case-complet" name="complet" value="1"' . checked( ! empty( $s['complet'] ), true, false ) . ' aria-describedby="yn-tome-complet-aide"> ' . esc_html__( 'Tous les chapitres sont en ligne : passer le tome à « Complet » (sans annonce)', 'yume-core' ) . '</label></p>';
 	$html .= champ_saisie( 'yn-tome-pdf', 'lien_pdf', __( 'Lien PDF', 'yume-core' ), $val( 'lien_pdf' ), 'url', array( 'placeholder' => 'https://…' ) );
 	$html .= champ_saisie( 'yn-tome-epub', 'lien_epub', __( 'Lien EPUB', 'yume-core' ), $val( 'lien_epub' ), 'url', array( 'placeholder' => 'https://…' ) );
-	$html .= '<p class="yn-muted" id="yn-tome-complet-aide">' . esc_html__( 'Ici, la case enregistre seulement l’état du tome et ses liens : ni article, ni Discord, ni e-mail. Pour annoncer le tome complet, cochez « Tome complet » en ajoutant ses derniers chapitres.', 'yume-core' ) . '</p></section>';
+	$html .= '<p class="yn-muted" id="yn-tome-complet-aide">' . esc_html__( 'Ici, la case passe le tome à « Complet » (liens affichés, planning « Publié » à 100 %) sans rien annoncer : ni article, ni Discord, ni e-mail. Pour annoncer le tome complet, cochez « Tome complet » en ajoutant ses derniers chapitres.', 'yume-core' ) . '</p></section>';
 
 	$html .= carte_planning_tome( $id );
 
