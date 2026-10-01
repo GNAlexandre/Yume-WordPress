@@ -185,8 +185,11 @@ manuel : Actions → CI → *Run workflow*.
 | Rendu identique sur WordPress 6.6 et la dernière | `node tools/ci/rendu.js --comparer` sur les deux artefacts `rendu-mesures-*` |
 | Archives | `tools/build/zip.sh`, artefact `yume-archives-<version>-<n°>` (à décompresser : il contient `yume-core.zip`, `yume.zip`, `SHA256SUMS`) |
 
-Protection de la branche principale recommandée (docs/05 §3) : PR obligatoire, jobs *Syntaxe*,
-*Tests*, *Rendu* et *Archives* verts, une relecture.
+Protection de la branche principale (docs/05 §7.2, docs/mise-en-production.md §9.2) : PR
+obligatoire, une relecture, et tous les jobs de `ci.yml` requis : *Syntaxe PHP* (8.1, 8.2, 8.3,
+8.4), *Normes de code (PHPCS)*, *Tests WordPress* (les 4 combinaisons : 6.6 et latest, SQLite et
+MariaDB), *Rendu WordPress* (6.6 et latest), *Rendu identique sur WordPress 6.6 et la dernière*,
+*Archives*.
 
 ### Contrôle de rendu (job « Rendu »)
 

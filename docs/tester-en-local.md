@@ -7,7 +7,7 @@ yumenovel.fr**. Dans tous les cas, on commence par cloner le dépôt et se place
 ```sh
 git clone https://github.com/GNAlexandre/Yume-WordPress.git
 cd Yume-WordPress
-git checkout claude/busy-babbage-4qnb27      # ou la branche de la PR à relire
+git checkout main                            # ou la branche de la PR à relire
 ```
 
 | | Option 1 : Playground (recommandée) | Option 2 : environnement de développement | Option 3 : préproduction complète |

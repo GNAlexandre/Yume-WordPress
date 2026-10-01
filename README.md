@@ -5,11 +5,14 @@ thème, plugin métier, scripts de migration et documentation, déployés sur Wo
 
 ## État
 
-**Version 2.0.0 en développement, prête pour relecture** (numéro exact et historique : [CHANGELOG.md](CHANGELOG.md)). Le thème `yume` et le plugin `yume-core` sont complets
+**En production sur yumenovel.fr depuis le 29 septembre 2026** (release v2.0.0, migration de
+l'ancien contenu le même jour). La version courante est la première entrée de
+[CHANGELOG.md](CHANGELOG.md). Le thème `yume` et le plugin `yume-core` sont complets
 (bibliothèque, lecteur en ligne généré depuis le DOCX, planning public, espace équipe, publication
-par glisser-déposer, comptes lecteurs, migration de l'ancien site), testés sur SQLite et MariaDB,
-et vérifiés sur une préproduction locale. **Rien n'est publié sur yumenovel.fr** avant le « Go »
-de l'équipe.
+par glisser-déposer, comptes lecteurs, migration de l'ancien site), testés sur SQLite et MariaDB.
+Le site se met à jour depuis les **releases GitHub** : chaque version stable est taguée `vX.Y.Z`
+depuis `main` après le « Go » explicite de l'équipe, pour **chaque** version ; aucun tag `v*`
+sans ce Go. Décisions et jalons : [docs/journal-des-decisions.md](docs/journal-des-decisions.md).
 
 **Tester en local :** [docs/tester-en-local.md](docs/tester-en-local.md) — le plus simple :
 `tools/playground/lancer.sh` (ou `lancer.ps1` sous Windows) avec Node.js, puis <http://127.0.0.1:9400>.
@@ -26,11 +29,13 @@ de l'équipe.
 | [docs/06-contrat-technique.md](docs/06-contrat-technique.md) | Contrat technique partagé : types, métadonnées, blocs, routes, rôles, pages |
 | [docs/mise-en-production.md](docs/mise-en-production.md) | Liste de contrôle de mise en production : comptes et 2FA, Jetpack, sauvegardes, `wp-config.php`, réglages GitHub |
 | [docs/tester-en-local.md](docs/tester-en-local.md) | Lancer le site sur son ordinateur (Playground, environnement PHP, préproduction) |
-| [docs/guide-equipe.md](docs/guide-equipe.md) | Guide de l'équipe : publier un tome, planning, rappels |
+| [docs/guide-equipe.md](docs/guide-equipe.md) | Guide de l'équipe : se connecter, espace équipe, planning et rappels, publier un tome, corriger un chapitre, œuvres et glossaires, modération des commentaires, indicateurs et santé du site, réglages, questions fréquentes |
 | [docs/guide-developpeur.md](docs/guide-developpeur.md) | Guide développeur : modules, tests, CI, release |
+| [docs/journal-des-decisions.md](docs/journal-des-decisions.md) | Journal daté des décisions et des jalons (plan, Go, releases) et décisions en attente |
 | [docs/glossaire.md](docs/glossaire.md) | Glossaire des œuvres : format YAML de Yume-Trad, page publique, espace équipe, envoi direct par l'application (API) |
 | [docs/wordend.md](docs/wordend.md) | Easter egg WordEnd : mini-jeu caché (« Chtholly – Bats-toi contre ton destin »), commandes, planche de sprites |
 | [design/README.md](design/README.md) | Direction visuelle, tokens, liste des maquettes |
+| `tools/*/README.md` | Outils : [localenv](tools/localenv/README.md) (WordPress local SQLite + WP-CLI), [playground](tools/playground/README.md) (démo dans le navigateur), [preprod](tools/preprod/README.md) (copie locale du site migré), [migrate](tools/migrate/README.md) (export, plan et exécution de la migration), [docx2chapters](tools/docx2chapters/README.md) (DOCX → chapitres en ligne de commande), [wordend](tools/wordend/README.md) (planches de sprites de l'easter egg) |
 | [docs/plan-refonte.html](docs/plan-refonte.html) | Version présentable du plan (page HTML autonome) |
 
 ## Plateforme

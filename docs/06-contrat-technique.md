@@ -28,11 +28,21 @@ Les documents 02 à 05 décrivent le *pourquoi* ; celui-ci décrit le *quoi exac
 
 ## 0 bis. Règle de livraison (décision de l'équipe)
 
-**Rien n'est poussé sur le site yumenovel.fr sans le « Go » explicite de l'équipe.** Tout le travail
-se fait et se vérifie sur GitHub (branche de travail, puis revue). Concrètement : aucune écriture
-sur le site via le connecteur WordPress.com (lecture seule autorisée pour l'analyse), aucun tag
-`v*` ni release GitHub (une release déclencherait la mise à jour automatique du plugin une fois
-installé), aucun téléversement de zip. La bascule du §8 de `02-plan-refonte.md` n'a lieu qu'après le Go.
+**Le site yumenovel.fr est en production sur la refonte depuis le 29 septembre 2026** (release
+v2.0.0, bascule du §8 de `02-plan-refonte.md` effectuée). Le code arrive sur le site uniquement par
+les releases GitHub (`05-pipeline-github-wordpress.md` §7). Règle d'après-lancement :
+
+- chaque version stable est taguée `vX.Y.Z` depuis `main` après un **Go explicite de l'équipe**,
+  pour chaque version ; aucun tag `v*` sans ce Go (une release est installée sur le site dans les
+  12 heures si les mises à jour automatiques sont cochées) ;
+- les préversions `vX.Y.Z-beta.N` sont possibles sans Go : `release.yml` les publie en
+  « pre-release », le site ne les installe pas automatiquement ;
+- tout le travail se fait et se vérifie sur GitHub (branche de travail, pull request, CI verte,
+  revue) ; le job de release attend l'approbation de l'environnement `release` ;
+- aucune écriture directe sur le site par le connecteur WordPress.com (lecture seule pour l'analyse),
+  aucun téléversement de zip hors release.
+
+Historique des Go et des releases : `journal-des-decisions.md`.
 
 ## 1. Arborescence et propriétaires
 
@@ -757,9 +767,8 @@ lien « Contact » de l'en-tête (classe `yn-lien-discord`) ouvre l'invitation D
 | `rejoindre` | `rejoindre-l-equipe` | `yume/recrutement` (lien « Rejoindre l'équipe » du sous-menu « Yume Novel » de l'en-tête, classe `yn-lien-rejoindre` ; `yume_url_page( 'rejoindre' )` → `/rejoindre-l-equipe/` sans page enregistrée) |
 | `accueil` | `accueil` | page d'accueil statique (`page_on_front`), rendue par `front-page.html` |
 
-Pages supplémentaires : `actualites` (slug `actualites`, page des articles) et `mentions-legales`
-(visée par le pied de page). Réglages de lecture : `show_on_front = page`, `page_on_front` = une page
-« Accueil » (le thème fournit `front-page.html`), `page_for_posts` = la page `actualites`.
+La page `mentions-legales` est visée par le pied de page. Réglages de lecture : `show_on_front = page`,
+`page_on_front` = la page `accueil` (le thème fournit `front-page.html`), `page_for_posts` = la page `actualites`.
 Le format du plan de migration (`plan.json` v1) est décrit dans `tools/migrate/README.md` : c'est
 l'interface entre l'analyse et l'exécution. Pendant l'exécution : `add_filter( 'yume_core_notifier',
 '__return_false' )`, ne pas créer les termes `yume_oeuvre_liee` à la main (ils naissent avec les œuvres).

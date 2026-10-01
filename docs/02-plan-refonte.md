@@ -1,5 +1,31 @@
 # 02 · Plan de refonte — Yume Novel v2
 
+> **Écart entre le plan et le livré (octobre 2026).** Ce document est le plan de septembre 2026 ;
+> le site est en production sur la refonte depuis le 29 septembre 2026. Ce qui a changé en route :
+>
+> - Hébergement : resté sur le plan WordPress.com actuel, passage Atomic automatique à la première
+>   extension installée (§2 confirmé).
+> - Le schéma du §3 décrit des dossiers qui n'existent pas (`includes/rest/`, `notifications/`,
+>   `blocks/` à la racine, build Vite, gabarits `page-planning` et `page-equipe`). Les modules réels
+>   de `yume-core` sont `core`, `import`, `publication`, `planning`, `reader`, `social`, `library`,
+>   `glossaire`, `wordend`, `migration` et `updater`, chacun avec ses blocs et ses assets, sans
+>   build ; les pages planning et équipe sont des pages WordPress portant des blocs.
+> - Tests : runner maison exécuté sous WP-CLI (`tests/runner.php`), pas PHPUnit ; le rendu est
+>   vérifié par Playwright dans la CI.
+> - Rappels et e-mails : WP-Cron et file d'envoi maison (table `notifications`), pas Action Scheduler.
+> - Redirections 301 : gérées par le plugin (option `yume_redirections`, export CSV depuis
+>   *Yume → Migrer*), pas par l'extension Redirection.
+> - SEO : données structurées, Open Graph et liens prev/next émis par le plugin
+>   (`includes/library/seo.php`), pas par Rank Math.
+> - Notifications push web : livrées dès la 2.0.0 (2.0.0-dev.8), alors que le §9 les reportait.
+> - Connexion : formulaire du site `/connexion/` pour les lecteurs et l'équipe, plutôt que le SSO
+>   WordPress.com ; les administrateurs gardent la page de connexion WordPress.
+> - Lecteur manga et connexion Discord (OAuth) : toujours non faits.
+> - Aucune bannière cookies : pas de traceur tiers, seul Jetpack Stats est en place.
+> - Sauvegardes : Jetpack Backup (inclus dans le plan) plutôt qu'UpdraftPlus.
+>
+> Détail de l'état réel : `06-contrat-technique.md`, `mise-en-production.md` et `journal-des-decisions.md`.
+
 > Objectif : une **frappe chirurgicale**. Tout est construit et validé sur un site de préproduction,
 > le contenu existant est migré par script, puis la bascule en production se fait en une seule
 > opération planifiée, réversible par sauvegarde.
@@ -268,5 +294,5 @@ Résumé (détails dans `05-pipeline-github-wordpress.md`) :
 | Manga | Lecteur d'images en v2 ? | Non en v2 : fiches + liens MangaDex ; lecteur manga en v2.1 |
 | Commentaires | Natifs WordPress ou Discord | Natifs (SEO, comptes lecteurs), lien vers le fil Discord |
 | Connexion Discord | OAuth en v2 ? | v2.1 (nécessite une application Discord) |
-| Notifications push web | v2 ? | v2.1 ; e-mail suffisant au lancement |
+| Notifications push web | v2 ? | **Livré** en 2.0.0 (2.0.0-dev.8 : notifications navigateur, centre de notifications, listes de lecture), alors que le report en v2.1 était prévu |
 | Conversation Claude partagée | Non consultable (lien privé) | À coller dans une issue si elle contient des décisions |
