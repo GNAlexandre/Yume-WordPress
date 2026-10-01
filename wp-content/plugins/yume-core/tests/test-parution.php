@@ -144,3 +144,30 @@ yume_test(
 		yume_assert_same( 12, (int) get_post_meta( $tome, 'yume_chapitres_prevus', true ), 'chapitres prévus' );
 	}
 );
+
+yume_test(
+	'états : libellés équipe du tome et de l’œuvre, œuvres sans rappels',
+	static function () {
+		yume_assert_same(
+			array(
+				'a_paraitre' => 'Planifié',
+				'en_cours'   => 'En cours de publication',
+				'complet'    => 'Publié',
+			),
+			yume_etats_tome()
+		);
+		$etats = yume_etats_oeuvre();
+		yume_assert_same( 'En cours de publication', $etats['en-cours'] ?? '', 'en-cours' );
+		yume_assert_same( 'Licenciée', $etats['licenciee'] ?? '', 'licenciee' );
+
+		list( $oeuvre ) = yume_tpar_tome();
+		yume_assert_false( yume_oeuvre_sans_rappels( $oeuvre ), 'sans état : rappels' );
+		wp_set_object_terms( $oeuvre, array( 'en-cours' ), 'yume_statut' );
+		yume_assert_false( yume_oeuvre_sans_rappels( $oeuvre ), 'en cours : rappels' );
+		foreach ( array( 'en-pause', 'abandonnee', 'licenciee', 'terminee' ) as $etat ) {
+			wp_set_object_terms( $oeuvre, array( $etat ), 'yume_statut' );
+			yume_assert_true( yume_oeuvre_sans_rappels( $oeuvre ), $etat . ' : pas de rappels' );
+		}
+		yume_assert_false( yume_oeuvre_sans_rappels( 0 ), 'aucune œuvre' );
+	}
+);

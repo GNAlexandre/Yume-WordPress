@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.5 — 2026-10-01
+
+- États : libellés équipe d’un tome (Planifié, En cours de publication, Publié) et d’une œuvre, œuvres sans rappels de planning (socle).
+
 ## 2.1.5-dev.4 — 2026-10-01
 
 - Publication chapitre par chapitre : « Nouveau tome » (remplace « Ajouter un tome au planning »), « Modifier le tome » dans l'espace équipe (plus d'écran wp-admin sans thème), « Tous les tomes » par parution, formulaire « Ajouter des chapitres » (comparaison au tome, sortie maintenant / au rythme / à une date, annonces de chapitre, « Tome complet » avec PDF et EPUB), affichage public « En cours · 3 sur 12 ».

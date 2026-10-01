@@ -707,6 +707,51 @@ function yume_parutions(): array {
 }
 
 /**
+ * Libellés de l'état d'un tome dans l'espace équipe (clé de yume_parution_tome() => libellé) :
+ * « Planifié » (au planning, rien de lisible), « En cours de publication » (chapitre par chapitre),
+ * « Publié » (tous les chapitres en ligne). Côté lecteurs : yume_parutions().
+ *
+ * @return array<string,string>
+ */
+function yume_etats_tome(): array {
+	return array(
+		'a_paraitre' => __( 'Planifié', 'yume-core' ),
+		'en_cours'   => __( 'En cours de publication', 'yume-core' ),
+		'complet'    => __( 'Publié', 'yume-core' ),
+	);
+}
+
+/**
+ * Libellés de l'état d'une œuvre dans l'espace équipe (slug du terme yume_statut => libellé) :
+ * mêmes termes que le « Statut de la traduction », « en-cours » nommé « En cours de publication ».
+ * Termes inconnus : leur nom.
+ *
+ * @return array<string,string>
+ */
+function yume_etats_oeuvre(): array {
+	$libelles = array(
+		'en-cours'   => __( 'En cours de publication', 'yume-core' ),
+		'terminee'   => __( 'Terminée', 'yume-core' ),
+		'en-pause'   => __( 'En pause', 'yume-core' ),
+		'abandonnee' => __( 'Abandonnée', 'yume-core' ),
+		'licenciee'  => __( 'Licenciée', 'yume-core' ),
+	);
+	$termes   = yume_statuts();
+	return array_intersect_key( $libelles, $termes ) + array_diff_key( $termes, $libelles );
+}
+
+/**
+ * États d'œuvre où le planning ne relance personne (ni rappel de retard, ni récapitulatif) :
+ * en pause, abandonnée, licenciée, terminée.
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function yume_oeuvre_sans_rappels( int $oeuvre_id ): bool {
+	$etats = $oeuvre_id > 0 ? wp_get_object_terms( $oeuvre_id, 'yume_statut', array( 'fields' => 'slugs' ) ) : array();
+	return is_array( $etats ) && (bool) array_intersect( $etats, array( 'en-pause', 'abandonnee', 'licenciee', 'terminee' ) );
+}
+
+/**
  * Prochaine date de sortie selon le rythme du tome (méta yume_rythme), strictement après
  * $apres (défaut : maintenant), dans le fuseau du site ; null si le tome n'a pas de rythme.
  *
