@@ -49,7 +49,7 @@ $yume_muet      = (bool) $v['sans_annonce'];
 if ( $yume_tome ) {
 	$yume_maj  = ! empty( $yume_meta['maj'] ) ? self::date_fr( (int) strtotime( $yume_meta['maj'] . ' UTC' ) ) : '';
 	$yume_etat = 'publish' === $yume_tome->post_status
-		? ( $yume_attente ? __( 'Version en attente : rien n’a changé en ligne', 'yume-core' ) : sprintf( /* translators: %s : parution (En cours, Complet) */ __( 'Tome en ligne · %s : ajout de chapitres', 'yume-core' ), $yume_infos ? mb_strtolower( (string) $yume_infos['parution_libelle'] ) : '' ) )
+		? ( $yume_attente ? __( 'Version en attente : rien n’a changé en ligne', 'yume-core' ) : sprintf( /* translators: %s : état du tome (en cours de publication, publié) */ __( 'Tome en ligne · %s : ajout de chapitres', 'yume-core' ), $yume_infos ? mb_strtolower( (string) $yume_infos['parution_libelle'] ) : '' ) )
 		: ( 'future' === $yume_tome->post_status
 			/* translators: %s : date */
 			? sprintf( __( 'Sortie programmée le %s', 'yume-core' ), self::date_fr( (int) strtotime( $yume_tome->post_date_gmt . ' UTC' ) ) )
@@ -488,7 +488,7 @@ if ( $yume_tome ) {
 							<input id="yn-publish-complet" type="checkbox" name="complet" value="1" aria-describedby="yn-publish-complet-aide" data-yn-complet <?php checked( $v['complet'] ); ?>>
 							<span class="yn-publish__option-texte">
 								<label for="yn-publish-complet"><?php esc_html_e( 'Le tome est complet avec ces chapitres', 'yume-core' ); ?></label>
-								<span id="yn-publish-complet-aide" class="yn-muted yn-publish__option-aide"><?php esc_html_e( 'Cochez au dernier envoi (ou pour un tome publié d’un coup) : le tome passe « Complet », le planning à 100 %, et les liens ci-dessous s’affichent. Pour un tome déjà en cours, l’annonce dit « Le tome est complet », avec PDF et EPUB.', 'yume-core' ); ?></span>
+								<span id="yn-publish-complet-aide" class="yn-muted yn-publish__option-aide"><?php esc_html_e( 'Cochez au dernier envoi (ou pour un tome publié d’un coup) : le tome passe « Publié », le planning à 100 %, et les liens ci-dessous s’affichent. Pour un tome déjà en cours, l’annonce dit « Le tome est complet », avec PDF et EPUB.', 'yume-core' ); ?></span>
 							</span>
 						</p>
 						<div class="yn-publish__liens-complet">

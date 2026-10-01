@@ -1135,11 +1135,19 @@ yume_tl_test(
 		yume_assert_contains( '<span class="yn-visually-hidden">Publié le </span><time', $html, 'tome complet : publié le' );
 		yume_assert_not_contains( 'Chapitre 3', $html, 'aucun titre de chapitre à venir dans la liste' );
 
-		// Des liens déjà posés pour un tome en cours : boutons, pas de mention.
+		// Des liens enregistrés pour un tome en cours (tome rouvert par l'équipe) : masqués, la
+		// mention reste ; repassé « Publié » : boutons, plus de mention.
 		update_post_meta( $s['t2'], 'yume_lien_pdf', 'https://www.clictune.com/pdf2' );
+		$html = yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] );
+		yume_assert_same( 1, yume_tl_compte( 'yn-tome-list__telechargement', $html ), 'liens masqués : mention gardée' );
+		yume_assert_same( 1, yume_tl_compte( 'yn-telechargement--pdf', $html ), 'PDF du tome en cours masqué' );
+		yume_assert_not_contains( 'yn-telechargement--', yume_tl_rendu( 'tome-header', array(), $s['t2'] ), 'page du tome : aucun bouton' );
+		update_post_meta( $s['t2'], 'yume_parution', 'complet' );
 		$html = yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] );
 		yume_assert_same( 0, yume_tl_compte( 'yn-tome-list__telechargement', $html ) );
 		yume_assert_same( 2, yume_tl_compte( 'yn-telechargement--pdf', $html ) );
+		yume_assert_contains( 'yn-telechargement--pdf', yume_tl_rendu( 'tome-header', array(), $s['t2'] ), 'tome « Publié » : bouton PDF' );
+		update_post_meta( $s['t2'], 'yume_parution', 'en_cours' );
 
 		// Nombre prévu inconnu : résumé habituel.
 		update_post_meta( $s['t2'], 'yume_chapitres_prevus', 0 );

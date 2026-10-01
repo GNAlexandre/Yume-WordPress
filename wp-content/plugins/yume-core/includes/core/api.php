@@ -501,12 +501,16 @@ function yume_jours_semaine(): array {
 /**
  * Liens externes de téléchargement d'un tome (pour un chapitre : ceux de son tome).
  *
+ * Un tome « Planifié » ou « En cours de publication » choisi par l'équipe (méta yume_parution
+ * = planifie ou en_cours) n'en montre aucun aux lecteurs : les liens restent enregistrés (voir
+ * yume_liens_tome_masques()) et réapparaissent quand le tome repasse « Publié ».
+ *
  * @param int $tome_id ID du tome.
  * @return array{pdf:string,epub:string}
  */
 function yume_liens_telechargement( int $tome_id ): array {
 	$tome_id = yume_get_tome_id( $tome_id );
-	if ( ! $tome_id ) {
+	if ( ! $tome_id || yume_liens_tome_masques( $tome_id ) ) {
 		return array(
 			'pdf'  => '',
 			'epub' => '',
@@ -639,8 +643,12 @@ function yume_url_illustrations_avant( int $chapitre_id ): string {
  * - « a_paraitre » : aucun chapitre lisible (tome en brouillon, programmé ou en attente) ;
  * - « en_cours » : tome en ligne dont des chapitres restent à sortir (méta yume_parution =
  *   en_cours, posée à la publication d'un chapitre sans « Tome complet ») ;
- * - « complet » : méta yume_parution = complet (case « Tome complet »), ou tome en ligne
- *   antérieur à cette méta qui n'est pas une sortie progressive en cours.
+ * - « complet » : méta yume_parution = complet (case « Tome complet », état « Publié »), ou
+ *   tome en ligne antérieur à cette méta qui n'est pas une sortie progressive en cours.
+ *
+ * Méta « planifie » (état « Planifié » choisi par l'équipe dans « Modifier le tome ») :
+ * « a_paraitre », quel que soit le statut du tome. Un choix de l'équipe est noté dans la méta
+ * interne _yume_parution_manuelle (yume_parution_manuelle()).
  *
  * Tomes antérieurs (méta vide) : un arc, un recueil « Chapitres » ou un tome de web novel en
  * ligne reste « en_cours » tant que des chapitres sont programmés ou en brouillon, ou que son
@@ -656,7 +664,9 @@ function yume_parution_tome( int $tome_id ): string {
 		return 'a_paraitre';
 	}
 	$meta = (string) get_post_meta( $tome_id, 'yume_parution', true );
-	if ( 'publish' !== get_post_status( $tome_id ) ) {
+	if ( 'planifie' === $meta ) {
+		$etat = 'a_paraitre';
+	} elseif ( 'publish' !== get_post_status( $tome_id ) ) {
 		$etat = 'complet' === $meta ? 'complet' : 'a_paraitre';
 	} elseif ( 'complet' === $meta || 'en_cours' === $meta ) {
 		$etat = $meta;
@@ -702,7 +712,40 @@ function yume_parutions(): array {
 	return array(
 		'a_paraitre' => __( 'À paraître', 'yume-core' ),
 		'en_cours'   => __( 'En cours', 'yume-core' ),
-		'complet'    => __( 'Complet', 'yume-core' ),
+		'complet'    => __( 'Publié', 'yume-core' ),
+	);
+}
+
+/**
+ * Les liens PDF et EPUB d'un tome sont-ils masqués aux lecteurs ? Vrai quand l'équipe a choisi
+ * l'état « Planifié » ou « En cours de publication » (méta yume_parution = planifie ou
+ * en_cours) : un tome rouvert garde ses liens en base sans les montrer.
+ *
+ * @param int $tome_id Tome.
+ */
+function yume_liens_tome_masques( int $tome_id ): bool {
+	return in_array( (string) get_post_meta( $tome_id, 'yume_parution', true ), array( 'planifie', 'en_cours' ), true );
+}
+
+/**
+ * Dernier choix d'état fait à la main par l'équipe (« Modifier le tome »), ou null : méta
+ * interne _yume_parution_manuelle {etat: planifie|en_cours|complet, date: GMT « Y-m-d H:i:s »,
+ * par: ID}. Effacée quand une action de l'équipe ailleurs change l'état (publication d'un
+ * chapitre d'un tome « Planifié », « Tome complet » du formulaire de publication), changement
+ * alors journalisé.
+ *
+ * @param int $tome_id Tome.
+ * @return array{etat:string,date:string,par:int}|null
+ */
+function yume_parution_manuelle( int $tome_id ): ?array {
+	$choix = get_post_meta( $tome_id, '_yume_parution_manuelle', true );
+	if ( ! is_array( $choix ) || empty( $choix['etat'] ) ) {
+		return null;
+	}
+	return array(
+		'etat' => (string) $choix['etat'],
+		'date' => (string) ( $choix['date'] ?? '' ),
+		'par'  => (int) ( $choix['par'] ?? 0 ),
 	);
 }
 

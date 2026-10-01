@@ -732,7 +732,7 @@ final class Formulaire {
 		if ( $ouvert instanceof \WP_Post && 'yume_tome' === $ouvert->post_type && ! in_array( (int) $ouvert->ID, $ids, true ) && ! in_array( $ouvert->post_status, array( 'trash', 'auto-draft' ), true ) ) {
 			$posts[] = $ouvert;
 		}
-		$parutions = yume_parutions();
+		$parutions = yume_etats_tome();
 		$liste     = array();
 		foreach ( $posts as $tome ) {
 			if ( ! current_user_can( 'edit_post', $tome->ID ) ) {

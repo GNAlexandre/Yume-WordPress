@@ -11,15 +11,17 @@
  *   s'ouvre au lieu d'en créer un second. « Créer le tome et ajouter un chapitre » mène au
  *   formulaire de publication (?tome=ID).
  * - « Modifier le tome » (?vue=tomes&modifier=ID, yume_publier + edit_post, comme « Modifier
- *   l'œuvre ») : œuvre, nature, numéro, titre, responsables, date cible, chapitres prévus, rythme,
- *   crédits, couverture et son cadrage ; encadré « Tome complet » (parution « complet » et liens
- *   PDF / EPUB, sans annonce) ; chapitres du tome (tous statuts sauf corbeille et versions en
- *   attente) avec « Voir », « Aperçu », « Publier maintenant », « Changer la date » et
- *   « Retirer » (écran de confirmation, sans JavaScript) ; résumé du planning ; lien « Édition
+ *   l'œuvre ») : état du tome choisi par l'équipe (Planifié, En cours de publication, Publié :
+ *   segments et encadrés — planning, chapitres en ligne et rythme, liens PDF / EPUB et case
+ *   « Annoncer » —, changement appliqué à l'enregistrement par changer_etat_tome(), écran de
+ *   confirmation ?etat=… pour ce qui touche les lecteurs) ; œuvre, nature, numéro, titre,
+ *   responsables, crédits, couverture et son cadrage ; chapitres du tome (tous statuts sauf
+ *   corbeille et versions en attente) avec « Voir », « Aperçu », « Publier maintenant »,
+ *   « Changer la date » et « Retirer » (écran de confirmation, sans JavaScript) ; lien « Édition
  *   avancée » vers l'administration.
  *
  * Formulaires sans JavaScript (admin-post.php : yume_planning_ajout, yume_tome_modifier,
- * yume_tome_chapitre), résultat affiché au retour (retour_formulaire()).
+ * yume_tome_chapitre, yume_tome_etat), résultat affiché au retour (retour_formulaire()).
  *
  * @package Yume\Core
  */
@@ -171,15 +173,16 @@ function champs_responsables( string $prefixe, array $membres, array $valeurs ):
 }
 
 /**
- * Encadré des trois états de parution (rien à choisir : l'état suit les chapitres).
+ * Encadré des trois états d'un tome : proposés par le site, modifiables ensuite dans
+ * « Modifier le tome ».
  */
 function encadre_parutions(): string {
 	$etats = array(
 		'a_paraitre' => array( __( 'Dès la création.', 'yume-core' ), __( 'Aucun chapitre en ligne : le tome figure au planning, sans bouton « Lire ».', 'yume-core' ) ),
 		'en_cours'   => array( __( 'Au premier chapitre publié.', 'yume-core' ), __( 'Le tome se lit en ligne, ses chapitres sortent au fil de l’eau.', 'yume-core' ) ),
-		'complet'    => array( __( 'Quand l’équipe coche « Tome complet ».', 'yume-core' ), __( 'Tous les chapitres sont en ligne ; les liens PDF et EPUB s’ajoutent.', 'yume-core' ) ),
+		'complet'    => array( __( 'Quand l’équipe coche « Tome complet » ou choisit « Publié ».', 'yume-core' ), __( 'Tous les chapitres sont en ligne ; les liens PDF et EPUB s’affichent.', 'yume-core' ) ),
 	);
-	$html  = '<section class="yn-card yn-team__ajout" aria-labelledby="yn-parutions-titre"><h3 class="yn-label" id="yn-parutions-titre">' . esc_html__( 'Parution : l’état suit les chapitres, rien à choisir', 'yume-core' ) . '</h3><ul class="yn-parutions">';
+	$html  = '<section class="yn-card yn-team__ajout" aria-labelledby="yn-parutions-titre"><h3 class="yn-label" id="yn-parutions-titre">' . esc_html__( 'État du tome : proposé par le site, modifiable dans « Modifier le tome »', 'yume-core' ) . '</h3><ul class="yn-parutions">';
 	foreach ( $etats as $etat => $textes ) {
 		$html .= '<li class="yn-parutions__etat">' . pastille_parution( $etat ) . '<span><strong>' . esc_html( $textes[0] ) . '</strong> ' . esc_html( $textes[1] ) . '</span></li>';
 	}
@@ -372,7 +375,10 @@ function valeurs_tome( int $id ): array {
 		'chapitres_prevus' => $prevus > 0 ? (string) $prevus : '',
 		'rythme'           => is_array( $rythme ) ? $rythme : array(),
 		'credits'          => \Yume\Core\Core\san_trio_textes( is_array( $credits ) ? $credits : array() ),
-		'complet'          => 'complet' === (string) $meta( 'yume_parution' ),
+		'etat'             => yume_parution_tome( $id ),
+		'annoncer'         => false,
+		'etape'            => donnees_tome( $id )['etape'],
+		'avancement'       => donnees_tome( $id )['avancement'],
 		'lien_pdf'         => (string) $meta( 'yume_lien_pdf' ),
 		'lien_epub'        => (string) $meta( 'yume_lien_epub' ),
 		'cadrage'          => yume_cadrage_couverture( (int) get_post_thumbnail_id( $id ) ),
@@ -391,6 +397,7 @@ function saisie_tome( array $post ): array {
 		return is_scalar( $v ) ? mb_substr( trim( sanitize_text_field( (string) $v ) ), 0, $max ) : '';
 	};
 	$resp    = champ_post( $post, 'responsables' );
+	$avance  = champ_post( $post, 'avancement' );
 	$propres = array();
 	if ( is_array( $resp ) ) {
 		foreach ( ETAPES_TRAVAIL as $e ) {
@@ -412,7 +419,10 @@ function saisie_tome( array $post ): array {
 			'heure' => $texte( 'rythme_heure', 5 ),
 		),
 		'credits'          => \Yume\Core\Core\san_trio_textes( champ_post( $post, 'credits' ) ),
-		'complet'          => '1' === $texte( 'complet', 1 ),
+		'etat'             => sanitize_key( $texte( 'etat', 20 ) ),
+		'annoncer'         => '1' === $texte( 'annoncer', 1 ),
+		'etape'            => sanitize_key( $texte( 'etape', 20 ) ),
+		'avancement'       => is_array( $avance ) ? array_intersect_key( array_map( 'absint', array_filter( $avance, 'is_scalar' ) ), array_flip( ETAPES_TRAVAIL ) ) : null,
 		'lien_pdf'         => $texte( 'lien_pdf', 2000 ),
 		'lien_epub'        => $texte( 'lien_epub', 2000 ),
 		'cadrage'          => cadrage_saisi( $post ),
@@ -442,9 +452,10 @@ function lien_tome_saisi( string $saisi, string $libelle ) {
  * Modifie un tome depuis l'espace équipe (statut de publication et adresse inchangés).
  *
  * Champs du tome (œuvre, nature, numéro, titre : titre du contenu reconstruit s'ils changent),
- * planning (responsables, date cible : mettre_a_jour(), journalisé), chapitres prévus, rythme,
- * crédits, « Tome complet » (méta yume_parution ; décochée : « en_cours » pour un tome en ligne,
- * vide sinon), liens PDF et EPUB, couverture et cadrage. N'annonce rien.
+ * planning (responsables, étape, avancement, date cible : mettre_a_jour(), journalisé),
+ * chapitres prévus, rythme, crédits, liens PDF et EPUB (affichés aux lecteurs seulement pour un
+ * tome « Publié »), couverture et cadrage. N'annonce rien ; l'état du tome (champ « etat ») est
+ * changé ensuite par changer_etat_tome() (traiter_formulaire_tome()).
  *
  * @param int        $id         Tome.
  * @param array      $saisie     Saisie nettoyée (saisie_tome()).
@@ -500,6 +511,12 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 
 	// Planning d'abord : il valide tout avant d'écrire (droits, date, responsables).
 	$planning = array( 'date_cible' => $saisie['date_cible'] );
+	if ( '' !== $saisie['etape'] ) {
+		$planning['etape'] = $saisie['etape'];
+	}
+	if ( is_array( $saisie['avancement'] ) && $saisie['avancement'] ) {
+		$planning['avancement'] = $saisie['avancement'];
+	}
 	if ( is_array( $saisie['responsables'] ) && user_can( $user_id, 'yume_maj_planning_tous' ) ) {
 		// Seulement les responsables changés : un ancien membre resté responsable ne bloque rien.
 		$actuels = norm_responsables( get_post_meta( $id, 'yume_responsables', true ) );
@@ -544,19 +561,7 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 		$changements[] = 'identite';
 	}
 
-	// Parution : « Tome complet » cochée → complet ; décochée → en cours (tome en ligne) ou vide.
-	$parution = (string) get_post_meta( $id, 'yume_parution', true );
-	if ( $saisie['complet'] ) {
-		$nouvelle = 'complet';
-	} elseif ( 'complet' === $parution ) {
-		$nouvelle = 'publish' === $post->post_status ? 'en_cours' : '';
-	} else {
-		$nouvelle = $parution;
-	}
-	// Passage à « complet » d'un tome en ligne : par le service de publication (planning « publié »
-	// à 100 %, action yume_tome_complet), sans annonce depuis cette vue.
-	$par_service = 'complet' === $nouvelle && 'complet' !== $parution && 'publish' === $post->post_status && method_exists( '\Yume\Core\Publication\Service', 'marquer_complet' );
-	$credits     = \Yume\Core\Core\san_trio_textes( $saisie['credits'] );
+	$credits = \Yume\Core\Core\san_trio_textes( $saisie['credits'] );
 	foreach (
 		array(
 			'yume_chapitres_prevus' => $prevus > 0 ? $prevus : '',
@@ -564,7 +569,6 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 			'yume_credits'          => array_filter( $credits ) ? $credits : '',
 			'yume_lien_pdf'         => $liens['yume_lien_pdf'],
 			'yume_lien_epub'        => $liens['yume_lien_epub'],
-			'yume_parution'         => $par_service ? $parution : $nouvelle,
 		) as $cle => $valeur
 	) {
 		$actuelle = get_post_meta( $id, $cle, true );
@@ -579,21 +583,6 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 			update_post_meta( $id, $cle, wp_slash( $valeur ) );
 			$changements[] = $cle;
 		}
-	}
-
-	if ( $par_service ) {
-		$complet = \Yume\Core\Publication\Service::marquer_complet(
-			$id,
-			array(
-				'lien_pdf'  => $liens['yume_lien_pdf'],
-				'lien_epub' => $liens['yume_lien_epub'],
-			),
-			false
-		);
-		if ( is_wp_error( $complet ) ) {
-			return $complet;
-		}
-		$changements[] = 'yume_parution';
 	}
 
 	$avert = array();
@@ -630,12 +619,14 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 }
 
 /**
- * Traite le formulaire « Modifier le tome ».
+ * Traite le formulaire « Modifier le tome » : champs (modifier_tome()), puis l'état choisi
+ * (champ « etat », changer_etat_tome()). Un changement d'état qui demande une confirmation
+ * mène à l'écran de confirmation (?etat=…), les autres champs étant déjà enregistrés.
  *
  * @param array $post    Données POST (brutes, avec slashes).
  * @param array $files   Fichiers ($_FILES).
  * @param int   $user_id Utilisateur.
- * @return array{type:string,message:string,cible:string,tome_id:int,saisie?:array}
+ * @return array{type:string,message:string,cible:string,tome_id:int,saisie?:array,args?:array,lien?:string,lien_texte?:string}
  */
 function traiter_formulaire_tome( array $post, array $files, int $user_id ): array {
 	$id     = isset( $post['tome_id'] ) && is_scalar( $post['tome_id'] ) ? absint( $post['tome_id'] ) : 0;
@@ -664,6 +655,10 @@ function traiter_formulaire_tome( array $post, array $files, int $user_id ): arr
 	if ( $resultat['avertissements'] ) {
 		$message .= ' ' . implode( ' ', $resultat['avertissements'] );
 	}
+	if ( '' !== $saisie['etat'] && yume_parution_tome( $id ) !== $saisie['etat'] ) {
+		$etat = changer_etat_tome( $id, $saisie['etat'], array( 'annoncer' => $saisie['annoncer'] ), $user_id );
+		return retour_etat_tome( $id, $saisie['etat'], $etat, $saisie['annoncer'], $resultat['changements'] ? $message : '' );
+	}
 	return array(
 		'cible'   => 'yn-tome-form',
 		'type'    => 'ok',
@@ -685,13 +680,15 @@ add_action( 'admin_post_yume_tome_modifier', __NAMESPACE__ . '\\admin_post_modif
 add_action( 'admin_post_nopriv_yume_tome_modifier', __NAMESPACE__ . '\\admin_post_anonyme' );
 
 /**
- * Redirige vers la fiche du tome après un formulaire (vers « Tous les tomes » sans tome).
+ * Redirige vers la fiche du tome après un formulaire (vers « Tous les tomes » sans tome), avec
+ * les paramètres du retour (args : écran de confirmation d'un changement d'état).
  *
  * @param array $retour Retour.
  */
 function rediriger_vue_tome( array $retour ): void {
 	$tome_id = (int) ( $retour['tome_id'] ?? 0 );
-	$adresse = $tome_id && 'yume_tome' === get_post_type( $tome_id ) ? url_modifier_tome( $tome_id ) . '#' . $retour['cible'] : url_vue_equipe( 'tomes' );
+	$args    = is_array( $retour['args'] ?? null ) ? $retour['args'] : array();
+	$adresse = $tome_id && 'yume_tome' === get_post_type( $tome_id ) ? url_modifier_tome( $tome_id, $args ) . '#' . $retour['cible'] : url_vue_equipe( 'tomes' );
 	wp_safe_redirect( $adresse );
 	exit;
 }
@@ -882,6 +879,669 @@ add_action( 'admin_post_nopriv_yume_tome_chapitre', __NAMESPACE__ . '\\admin_pos
 
 /*
  * -----------------------------------------------------------------------------
+ * État du tome choisi par l'équipe : Planifié, En cours de publication, Publié
+ * -----------------------------------------------------------------------------
+ */
+
+/** Méta interne d'un tome : dernier choix d'état fait à la main (yume_parution_manuelle()). */
+const META_PARUTION_MANUELLE = '_yume_parution_manuelle';
+
+/**
+ * Valeur de la méta yume_parution d'un état de l'espace équipe (clé de yume_etats_tome()).
+ *
+ * @param string $etat a_paraitre | en_cours | complet.
+ */
+function meta_parution_etat( string $etat ): string {
+	return 'a_paraitre' === $etat ? 'planifie' : $etat;
+}
+
+/**
+ * État de l'espace équipe d'une valeur de la méta yume_parution ('' : règle historique).
+ *
+ * @param string $meta Valeur de la méta.
+ */
+function etat_parution_meta( string $meta ): string {
+	return 'planifie' === $meta ? 'a_paraitre' : $meta;
+}
+
+/**
+ * Un choix de l'équipe est-il en cours d'écriture ? Le suivi des changements automatiques
+ * (suivre_parution_automatique()) l'ignore alors.
+ *
+ * @param bool|null $active Nouvel état (null : lecture).
+ */
+function ecriture_parution_manuelle( ?bool $active = null ): bool {
+	static $en_cours = false;
+	if ( null !== $active ) {
+		$en_cours = $active;
+	}
+	return $en_cours;
+}
+
+/**
+ * Exécute $corps comme une écriture de l'équipe (méta yume_parution non suivie).
+ *
+ * @param callable $corps Corps.
+ * @return mixed Résultat de $corps.
+ */
+function sans_suivi_parution( callable $corps ) {
+	$avant = ecriture_parution_manuelle();
+	ecriture_parution_manuelle( true );
+	try {
+		return $corps();
+	} finally {
+		ecriture_parution_manuelle( $avant );
+	}
+}
+
+/**
+ * Note le choix d'état de l'équipe : méta yume_parution et marque _yume_parution_manuelle
+ * {etat, date GMT, par}.
+ *
+ * @param int    $tome_id Tome.
+ * @param string $etat    a_paraitre | en_cours | complet.
+ * @param int    $user_id Auteur du choix.
+ */
+function noter_parution_manuelle( int $tome_id, string $etat, int $user_id ): void {
+	$meta = meta_parution_etat( $etat );
+	sans_suivi_parution(
+		static function () use ( $tome_id, $meta ) {
+			update_post_meta( $tome_id, 'yume_parution', $meta );
+		}
+	);
+	update_post_meta(
+		$tome_id,
+		META_PARUTION_MANUELLE,
+		array(
+			'etat' => $meta,
+			'date' => gmt(),
+			'par'  => $user_id,
+		)
+	);
+}
+
+/**
+ * Suivi de la méta yume_parution (ajout, modification, suppression) : quand une action de
+ * l'équipe ailleurs que dans « Modifier le tome » change un état choisi à la main (publication
+ * d'un chapitre dans un tome « Planifié », « Tome complet » du formulaire de publication…), le
+ * changement n'est pas silencieux : il est journalisé (champ « parution », auto) et la marque
+ * du choix manuel est effacée.
+ *
+ * @param int|int[] $meta_id   Méta (non utilisé).
+ * @param int       $object_id Contenu.
+ * @param string    $meta_key  Clé.
+ * @param mixed     $valeur    Nouvelle valeur (ignorée à la suppression).
+ */
+function suivre_parution_automatique( $meta_id, $object_id, $meta_key, $valeur = '' ): void {
+	unset( $meta_id );
+	if ( 'yume_parution' !== $meta_key || ecriture_parution_manuelle() ) {
+		return;
+	}
+	$tome_id = (int) $object_id;
+	$choix   = yume_parution_manuelle( $tome_id );
+	if ( ! $choix ) {
+		return;
+	}
+	$nouvelle = 'deleted_post_meta' === current_action() || ! is_scalar( $valeur ) ? '' : (string) $valeur;
+	if ( $nouvelle === $choix['etat'] ) {
+		return;
+	}
+	delete_post_meta( $tome_id, META_PARUTION_MANUELLE );
+	yume_journal_planning(
+		$tome_id,
+		get_current_user_id(),
+		'parution',
+		etat_parution_meta( $choix['etat'] ),
+		array(
+			'etat' => etat_parution_meta( $nouvelle ),
+			'auto' => true,
+		)
+	);
+}
+add_action( 'added_post_meta', __NAMESPACE__ . '\\suivre_parution_automatique', 10, 4 );
+add_action( 'updated_post_meta', __NAMESPACE__ . '\\suivre_parution_automatique', 10, 4 );
+add_action( 'deleted_post_meta', __NAMESPACE__ . '\\suivre_parution_automatique', 10, 4 );
+
+/**
+ * Publication dans un tome « Planifié » (transition_post_status) : un chapitre publié dans un
+ * tome en ligne le fait passer « En cours de publication » ; un tome « Planifié » publié (hors
+ * formulaire « Ajouter des chapitres », qui pose lui-même l'état) reprend la règle historique
+ * (méta vide). Changement journalisé par suivre_parution_automatique().
+ *
+ * @param string   $nouveau Nouveau statut.
+ * @param string   $ancien  Ancien statut.
+ * @param \WP_Post $post    Contenu.
+ */
+function parution_a_la_publication( $nouveau, $ancien, $post ): void {
+	if ( 'publish' !== $nouveau || 'publish' === $ancien || ! $post instanceof \WP_Post ) {
+		return;
+	}
+	if ( 'yume_chapitre' === $post->post_type ) {
+		$tome_id = (int) get_post_meta( $post->ID, 'yume_tome_id', true );
+		if ( $tome_id && 'planifie' === (string) get_post_meta( $tome_id, 'yume_parution', true ) && 'publish' === get_post_status( $tome_id ) ) {
+			update_post_meta( $tome_id, 'yume_parution', 'en_cours' );
+		}
+	} elseif ( 'yume_tome' === $post->post_type && 'planifie' === (string) get_post_meta( $post->ID, 'yume_parution', true ) ) {
+		delete_post_meta( $post->ID, 'yume_parution' );
+	}
+}
+add_action( 'transition_post_status', __NAMESPACE__ . '\\parution_a_la_publication', 5, 3 );
+
+/**
+ * Ce qui est lisible ou attendu d'un tome, pour choisir et confirmer un changement d'état.
+ *
+ * @param int $tome_id Tome.
+ * @return array{statut:string,tome_en_ligne:bool,en_ligne:int,programmes:int,attente:int,prevus:int,prochain:?array,annonce:bool,liens:bool,liens_visibles:bool,lisible:bool}
+ *         liens : un lien PDF ou EPUB est enregistré ; liens_visibles : et montré aux lecteurs.
+ */
+function bilan_etat_tome( int $tome_id ): array {
+	$en_ligne   = 0;
+	$programmes = 0;
+	$attente    = 0;
+	$prochain   = null;
+	foreach ( yume_get_chapitres( $tome_id, array( 'status' => array( 'publish', 'private', 'future', 'draft', 'pending' ) ) ) as $chap ) {
+		if ( 'future' === $chap->post_status ) {
+			++$programmes;
+			$ts = ts_contenu( $chap, 'post_date' );
+			if ( null === $prochain || $ts < $prochain['ts'] ) {
+				$prochain = array(
+					'id' => (int) $chap->ID,
+					'ts' => $ts,
+				);
+			}
+		} elseif ( in_array( $chap->post_status, array( 'publish', 'private' ), true ) ) {
+			++$en_ligne;
+		} elseif ( ! get_post_meta( $chap->ID, META_CHAPITRE_RETIRE, true ) ) {
+			++$attente;
+		}
+	}
+	$annonce = false;
+	if ( class_exists( '\Yume\Core\Publication\Annonce' ) ) {
+		foreach ( array( \Yume\Core\Publication\Annonce::META_TOME, \Yume\Core\Publication\Annonce::META_COMPLET ) as $cle ) {
+			$article = \Yume\Core\Publication\Annonce::existant( $tome_id, $cle );
+			$annonce = $annonce || ( $article && in_array( get_post_status( $article ), array( 'publish', 'future' ), true ) );
+		}
+	}
+	$statut        = (string) get_post_status( $tome_id );
+	$tome_en_ligne = in_array( $statut, array( 'publish', 'private', 'future' ), true );
+	$liens         = '' !== trim( (string) get_post_meta( $tome_id, 'yume_lien_pdf', true ) ) || '' !== trim( (string) get_post_meta( $tome_id, 'yume_lien_epub', true ) );
+	return array(
+		'statut'         => $statut,
+		'tome_en_ligne'  => $tome_en_ligne,
+		'en_ligne'       => $en_ligne,
+		'programmes'     => $programmes,
+		'attente'        => $attente,
+		'prevus'         => (int) get_post_meta( $tome_id, 'yume_chapitres_prevus', true ),
+		'prochain'       => $prochain,
+		'annonce'        => $annonce,
+		'liens'          => $liens,
+		'liens_visibles' => $liens && $tome_en_ligne && ! yume_liens_tome_masques( $tome_id ),
+		'lisible'        => $tome_en_ligne || $en_ligne > 0 || $programmes > 0,
+	);
+}
+
+/**
+ * Ce que retire le passage à « Planifié » : « 3 chapitres retirés de la lecture, annonce
+ * dépubliée ; les notifications déjà envoyées ne peuvent pas être rappelées. »
+ *
+ * @param array $bilan Bilan (bilan_etat_tome()).
+ */
+function texte_retrait_tome( array $bilan ): string {
+	$parties = array();
+	if ( $bilan['en_ligne'] > 0 ) {
+		/* translators: %d : nombre de chapitres */
+		$parties[] = sprintf( _n( '%d chapitre retiré de la lecture', '%d chapitres retirés de la lecture', $bilan['en_ligne'], 'yume-core' ), $bilan['en_ligne'] );
+	}
+	if ( $bilan['programmes'] > 0 ) {
+		/* translators: %d : nombre de chapitres */
+		$parties[] = sprintf( _n( '%d chapitre programmé annulé', '%d chapitres programmés annulés', $bilan['programmes'], 'yume-core' ), $bilan['programmes'] );
+	}
+	if ( $bilan['tome_en_ligne'] ) {
+		$parties[] = 'future' === $bilan['statut'] ? __( 'sortie du tome annulée', 'yume-core' ) : __( 'page du tome retirée', 'yume-core' );
+	}
+	if ( $bilan['liens_visibles'] ) {
+		$parties[] = __( 'liens PDF et EPUB masqués', 'yume-core' );
+	}
+	if ( $bilan['annonce'] ) {
+		$parties[] = __( 'annonce dépubliée', 'yume-core' );
+	}
+	if ( ! $parties ) {
+		return __( 'Rien n’est en ligne : seul l’état change.', 'yume-core' );
+	}
+	return majuscule( implode( ', ', $parties ) ) . __( ' ; les notifications déjà envoyées ne peuvent pas être rappelées.', 'yume-core' );
+}
+
+/**
+ * Confirmation demandée avant un changement d'état qui touche les lecteurs :
+ *
+ * - publier : « Planifié » → « Publié » (le tome et ses chapitres en attente sortent) ;
+ * - complet_incomplet : « En cours » → « Publié » avec moins de chapitres en ligne que prévu ;
+ * - rouvrir : « Publié » → « En cours » (liens PDF et EPUB masqués) ;
+ * - retrait : → « Planifié » d'un tome qui a des chapitres lisibles ou programmés ;
+ * - retrait_publie : « Publié » → « Planifié » (le tome entier disparaît de la lecture).
+ *
+ * @param string $actuel Parution actuelle (yume_parution_tome()).
+ * @param string $cible  Parution choisie.
+ * @param array  $bilan  Bilan (bilan_etat_tome()).
+ * @return string Type de confirmation, ou '' si aucune.
+ */
+function confirmation_etat_tome( string $actuel, string $cible, array $bilan ): string {
+	if ( $actuel === $cible ) {
+		return '';
+	}
+	if ( 'a_paraitre' === $cible ) {
+		if ( ! $bilan['lisible'] ) {
+			return '';
+		}
+		return 'complet' === $actuel && 'publish' === $bilan['statut'] ? 'retrait_publie' : 'retrait';
+	}
+	if ( 'complet' === $cible ) {
+		if ( 'publish' !== $bilan['statut'] ) {
+			return 'publier';
+		}
+		return 'en_cours' === $actuel && $bilan['prevus'] > $bilan['en_ligne'] ? 'complet_incomplet' : '';
+	}
+	return 'complet' === $actuel && 'publish' === $bilan['statut'] ? 'rouvrir' : '';
+}
+
+/**
+ * Retire un tome de la lecture (passage à « Planifié », réparation d'une publication faite par
+ * erreur) : sortie groupée et passage « complet » programmés annulés ; chapitres en ligne ou
+ * programmés remis en brouillon et marqués retirés (comme « Retirer ») ; tome remis en
+ * brouillon (annonce remise en brouillon, e-mails et notifications en attente annulés par les
+ * modules publication et social, planning « dépublié ») ; marques de notification effacées
+ * (sauf ajout au catalogue) pour que la prochaine sortie soit annoncée normalement.
+ *
+ * @param int $tome_id Tome.
+ * @return array{retires:int,annules:int,tome:bool,groupe:bool,complet:bool}
+ */
+function retirer_lecture_tome( int $tome_id ): array {
+	$programmations = array(
+		'groupe'  => false,
+		'complet' => false,
+	);
+	if ( class_exists( '\Yume\Core\Publication\Service' ) ) {
+		$programmations = \Yume\Core\Publication\Service::annuler_programmations( $tome_id );
+	}
+	$retires = 0;
+	$annules = 0;
+	foreach ( yume_get_chapitres( $tome_id, array( 'status' => array( 'publish', 'private', 'future' ) ) ) as $chap ) {
+		$etait = (string) $chap->post_status;
+		$ok    = wp_update_post(
+			array(
+				'ID'          => (int) $chap->ID,
+				'post_status' => 'draft',
+			),
+			true
+		);
+		if ( is_wp_error( $ok ) ) {
+			continue;
+		}
+		update_post_meta( (int) $chap->ID, META_CHAPITRE_RETIRE, 1 );
+		oublier_notification_sortie( (int) $chap->ID );
+		if ( 'future' === $etait ) {
+			++$annules;
+		} else {
+			++$retires;
+		}
+	}
+	$tome = false;
+	if ( in_array( get_post_status( $tome_id ), array( 'publish', 'private', 'future' ), true ) ) {
+		$ok   = wp_update_post(
+			array(
+				'ID'          => $tome_id,
+				'post_status' => 'draft',
+			),
+			true
+		);
+		$tome = ! is_wp_error( $ok );
+	}
+	oublier_notification_sortie( $tome_id );
+	// Retour au planning, et non dépublication passagère : la prochaine sortie est une sortie.
+	delete_post_meta( $tome_id, META_DEPUBLIE );
+	delete_post_meta( $tome_id, META_SORTIE_PARTIELLE );
+	return array(
+		'retires' => $retires,
+		'annules' => $annules,
+		'tome'    => $tome,
+		'groupe'  => (bool) $programmations['groupe'],
+		'complet' => (bool) $programmations['complet'],
+	);
+}
+
+/**
+ * Efface la marque « sortie traitée » d'un tome ou d'un chapitre retiré (sauf « catalogue » :
+ * contenu ajouté sans annonce, jamais annoncé comme une nouveauté).
+ *
+ * @param int $post_id Tome ou chapitre.
+ */
+function oublier_notification_sortie( int $post_id ): void {
+	if ( 'catalogue' !== (string) get_post_meta( $post_id, '_yume_publie_notifie', true ) ) {
+		delete_post_meta( $post_id, '_yume_publie_notifie' );
+	}
+	delete_post_meta( $post_id, '_yume_notification_en_attente' );
+}
+
+/**
+ * Change l'état d'un tome à la demande de l'équipe (« Modifier le tome ») :
+ *
+ * - vers « Planifié » : tome lisible ou programmé retiré de la lecture (retirer_lecture_tome(),
+ *   confirmation ; « Publié » → « Planifié » : case « Je comprends » en plus) ;
+ * - « Planifié » → « En cours de publication » : seulement pour un tome en ligne qui a des
+ *   chapitres en ligne ; sinon rien ne change (message et lien « Ajouter des chapitres ») ;
+ * - « Publié » → « En cours de publication » : tome rouvert (confirmation), liens gardés mais
+ *   masqués aux lecteurs, planning remis à « Édition » s'il était « Publié » ;
+ * - « En cours » → « Publié » : Publication\Service::marquer_complet() (annonce si demandée),
+ *   confirmation s'il y a moins de chapitres en ligne que prévu ;
+ * - « Planifié » → « Publié » : tome non publié publié avec ses chapitres en attente
+ *   (Publication\Service::publier(), annoncé ou ajouté au catalogue sans annonce), confirmation.
+ *
+ * Droits : yume_publier + edit_post ; publish_yume_tomes pour tout changement qui touche les
+ * lecteurs ; publish_yume_chapitres en plus pour retirer des chapitres. Journal « parution ».
+ *
+ * @param int    $tome_id Tome.
+ * @param string $cible   a_paraitre | en_cours | complet (clé de yume_etats_tome()).
+ * @param array  $options confirmer (bool), comprendre (bool), annoncer (bool).
+ * @param int    $user_id Utilisateur.
+ * @return array{change:bool,message:string,lien?:string,lien_texte?:string}|\WP_Error
+ *         Erreur yume_confirmation (409, donnée « confirmation ») si une confirmation manque.
+ */
+function changer_etat_tome( int $tome_id, string $cible, array $options, int $user_id ) {
+	$options = wp_parse_args(
+		$options,
+		array(
+			'confirmer'  => false,
+			'comprendre' => false,
+			'annoncer'   => false,
+		)
+	);
+	$post    = get_post( $tome_id );
+	if ( ! $post || 'yume_tome' !== $post->post_type || in_array( $post->post_status, array( 'trash', 'auto-draft', 'inherit' ), true ) ) {
+		return erreur( 'yume_tome_introuvable', __( 'Tome introuvable.', 'yume-core' ), 404 );
+	}
+	if ( ! user_can( $user_id, 'yume_publier' ) || ! user_can( $user_id, 'edit_post', $tome_id ) ) {
+		return erreur( 'yume_tome_interdit', __( 'Votre rôle ne permet pas de modifier ce tome.', 'yume-core' ), 403 );
+	}
+	$etats = yume_etats_tome();
+	if ( ! isset( $etats[ $cible ] ) ) {
+		return erreur( 'yume_etat_invalide', __( 'État du tome inconnu.', 'yume-core' ), 400 );
+	}
+	$actuel  = yume_parution_tome( $tome_id );
+	$libelle = cible_journal( $tome_id );
+	if ( $actuel === $cible ) {
+		return array(
+			'change'  => false,
+			/* translators: 1: tome, 2: état */
+			'message' => sprintf( __( '%1$s est déjà « %2$s ».', 'yume-core' ), $libelle, $etats[ $cible ] ),
+		);
+	}
+	$bilan = bilan_etat_tome( $tome_id );
+
+	// « Planifié » → « En cours » sans chapitre en ligne : rien ne change.
+	if ( 'en_cours' === $cible && ( 'publish' !== $bilan['statut'] || 0 === $bilan['en_ligne'] ) ) {
+		return array(
+			'change'     => false,
+			'message'    => 'publish' === $bilan['statut']
+				? __( 'Aucun chapitre en ligne : rien ne change. Le tome passera « En cours de publication » à la publication de son premier chapitre.', 'yume-core' )
+				: __( 'Le tome n’est pas encore en ligne : rien ne change. Il passera « En cours de publication » à la publication de son premier chapitre, par « Ajouter des chapitres ».', 'yume-core' ),
+			'lien'       => url_publier_tome( $tome_id ),
+			'lien_texte' => __( 'Ajouter des chapitres', 'yume-core' ),
+		);
+	}
+
+	$touche = 'a_paraitre' !== $cible || $bilan['lisible'];
+	if ( $touche && ! user_can( $user_id, 'publish_yume_tomes' ) ) {
+		return erreur( 'yume_tome_publication_interdite', __( 'Votre rôle ne permet pas de publier ni de retirer ce tome.', 'yume-core' ), 403 );
+	}
+	if ( 'a_paraitre' === $cible && $bilan['en_ligne'] + $bilan['programmes'] > 0 && ! user_can( $user_id, 'publish_yume_chapitres' ) ) {
+		return erreur( 'yume_chapitre_interdit', __( 'Votre rôle ne permet pas de retirer les chapitres de ce tome.', 'yume-core' ), 403 );
+	}
+	$confirmation = confirmation_etat_tome( $actuel, $cible, $bilan );
+	if ( '' !== $confirmation && ( ! $options['confirmer'] || ( 'retrait_publie' === $confirmation && ! $options['comprendre'] ) ) ) {
+		return erreur(
+			'yume_confirmation',
+			$options['confirmer']
+				? __( 'Cochez « Je comprends » pour retirer le tome entier de la lecture.', 'yume-core' )
+				: __( 'Confirmez le changement d’état du tome.', 'yume-core' ),
+			409,
+			array(
+				'confirmation' => $confirmation,
+				'manque'       => $options['confirmer'] ? 'comprendre' : 'confirmer',
+			)
+		);
+	}
+
+	$details = array( 'etat' => $cible );
+	if ( 'a_paraitre' === $cible ) {
+		$texte = texte_retrait_tome( $bilan );
+		if ( $bilan['lisible'] ) {
+			$details = array_merge( $details, retirer_lecture_tome( $tome_id ) );
+		}
+		noter_parution_manuelle( $tome_id, 'a_paraitre', $user_id );
+		/* translators: 1: tome, 2: ce qui a été retiré */
+		$message = sprintf( __( '%1$s repasse « Planifié ». %2$s', 'yume-core' ), $libelle, $texte );
+	} elseif ( 'en_cours' === $cible ) {
+		noter_parution_manuelle( $tome_id, 'en_cours', $user_id );
+		if ( 'complet' === $actuel ) {
+			update_post_meta( $tome_id, META_SORTIE_PARTIELLE, gmt() );
+			if ( 'publie' === donnees_tome( $tome_id )['etape'] ) {
+				mettre_a_jour( $tome_id, array( 'etape' => 'edition' ), $user_id, array( 'forcer' => true ) );
+			}
+			$details['rouvert'] = true;
+			/* translators: %s : tome */
+			$message = sprintf( __( '%s est rouvert (« En cours de publication ») : ses liens PDF et EPUB sont gardés mais ne sont plus montrés aux lecteurs.', 'yume-core' ), $libelle );
+		} else {
+			/* translators: %s : tome */
+			$message = sprintf( __( '%s passe « En cours de publication ».', 'yume-core' ), $libelle );
+		}
+	} else {
+		$resultat = 'publish' === $bilan['statut'] ? publier_complet_en_ligne( $tome_id, (bool) $options['annoncer'] ) : publier_tome_planifie( $tome_id, (bool) $options['annoncer'] );
+		if ( is_wp_error( $resultat ) ) {
+			return $resultat;
+		}
+		noter_parution_manuelle( $tome_id, 'complet', $user_id );
+		$details = array_merge( $details, $resultat['details'] );
+		$message = $resultat['message'];
+	}
+	yume_journal_planning( $tome_id, $user_id, 'parution', $actuel, $details );
+	return array(
+		'change'  => true,
+		'message' => $message,
+	);
+}
+
+/**
+ * « Publié » d'un tome en ligne : Publication\Service::marquer_complet() avec ses liens
+ * enregistrés (planning « publié » à 100 %, action yume_tome_complet ; article et Discord
+ * « Le tome 2 est complet » seulement si $annoncer et que le tome était en cours).
+ *
+ * @param int  $tome_id  Tome.
+ * @param bool $annoncer Annoncer le tome complet.
+ * @return array{message:string,details:array}|\WP_Error
+ */
+function publier_complet_en_ligne( int $tome_id, bool $annoncer ) {
+	if ( ! class_exists( '\Yume\Core\Publication\Service' ) ) {
+		return erreur( 'yume_publication_absente', __( 'Le module de publication n’est pas chargé.', 'yume-core' ), 500 );
+	}
+	$fait = sans_suivi_parution(
+		static function () use ( $tome_id, $annoncer ) {
+			return \Yume\Core\Publication\Service::marquer_complet(
+				$tome_id,
+				array(
+					'lien_pdf'  => (string) get_post_meta( $tome_id, 'yume_lien_pdf', true ),
+					'lien_epub' => (string) get_post_meta( $tome_id, 'yume_lien_epub', true ),
+				),
+				$annoncer
+			);
+		}
+	);
+	if ( is_wp_error( $fait ) ) {
+		return $fait;
+	}
+	return array(
+		'message' => ! empty( $fait['annonce'] )
+			/* translators: %s : tome */
+			? sprintf( __( '%s est « Publié » : liens PDF et EPUB affichés, planning à 100 %%, tome complet annoncé.', 'yume-core' ), cible_journal( $tome_id ) )
+			/* translators: %s : tome */
+			: sprintf( __( '%s est « Publié » : liens PDF et EPUB affichés, planning à 100 %%, sans annonce.', 'yume-core' ), cible_journal( $tome_id ) ),
+		'details' => array( 'annonce' => ! empty( $fait['annonce'] ) ),
+	);
+}
+
+/**
+ * « Planifié » → « Publié » d'un tome qui n'est pas en ligne : le tome est marqué complet (liens
+ * enregistrés) puis publié maintenant avec ses chapitres en attente par
+ * Publication\Service::publier() — sortie annoncée si $annoncer, sinon ajout au catalogue sans
+ * annonce. Échec : la parution précédente est rétablie.
+ *
+ * @param int  $tome_id  Tome.
+ * @param bool $annoncer Annoncer la sortie.
+ * @return array{message:string,details:array}|\WP_Error
+ */
+function publier_tome_planifie( int $tome_id, bool $annoncer ) {
+	if ( ! class_exists( '\Yume\Core\Publication\Service' ) ) {
+		return erreur( 'yume_publication_absente', __( 'Le module de publication n’est pas chargé.', 'yume-core' ), 500 );
+	}
+	$avant = (string) get_post_meta( $tome_id, 'yume_parution', true );
+	$fait  = sans_suivi_parution(
+		static function () use ( $tome_id, $annoncer ) {
+			update_post_meta( $tome_id, 'yume_parution', 'complet' );
+			return \Yume\Core\Publication\Service::publier(
+				$tome_id,
+				'maintenant',
+				array(
+					'confirmer_vide' => true,
+					'sans_annonce'   => ! $annoncer,
+				)
+			);
+		}
+	);
+	if ( is_wp_error( $fait ) ) {
+		sans_suivi_parution(
+			static function () use ( $tome_id, $avant ) {
+				if ( '' === $avant ) {
+					delete_post_meta( $tome_id, 'yume_parution' );
+				} else {
+					update_post_meta( $tome_id, 'yume_parution', $avant );
+				}
+			}
+		);
+		return $fait;
+	}
+	$nb = count( yume_get_chapitres( $tome_id ) );
+	return array(
+		'message' => sprintf(
+			/* translators: 1: tome, 2: chapitres en ligne, 3: annonce ou non */
+			_n( '%1$s est publié (« Publié »), %2$d chapitre en ligne %3$s', '%1$s est publié (« Publié »), %2$d chapitres en ligne %3$s', $nb, 'yume-core' ),
+			cible_journal( $tome_id ),
+			$nb,
+			$annoncer ? __( ': sortie annoncée.', 'yume-core' ) : __( ': ajout au catalogue, sans annonce (ni article, ni Discord, ni e-mail).', 'yume-core' )
+		),
+		'details' => array(
+			'publie'    => true,
+			'chapitres' => $nb,
+			'annonce'   => $annoncer,
+		),
+	);
+}
+
+/**
+ * Traite le formulaire de confirmation d'un changement d'état (admin-post yume_tome_etat).
+ *
+ * @param array $post    Données POST (brutes, avec slashes).
+ * @param int   $user_id Utilisateur.
+ * @return array{type:string,message:string,cible:string,tome_id:int,args?:array,lien?:string,lien_texte?:string}
+ */
+function traiter_etat_tome( array $post, int $user_id ): array {
+	$id    = isset( $post['tome_id'] ) && is_scalar( $post['tome_id'] ) ? absint( $post['tome_id'] ) : 0;
+	$etat  = is_scalar( $post['etat'] ?? null ) ? sanitize_key( (string) $post['etat'] ) : '';
+	$nonce = is_scalar( $post['_yume_nonce'] ?? null ) ? sanitize_text_field( wp_unslash( (string) $post['_yume_nonce'] ) ) : '';
+	$coche = static function ( string $cle ) use ( $post ): bool {
+		return '1' === ( is_scalar( $post[ $cle ] ?? null ) ? (string) $post[ $cle ] : '' );
+	};
+	if ( ! $id || ! wp_verify_nonce( $nonce, 'yume_tome_etat_' . $id ) ) {
+		return array(
+			'cible'   => 'yn-tome-etat',
+			'tome_id' => $id,
+			'type'    => 'erreur',
+			'message' => __( 'Votre session a expiré : rechargez la page puis réessayez.', 'yume-core' ),
+		);
+	}
+	$resultat = changer_etat_tome(
+		$id,
+		$etat,
+		array(
+			'confirmer'  => $coche( 'confirmer' ),
+			'comprendre' => $coche( 'comprendre' ),
+			'annoncer'   => $coche( 'annoncer' ),
+		),
+		$user_id
+	);
+	return retour_etat_tome( $id, $etat, $resultat, $coche( 'annoncer' ) );
+}
+
+/**
+ * Retour d'un changement d'état (formulaire « Modifier le tome » ou confirmation) : confirmation
+ * manquante → écran de confirmation (?etat=…) ; erreur ; ou résultat (avec un lien éventuel).
+ *
+ * @param int             $tome_id  Tome.
+ * @param string          $etat     État demandé.
+ * @param array|\WP_Error $resultat Résultat de changer_etat_tome().
+ * @param bool            $annoncer Case « Annoncer » cochée.
+ * @param string          $prefixe  Texte placé avant le message (champs enregistrés).
+ * @return array{type:string,message:string,cible:string,tome_id:int,args?:array,lien?:string,lien_texte?:string}
+ */
+function retour_etat_tome( int $tome_id, string $etat, $resultat, bool $annoncer, string $prefixe = '' ): array {
+	$base = array(
+		'cible'   => 'yn-tome-etat',
+		'tome_id' => $tome_id,
+	);
+	if ( is_wp_error( $resultat ) ) {
+		if ( 'yume_confirmation' === $resultat->get_error_code() ) {
+			$donnees = (array) $resultat->get_error_data();
+			return array(
+				'cible'   => 'yn-tome-etat-confirmation',
+				'tome_id' => $tome_id,
+				'type'    => 'comprendre' === ( $donnees['manque'] ?? '' ) ? 'erreur' : 'ok',
+				'message' => trim( $prefixe . ' ' . $resultat->get_error_message() ),
+				'args'    => array_filter(
+					array(
+						'etat'     => $etat,
+						'annoncer' => $annoncer ? 1 : 0,
+					)
+				),
+			);
+		}
+		return $base + array(
+			'type'    => 'erreur',
+			'message' => trim( $prefixe . ' ' . $resultat->get_error_message() ),
+		);
+	}
+	$retour = $base + array(
+		'type'    => $resultat['change'] ? 'ok' : 'erreur',
+		'message' => trim( $prefixe . ' ' . $resultat['message'] ),
+	);
+	if ( ! empty( $resultat['lien'] ) ) {
+		$retour['lien']       = (string) $resultat['lien'];
+		$retour['lien_texte'] = (string) ( $resultat['lien_texte'] ?? '' );
+	}
+	return $retour;
+}
+
+/**
+ * Confirmation d'un changement d'état (admin-post.php, action yume_tome_etat).
+ */
+function admin_post_etat_tome(): void {
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié dans traiter_etat_tome().
+	$retour = traiter_etat_tome( $_POST, get_current_user_id() );
+	retour_formulaire( get_current_user_id(), $retour );
+	rediriger_vue_tome( $retour );
+}
+add_action( 'admin_post_yume_tome_etat', __NAMESPACE__ . '\\admin_post_etat_tome' );
+add_action( 'admin_post_nopriv_yume_tome_etat', __NAMESPACE__ . '\\admin_post_anonyme' );
+
+/*
+ * -----------------------------------------------------------------------------
  * Modifier le tome : rendu
  * -----------------------------------------------------------------------------
  */
@@ -1069,47 +1729,325 @@ function section_chapitres_tome( int $tome_id, callable $pour ): string {
 }
 
 /**
- * Carte « Planning » de la fiche : étape, avancement, état, date cible, lien vers le planning.
+ * Pastille d'icône d'un état du tome (▲ Planifié, ● En cours de publication, ✓ Publié).
  *
- * @param int $tome_id Tome.
+ * @param string $etat a_paraitre | en_cours | complet.
  */
-function carte_planning_tome( int $tome_id ): string {
-	$l      = ligne_tome( $tome_id );
-	$etape  = (string) $l['etape'];
-	$etapes = yume_etapes();
-	$html   = '<section class="yn-card yn-team__carte yn-fiche__planning" aria-labelledby="yn-tome-planning"><h3 class="yn-label" id="yn-tome-planning">' . esc_html__( 'Planning', 'yume-core' ) . '</h3>';
-	$texte  = $etapes[ $etape ] ?? $etapes['a_faire'];
-	if ( in_array( $etape, ETAPES_TRAVAIL, true ) ) {
-		$texte .= ' · ' . pct( (int) ( $l['avancement'][ $etape ] ?? 0 ) );
-	}
-	$html .= '<p>' . esc_html__( 'Étape', 'yume-core' ) . ' <strong>' . esc_html( $texte ) . '</strong></p>';
-	$html .= '<p>' . pastille_ligne( $l ) . '</p>';
-	if ( '' !== (string) $l['date_cible'] ) {
-		/* translators: %s : date cible */
-		$html .= '<p class="yn-muted">' . esc_html( sprintf( __( 'Date cible : %s', 'yume-core' ), date_cible_lisible( (string) $l['date_cible'], true ) ) ) . '</p>';
-	}
-	return $html . '<p><a href="' . esc_url( url_vue_equipe( 'planning', array( 'tome' => $tome_id ) ) . '#yn-tome-' . $tome_id ) . '">' . esc_html__( 'Ouvrir dans le planning', 'yume-core' ) . '</a></p></section>';
+function icone_etat_tome( string $etat ): string {
+	$icones = array(
+		'a_paraitre' => array( 'warn', '▲' ),
+		'en_cours'   => array( 'ok', '●' ),
+		'complet'    => array( 'info', '✓' ),
+	);
+	$icone  = $icones[ $etat ] ?? $icones['a_paraitre'];
+	return '<span class="yn-chip yn-chip--' . $icone[0] . ' yn-etat__icone" aria-hidden="true">' . $icone[1] . '</span>';
 }
 
 /**
- * Formulaire « Modifier le tome » (admin-post.php, action yume_tome_modifier, multipart).
+ * Libellé de la case « Annoncer » : « Annoncer « Le tome 2 est complet » » pour un tome en
+ * ligne, « Annoncer la sortie du tome » sinon.
+ *
+ * @param int $tome_id Tome.
+ */
+function texte_case_annoncer( int $tome_id ): string {
+	if ( 'publish' !== get_post_status( $tome_id ) ) {
+		return __( 'Annoncer la sortie du tome (article, Discord, e-mails)', 'yume-core' );
+	}
+	$libelle = yume_libelle_tome( $tome_id );
+	$libelle = mb_strtolower( mb_substr( $libelle, 0, 1 ) ) . mb_substr( $libelle, 1 );
+	/* translators: %s : tome en minuscules (« tome 2 ») */
+	$texte = sprintf( __( 'Le %s est complet', 'yume-core' ), $libelle );
+	if ( class_exists( '\Yume\Core\Publication\Annonce' ) ) {
+		$texte = \Yume\Core\Publication\Annonce::elision( $texte );
+	}
+	/* translators: %s : annonce (« Le tome 2 est complet ») */
+	return sprintf( __( 'Annoncer « %s »', 'yume-core' ), $texte );
+}
+
+/**
+ * Case « Annoncer » (champ caché 0 + case 1).
+ *
+ * @param int    $tome_id Tome.
+ * @param string $id      Identifiant de la case.
+ * @param bool   $cochee  Cochée.
+ * @param string $aide    Identifiant du texte d'aide ('' : aucun).
+ */
+function case_annoncer( int $tome_id, string $id, bool $cochee, string $aide = '' ): string {
+	$html  = '<p class="yn-team__champ--case"><input type="hidden" name="annoncer" value="0"><label class="yn-team__case yn-fiche__case" for="' . esc_attr( $id ) . '">';
+	$html .= '<input type="checkbox" id="' . esc_attr( $id ) . '" name="annoncer" value="1"' . checked( $cochee, true, false ) . ( '' !== $aide ? ' aria-describedby="' . esc_attr( $aide ) . '"' : '' ) . '> ';
+	return $html . esc_html( texte_case_annoncer( $tome_id ) ) . '</label></p>';
+}
+
+/**
+ * Encadré « Si « Planifié » » : planning du tome modifiable (étape, date cible, avancement).
+ *
+ * @param int    $id     Tome.
+ * @param array  $s      Valeurs du formulaire.
+ * @param string $classe Classes de l'encadré.
+ */
+function encadre_etat_planifie( int $id, array $s, string $classe ): string {
+	$d          = donnees_tome( $id );
+	$etape      = is_string( $s['etape'] ?? null ) && '' !== $s['etape'] ? $s['etape'] : $d['etape'];
+	$avancement = array_merge( $d['avancement'], is_array( $s['avancement'] ?? null ) ? $s['avancement'] : array() );
+	$html       = '<section class="' . esc_attr( $classe ) . '" aria-labelledby="yn-etat-planifie-titre"><h4 class="yn-label yn-etat__si" id="yn-etat-planifie-titre">' . esc_html__( 'Si « Planifié »', 'yume-core' ) . '</h4>';
+	$html      .= '<p class="yn-etat__intro">' . esc_html__( 'Le planning du tome, modifiable ici :', 'yume-core' ) . '</p><div class="yn-etat__grille">';
+	$html      .= champ_select( 'yn-tome-etape', 'etape', __( 'Étape', 'yume-core' ), etapes_proposees( $id, $d['etape'], get_current_user_id() ), $etape );
+	$html      .= champ_saisie( 'yn-tome-date', 'date_cible', __( 'Date cible du tome', 'yume-core' ), is_scalar( $s['date_cible'] ?? null ) ? (string) $s['date_cible'] : '', 'date' );
+	$html      .= '</div><div class="yn-etat__curseurs">';
+	foreach ( ETAPES_TRAVAIL as $e ) {
+		$html .= champ_curseur( 'yn-tome', $e, (int) ( $avancement[ $e ] ?? 0 ) );
+	}
+	$html .= '</div><p>' . pastille_ligne( ligne_tome( $id ) ) . '</p>';
+	return $html . '<p><a href="' . esc_url( url_vue_equipe( 'planning', array( 'tome' => $id ) ) . '#yn-tome-' . $id ) . '">' . esc_html__( 'Ouvrir dans le planning', 'yume-core' ) . '</a></p></section>';
+}
+
+/**
+ * Encadré « Si « En cours de publication » » : chapitres en ligne (N sur M), prochain chapitre
+ * programmé, chapitres prévus et rythme.
+ *
+ * @param int    $id     Tome.
+ * @param array  $s      Valeurs du formulaire.
+ * @param array  $bilan  Bilan (bilan_etat_tome()).
+ * @param string $classe Classes de l'encadré.
+ */
+function encadre_etat_en_cours( int $id, array $s, array $bilan, string $classe ): string {
+	$rythme = is_array( $s['rythme'] ?? null ) ? $s['rythme'] : array();
+	$prevus = $bilan['prevus'];
+	$html   = '<section class="' . esc_attr( $classe ) . '" aria-labelledby="yn-etat-en-cours-titre"><h4 class="yn-label yn-etat__si" id="yn-etat-en-cours-titre">' . esc_html__( 'Si « En cours de publication »', 'yume-core' ) . '</h4>';
+	$html  .= '<p class="yn-etat__ligne"><span>' . esc_html__( 'Chapitres en ligne', 'yume-core' ) . '</span><strong>' . esc_html(
+		$prevus > 0
+			/* translators: 1: chapitres en ligne, 2: chapitres prévus */
+			? sprintf( __( '%1$d sur %2$d', 'yume-core' ), $bilan['en_ligne'], $prevus )
+			: (string) $bilan['en_ligne']
+	) . '</strong></p>';
+	if ( $prevus > 0 ) {
+		$html .= '<span class="yn-etat__barre" aria-hidden="true"><span style="width:' . (int) min( 100, round( $bilan['en_ligne'] * 100 / $prevus ) ) . '%"></span></span>';
+	}
+	if ( $bilan['prochain'] ) {
+		$html .= '<p class="yn-etat__prochain">' . esc_html__( 'Prochain :', 'yume-core' ) . ' <strong>' . esc_html(
+			sprintf(
+				/* translators: 1: chapitre, 2: date */
+				__( '%1$s, %2$s', 'yume-core' ),
+				yume_libelle_chapitre( (int) $bilan['prochain']['id'] ),
+				format_fr( (int) $bilan['prochain']['ts'], 'j M Y à H:i' )
+			)
+		) . '</strong></p>';
+	} else {
+		$html .= '<p class="yn-etat__prochain yn-muted">' . esc_html__( 'Aucun chapitre programmé.', 'yume-core' ) . '</p>';
+	}
+	$html .= '<div class="yn-etat__grille">' . champs_rythme( 'yn-tome', is_scalar( $s['chapitres_prevus'] ?? null ) ? (string) $s['chapitres_prevus'] : '', (string) ( $rythme['jour'] ?? '' ), (string) ( $rythme['heure'] ?? '' ) ) . '</div>';
+	return $html . '<p class="yn-muted">' . esc_html__( 'L’avancement du planning suit les chapitres en ligne ; « Ajouter des chapitres » programme les suivants au rythme.', 'yume-core' ) . '</p></section>';
+}
+
+/**
+ * Encadré « Si « Publié » » : liens PDF et EPUB, case « Annoncer » (décochée par défaut).
+ *
+ * @param int    $id     Tome.
+ * @param array  $s      Valeurs du formulaire.
+ * @param string $classe Classes de l'encadré.
+ */
+function encadre_etat_publie( int $id, array $s, string $classe ): string {
+	$val   = static function ( string $cle ) use ( $s ): string {
+		return is_scalar( $s[ $cle ] ?? null ) ? (string) $s[ $cle ] : '';
+	};
+	$html  = '<section class="' . esc_attr( $classe ) . '" aria-labelledby="yn-etat-publie-titre"><h4 class="yn-label yn-etat__si" id="yn-etat-publie-titre">' . esc_html__( 'Si « Publié »', 'yume-core' ) . '</h4>';
+	$html .= champ_saisie( 'yn-tome-pdf', 'lien_pdf', __( 'Lien PDF', 'yume-core' ), $val( 'lien_pdf' ), 'url', array( 'placeholder' => 'https://…' ) );
+	$html .= champ_saisie( 'yn-tome-epub', 'lien_epub', __( 'Lien EPUB', 'yume-core' ), $val( 'lien_epub' ), 'url', array( 'placeholder' => 'https://…' ) );
+	$html .= case_annoncer( $id, 'yn-tome-annoncer', ! empty( $s['annoncer'] ), 'yn-tome-annoncer-aide' );
+	return $html . '<p class="yn-muted" id="yn-tome-annoncer-aide">' . esc_html__( 'Planning passé à « Publié », 100 %. Les liens ne sont montrés aux lecteurs que pour un tome « Publié ». Case décochée : ni article, ni Discord, ni e-mail.', 'yume-core' ) . '</p></section>';
+}
+
+/**
+ * Section « État du tome » du formulaire « Modifier le tome » : trois états en segments
+ * (boutons radio, champ « etat »), l'état choisi mis en avant, et sous chacun son encadré. Sans
+ * JavaScript, les trois encadrés restent visibles ; le changement se fait à « Enregistrer ».
  *
  * @param int        $id     Tome.
- * @param array|null $retour Retour du dernier envoi.
+ * @param array      $s      Valeurs du formulaire.
+ * @param array|null $retour Retour d'un changement d'état.
  */
-function formulaire_tome( int $id, ?array $retour ): string {
+function section_etat_tome( int $id, array $s, ?array $retour ): string {
+	$etats  = yume_etats_tome();
+	$actuel = yume_parution_tome( $id );
+	$choisi = isset( $etats[ (string) ( $s['etat'] ?? '' ) ] ) ? (string) $s['etat'] : $actuel;
+	$bilan  = bilan_etat_tome( $id );
+	$manuel = yume_parution_manuelle( $id );
+	$textes = array(
+		'a_paraitre' => __( 'En préparation au planning : traduction, relecture, édition. Visible au planning public, pas encore lisible.', 'yume-core' ),
+		'en_cours'   => __( 'Des chapitres sont en ligne, d’autres arrivent. Lecture chapitre par chapitre, pas encore de PDF ni d’EPUB.', 'yume-core' ),
+		'complet'    => __( 'Tous les chapitres sont en ligne. Liens PDF et EPUB affichés, planning à 100 %.', 'yume-core' ),
+	);
+	$aide   = $manuel && $manuel['par']
+		/* translators: 1: membre, 2: date */
+		? sprintf( __( 'Choisi par %1$s le %2$s.', 'yume-core' ), nom_utilisateur( $manuel['par'] ), format_fr( ts_gmt( $manuel['date'] ), 'j M Y' ) )
+		: __( 'Proposé par le site d’après le planning et les chapitres publiés.', 'yume-core' );
+
+	$html  = '<section class="yn-card yn-etat" id="yn-tome-etat" aria-labelledby="yn-tome-etat-titre"><div class="yn-etat__tete"><h3 class="yn-label" id="yn-tome-etat-titre">' . esc_html__( 'État du tome', 'yume-core' ) . '</h3>';
+	$html .= '<p class="yn-muted">' . esc_html( $aide . ' ' . __( 'Vous pouvez le changer : il change à « Enregistrer », après une confirmation s’il touche les lecteurs.', 'yume-core' ) ) . '</p></div>';
+	$html .= zone_retour( $retour );
+	if ( $retour && ! empty( $retour['lien'] ) ) {
+		$html .= '<p class="yn-etat__suite"><a class="yn-btn yn-btn--sm yn-btn--primary" href="' . esc_url( (string) $retour['lien'] ) . '">' . esc_html( (string) ( $retour['lien_texte'] ?? '' ) ) . '</a></p>';
+	}
+	$html .= '<fieldset class="yn-etat__choix"><legend class="yn-visually-hidden">' . esc_html__( 'État du tome', 'yume-core' ) . '</legend>';
+	foreach ( $etats as $cle => $libelle ) {
+		$champ = 'yn-tome-etat-' . str_replace( '_', '-', $cle );
+		$html .= '<label class="yn-etat__option yn-etat__option--' . esc_attr( $cle ) . ( $cle === $choisi ? ' yn-etat__option--choisi' : '' ) . '" for="' . esc_attr( $champ ) . '">';
+		$html .= '<input type="radio" class="yn-etat__radio" id="' . esc_attr( $champ ) . '" name="etat" value="' . esc_attr( $cle ) . '"' . checked( $cle, $choisi, false ) . '>';
+		$html .= '<strong>' . icone_etat_tome( $cle ) . ' ' . esc_html( $libelle ) . '</strong><span class="yn-etat__texte">' . esc_html( $textes[ $cle ] ) . '</span>';
+		$html .= $cle === $actuel ? '<span class="yn-etat__actuel">' . esc_html__( 'État actuel', 'yume-core' ) . '</span>' : '';
+		$html .= '</label>';
+	}
+	$html  .= '</fieldset><div class="yn-etat__encadres">';
+	$classe = static function ( string $cle ) use ( $choisi ): string {
+		return 'yn-etat__encadre yn-etat__encadre--' . $cle . ( $cle === $choisi ? ' yn-etat__encadre--choisi' : '' );
+	};
+	$html  .= encadre_etat_planifie( $id, $s, $classe( 'a_paraitre' ) );
+	$html  .= encadre_etat_en_cours( $id, $s, $bilan, $classe( 'en_cours' ) );
+	$html  .= encadre_etat_publie( $id, $s, $classe( 'complet' ) );
+	return $html . '</div></section>';
+}
+
+/**
+ * Textes de l'écran de confirmation d'un changement d'état : titre, paragraphes, bouton.
+ *
+ * @param int    $id    Tome.
+ * @param string $type  Confirmation (confirmation_etat_tome()).
+ * @param array  $bilan Bilan (bilan_etat_tome()).
+ * @return array{titre:string,textes:string[],bouton:string}
+ */
+function textes_confirmation_etat( int $id, string $type, array $bilan ): array {
+	$libelle = cible_journal( $id );
+	$suite   = __( 'Les chapitres repassent en brouillon (adresses et commentaires conservés) et le tome revient au planning. Pour les remettre en ligne, déposez de nouveau le fichier avec « Ajouter des chapitres ». Les e-mails et notifications pas encore partis sont annulés.', 'yume-core' );
+	switch ( $type ) {
+		case 'publier':
+			if ( $bilan['attente'] > 0 ) {
+				/* translators: %d : chapitres en attente */
+				$texte = sprintf( _n( 'Le tome et %d chapitre en attente sont mis en ligne tout de suite.', 'Le tome et ses %d chapitres en attente sont mis en ligne tout de suite.', $bilan['attente'], 'yume-core' ), $bilan['attente'] );
+			} elseif ( $bilan['liens'] ) {
+				$texte = __( 'Le tome est mis en ligne tout de suite, avec ses liens PDF et EPUB.', 'yume-core' );
+			} else {
+				$texte = __( 'Ce tome n’a aucun chapitre ni lien PDF ou EPUB : les lecteurs n’auraient rien à lire. Il sera mis en ligne quand même.', 'yume-core' );
+			}
+			return array(
+				/* translators: %s : tome */
+				'titre'  => sprintf( __( 'Publier %s maintenant (« Publié ») ?', 'yume-core' ), $libelle ),
+				'textes' => array( $texte, __( 'Sans la case « Annoncer », il est ajouté au catalogue sans annonce : ni article, ni Discord, ni e-mail.', 'yume-core' ) ),
+				'bouton' => __( 'Oui, publier le tome', 'yume-core' ),
+			);
+		case 'complet_incomplet':
+			$manque = max( 0, $bilan['prevus'] - $bilan['en_ligne'] );
+			return array(
+				/* translators: %s : tome */
+				'titre'  => sprintf( __( 'Passer %s à « Publié » ?', 'yume-core' ), $libelle ),
+				'textes' => array(
+					sprintf(
+						/* translators: 1: chapitres manquants, 2: chapitres en ligne, 3: chapitres prévus */
+						_n( '%1$d chapitre prévu n’est pas encore en ligne (%2$d sur %3$d). Le tome sera affiché « Publié » quand même.', '%1$d chapitres prévus ne sont pas encore en ligne (%2$d sur %3$d). Le tome sera affiché « Publié » quand même.', $manque, 'yume-core' ),
+						$manque,
+						$bilan['en_ligne'],
+						$bilan['prevus']
+					),
+					__( 'Ses liens PDF et EPUB s’affichent et le planning passe à « Publié » (100 %).', 'yume-core' ),
+				),
+				'bouton' => __( 'Oui, passer à « Publié »', 'yume-core' ),
+			);
+		case 'rouvrir':
+			return array(
+				/* translators: %s : tome */
+				'titre'  => sprintf( __( 'Rouvrir %s (« En cours de publication ») ?', 'yume-core' ), $libelle ),
+				'textes' => array( __( 'Les chapitres en ligne restent lisibles. Les liens PDF et EPUB sont gardés mais ne sont plus montrés aux lecteurs tant que le tome n’est pas de nouveau « Publié ». Le planning repasse à l’étape « Édition ».', 'yume-core' ) ),
+				'bouton' => __( 'Oui, rouvrir le tome', 'yume-core' ),
+			);
+		case 'retrait_publie':
+			return array(
+				/* translators: %s : tome */
+				'titre'  => sprintf( __( 'Retirer %s entier de la lecture ?', 'yume-core' ), $libelle ),
+				'textes' => array(
+					__( 'Le tome est « Publié » : repassé « Planifié », il disparaît entièrement de la lecture (page du tome, chapitres, liens PDF et EPUB).', 'yume-core' ),
+					/* translators: %s : ce qui sera retiré */
+					sprintf( __( 'Ce qui va être retiré : %s', 'yume-core' ), texte_retrait_tome( $bilan ) ),
+					$suite,
+				),
+				'bouton' => __( 'Oui, retirer le tome de la lecture', 'yume-core' ),
+			);
+		default:
+			return array(
+				/* translators: %s : tome */
+				'titre'  => sprintf( __( 'Repasser %s à « Planifié » ?', 'yume-core' ), $libelle ),
+				'textes' => array(
+					/* translators: %s : ce qui sera retiré */
+					sprintf( __( 'Ce qui va être retiré : %s', 'yume-core' ), texte_retrait_tome( $bilan ) ),
+					$suite,
+				),
+				'bouton' => __( 'Oui, retirer de la lecture', 'yume-core' ),
+			);
+	}
+}
+
+/**
+ * Écran de confirmation d'un changement d'état (?etat=…, sans JavaScript, sur le modèle de
+ * « Retirer » un chapitre) : formulaire admin-post yume_tome_etat (nonce yume_tome_etat_{id},
+ * confirmer=1 ; case « Annoncer » pour « Publié », case « Je comprends » obligatoire pour
+ * retirer un tome « Publié »). Vide si le changement ne demande pas de confirmation.
+ *
+ * @param int        $id       Tome.
+ * @param string     $demande  État demandé.
+ * @param bool       $annoncer Case « Annoncer » cochée.
+ * @param array|null $retour   Retour destiné à l'écran.
+ */
+function confirmation_etat_vue( int $id, string $demande, bool $annoncer, ?array $retour ): string {
+	$etats = yume_etats_tome();
+	if ( ! isset( $etats[ $demande ] ) || ! current_user_can( 'edit_post', $id ) ) {
+		return '';
+	}
+	$bilan = bilan_etat_tome( $id );
+	$type  = confirmation_etat_tome( yume_parution_tome( $id ), $demande, $bilan );
+	if ( '' === $type ) {
+		return '';
+	}
+	$textes  = textes_confirmation_etat( $id, $type, $bilan );
+	$retrait = in_array( $type, array( 'retrait', 'retrait_publie' ), true );
+	$html    = '<section class="yn-card yn-etat-confirmation' . ( $retrait ? ' yn-etat-confirmation--retrait' : '' ) . '" id="yn-tome-etat-confirmation" aria-labelledby="yn-tome-etat-confirmation-titre">';
+	$html   .= zone_retour( $retour );
+	$html   .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+	$html   .= '<input type="hidden" name="action" value="yume_tome_etat"><input type="hidden" name="tome_id" value="' . $id . '"><input type="hidden" name="etat" value="' . esc_attr( $demande ) . '"><input type="hidden" name="confirmer" value="1">';
+	$html   .= wp_nonce_field( 'yume_tome_etat_' . $id, '_yume_nonce', true, false );
+	$html   .= '<h3 id="yn-tome-etat-confirmation-titre">' . esc_html( $textes['titre'] ) . '</h3>';
+	foreach ( $textes['textes'] as $texte ) {
+		$html .= '<p>' . esc_html( $texte ) . '</p>';
+	}
+	if ( 'complet' === $demande ) {
+		$html .= case_annoncer( $id, 'yn-tome-etat-annoncer', $annoncer );
+	}
+	if ( 'retrait_publie' === $type ) {
+		$html .= '<p class="yn-team__champ--case"><label class="yn-team__case yn-fiche__case" for="yn-tome-etat-comprendre"><input type="checkbox" id="yn-tome-etat-comprendre" name="comprendre" value="1" required> ' . esc_html__( 'Je comprends que le tome entier ne sera plus lisible.', 'yume-core' ) . '</label></p>';
+	}
+	$html .= '<p class="yn-team__action"><button type="submit" class="yn-btn yn-btn--sm ' . ( $retrait ? 'yn-team__retirer' : 'yn-btn--primary' ) . '">' . esc_html( $textes['bouton'] ) . '</button>';
+	$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( url_modifier_tome( $id ) . '#yn-tome-etat' ) . '">' . esc_html__( 'Annuler', 'yume-core' ) . '</a></p>';
+	return $html . '</form></section>';
+}
+
+/**
+ * Formulaire « Modifier le tome » (admin-post.php, action yume_tome_modifier, multipart) :
+ * état du tome (segments et encadrés), le tome, l'équipe, les crédits, la couverture.
+ *
+ * @param int        $id     Tome.
+ * @param array|null $retour Retour du dernier envoi (champs).
+ * @param array|null $etat   Retour d'un changement d'état.
+ */
+function formulaire_tome( int $id, ?array $retour, ?array $etat = null ): string {
 	$pour_moi = $retour && 'yn-tome-form' === ( $retour['cible'] ?? '' ) && (int) ( $retour['tome_id'] ?? 0 ) === $id;
 	$s        = array_merge( valeurs_tome( $id ), $pour_moi && is_array( $retour['saisie'] ?? null ) ? $retour['saisie'] : array() );
 	$val      = static function ( string $cle ) use ( $s ): string {
 		return is_scalar( $s[ $cle ] ?? null ) ? (string) $s[ $cle ] : '';
 	};
-	$rythme   = is_array( $s['rythme'] ) ? $s['rythme'] : array();
 	$credits  = is_array( $s['credits'] ) ? $s['credits'] : array();
 
 	$html  = '<form class="yn-fiche" id="yn-tome-form" method="post" enctype="multipart/form-data" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" aria-label="' . esc_attr__( 'Modifier le tome', 'yume-core' ) . '">';
 	$html .= '<input type="hidden" name="action" value="yume_tome_modifier"><input type="hidden" name="tome_id" value="' . $id . '">';
 	$html .= wp_nonce_field( 'yume_tome_modifier_' . $id, '_yume_nonce', true, false );
-	$html .= '<div class="yn-fiche__principal">' . zone_retour( $pour_moi ? $retour : null );
+	$html .= '<div class="yn-fiche__large">' . zone_retour( $pour_moi ? $retour : null ) . section_etat_tome( $id, $s, $etat ) . '</div>';
+	$html .= '<div class="yn-fiche__principal">';
 
 	// Le tome.
 	$html .= '<section class="yn-card yn-team__ajout" aria-labelledby="yn-tome-identite"><h3 class="yn-label" id="yn-tome-identite">' . esc_html__( 'Le tome', 'yume-core' ) . '</h3><div class="yn-team__grille">';
@@ -1129,14 +2067,12 @@ function formulaire_tome( int $id, ?array $retour ): string {
 	$html .= champ_saisie( 'yn-tome-titre', 'titre', __( 'Titre (facultatif)', 'yume-core' ), $val( 'titre' ), 'text', array( 'maxlength' => 150 ) );
 	$html .= '</div></section>';
 
-	// Équipe et calendrier.
-	$html .= '<section class="yn-card yn-team__ajout" aria-labelledby="yn-tome-equipe"><h3 class="yn-label" id="yn-tome-equipe">' . esc_html__( 'Équipe et calendrier', 'yume-core' ) . '</h3><div class="yn-team__grille">';
+	// Équipe (les dates et le rythme sont dans l'état du tome).
 	if ( current_user_can( 'yume_maj_planning_tous' ) ) {
+		$html .= '<section class="yn-card yn-team__ajout" aria-labelledby="yn-tome-equipe"><h3 class="yn-label" id="yn-tome-equipe">' . esc_html__( 'Équipe', 'yume-core' ) . '</h3><div class="yn-team__grille">';
 		$html .= champs_responsables( 'yn-tome', membres_equipe(), is_array( $s['responsables'] ) ? $s['responsables'] : array() );
+		$html .= '</div></section>';
 	}
-	$html .= champ_saisie( 'yn-tome-date', 'date_cible', __( 'Date cible du tome', 'yume-core' ), $val( 'date_cible' ), 'date' );
-	$html .= champs_rythme( 'yn-tome', $val( 'chapitres_prevus' ), (string) ( $rythme['jour'] ?? '' ), (string) ( $rythme['heure'] ?? '' ) );
-	$html .= '</div></section>';
 
 	// Crédits.
 	$html .= '<section class="yn-card yn-team__ajout" aria-labelledby="yn-tome-credits"><h3 class="yn-label" id="yn-tome-credits">' . esc_html__( 'Crédits affichés sur la page du tome', 'yume-core' ) . '</h3><div class="yn-team__grille">';
@@ -1151,7 +2087,7 @@ function formulaire_tome( int $id, ?array $retour ): string {
 	}
 	$html .= '</div></section></div>';
 
-	// Colonne : couverture, tome complet, planning, enregistrer.
+	// Colonne : couverture, enregistrer.
 	$html    .= '<div class="yn-fiche__cote">';
 	$propre   = (int) get_post_thumbnail_id( $id );
 	$affichee = yume_get_cover_id( $id );
@@ -1166,14 +2102,6 @@ function formulaire_tome( int $id, ?array $retour ): string {
 	$html .= '<span class="yn-muted" id="yn-tome-fichier-aide">' . esc_html( sprintf( __( 'JPG, PNG ou WebP, %s maximum. Portrait (2:3) de préférence.', 'yume-core' ), Fichiers::taille_lisible( $max ) ) ) . '</span></p>';
 	$html .= champ_cadrage( $propre, is_array( $s['cadrage'] ) ? $s['cadrage'] : null ) . '</section>';
 
-	$html .= '<section class="yn-card yn-team__carte" aria-labelledby="yn-tome-complet"><h3 class="yn-label" id="yn-tome-complet">' . esc_html__( 'Tome complet', 'yume-core' ) . '</h3>';
-	$html .= '<p class="yn-team__champ--case"><input type="hidden" name="complet" value="0"><label class="yn-team__case yn-fiche__case" for="yn-tome-case-complet"><input type="checkbox" id="yn-tome-case-complet" name="complet" value="1"' . checked( ! empty( $s['complet'] ), true, false ) . ' aria-describedby="yn-tome-complet-aide"> ' . esc_html__( 'Tous les chapitres sont en ligne : passer le tome à « Complet » (sans annonce)', 'yume-core' ) . '</label></p>';
-	$html .= champ_saisie( 'yn-tome-pdf', 'lien_pdf', __( 'Lien PDF', 'yume-core' ), $val( 'lien_pdf' ), 'url', array( 'placeholder' => 'https://…' ) );
-	$html .= champ_saisie( 'yn-tome-epub', 'lien_epub', __( 'Lien EPUB', 'yume-core' ), $val( 'lien_epub' ), 'url', array( 'placeholder' => 'https://…' ) );
-	$html .= '<p class="yn-muted" id="yn-tome-complet-aide">' . esc_html__( 'Ici, la case passe le tome à « Complet » (liens affichés, planning « Publié » à 100 %) sans rien annoncer : ni article, ni Discord, ni e-mail. Pour annoncer le tome complet, cochez « Tome complet » en ajoutant ses derniers chapitres.', 'yume-core' ) . '</p></section>';
-
-	$html .= carte_planning_tome( $id );
-
 	$html   .= '<p class="yn-fiche__boutons"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Enregistrer', 'yume-core' ) . '</button>';
 	$html   .= '<a class="yn-btn" href="' . esc_url( url_vue_equipe( 'tomes' ) . '#yn-tomes-' . $id ) . '">' . esc_html__( 'Annuler', 'yume-core' ) . '</a></p>';
 	$edition = (string) get_edit_post_link( $id, 'raw' );
@@ -1184,7 +2112,8 @@ function formulaire_tome( int $id, ?array $retour ): string {
 }
 
 /**
- * Sous-vue « Modifier le tome » (?vue=tomes&modifier=ID).
+ * Sous-vue « Modifier le tome » (?vue=tomes&modifier=ID ; &etat=… : écran de confirmation d'un
+ * changement d'état).
  *
  * @param int $id Tome.
  */
@@ -1240,7 +2169,12 @@ function rendu_modifier_tome( int $id ): string {
 	$date  = texte_date_tome( $tome );
 	$html .= '<p class="yn-lecture__puces yn-fiche__puces">' . pastille_parution( $tome['parution'] ) . pastilles_chapitres_tome( $tome ) . ( '' !== $date ? '<span class="yn-muted">' . esc_html( $date ) . '</span>' : '' ) . '</p>';
 	$html .= '<div id="yn-tome-fiche">' . zone_retour( $pour( 'yn-tome-fiche' ) ) . '</div>';
-	$html .= formulaire_tome( $id, $pour( 'yn-tome-form' ) );
-	$html .= section_chapitres_tome( $id, $pour );
+
+	// Écran de confirmation d'un changement d'état ; sans objet, son retour va à l'état du tome.
+	$confirmation = confirmation_etat_vue( $id, get_cle( 'etat' ), 1 === get_entier( 'annoncer' ), $pour( 'yn-tome-etat-confirmation' ) );
+	$etat         = $pour( 'yn-tome-etat' ) ?? ( '' === $confirmation ? $pour( 'yn-tome-etat-confirmation' ) : null );
+	$html        .= $confirmation;
+	$html        .= formulaire_tome( $id, $pour( 'yn-tome-form' ), $etat );
+	$html        .= section_chapitres_tome( $id, $pour );
 	return $html . '</div></div>';
 }

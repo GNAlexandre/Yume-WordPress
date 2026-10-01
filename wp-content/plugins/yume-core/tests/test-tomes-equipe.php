@@ -6,8 +6,9 @@
  * (« Modifier » dans l'espace équipe), entrées de navigation (tableau de bord, formulaire de
  * publication), section « Tomes en préparation » du tableau de bord ; « Nouveau tome »
  * (?vue=tomes&nouveau=1 : création d'un tome vide avec chapitres prévus et rythme, tome existant)
- * et « Modifier le tome » (?vue=tomes&modifier=ID : droits, champs, « Tome complet », actions sur
- * les chapitres), includes/planning/tome-fiche-equipe.php ; remplacement de la lecture en ligne d'un tome déjà paru par le formulaire de
+ * et « Modifier le tome » (?vue=tomes&modifier=ID : droits, champs, état du tome choisi par
+ * l'équipe — Planifié, En cours de publication, Publié — avec ses confirmations, actions sur les
+ * chapitres), includes/planning/tome-fiche-equipe.php ; remplacement de la lecture en ligne d'un tome déjà paru par le formulaire de
  * publication (?tome=ID) : chapitres mis à jour sans doublon, chapitres disparus signalés, sans
  * nouvelle annonce ni changement de la date de sortie ; remplacement en deux temps (version en
  * attente : brouillon, « Vérifier » et aperçu ne changent rien en ligne, aperçu réservé à l'équipe ;
@@ -29,6 +30,7 @@ use function Yume\Core\Planning\modifier_tome;
 use function Yume\Core\Planning\navigation_equipe;
 use function Yume\Core\Planning\saisie_tome;
 use function Yume\Core\Planning\traiter_action_chapitre;
+use function Yume\Core\Planning\traiter_etat_tome;
 use function Yume\Core\Planning\traiter_formulaire_ajout;
 use function Yume\Core\Planning\traiter_formulaire_tome;
 use function Yume\Core\Planning\url_modifier_tome;
@@ -495,7 +497,7 @@ yume_tte_test(
 
 		// Tome paru (règle historique : complet) avec lecture en ligne : ajouter, voir, modifier.
 		$l = $ligne( $g1 );
-		yume_assert_contains( '<span aria-hidden="true">✓</span> Complet</span>', $l );
+		yume_assert_contains( '<span class="yn-chip yn-chip--info"><span aria-hidden="true">✓</span> Publié</span>', $l );
 		yume_assert_contains( 'Paru le ', $l );
 		yume_assert_contains( '2 chapitres en ligne', $l );
 		yume_assert_contains( '1 chapitre préparé, pas encore en ligne', $l );
@@ -515,12 +517,12 @@ yume_tte_test(
 
 		// Programmé et brouillon : à paraître, pas de « Voir ».
 		$l = $ligne( $g3 );
-		yume_assert_contains( '<span class="yn-chip yn-chip--warn">À paraître</span>', $l );
+		yume_assert_contains( '<span class="yn-chip yn-chip--warn"><span aria-hidden="true">▲</span> Planifié</span>', $l );
 		yume_assert_contains( 'Sortie le ', $l );
 		yume_assert_contains( 'Pas encore de chapitre', $l );
 		yume_assert_not_contains( '">Voir<', $l );
 		$l = $ligne( $g4 );
-		yume_assert_contains( '<span class="yn-chip yn-chip--warn">À paraître</span>', $l );
+		yume_assert_contains( '<span class="yn-chip yn-chip--warn"><span aria-hidden="true">▲</span> Planifié</span>', $l );
 		yume_assert_contains( 'Modifié le ', $l );
 		yume_assert_not_contains( '">Voir<', $l );
 
@@ -575,9 +577,9 @@ yume_tte_test(
 		yume_assert_same(
 			array(
 				''           => 'Tous',
-				'a_paraitre' => 'À paraître',
-				'en_cours'   => 'En cours',
-				'complet'    => 'Complets',
+				'a_paraitre' => 'Planifiés',
+				'en_cours'   => 'En cours de publication',
+				'complet'    => 'Publiés',
 				'programme'  => 'Programmés',
 				'brouillon'  => 'Brouillons',
 			),
@@ -1287,8 +1289,8 @@ yume_tte_test(
 		yume_assert_contains( '<option value="samedi">Chaque samedi</option>', $html );
 		yume_assert_contains( 'name="suite" value="chapitre">Créer le tome et ajouter un chapitre</button>', $html );
 		yume_assert_contains( 'name="suite" value="fiche">Créer le tome</button>', $html );
-		yume_assert_contains( 'Parution : l’état suit les chapitres, rien à choisir', $html );
-		yume_assert_contains( 'Quand l’équipe coche « Tome complet ».', $html );
+		yume_assert_contains( 'État du tome : proposé par le site, modifiable dans « Modifier le tome »', $html );
+		yume_assert_contains( 'Quand l’équipe coche « Tome complet » ou choisit « Publié ».', $html );
 		yume_assert_contains( esc_url( url_vue_equipe( 'planning' ) ) . '">Revenir au planning', $html );
 		yume_assert_contains( 'Tomes de l’œuvre</h3><p class="yn-muted">Grimgar</p>', $html );
 		yume_assert_contains( 'Créer une nouvelle œuvre', $html );
@@ -1563,11 +1565,19 @@ yume_tte_test(
 		yume_assert_contains( '<option value="samedi" selected=\'selected\'>Chaque samedi</option>', $html );
 		yume_assert_contains( 'name="credits[traduction]"', $html );
 		yume_assert_contains( 'name="lien_pdf" value="https://www.clictune.com/pdf2"', $html );
-		yume_assert_contains( 'passer le tome à « Complet » (sans annonce)', $html );
+		yume_assert_contains( 'id="yn-tome-etat"', $html, 'section « État du tome »' );
+		yume_assert_true( (bool) preg_match( '#name="etat" value="a_paraitre" checked#', $html ), 'état actuel coché : Planifié' );
+		yume_assert_contains( 'Si « Planifié »', $html );
+		yume_assert_contains( 'Si « En cours de publication »', $html );
+		yume_assert_contains( 'Si « Publié »', $html );
+		yume_assert_contains( 'name="etape"', $html, 'étape du planning dans « Planifié »' );
+		yume_assert_contains( 'name="avancement[traduction]"', $html );
+		yume_assert_contains( 'Annoncer la sortie du tome (article, Discord, e-mails)', $html, 'tome pas en ligne : case « Annoncer » de la sortie' );
+		yume_assert_not_contains( 'passer le tome à « Complet »', $html, 'plus de case « Tome complet »' );
 		yume_assert_contains( 'name="cadrage_x"', $html, 'cadrage de la couverture' );
 		yume_assert_contains( 'Ouvrir dans le planning', $html );
 		yume_assert_contains( '0 chapitres sur 12 en ligne', $html );
-		yume_assert_contains( '<span class="yn-chip yn-chip--warn">À paraître</span>', $html );
+		yume_assert_contains( '<span class="yn-chip yn-chip--warn"><span aria-hidden="true">▲</span> Planifié</span>', $html );
 		yume_assert_contains( esc_url( get_edit_post_link( $tome, 'raw' ) ) . '">Édition avancée (administration WordPress)', $html );
 		yume_assert_contains( esc_url( url_publier_tome( $tome ) ) . '">Ajouter des chapitres', $html );
 		yume_assert_contains( '12 chapitres pas encore déposés (sur 12 prévus)', $html, 'ligne « À venir »' );
@@ -1632,7 +1642,7 @@ yume_tte_test(
 				'relecture'  => 'Shadowadow',
 				'edition'    => '',
 			),
-			'complet'          => '0',
+			'etat'             => 'a_paraitre',
 			'lien_pdf'         => '',
 			'lien_epub'        => '',
 		);
@@ -1713,68 +1723,599 @@ yume_tte_test(
 	}
 );
 
+/*
+ * -----------------------------------------------------------------------------
+ * État du tome choisi par l'équipe (Planifié, En cours de publication, Publié)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Champs du formulaire « Modifier le tome » tels que la fiche les envoie (valeurs actuelles du
+ * tome, nonce compris), complétés ou remplacés par $plus.
+ *
+ * @param int                  $tome Tome.
+ * @param array<string,string> $plus Champs à ajouter ou remplacer.
+ * @return array<string,mixed>
+ */
+function yume_tte_post_tome( int $tome, array $plus = array() ): array {
+	$v      = \Yume\Core\Planning\valeurs_tome( $tome );
+	$rythme = is_array( $v['rythme'] ) ? $v['rythme'] : array();
+	return array_merge(
+		array(
+			'tome_id'          => (string) $tome,
+			'_yume_nonce'      => wp_create_nonce( 'yume_tome_modifier_' . $tome ),
+			'oeuvre_id'        => $v['oeuvre_id'],
+			'nature'           => $v['nature'],
+			'numero'           => $v['numero'],
+			'titre'            => $v['titre'],
+			'date_cible'       => $v['date_cible'],
+			'chapitres_prevus' => $v['chapitres_prevus'],
+			'rythme_jour'      => (string) ( $rythme['jour'] ?? '' ),
+			'rythme_heure'     => (string) ( $rythme['heure'] ?? '' ),
+			'lien_pdf'         => $v['lien_pdf'],
+			'lien_epub'        => $v['lien_epub'],
+			'etat'             => $v['etat'],
+			'annoncer'         => '0',
+		),
+		$plus
+	);
+}
+
+/**
+ * Envoie l'écran de confirmation d'un changement d'état (admin-post yume_tome_etat).
+ *
+ * @param int                  $tome Tome.
+ * @param string               $etat État demandé.
+ * @param int                  $user Utilisateur.
+ * @param array<string,string> $plus Champs à ajouter ou remplacer.
+ * @return array<string,mixed> Retour.
+ */
+function yume_tte_confirmer_etat( int $tome, string $etat, int $user, array $plus = array() ): array {
+	wp_set_current_user( $user );
+	return traiter_etat_tome(
+		array_merge(
+			array(
+				'tome_id'     => (string) $tome,
+				'etat'        => $etat,
+				'confirmer'   => '1',
+				'_yume_nonce' => wp_create_nonce( 'yume_tome_etat_' . $tome ),
+			),
+			$plus
+		),
+		$user
+	);
+}
+
+/**
+ * Lignes « parution » du journal d'un tome, de la plus récente à la plus ancienne.
+ *
+ * @param int $tome Tome.
+ * @return object[]
+ */
+function yume_tte_journal_parution( int $tome ): array {
+	global $wpdb;
+	$table = \Yume\Core\Planning\table_journal();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	return (array) $wpdb->get_results( $wpdb->prepare( "SELECT ancien, nouveau, public, user_id FROM {$table} WHERE tome_id = %d AND champ = 'parution' ORDER BY id DESC", $tome ) );
+}
+
+/**
+ * Retire publish_yume_tomes à un utilisateur le temps de $corps.
+ *
+ * @param int      $user  Utilisateur.
+ * @param callable $corps Corps.
+ * @return mixed Résultat de $corps.
+ */
+function yume_tte_sans_publier( int $user, callable $corps ) {
+	$filtre = static function ( $caps, $demandees, $args ) use ( $user ) {
+		if ( (int) ( $args[1] ?? 0 ) === $user ) {
+			$caps['publish_yume_tomes'] = false;
+		}
+		return $caps;
+	};
+	add_filter( 'user_has_cap', $filtre, 10, 3 );
+	try {
+		return $corps();
+	} finally {
+		remove_filter( 'user_has_cap', $filtre, 10 );
+	}
+}
+
 yume_tte_test(
-	'modifier le tome : « Tome complet » pose la parution « complet » et les liens PDF / EPUB, sans annonce ; décochée, le tome en ligne repasse « en cours » ; lien invalide refusé',
+	'état du tome : segments Planifié / En cours de publication / Publié et encadrés (planning, chapitres en ligne, liens, « Annoncer » décochée) ; « Publié » → « En cours » rouvre le tome après confirmation (liens gardés mais masqués, planning « Édition », journal) ; choix manuel non écrasé',
+	function () {
+		$oeuvre = yume_tte_oeuvre( 'Grimgar' );
+		$tome   = yume_tte_tome( $oeuvre, 2 );
+		update_post_meta( $tome, 'yume_lien_epub', 'https://www.clictune.com/epub2' );
+		update_post_meta( $tome, 'yume_parution', 'complet' );
+		update_post_meta( $tome, 'yume_etape', 'publie' );
+		update_post_meta( $tome, 'yume_chapitres_prevus', 6 );
+		yume_tte_chapitre( $tome, 1 );
+		$prochain = yume_tte_chapitre_programme( $tome, 2, time() + 3 * DAY_IN_SECONDS );
+		$editeur  = yume_tte_membre( 'yume_editeur' );
+		$vue      = array(
+			'vue'      => 'tomes',
+			'modifier' => (string) $tome,
+		);
+
+		$html = yume_tte_rendu( $editeur, $vue );
+		yume_assert_contains( '<span class="yn-chip yn-chip--info"><span aria-hidden="true">✓</span> Publié</span>', $html, 'en-tête : libellé de l’équipe' );
+		foreach (
+			array(
+				'a_paraitre' => 'Planifié',
+				'en_cours'   => 'En cours de publication',
+				'complet'    => 'Publié',
+			) as $cle => $libelle
+		) {
+			yume_assert_contains( 'name="etat" value="' . $cle . '"', $html, 'segment ' . $cle );
+			yume_assert_contains( $libelle . '</strong>', $html );
+		}
+		yume_assert_true( (bool) preg_match( '#name="etat" value="complet" checked#', $html ), 'état actuel coché' );
+		yume_assert_contains( 'yn-etat__encadre yn-etat__encadre--complet yn-etat__encadre--choisi', $html, 'encadré de l’état choisi mis en avant' );
+		yume_assert_contains( '<span class="yn-etat__actuel">État actuel</span>', $html );
+		yume_assert_contains( 'Ouvrir dans le planning', $html );
+		yume_assert_contains( '<strong>1 sur 6</strong>', $html, 'chapitres en ligne N sur M' );
+		yume_assert_contains( 'Prochain : <strong>Chapitre 2, ', $html, 'prochain chapitre programmé' );
+		yume_assert_contains( 'name="chapitres_prevus" value="6"', $html );
+		yume_assert_contains( 'name="lien_epub" value="https://www.clictune.com/epub2"', $html );
+		yume_assert_contains( '<input type="checkbox" id="yn-tome-annoncer" name="annoncer" value="1" aria-describedby="yn-tome-annoncer-aide">', $html, 'case « Annoncer » décochée par défaut' );
+		yume_assert_contains( 'Annoncer « Le tome 2 est complet »', $html );
+		yume_assert_contains( 'Proposé par le site', $html, 'aucun choix manuel' );
+		yume_assert_same( 'https://www.clictune.com/pdf2', yume_liens_telechargement( $tome )['pdf'], 'tome « Publié » : liens montrés' );
+
+		// « En cours » choisi : écran de confirmation, rien ne change encore.
+		wp_set_current_user( $editeur );
+		$r = traiter_formulaire_tome( yume_tte_post_tome( $tome, array( 'etat' => 'en_cours' ) ), array(), $editeur );
+		yume_assert_same( 'yn-tome-etat-confirmation', $r['cible'], $r['message'] );
+		yume_assert_same( array( 'etat' => 'en_cours' ), $r['args'] ?? array() );
+		yume_assert_same( 'complet', yume_parution_tome( $tome ), 'rien ne change sans confirmation' );
+		$adresse = yume_tte_admin_post( 'Yume\\Core\\Planning\\admin_post_modifier_tome', yume_tte_post_tome( $tome, array( 'etat' => 'en_cours' ) ) );
+		yume_assert_same( url_modifier_tome( $tome, array( 'etat' => 'en_cours' ) ) . '#yn-tome-etat-confirmation', $adresse, 'redirection vers l’écran de confirmation' );
+		$html = yume_tte_rendu( $editeur, array_merge( $vue, array( 'etat' => 'en_cours' ) ) );
+		yume_assert_contains( 'id="yn-tome-etat-confirmation"', $html );
+		yume_assert_contains( 'name="action" value="yume_tome_etat"', $html );
+		yume_assert_contains( 'name="confirmer" value="1"', $html );
+		yume_assert_contains( '(« En cours de publication ») ?', $html );
+		yume_assert_contains( 'ne sont plus montrés aux lecteurs', $html );
+		yume_assert_contains( 'Oui, rouvrir le tome', $html );
+		yume_assert_not_contains( 'id="yn-tome-etat-confirmation"', yume_tte_rendu( $editeur, array_merge( $vue, array( 'etat' => 'complet' ) ) ), 'état déjà en place : pas d’écran' );
+
+		// Nonce invalide, traducteur : rien ne change.
+		yume_assert_same( 'erreur', yume_tte_confirmer_etat( $tome, 'en_cours', $editeur, array( '_yume_nonce' => 'faux' ) )['type'], 'nonce' );
+		$r = yume_tte_confirmer_etat( $tome, 'en_cours', yume_tte_membre( 'yume_traducteur' ) );
+		yume_assert_same( 'erreur', $r['type'], 'traducteur' );
+		yume_assert_contains( 'Votre rôle ne permet pas', $r['message'] );
+		yume_assert_same( 'complet', yume_parution_tome( $tome ) );
+
+		$r = yume_tte_confirmer_etat( $tome, 'en_cours', $editeur );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_contains( 'est rouvert', $r['message'] );
+		yume_assert_same( 'en_cours', yume_parution_tome( $tome ) );
+		yume_assert_same( 'https://www.clictune.com/pdf2', get_post_meta( $tome, 'yume_lien_pdf', true ), 'lien gardé en base' );
+		yume_assert_same(
+			array(
+				'pdf'  => '',
+				'epub' => '',
+			),
+			yume_liens_telechargement( $tome ),
+			'liens masqués aux lecteurs'
+		);
+		yume_assert_same( 'publish', get_post_status( $tome ), 'tome toujours en ligne' );
+		yume_assert_same( 'edition', get_post_meta( $tome, 'yume_etape', true ), 'planning remis à « Édition »' );
+		$choix = yume_parution_manuelle( $tome );
+		yume_assert_same( 'en_cours', $choix['etat'] ?? '', 'choix manuel noté' );
+		yume_assert_same( $editeur, $choix['par'] ?? 0 );
+		$journal = yume_tte_journal_parution( $tome );
+		yume_assert_same( 'complet', $journal[0]->ancien ?? '', 'journal : ancien état' );
+		yume_assert_same( '0', (string) ( $journal[0]->public ?? '' ), 'journal de l’équipe seulement' );
+		yume_assert_contains( '"rouvert":true', (string) ( $journal[0]->nouveau ?? '' ) );
+		yume_assert_contains(
+			'état : Publié → En cours de publication (liens PDF et EPUB masqués)',
+			\Yume\Core\Planning\texte_changement(
+				(object) array(
+					'champ'   => 'parution',
+					'ancien'  => $journal[0]->ancien,
+					'nouveau' => $journal[0]->nouveau,
+				),
+				true
+			)
+		);
+
+		// Choix manuel non écrasé : chapitre programmé publié, enregistrement sans changement d'état.
+		\Yume\Core\Core\etat_set( 'publies_yume_tome', array() );
+		$r = traiter_action_chapitre(
+			array(
+				'chapitre_id' => (string) $prochain,
+				'op'          => 'publier',
+				'_yume_nonce' => wp_create_nonce( 'yume_tome_chapitre_' . $prochain ),
+			),
+			$editeur
+		);
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		$r = traiter_formulaire_tome( yume_tte_post_tome( $tome ), array(), $editeur );
+		yume_assert_same( 'yn-tome-form', $r['cible'], 'aucun changement d’état demandé' );
+		yume_assert_same( 'en_cours', yume_parution_tome( $tome ), 'choix gardé' );
+		yume_assert_same( 'en_cours', yume_parution_manuelle( $tome )['etat'] ?? '', 'marque gardée' );
+		yume_assert_contains( 'Choisi par ', yume_tte_rendu( $editeur, $vue ) );
+	}
+);
+
+yume_tte_test(
+	'état du tome : « En cours » → « Publié » (Publication\Service::marquer_complet) — confirmation s’il manque des chapitres prévus, annonce seulement avec la case ; refus sans publish_yume_tomes et sans nonce',
 	function () {
 		$oeuvre = yume_tte_oeuvre( 'Grimgar' );
 		$tome   = yume_tte_tome( $oeuvre, 2 );
 		update_post_meta( $tome, 'yume_parution', 'en_cours' );
+		update_post_meta( $tome, 'yume_chapitres_prevus', 3 );
 		yume_tte_chapitre( $tome, 1 );
 		$editeur = yume_tte_membre( 'yume_editeur' );
 		wp_set_current_user( $editeur );
-		$post     = array(
-			'tome_id'     => (string) $tome,
-			'_yume_nonce' => wp_create_nonce( 'yume_tome_modifier_' . $tome ),
-			'oeuvre_id'   => (string) $oeuvre,
-			'nature'      => 'tome',
-			'numero'      => '2',
-			'titre'       => '',
-			'complet'     => '1',
-			'lien_pdf'    => 'https://exemple.test/t2.pdf',
-			'lien_epub'   => 'https://exemple.test/t2.epub',
+
+		// Moins de chapitres en ligne que prévu : confirmation ; les autres champs sont enregistrés.
+		$r = traiter_formulaire_tome(
+			yume_tte_post_tome(
+				$tome,
+				array(
+					'etat'      => 'complet',
+					'lien_epub' => 'https://exemple.test/t2.epub',
+				)
+			),
+			array(),
+			$editeur
 		);
+		yume_assert_same( 'yn-tome-etat-confirmation', $r['cible'], $r['message'] );
+		yume_assert_contains( 'est enregistré', $r['message'], 'champs enregistrés' );
+		yume_assert_same( 'https://exemple.test/t2.epub', get_post_meta( $tome, 'yume_lien_epub', true ) );
+		yume_assert_same( '', yume_liens_telechargement( $tome )['epub'], 'tome en cours : liens pas encore montrés' );
+		yume_assert_same( 'en_cours', yume_parution_tome( $tome ) );
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $tome,
+				'etat'     => 'complet',
+			)
+		);
+		yume_assert_contains( '2 chapitres prévus ne sont pas encore en ligne (1 sur 3). Le tome sera affiché « Publié » quand même.', $html );
+		yume_assert_contains( 'id="yn-tome-etat-annoncer" name="annoncer" value="1">', $html, 'case « Annoncer » décochée sur l’écran de confirmation' );
+		yume_assert_contains( 'Oui, passer à « Publié »', $html );
+
+		// Droits et nonce : rien ne change.
+		$r = yume_tte_sans_publier(
+			$editeur,
+			static function () use ( $tome, $editeur ) {
+				return yume_tte_confirmer_etat( $tome, 'complet', $editeur );
+			}
+		);
+		yume_assert_same( 'erreur', $r['type'], 'sans publish_yume_tomes' );
+		yume_assert_contains( 'publier ni de retirer', $r['message'] );
+		yume_assert_same( 'erreur', yume_tte_confirmer_etat( $tome, 'complet', $editeur, array( '_yume_nonce' => 'faux' ) )['type'], 'nonce' );
+		yume_assert_same( 'en_cours', yume_parution_tome( $tome ), 'rien ne change' );
+
+		// Confirmé sans la case : « Publié » sans annonce.
 		$complets = array();
 		$suivre   = static function ( $id, $annoncer ) use ( &$complets ) {
 			$complets[] = array( (int) $id, (bool) $annoncer );
 		};
 		add_action( 'yume_tome_complet', $suivre, 10, 2 );
 		$n = yume_tte_compter(
-			function () use ( $post, $editeur ) {
-				$r = traiter_formulaire_tome( $post, array(), $editeur );
+			function () use ( $tome, $editeur ) {
+				$r = yume_tte_confirmer_etat( $tome, 'complet', $editeur );
 				yume_assert_same( 'ok', $r['type'], $r['message'] );
+				yume_assert_contains( 'sans annonce', $r['message'] );
 			}
 		);
 		remove_action( 'yume_tome_complet', $suivre, 10 );
 		yume_assert_same( array( array( $tome, false ) ), $complets, 'passage complet par le service de publication, sans annonce' );
-		yume_assert_same( 'publie', get_post_meta( $tome, 'yume_etape', true ), 'planning « publié »' );
-		yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->alertes, $n->discord, $n->articles ), 'aucune annonce' );
-		yume_assert_same( 0, $n->mails, 'aucun e-mail' );
-		yume_assert_same( 'complet', get_post_meta( $tome, 'yume_parution', true ) );
+		yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->discord, $n->articles ), 'aucune annonce' );
 		yume_assert_same( 'complet', yume_parution_tome( $tome ) );
-		yume_assert_same( 'https://exemple.test/t2.pdf', get_post_meta( $tome, 'yume_lien_pdf', true ) );
-		yume_assert_same( 'https://exemple.test/t2.epub', get_post_meta( $tome, 'yume_lien_epub', true ) );
+		yume_assert_same( 'publie', get_post_meta( $tome, 'yume_etape', true ), 'planning « publié »' );
+		yume_assert_same( 'https://exemple.test/t2.epub', yume_liens_telechargement( $tome )['epub'], 'liens montrés' );
+		yume_assert_same( 'complet', yume_parution_manuelle( $tome )['etat'] ?? '' );
+
+		// Tous les chapitres prévus en ligne : sans confirmation ; case cochée : tome complet annoncé.
+		$t3 = yume_tte_tome( $oeuvre, 3 );
+		update_post_meta( $t3, 'yume_parution', 'en_cours' );
+		update_post_meta( $t3, 'yume_chapitres_prevus', 1 );
+		yume_tte_chapitre( $t3, 1 );
+		$n = yume_tte_compter(
+			function () use ( $t3, $editeur ) {
+				wp_set_current_user( $editeur );
+				$r = traiter_formulaire_tome(
+					yume_tte_post_tome(
+						$t3,
+						array(
+							'etat'     => 'complet',
+							'annoncer' => '1',
+						)
+					),
+					array(),
+					$editeur
+				);
+				yume_assert_same( 'yn-tome-etat', $r['cible'], $r['message'] );
+				yume_assert_contains( 'tome complet annoncé', $r['message'] );
+			}
+		);
+		yume_assert_same( 'complet', yume_parution_tome( $t3 ) );
+		yume_assert_same( 1, count( $n->articles ), 'article « Le tome 3 de Grimgar est complet »' );
+		yume_assert_same( 1, count( $n->discord ), 'Discord « Tome complet »' );
+	}
+);
+
+yume_tte_test(
+	'état du tome : « En cours » → « Planifié » retire la lecture après confirmation — chapitres en ligne et programmés en brouillon marqués retirés, tome et annonce en brouillon, e-mails en attente et sortie groupée programmée annulés ; la sortie suivante est annoncée et repasse « En cours »',
+	function () {
+		global $wpdb;
+		$oeuvre = yume_tte_oeuvre( 'Grimgar' );
+		$tome   = yume_tte_tome( $oeuvre, 2 );
+		update_post_meta( $tome, 'yume_parution', 'en_cours' );
+		update_post_meta( $tome, '_yume_publie_notifie', gmdate( 'Y-m-d H:i:s' ) );
+		$c1 = yume_tte_chapitre( $tome, 1 );
+		$c2 = yume_tte_chapitre( $tome, 2 );
+		$c3 = yume_tte_chapitre_programme( $tome, 3, time() + 2 * DAY_IN_SECONDS );
+		$c4 = yume_tte_chapitre( $tome, 4, 'draft' );
+		$c5 = yume_tte_chapitre( $tome, 5, 'draft' );
+
+		// Sortie groupée programmée des chapitres 4 et 5.
+		$sortie = Service::publier(
+			$tome,
+			wp_date( 'Y-m-d\TH:i', time() + 5 * DAY_IN_SECONDS ),
+			array(
+				'mode'   => Service::MODE_CHAPITRES,
+				'sortie' => 'date',
+			)
+		);
+		unset( $GLOBALS['wp_actions']['yume_publication_en_cours'] );
+		yume_assert_false( is_wp_error( $sortie ), is_wp_error( $sortie ) ? $sortie->get_error_message() : '' );
+		$groupe = get_post_meta( $tome, Service::META_GROUPE, true );
+		yume_assert_true( is_array( $groupe ), 'sortie groupée programmée' );
+		yume_assert_true( (bool) wp_next_scheduled( Service::HOOK_GROUPE, array( $tome, (int) $groupe['ts'] ) ), 'tâche de la sortie groupée' );
+
+		// Annonce parue et e-mail d'un abonné en attente.
+		$article = yume_factory_post(
+			array(
+				'post_type'   => 'post',
+				'post_status' => 'publish',
+				'post_title'  => 'Grimgar, Tome 2 : Chapitres 1 et 2 disponibles !',
+				'meta_input'  => array( Annonce::META_TOME => $tome ),
+			)
+		);
+		$lecteur = yume_factory_user();
+		\Yume\Core\Social\ajouter_favori( $lecteur, $oeuvre );
+		yume_assert_same( 1, \Yume\Core\Social\alerter_sortie( $tome ), 'e-mail mis en file' );
+		$table   = \Yume\Core\Planning\table_notifications();
+		$attente = static function () use ( $wpdb, $table, $tome ): int {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE statut = 'attente' AND contexte = %s", 'alerte_sortie_' . $tome ) );
+		};
+		yume_assert_same( 1, $attente() );
+
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$r = traiter_formulaire_tome( yume_tte_post_tome( $tome, array( 'etat' => 'a_paraitre' ) ), array(), $editeur );
+		yume_assert_same( 'yn-tome-etat-confirmation', $r['cible'], $r['message'] );
+		yume_assert_same( 'publish', get_post_status( $c1 ), 'rien ne change sans confirmation' );
 		$html = yume_tte_rendu(
 			$editeur,
 			array(
 				'vue'      => 'tomes',
 				'modifier' => (string) $tome,
+				'etat'     => 'a_paraitre',
 			)
 		);
-		yume_assert_true( (bool) preg_match( '#name="complet" value="1" checked#', $html ), 'case cochée' );
-		yume_assert_contains( '<span aria-hidden="true">✓</span> Complet</span>', $html );
-		yume_assert_contains( '>PDF · EPUB</span>', $html );
+		yume_assert_contains( 'à « Planifié » ?', $html );
+		yume_assert_contains( 'Ce qui va être retiré : 2 chapitres retirés de la lecture, 3 chapitres programmés annulés, page du tome retirée, annonce dépubliée ; les notifications déjà envoyées ne peuvent pas être rappelées.', $html );
+		yume_assert_contains( 'Oui, retirer de la lecture', $html );
+		yume_assert_not_contains( 'name="comprendre"', $html, 'tome en cours : pas de case « Je comprends »' );
 
-		// Décochée : le tome en ligne repasse « en cours ».
-		wp_set_current_user( $editeur );
-		$r = traiter_formulaire_tome( array_merge( $post, array( 'complet' => '0' ) ), array(), $editeur );
-		yume_assert_same( 'ok', $r['type'], $r['message'] );
-		yume_assert_same( 'en_cours', yume_parution_tome( $tome ) );
-
-		// Lien invalide : refusé, rien de modifié.
-		$r = traiter_formulaire_tome( array_merge( $post, array( 'lien_epub' => 'javascript:alert(1)' ) ), array(), $editeur );
+		// Sans publish_yume_tomes : refusé.
+		$r = yume_tte_sans_publier(
+			$editeur,
+			static function () use ( $tome, $editeur ) {
+				return yume_tte_confirmer_etat( $tome, 'a_paraitre', $editeur );
+			}
+		);
 		yume_assert_same( 'erreur', $r['type'] );
-		yume_assert_contains( 'Lien EPUB invalide', $r['message'] );
-		yume_assert_same( 'en_cours', yume_parution_tome( $tome ), 'rien de modifié' );
+		yume_assert_same( 'publish', get_post_status( $tome ) );
+
+		$r = yume_tte_confirmer_etat( $tome, 'a_paraitre', $editeur );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		yume_assert_contains( 'repasse « Planifié ». 2 chapitres retirés de la lecture', $r['message'] );
+		foreach ( array( $c1, $c2, $c3, $c4, $c5 ) as $c ) {
+			clean_post_cache( $c );
+			yume_assert_same( 'draft', get_post_status( $c ), 'chapitre ' . $c . ' en brouillon' );
+			yume_assert_same( '1', (string) get_post_meta( $c, '_yume_retire', true ), 'chapitre ' . $c . ' marqué retiré' );
+		}
+		clean_post_cache( $tome );
+		clean_post_cache( $article );
+		yume_assert_same( 'draft', get_post_status( $tome ), 'tome en brouillon : plus rien de lisible' );
+		yume_assert_same( 'draft', get_post_status( $article ), 'annonce en brouillon' );
+		yume_assert_same( 0, $attente(), 'e-mail en attente annulé' );
+		yume_assert_same( '', get_post_meta( $tome, Service::META_GROUPE, true ), 'sortie groupée annulée' );
+		yume_assert_false( wp_next_scheduled( Service::HOOK_GROUPE, array( $tome, (int) $groupe['ts'] ) ), 'tâche de la sortie groupée supprimée' );
+		yume_assert_same( 'a_paraitre', yume_parution_tome( $tome ) );
+		yume_assert_same( 'planifie', get_post_meta( $tome, 'yume_parution', true ) );
+		yume_assert_same( 'planifie', yume_parution_manuelle( $tome )['etat'] ?? '' );
+		yume_assert_false( metadata_exists( 'post', $tome, '_yume_publie_notifie' ), 'sortie oubliée : la prochaine sera annoncée' );
+		yume_assert_false( metadata_exists( 'post', $tome, '_yume_planning_depublie' ), 'retour au planning, pas une dépublication passagère' );
+		$journal = yume_tte_journal_parution( $tome );
+		yume_assert_contains( '"retires":2', (string) ( $journal[0]->nouveau ?? '' ) );
+		yume_assert_contains( '"annules":3', (string) ( $journal[0]->nouveau ?? '' ) );
+		yume_assert_contains(
+			'état : En cours de publication → Planifié (2 chapitres retirés de la lecture, 3 chapitres programmés annulés, tome retiré de la lecture)',
+			\Yume\Core\Planning\texte_changement(
+				(object) array(
+					'champ'   => 'parution',
+					'ancien'  => $journal[0]->ancien,
+					'nouveau' => $journal[0]->nouveau,
+				),
+				true
+			)
+		);
+
+		// La sortie suivante (« Ajouter des chapitres ») est annoncée normalement et repasse « En cours ».
+		yume_tte_chapitre( $tome, 6, 'draft' );
+		\Yume\Core\Core\etat_set( 'publies_yume_tome', array() );
+		$n = yume_tte_compter(
+			function () use ( $tome ) {
+				$s = Service::publier(
+					$tome,
+					'maintenant',
+					array(
+						'mode'   => Service::MODE_CHAPITRES,
+						'sortie' => 'maintenant',
+					)
+				);
+				yume_assert_false( is_wp_error( $s ), is_wp_error( $s ) ? $s->get_error_message() : '' );
+			}
+		);
+		yume_assert_same( array( $tome ), $n->tome, 'sortie du tome annoncée de nouveau (yume_tome_publie)' );
+		yume_assert_same( 'en_cours', yume_parution_tome( $tome ), 'publier un chapitre d’un tome « Planifié » : « En cours »' );
+		yume_assert_same( null, yume_parution_manuelle( $tome ), 'choix manuel remplacé par la publication' );
+		$journal = yume_tte_journal_parution( $tome );
+		yume_assert_contains( '"auto":true', (string) ( $journal[0]->nouveau ?? '' ), 'changement automatique journalisé' );
+		yume_assert_same( 'draft', get_post_status( $c1 ), 'chapitres retirés : jamais republiés d’office' );
+	}
+);
+
+yume_tte_test(
+	'état du tome : « Publié » → « Planifié » retire le tome entier — confirmation appuyée (case « Je comprends » obligatoire) ; liens gardés en base',
+	function () {
+		$oeuvre = yume_tte_oeuvre( 'Grimgar' );
+		$tome   = yume_tte_tome( $oeuvre, 4 );
+		update_post_meta( $tome, 'yume_parution', 'complet' );
+		$c1      = yume_tte_chapitre( $tome, 1 );
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		wp_set_current_user( $editeur );
+		$r = traiter_formulaire_tome( yume_tte_post_tome( $tome, array( 'etat' => 'a_paraitre' ) ), array(), $editeur );
+		yume_assert_same( 'yn-tome-etat-confirmation', $r['cible'], $r['message'] );
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $tome,
+				'etat'     => 'a_paraitre',
+			)
+		);
+		yume_assert_contains( 'entier de la lecture ?', $html );
+		yume_assert_contains( 'il disparaît entièrement de la lecture', $html );
+		yume_assert_contains( '1 chapitre retiré de la lecture, page du tome retirée, liens PDF et EPUB masqués ;', $html );
+		yume_assert_contains( 'name="comprendre" value="1" required', $html, 'case « Je comprends »' );
+
+		$r = yume_tte_confirmer_etat( $tome, 'a_paraitre', $editeur );
+		yume_assert_same( 'erreur', $r['type'], 'sans « Je comprends »' );
+		yume_assert_same( 'yn-tome-etat-confirmation', $r['cible'], 'l’écran de confirmation reste ouvert' );
+		yume_assert_contains( 'Je comprends', $r['message'] );
+		yume_assert_same( 'publish', get_post_status( $tome ), 'rien ne change' );
+
+		$r = yume_tte_confirmer_etat( $tome, 'a_paraitre', $editeur, array( 'comprendre' => '1' ) );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		clean_post_cache( $tome );
+		clean_post_cache( $c1 );
+		yume_assert_same( 'draft', get_post_status( $tome ) );
+		yume_assert_same( 'draft', get_post_status( $c1 ) );
+		yume_assert_same( 'https://www.clictune.com/pdf4', get_post_meta( $tome, 'yume_lien_pdf', true ), 'lien gardé en base' );
+		yume_assert_same( '', yume_liens_telechargement( $tome )['pdf'], 'mais masqué' );
+		yume_assert_same( 'a_paraitre', yume_parution_tome( $tome ) );
+	}
+);
+
+yume_tte_test(
+	'état du tome : « Planifié » → « En cours » sans chapitre en ligne (rien ne change, lien « Ajouter des chapitres ») ; « Planifié » → « Publié » publie le tome et ses chapitres en attente (catalogue sans annonce, ou annoncé), tome vide confirmé ; refus sans publish_yume_tomes',
+	function () {
+		$oeuvre  = yume_tte_oeuvre( 'Grimgar' );
+		$editeur = yume_tte_membre( 'yume_editeur' );
+		$vide    = yume_tte_tome( $oeuvre, 5, 'draft' );
+		delete_post_meta( $vide, 'yume_lien_pdf' );
+
+		// « En cours » sans chapitre en ligne : message et lien, rien ne change.
+		wp_set_current_user( $editeur );
+		$adresse = yume_tte_admin_post( 'Yume\\Core\\Planning\\admin_post_modifier_tome', yume_tte_post_tome( $vide, array( 'etat' => 'en_cours' ) ) );
+		yume_assert_same( url_modifier_tome( $vide ) . '#yn-tome-etat', $adresse );
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $vide,
+			)
+		);
+		yume_assert_contains( 'rien ne change', $html );
+		yume_assert_contains( '<p class="yn-etat__suite"><a class="yn-btn yn-btn--sm yn-btn--primary" href="' . esc_url( url_publier_tome( $vide ) ) . '">Ajouter des chapitres</a></p>', $html );
+		yume_assert_false( metadata_exists( 'post', $vide, 'yume_parution' ), 'parution inchangée' );
+		yume_assert_same( 'draft', get_post_status( $vide ) );
+
+		// « Publié » d'un tome vide : confirmation qui le dit, puis publication.
+		$r = traiter_formulaire_tome( yume_tte_post_tome( $vide, array( 'etat' => 'complet' ) ), array(), $editeur );
+		yume_assert_same( 'yn-tome-etat-confirmation', $r['cible'], $r['message'] );
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $vide,
+				'etat'     => 'complet',
+			)
+		);
+		yume_assert_contains( 'aucun chapitre ni lien PDF ou EPUB', $html );
+		yume_assert_contains( 'Oui, publier le tome', $html );
+		$r = yume_tte_sans_publier(
+			$editeur,
+			static function () use ( $vide, $editeur ) {
+				return yume_tte_confirmer_etat( $vide, 'complet', $editeur );
+			}
+		);
+		yume_assert_same( 'erreur', $r['type'], 'sans publish_yume_tomes' );
+		yume_assert_same( 'draft', get_post_status( $vide ) );
+		$r = yume_tte_confirmer_etat( $vide, 'complet', $editeur );
+		yume_assert_same( 'ok', $r['type'], $r['message'] );
+		clean_post_cache( $vide );
+		yume_assert_same( 'publish', get_post_status( $vide ), 'tome vide publié après confirmation' );
+		yume_assert_same( 'complet', yume_parution_tome( $vide ) );
+
+		// Tome et chapitres en attente, sans la case : ajout au catalogue sans annonce.
+		$tome = yume_tte_tome( $oeuvre, 6, 'draft' );
+		$c1   = yume_tte_chapitre( $tome, 1, 'draft' );
+		$c2   = yume_tte_chapitre( $tome, 2, 'draft' );
+		$html = yume_tte_rendu(
+			$editeur,
+			array(
+				'vue'      => 'tomes',
+				'modifier' => (string) $tome,
+				'etat'     => 'complet',
+			)
+		);
+		yume_assert_contains( 'Le tome et ses 2 chapitres en attente sont mis en ligne tout de suite.', $html );
+		unset( $GLOBALS['wp_actions']['yume_publication_en_cours'] );
+		$n = yume_tte_compter(
+			function () use ( $tome, $editeur ) {
+				$r = yume_tte_confirmer_etat( $tome, 'complet', $editeur );
+				yume_assert_same( 'ok', $r['type'], $r['message'] );
+				yume_assert_contains( 'sans annonce', $r['message'] );
+			}
+		);
+		yume_assert_same( array(), array_merge( $n->tome, $n->chap, $n->discord, $n->articles ), 'aucune annonce' );
+		clean_post_cache( $tome );
+		yume_assert_same( 'publish', get_post_status( $tome ) );
+		yume_assert_same( 'publish', get_post_status( $c1 ) );
+		yume_assert_same( 'publish', get_post_status( $c2 ) );
+		yume_assert_same( 'complet', yume_parution_tome( $tome ) );
+		yume_assert_same( 'https://www.clictune.com/pdf6', yume_liens_telechargement( $tome )['pdf'], 'liens montrés' );
+		$journal = yume_tte_journal_parution( $tome );
+		yume_assert_contains( '"publie":true', (string) ( $journal[0]->nouveau ?? '' ) );
+
+		// Case cochée : sortie annoncée.
+		$annonce = yume_tte_tome( $oeuvre, 7, 'draft' );
+		yume_tte_chapitre( $annonce, 1, 'draft' );
+		unset( $GLOBALS['wp_actions']['yume_publication_en_cours'] );
+		$n = yume_tte_compter(
+			function () use ( $annonce, $editeur ) {
+				$r = yume_tte_confirmer_etat( $annonce, 'complet', $editeur, array( 'annoncer' => '1' ) );
+				yume_assert_same( 'ok', $r['type'], $r['message'] );
+				yume_assert_contains( 'sortie annoncée', $r['message'] );
+			}
+		);
+		yume_assert_same( array( $annonce ), $n->tome, 'yume_tome_publie' );
+		yume_assert_same( 'complet', yume_parution_tome( $annonce ) );
+		yume_assert_same( 'publie', get_post_meta( $annonce, 'yume_etape', true ), 'planning « publié »' );
 	}
 );
 

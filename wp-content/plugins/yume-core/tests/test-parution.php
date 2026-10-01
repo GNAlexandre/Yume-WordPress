@@ -1,6 +1,7 @@
 <?php
 /**
- * Tests de la parution d'un tome (à paraître, en cours, complet) et du rythme de sortie.
+ * Tests de la parution d'un tome (à paraître, en cours, complet ; « planifie » choisi par l'équipe,
+ * liens masqués, passage automatique à « en cours ») et du rythme de sortie.
  *
  * @package Yume\Core
  */
@@ -82,6 +83,98 @@ yume_test(
 		update_post_meta( $tome, 'yume_parution', 'n’importe quoi' );
 		yume_assert_same( '', (string) get_post_meta( $tome, 'yume_parution', true ), 'valeur inconnue refusée' );
 		yume_assert_same( array( 'a_paraitre', 'en_cours', 'complet' ), array_keys( yume_parutions() ), 'libellés' );
+		yume_assert_same(
+			array(
+				'a_paraitre' => 'À paraître',
+				'en_cours'   => 'En cours',
+				'complet'    => 'Publié',
+			),
+			yume_parutions(),
+			'libellés des lecteurs'
+		);
+	}
+);
+
+yume_test(
+	'parution : « planifie » (état « Planifié » choisi par l’équipe) = à paraître ; liens PDF et EPUB masqués aux lecteurs tant que le tome n’est pas « Publié »',
+	static function () {
+		list( , $tome ) = yume_tpar_tome(
+			array(
+				'meta_input' => array(
+					'yume_lien_pdf'  => 'https://exemple.test/t2.pdf',
+					'yume_lien_epub' => 'https://exemple.test/t2.epub',
+				),
+			)
+		);
+		$chapitre       = yume_tpar_chapitre( $tome, 1 );
+		yume_assert_same( 'https://exemple.test/t2.pdf', yume_liens_telechargement( $tome )['pdf'], 'méta vide (tome antérieur) : liens montrés' );
+		update_post_meta( $tome, 'yume_parution', 'planifie' );
+		yume_assert_same( 'planifie', get_post_meta( $tome, 'yume_parution', true ), 'valeur acceptée' );
+		yume_assert_same( 'a_paraitre', yume_parution_tome( $tome ), 'tome en ligne mais « Planifié »' );
+		$vides = array(
+			'pdf'  => '',
+			'epub' => '',
+		);
+		yume_assert_same( $vides, yume_liens_telechargement( $tome ), 'planifie : liens masqués' );
+		yume_assert_same( $vides, yume_liens_telechargement( $chapitre ), 'liens du tome d’un chapitre masqués aussi' );
+		update_post_meta( $tome, 'yume_parution', 'en_cours' );
+		yume_assert_same( $vides, yume_liens_telechargement( $tome ), 'en_cours : liens masqués' );
+		yume_assert_true( yume_liens_tome_masques( $tome ) );
+		update_post_meta( $tome, 'yume_parution', 'complet' );
+		yume_assert_same( 'https://exemple.test/t2.epub', yume_liens_telechargement( $tome )['epub'], 'complet : liens montrés' );
+		yume_assert_false( yume_liens_tome_masques( $tome ) );
+
+		list( , $brouillon ) = yume_tpar_tome( array( 'post_status' => 'draft' ) );
+		update_post_meta( $brouillon, 'yume_parution', 'planifie' );
+		yume_assert_same( 'a_paraitre', yume_parution_tome( $brouillon ) );
+		yume_assert_same( null, yume_parution_manuelle( $brouillon ), 'aucun choix manuel noté' );
+	}
+);
+
+yume_test(
+	'parution : un chapitre publié dans un tome « Planifié » en ligne le fait passer « En cours » (choix manuel remplacé, journalisé) ; un tome « Planifié » publié reprend la règle historique',
+	static function () {
+		global $wpdb;
+		$editeur        = yume_factory_user( 'yume_editeur' );
+		list( , $tome ) = yume_tpar_tome();
+		yume_tpar_chapitre( $tome, 1 );
+		$suivant = yume_tpar_chapitre( $tome, 2, 'draft' );
+		\Yume\Core\Planning\noter_parution_manuelle( $tome, 'a_paraitre', $editeur );
+		yume_assert_same( 'planifie', yume_parution_manuelle( $tome )['etat'] ?? '', 'choix manuel noté' );
+		yume_assert_same( $editeur, yume_parution_manuelle( $tome )['par'] ?? 0 );
+		yume_assert_same( 'a_paraitre', yume_parution_tome( $tome ) );
+
+		add_filter( 'yume_core_notifier', '__return_false' );
+		wp_update_post(
+			array(
+				'ID'          => $suivant,
+				'post_status' => 'publish',
+			)
+		);
+		remove_filter( 'yume_core_notifier', '__return_false' );
+		yume_assert_same( 'en_cours', get_post_meta( $tome, 'yume_parution', true ), 'chapitre publié : « En cours de publication »' );
+		yume_assert_same( 'en_cours', yume_parution_tome( $tome ) );
+		yume_assert_same( null, yume_parution_manuelle( $tome ), 'marque du choix manuel effacée' );
+		$table = \Yume\Core\Planning\table_journal();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ligne = $wpdb->get_row( $wpdb->prepare( "SELECT ancien, nouveau, public FROM {$table} WHERE tome_id = %d AND champ = 'parution' ORDER BY id DESC LIMIT 1", $tome ) );
+		yume_assert_same( 'a_paraitre', $ligne->ancien ?? '', 'journal : ancien état' );
+		yume_assert_contains( '"auto":true', (string) ( $ligne->nouveau ?? '' ), 'journal : changement automatique' );
+		yume_assert_same( '0', (string) ( $ligne->public ?? '' ), 'journal de l’équipe seulement' );
+
+		// Tome « Planifié » publié hors du formulaire de publication : règle historique (méta vide).
+		list( , $planifie ) = yume_tpar_tome( array( 'post_status' => 'draft' ) );
+		update_post_meta( $planifie, 'yume_parution', 'planifie' );
+		add_filter( 'yume_core_notifier', '__return_false' );
+		wp_update_post(
+			array(
+				'ID'          => $planifie,
+				'post_status' => 'publish',
+			)
+		);
+		remove_filter( 'yume_core_notifier', '__return_false' );
+		yume_assert_false( metadata_exists( 'post', $planifie, 'yume_parution' ), 'méta vide' );
+		yume_assert_same( 'complet', yume_parution_tome( $planifie ), 'règle historique : tome de light novel complet' );
 	}
 );
 

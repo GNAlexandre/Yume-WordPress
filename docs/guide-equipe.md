@@ -124,19 +124,21 @@ recréé aux mises à jour.
 
 ### Tous les tomes, nouveau tome et fiche d'un tome (`/equipe/?vue=tomes`, éditeurs et gérants)
 
-**Tous les tomes** liste le catalogue, publiés compris, par œuvre. Filtre **Statut** : À paraître,
-En cours, Complets, Programmés (tome ou chapitre programmé), Brouillons. Chaque tome montre sa
-parution, « 3 chapitres sur 12 en ligne » quand le nombre de chapitres prévus est connu et le
+**Tous les tomes** liste le catalogue, publiés compris, par œuvre. Filtre **Statut** : Planifiés,
+En cours de publication, Publiés, Programmés (tome ou chapitre programmé), Brouillons. Chaque tome
+montre son état, « 3 chapitres sur 12 en ligne » quand le nombre de chapitres prévus est connu et le
 prochain chapitre programmé (« Chapitre 3 programmé le 11 oct. ») ; boutons **Ajouter des
 chapitres** (formulaire de publication, tome déjà choisi), **Voir** et **Modifier**.
 
-**États de parution** : rien à choisir, l'état suit les chapitres.
+**État d'un tome** : le site le propose (planning, chapitres publiés) et l'équipe peut le changer
+dans la fiche du tome (voir **Modifier** ci-dessous). Les lecteurs voient « À paraître », « En
+cours » et « Publié ».
 
-| État | Quand |
-| --- | --- |
-| **À paraître** | Dès la création, tant qu'aucun chapitre n'est en ligne (un tome programmé reste « à paraître » jusqu'à sa sortie). |
-| **En cours** | Au premier chapitre publié : le tome se lit en ligne, ses chapitres sortent au fil de l'eau. |
-| **Complet** | Quand l'équipe coche **Tome complet** : tous les chapitres sont en ligne, les liens PDF et EPUB s'ajoutent. |
+| État | Proposé quand | Ce que voient les lecteurs |
+| --- | --- | --- |
+| **Planifié** | Dès la création, tant qu'aucun chapitre n'est en ligne (un tome programmé reste « Planifié » jusqu'à sa sortie). | Le planning, pas de lecture. |
+| **En cours de publication** | Au premier chapitre publié (aussi pour un tome « Planifié » choisi à la main). | La lecture chapitre par chapitre, pas de PDF ni d'EPUB. |
+| **Publié** | Quand l'équipe coche **Tome complet** en ajoutant les derniers chapitres, ou choisit « Publié ». | Tous les chapitres, les liens PDF et EPUB. |
 
 **Nouveau tome** (bouton de *Tous les tomes* ; « Ajouter un tome au planning » du tableau de bord,
 du *Planning complet* et de la vue *Œuvres* mènent à la même page) : œuvre, nature, numéro, titre
@@ -149,18 +151,33 @@ d'en créer un second.
 
 **Modifier** (fiche du tome, dans l'espace équipe) :
 
-- les champs du tome (œuvre, nature, numéro, titre, responsables, date cible, chapitres prévus,
-  rythme), les **crédits** affichés sur la page du tome et la **couverture** (avec son cadrage) ;
-- l'encadré **Tome complet** : la case passe le tome à « Complet » et enregistre les liens PDF et
-  EPUB, **sans annonce** (décochée, un tome en ligne repasse « En cours ») ;
+- **État du tome** : trois boutons (Planifié, En cours de publication, Publié), l'état choisi mis en
+  avant, et sous chacun son encadré : **Planifié** (étape, date cible et avancement du planning,
+  lien « Ouvrir dans le planning »), **En cours de publication** (chapitres en ligne « 3 sur 12 »,
+  prochain chapitre programmé, chapitres prévus et rythme), **Publié** (liens PDF et EPUB, case
+  **Annoncer « Le tome 2 est complet »**, décochée par défaut). Le changement se fait à
+  **Enregistrer** ; s'il touche les lecteurs, un écran de confirmation dit ce qui va changer :
+
+  | Changement | Ce qui se passe |
+  | --- | --- |
+  | En cours → Publié | Liens affichés, planning « Publié » 100 % ; annonce seulement avec la case. Confirmation s'il manque des chapitres prévus. |
+  | Publié → En cours | Le tome est rouvert : liens gardés mais cachés aux lecteurs, planning remis à « Édition ». |
+  | Planifié → Publié | Le tome et ses chapitres en attente sont publiés maintenant (annoncés avec la case, sinon ajoutés au catalogue sans annonce). |
+  | Planifié → En cours | Seulement si des chapitres sont déjà en ligne ; sinon rien ne change et le bouton **Ajouter des chapitres** est proposé. |
+  | En cours ou Publié → Planifié | **Retire la lecture** (pour réparer une publication faite par erreur) : chapitres en ligne et programmés remis en brouillon, tome et annonce retirés, e-mails et notifications pas encore partis annulés, sortie groupée programmée annulée. Ceux déjà envoyés ne peuvent pas être rappelés. Depuis « Publié », il faut en plus cocher « Je comprends ». Pour remettre les chapitres en ligne, redéposez le fichier avec **Ajouter des chapitres** : la sortie est annoncée normalement. |
+
+  Un état choisi à la main est noté (« Choisi par … le … ») ; seule une publication de l'équipe
+  le change ensuite (un chapitre publié dans un tome « Planifié » le passe « En cours de
+  publication »), et ce changement figure au journal ;
+- les champs du tome (œuvre, nature, numéro, titre, responsables), les **crédits** affichés sur la
+  page du tome et la **couverture** (avec son cadrage) ;
 - la liste des **chapitres** (en ligne, programmés, brouillons) : **Voir** ou **Aperçu**, **Publier
   maintenant** et **Changer la date** (programmé ou brouillon, tome déjà en ligne ; la date proposée
   suit le rythme), **Retirer** (en ligne ou programmé : un écran demande confirmation, le chapitre
   repasse en brouillon, son adresse et ses commentaires sont gardés). Une ligne **À venir** compte
   les chapitres prévus pas encore déposés. La première sortie d'un tome passe toujours par
   **Ajouter des chapitres** (annonce comprise) ;
-- un résumé du **planning** (étape, avancement, lien vers sa ligne) et, en bas, **Édition avancée
-  (administration WordPress)**.
+- en bas, **Édition avancée (administration WordPress)**.
 
 ### Planning complet (`/equipe/?vue=planning`)
 
@@ -558,8 +575,8 @@ Tome 2, d'abord le prologue, puis un chapitre chaque samedi, puis « tome comple
 PDF et EPUB.
 
 **1 · Le tome.** Choisissez l'**œuvre**, puis le **tome** dans la liste : tous les tomes de
-l'œuvre y figurent, avec leur parution (« Tome 2 · en cours · 3 chapitres en ligne », « Tome 1 ·
-complet », « Tome 3 · à paraître »). Ouvert depuis un tome (par exemple depuis « Tous les
+l'œuvre y figurent, avec leur état (« Tome 2 · en cours de publication · 3 chapitres en ligne »,
+« Tome 1 · publié », « Tome 3 · planifié »). Ouvert depuis un tome (par exemple depuis « Tous les
 tomes »), le formulaire arrive avec ce tome déjà choisi. Une fiche rappelle sa parution, les chapitres en ligne, « 3 sur 12 » si le nombre de
 chapitres prévus est connu, et son rythme de sortie (« chaque samedi à 18 h »).
 
@@ -598,9 +615,12 @@ n'est jamais annoncé. Pour un tome **déjà paru et complet** (lecture en ligne
 c'est la case **« Ajout au catalogue »** qui apparaît, cochée d'office, comme en 5.4.
 
 **« Le tome est complet avec ces chapitres »** : cochez-la au dernier envoi (les champs des liens
-PDF et EPUB s'activent alors). Le tome passe « Complet », les liens s'affichent, le planning passe
+PDF et EPUB s'activent alors). Le tome passe « Publié », les liens s'affichent, le planning passe
 à « Publié », 100 %, et l'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB
 disponibles ». Si les derniers chapitres sont programmés, tout cela se fait à la sortie du dernier.
+L'état se change aussi à la main dans la fiche du tome (**Modifier**, voir 3) : « Publié » sans
+annonce par défaut, retour à « En cours de publication », ou retour à « Planifié » qui retire la
+lecture après une publication faite par erreur.
 
 **Ce qui va se passer** (à droite) récapitule l'envoi avant de cliquer : chapitres créés et leur
 date, chapitres mis à jour, annonce(s), planning (« en cours, 5 sur 12 au 18 oct. »), chapitres

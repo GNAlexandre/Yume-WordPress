@@ -1759,7 +1759,7 @@ yume_test(
 			yume_assert_contains( '<label for="yn-publish-planning" class="yn-label">Tome</label>', $html );
 			yume_assert_true( (bool) preg_match( '#<option value="' . $planifie . '" data-oeuvre="' . $oeuvre . '" data-nature="arc" data-numero="26,5"#', $html ), 'brouillon proposé avec ses données' );
 			yume_assert_true( (bool) preg_match( '#<option value="' . $programme . '"[^>]*>[^<]*programmé le#', $html ), 'programmé proposé' );
-			yume_assert_true( (bool) preg_match( '#<option value="' . $publie . '"[^>]*>Tome 1 · complet</option>#', $html ), 'tome sorti proposé, avec sa parution' );
+			yume_assert_true( (bool) preg_match( '#<option value="' . $publie . '"[^>]*>Tome 1 · publié</option>#', $html ), 'tome sorti proposé, avec sa parution' );
 			yume_assert_contains( '<optgroup label="Planning vers publication', $html );
 
 			// ?tome=ID : toujours prérempli, et sélectionné dans la liste.
