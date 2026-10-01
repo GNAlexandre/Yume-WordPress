@@ -141,7 +141,18 @@
 .yn-tome-list__actions {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
 	gap: 8px;
+}
+
+/* Tome en cours sans PDF ni EPUB : mention à la place des boutons de téléchargement. */
+.yn-tome-list__telechargement {
+	font-size: 13px;
+	line-height: 1.35;
+}
+
+.yn-tome-list__prochain {
+	white-space: nowrap;
 }
 
 /* Tomes anciens repliés. */

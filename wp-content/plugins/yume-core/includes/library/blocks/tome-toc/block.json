@@ -5,7 +5,7 @@
 	"title": "Sommaire du tome",
 	"category": "yume",
 	"icon": "editor-ol",
-	"description": "Chapitres publiés du tome avec sous-titres et temps de lecture ; chapitres à venir d’un arc en cours.",
+	"description": "Chapitres publiés du tome avec sous-titres et temps de lecture ; chapitres à venir (datés s’ils sont programmés) d’un tome en cours.",
 	"keywords": [
 		"sommaire",
 		"chapitres",

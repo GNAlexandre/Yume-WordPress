@@ -132,6 +132,110 @@ function element_fiche( string $terme, string $valeur ): string {
 
 /*
  * -----------------------------------------------------------------------------
+ * Parution d'un tome (publication chapitre par chapitre)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Nombre de chapitres prévus pour le tome (méta yume_chapitres_prevus), 0 si inconnu.
+ *
+ * @param int $tome_id Tome.
+ */
+function chapitres_prevus( int $tome_id ): int {
+	return max( 0, (int) get_post_meta( $tome_id, 'yume_chapitres_prevus', true ) );
+}
+
+/**
+ * Avancement d'un tome en cours : « 3 chapitres sur 12 » (tous les chapitres publiés, prologue
+ * et épilogue compris, comme les chapitres prévus) ; vide si le nombre prévu est inconnu.
+ *
+ * @param array $stats  Statistiques du tome (stats_tome()).
+ * @param int   $prevus Chapitres prévus.
+ */
+function texte_avancement( array $stats, int $prevus ): string {
+	if ( $prevus <= 0 ) {
+		return '';
+	}
+	$publies = (int) ( $stats['publies'] ?? 0 );
+	/* translators: 1 : chapitres en ligne, 2 : chapitres prévus. */
+	return sprintf( $publies > 1 ? __( '%1$s chapitres sur %2$s', 'yume-core' ) : __( '%1$s chapitre sur %2$s', 'yume-core' ), nombre_fr( $publies ), nombre_fr( max( $prevus, $publies ) ) );
+}
+
+/**
+ * Rythme de sortie d'un tome (méta yume_rythme) : « Un nouveau chapitre chaque samedi à 18 h » ;
+ * vide sans rythme.
+ *
+ * @param int $tome_id Tome.
+ */
+function texte_rythme( int $tome_id ): string {
+	$rythme = get_post_meta( $tome_id, 'yume_rythme', true );
+	$jour   = is_array( $rythme ) ? nom_jour( (string) ( $rythme['jour'] ?? '' ) ) : '';
+	if ( '' === $jour ) {
+		return '';
+	}
+	$heure = preg_match( '/^(\d{2}):(\d{2})$/', (string) ( $rythme['heure'] ?? '' ), $m ) ? heure_fr( (int) $m[1], (int) $m[2] ) : heure_fr( 18 );
+	/* translators: 1 : jour de la semaine (« samedi »), 2 : heure (« 18 h »). */
+	return sprintf( __( 'Un nouveau chapitre chaque %1$s à %2$s', 'yume-core' ), $jour, $heure );
+}
+
+/**
+ * Le tome a-t-il au moins un lien de téléchargement (PDF ou EPUB) ?
+ *
+ * @param int $tome_id Tome.
+ */
+function a_telechargement( int $tome_id ): bool {
+	if ( ! function_exists( 'yume_liens_telechargement' ) ) {
+		return false;
+	}
+	foreach ( yume_liens_telechargement( $tome_id ) as $url ) {
+		if ( est_url_http( (string) $url ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Mention qui remplace les boutons PDF / EPUB d'un tome en cours qui n'en a pas encore : courte
+ * (« PDF et EPUB quand le tome sera complet ») ou longue (« PDF et EPUB seront proposés quand les
+ * 12 chapitres seront en ligne. »). Vide pour un tome complet ou qui a déjà un lien.
+ *
+ * @param int    $tome_id Tome.
+ * @param array  $stats   Statistiques du tome.
+ * @param string $classe  Classe de l'élément.
+ * @param bool   $longue  Forme longue (page du tome).
+ */
+function mention_telechargement( int $tome_id, array $stats, string $classe, bool $longue = false ): string {
+	if ( empty( $stats['en_cours'] ) || a_telechargement( $tome_id ) ) {
+		return '';
+	}
+	$prevus = chapitres_prevus( $tome_id );
+	if ( ! $longue ) {
+		$texte = __( 'PDF et EPUB quand le tome sera complet', 'yume-core' );
+	} elseif ( $prevus > 1 ) {
+		/* translators: %s : nombre de chapitres prévus. */
+		$texte = sprintf( __( 'PDF et EPUB seront proposés quand les %s chapitres seront en ligne.', 'yume-core' ), nombre_fr( $prevus ) );
+	} else {
+		$texte = __( 'PDF et EPUB seront proposés quand le tome sera complet.', 'yume-core' );
+	}
+	$balise = $longue ? 'p' : 'span';
+	return '<' . $balise . ' class="' . esc_attr( $classe . ' yn-muted' ) . '">' . esc_html( $texte ) . '</' . $balise . '>';
+}
+
+/**
+ * Prochain chapitre programmé d'un tome en cours : balise <time> de sa date (« samedi 11 oct. »),
+ * vide s'il n'y en a pas ou si sa date est passée (publication imminente).
+ *
+ * @param array $stats Statistiques du tome.
+ * @param bool  $heure Afficher l'heure.
+ */
+function date_prochain_chapitre( array $stats, bool $heure = false ): string {
+	$ts = (int) ( $stats['prochain'] ?? 0 );
+	return ! empty( $stats['en_cours'] ) && $ts > time() ? balise_date_jour( $ts, $heure ) : '';
+}
+
+/*
+ * -----------------------------------------------------------------------------
  * yume/oeuvre-header
  * -----------------------------------------------------------------------------
  */
@@ -407,21 +511,25 @@ function ligne_tome( \WP_Post $tome, string $oeuvre ): string {
 		)
 	);
 
+	// Tome en cours : « 3 chapitres sur 12 » quand le nombre prévu est connu.
+	$en_cours    = ! empty( $stats['en_cours'] );
+	$avancement  = $en_cours ? texte_avancement( $stats, chapitres_prevus( $id ) ) : '';
 	$details     = array_filter(
 		array(
-			resume_chapitres( $stats ),
+			'' !== $avancement ? $avancement : resume_chapitres( $stats ),
 			texte_mots( (int) $stats['mots'] ),
 			duree_lecture( (int) $stats['minutes'] ),
 		),
 		'strlen'
 	);
 	$equivalence = meta_texte( $id, 'yume_equivalence' );
+	$prochain    = date_prochain_chapitre( $stats );
 
 	$nom = '' !== $lien ? '<a href="' . esc_url( $lien ) . '">' . esc_html( $libelle ) . '</a>' : esc_html( $libelle );
 	if ( '' !== $sous_titre ) {
 		$nom .= ' <span class="yn-tome-list__sous-titre">' . esc_html( $sous_titre ) . '</span>';
 	}
-	if ( ! empty( $stats['en_cours'] ) ) {
+	if ( $en_cours ) {
 		$nom .= ' ' . pastille( __( 'En cours', 'yume-core' ), 'ok', '●', 'yn-tome-list__en-cours' );
 	}
 
@@ -444,26 +552,34 @@ function ligne_tome( \WP_Post $tome, string $oeuvre ): string {
 	$classes = implode( ' ', array_map( 'sanitize_html_class', (array) ( $ligne['classes'] ?? array( 'yn-tome-list__ligne' ) ) ) );
 	$nom     = wp_kses_post( (string) ( $ligne['nom'] ?? $nom ) );
 	$details = array_filter( array_map( 'strval', (array) ( $ligne['details'] ?? array() ) ), 'strlen' );
-	$actions = wp_kses_post( (string) ( $ligne['lire'] ?? '' ) ) . boutons_telechargement( $id, $contexte );
+	$actions = wp_kses_post( (string) ( $ligne['lire'] ?? '' ) ) . boutons_telechargement( $id, $contexte ) . mention_telechargement( $id, $stats, 'yn-tome-list__telechargement' );
 
 	$html  = '<li class="' . esc_attr( $classes ) . '">';
 	$html .= '' !== $lien ? '<a class="yn-tome-list__couverture" href="' . esc_url( $lien ) . '" tabindex="-1" aria-hidden="true">' . $cover . '</a>' : '<span class="yn-tome-list__couverture">' . $cover . '</span>';
 	$html .= '<div class="yn-tome-list__infos"><h3 class="yn-tome-list__nom">' . $nom . '</h3>';
-	if ( $details ) {
-		$html .= '<p class="yn-tome-list__details yn-muted">' . esc_html( implode( ' · ', $details ) ) . '</p>';
+	if ( $details || '' !== $prochain ) {
+		$texte = esc_html( implode( ' · ', $details ) );
+		if ( '' !== $prochain ) {
+			/* translators: %s : date du prochain chapitre (« samedi 11 oct. »). */
+			$texte .= ( '' !== $texte ? ' · ' : '' ) . '<span class="yn-tome-list__prochain">' . sprintf( esc_html__( 'prochain chapitre %s', 'yume-core' ), $prochain ) . '</span>';
+		}
+		$html .= '<p class="yn-tome-list__details yn-muted">' . $texte . '</p>';
 	}
 	if ( '' !== $equivalence ) {
 		$html .= '<p class="yn-tome-list__equivalence yn-muted">' . esc_html( $equivalence ) . '</p>';
 	}
 	$html .= '</div>';
-	$html .= '<p class="yn-tome-list__date"><span class="yn-visually-hidden">' . esc_html__( 'Publié le', 'yume-core' ) . ' </span>' . balise_date( horodatage( $tome ), true ) . '</p>';
+	$html .= '<p class="yn-tome-list__date">' . ( $en_cours
+		? '<span class="yn-visually-hidden">' . esc_html__( 'En ligne', 'yume-core' ) . ' </span>' . esc_html__( 'depuis le', 'yume-core' ) . ' '
+		: '<span class="yn-visually-hidden">' . esc_html__( 'Publié le', 'yume-core' ) . ' </span>' ) . balise_date( horodatage( $tome ), true ) . '</p>';
 	$html .= '<div class="yn-tome-list__actions">' . $actions . '</div>';
 	return $html . '</li>';
 }
 
 /**
  * Rendu de yume/tome-list : tomes publiés de l'œuvre, du plus récent au plus ancien ; au-delà
- * de 6, les plus anciens sont repliés dans un <details>.
+ * de 6, les plus anciens sont repliés dans un <details>. Les tomes à paraître (brouillons,
+ * programmés) n'y figurent pas : le bloc yume/oeuvre-planning du module planning les annonce.
  *
  * @param array          $attributs Attributs du bloc.
  * @param \WP_Block|null $bloc      Instance du bloc.
@@ -673,8 +789,9 @@ function galerie_tome( int $tome_id, string $contexte ): string {
 }
 
 /**
- * Rendu de yume/tome-header : couverture, titre, crédits, équivalence, lecture, PDF / EPUB,
- * présentation et galerie d'illustrations.
+ * Rendu de yume/tome-header : couverture, titre, parution (« Tome en cours · 3 sur 12 »,
+ * rythme de sortie), crédits, équivalence, lecture, PDF / EPUB (ou mention d'attente pour un
+ * tome en cours), présentation et galerie d'illustrations.
  *
  * @param array          $attributs Attributs du bloc.
  * @param \WP_Block|null $bloc      Instance du bloc.
@@ -711,10 +828,17 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
 	foreach ( $types as $nom ) {
 		$pastilles .= pastille( $nom, 'info' );
 	}
-	if ( ! empty( $stats['en_cours'] ) ) {
-		$pastilles .= pastille( libelle_en_cours( $tome_id ), 'ok', '●' );
+	$en_cours = ! empty( $stats['en_cours'] );
+	$prevus   = $en_cours ? chapitres_prevus( $tome_id ) : 0;
+	if ( $en_cours ) {
+		$etat = libelle_en_cours( $tome_id );
+		if ( $prevus > 0 ) {
+			/* translators: 1 : « Tome en cours », 2 : chapitres en ligne, 3 : chapitres prévus. */
+			$etat = sprintf( __( '%1$s · %2$s sur %3$s', 'yume-core' ), $etat, nombre_fr( (int) $stats['publies'] ), nombre_fr( max( $prevus, (int) $stats['publies'] ) ) );
+		}
+		$pastilles .= pastille( $etat, 'ok', '●', 'yn-tome-header__parution' );
 	} elseif ( 'publish' !== get_post_status( $tome_id ) ) {
-		$pastilles .= pastille( __( 'Pas encore publié', 'yume-core' ), 'warn', '▲' );
+		$pastilles .= pastille( __( 'À paraître', 'yume-core' ), 'warn', '▲', 'yn-tome-header__parution' );
 	}
 
 	$details = array_filter(
@@ -726,6 +850,7 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
 		'strlen'
 	);
 	$date    = 'publish' === get_post_status( $tome_id ) ? balise_date( horodatage( $tome_id ), true ) : '';
+	$rythme  = $en_cours ? texte_rythme( $tome_id ) : '';
 
 	$credits = '';
 	$roles   = roles_credits();
@@ -777,10 +902,16 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
 	if ( $details || '' !== $date ) {
 		$ligne = esc_html( implode( ' · ', $details ) );
 		if ( '' !== $date ) {
-			/* translators: %s : date de publication. */
-			$ligne .= ( '' !== $ligne ? ' · ' : '' ) . sprintf( esc_html__( 'publié le %s', 'yume-core' ), $date );
+			$ligne .= ( '' !== $ligne ? ' · ' : '' ) . ( $en_cours
+				/* translators: %s : date de mise en ligne du premier chapitre. */
+				? sprintf( esc_html__( 'en ligne depuis le %s', 'yume-core' ), $date )
+				/* translators: %s : date de publication. */
+				: sprintf( esc_html__( 'publié le %s', 'yume-core' ), $date ) );
 		}
 		$html .= '<p class="yn-tome-header__details yn-muted">' . $ligne . '</p>';
+	}
+	if ( '' !== $rythme ) {
+		$html .= '<p class="yn-tome-header__rythme">' . esc_html( $rythme ) . '</p>';
 	}
 	$html .= '</div>';
 	$html .= '<div class="yn-tome-header__corps">';
@@ -796,6 +927,7 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
 	if ( '' !== $actions ) {
 		$html .= '<div class="yn-tome-header__actions">' . $actions . '</div>';
 	}
+	$html .= mention_telechargement( $tome_id, $stats, 'yn-tome-header__telechargement', true );
 	$html .= '</div>';
 	$html .= galerie_tome( $tome_id, $contexte );
 	return $html . '</div>';
@@ -809,7 +941,8 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
 
 /**
  * Rendu de yume/tome-toc : sommaire du tome (chapitres publiés, sous-titres, temps de
- * lecture ; chapitres planifiés « à venir » si le tome est un arc en cours).
+ * lecture ; si le tome est en cours : chapitres planifiés « à venir », datés s'ils sont
+ * programmés, et ligne « Chapitres N à M » pour les chapitres prévus pas encore créés).
  *
  * @param array          $attributs Attributs du bloc.
  * @param \WP_Block|null $bloc      Instance du bloc.
@@ -833,9 +966,13 @@ function rendu_tome_toc( array $attributs = array(), $bloc = null ): string {
 		),
 		'strlen'
 	);
-	if ( $en_cours && (int) $stats['a_venir'] > 0 ) {
+	// Chapitres prévus qui n'existent pas encore (ni programmés ni en brouillon).
+	$prevus    = $en_cours ? chapitres_prevus( $tome_id ) : 0;
+	$manquants = max( 0, $prevus - (int) $stats['publies'] - (int) $stats['a_venir'] );
+	$a_venir   = (int) $stats['a_venir'] + $manquants;
+	if ( $en_cours && $a_venir > 0 ) {
 		/* translators: %s : nombre de chapitres à venir. */
-		$resume[] = sprintf( __( '%s à venir', 'yume-core' ), nombre_fr( (int) $stats['a_venir'] ) );
+		$resume[] = sprintf( __( '%s à venir', 'yume-core' ), nombre_fr( $a_venir ) );
 	}
 
 	$html  = '<nav ' . attributs_racine( 'yn-toc', array( 'aria-labelledby' => $id ) ) . '>';
@@ -866,8 +1003,30 @@ function rendu_tome_toc( array $attributs = array(), $bloc = null ): string {
 		return $html . '</nav>';
 	}
 
+	// Ligne « Chapitres 5 à 10 à venir », placée après le dernier chapitre ordinaire (avant un
+	// épilogue ou une postface déjà prévus), numérotée à la suite du plus grand numéro.
+	$ligne_prevus = '';
+	$rang_prevus  = count( $liste ) - 1;
+	if ( $manquants > 0 ) {
+		$dernier_numero = 0;
+		foreach ( $liste as $rang => $chapitre ) {
+			$nature = (string) get_post_meta( $chapitre->ID, 'yume_nature', true );
+			$numero = get_post_meta( $chapitre->ID, 'yume_numero', true );
+			if ( ( '' === $nature || 'chapitre' === $nature ) && is_numeric( $numero ) ) {
+				$dernier_numero = max( $dernier_numero, (int) floor( (float) $numero ) );
+				$rang_prevus    = $rang;
+			}
+		}
+		$debut = $dernier_numero + 1;
+		$fin   = $dernier_numero + $manquants;
+		/* translators: 1 : premier numéro, 2 : dernier numéro. */
+		$numeros      = 1 === $manquants ? sprintf( __( 'Chapitre %s', 'yume-core' ), nombre_fr( $debut ) ) : sprintf( __( 'Chapitres %1$s à %2$s', 'yume-core' ), nombre_fr( $debut ), nombre_fr( $fin ) );
+		$ligne_prevus = '<li class="yn-toc__item yn-toc__item--a-venir yn-toc__item--prevus"><span class="yn-toc__lien"><span class="yn-toc__numero">' . esc_html( $numeros ) . '</span>'
+			. '<span class="yn-toc__sous-titre">' . esc_html__( 'à venir', 'yume-core' ) . '</span><span class="yn-toc__duree"></span></span></li>';
+	}
+
 	$html .= '<ol class="yn-card yn-toc__liste">' . $entree_illus;
-	foreach ( $liste as $chapitre ) {
+	foreach ( $liste as $rang => $chapitre ) {
 		$cid        = (int) $chapitre->ID;
 		$libelle    = libelle_chapitre( $cid );
 		$sous_titre = meta_texte( $cid, 'yume_sous_titre' );
@@ -878,15 +1037,17 @@ function rendu_tome_toc( array $attributs = array(), $bloc = null ): string {
 			$contenu .= '<span class="yn-toc__duree yn-muted">' . ( $minutes > 0 ? '<span class="yn-visually-hidden">' . esc_html__( 'Temps de lecture :', 'yume-core' ) . ' </span>' . esc_html( duree_lecture( $minutes ) ) : '' ) . '</span>';
 			$actuel   = $cid === $courant;
 			$html    .= '<li class="yn-toc__item' . ( $actuel ? ' is-current' : '' ) . '"><a class="yn-toc__lien" href="' . esc_url( (string) get_permalink( $cid ) ) . '"' . ( $actuel ? ' aria-current="page"' : '' ) . '>' . $contenu . '</a></li>';
-		} else {
-			if ( 'future' === $chapitre->post_status ) {
-				/* translators: %s : date de sortie prévue. */
-				$etat = sprintf( __( 'Prévu le %s', 'yume-core' ), date_courte( horodatage( $chapitre ) ) );
-			} else {
-				$etat = __( 'À venir', 'yume-core' );
-			}
-			$contenu .= '<span class="yn-toc__duree">' . pastille( $etat, 'info', '', 'yn-toc__a-venir' ) . '</span>';
+		} elseif ( 'future' === $chapitre->post_status ) {
+			// Chapitre programmé : sa date et son heure de sortie (sans lien).
+			$contenu .= '<span class="yn-toc__duree"><span class="yn-chip yn-chip--warn yn-toc__a-venir yn-toc__programme">'
+				. '<span class="yn-visually-hidden">' . esc_html__( 'Prévu le', 'yume-core' ) . ' </span>' . balise_date_jour( horodatage( $chapitre ), true ) . '</span></span>';
 			$html    .= '<li class="yn-toc__item yn-toc__item--a-venir"><span class="yn-toc__lien">' . $contenu . '</span></li>';
+		} else {
+			$contenu .= '<span class="yn-toc__duree">' . pastille( __( 'À venir', 'yume-core' ), 'info', '', 'yn-toc__a-venir' ) . '</span>';
+			$html    .= '<li class="yn-toc__item yn-toc__item--a-venir"><span class="yn-toc__lien">' . $contenu . '</span></li>';
+		}
+		if ( $rang === $rang_prevus ) {
+			$html .= $ligne_prevus;
 		}
 	}
 	$html .= '</ol>';

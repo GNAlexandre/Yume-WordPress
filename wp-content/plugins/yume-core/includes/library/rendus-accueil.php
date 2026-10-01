@@ -169,7 +169,9 @@ function libelle_en_cours( int $tome_id ): string {
 }
 
 /**
- * Carte d'une sortie (tome ou arc) dans la grille des dernières sorties.
+ * Carte d'une sortie (tome ou arc) dans la grille des dernières sorties ; un tome en cours
+ * (parution « en_cours », publication chapitre par chapitre) affiche son dernier chapitre :
+ * « Tome 2 · ch. 3 », bouton Lire vers ce chapitre, pastille « Tome en cours ».
  *
  * @param array $sortie Sortie : tome, ts (date), stats (statistiques du tome, facultatives).
  * @param int   $rang   Rang dans la grille (les premières couvertures ne sont pas différées).
@@ -205,7 +207,7 @@ function carte_sortie( array $sortie, int $rang ): string {
 		$meta[] = $date;
 	}
 
-	// Lire : premier chapitre publié, ou dernier chapitre d'un arc en cours (la nouveauté).
+	// Lire : premier chapitre publié, ou dernier chapitre d'un tome en cours (la nouveauté).
 	$lire = '';
 	if ( $en_cours && ! empty( $stats['dernier'] ) ) {
 		/* translators: 1 : chapitre (« ch. 8 »), 2 : œuvre et tome. */

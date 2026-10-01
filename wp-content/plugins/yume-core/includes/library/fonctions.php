@@ -241,6 +241,61 @@ function balise_date( int $ts, bool $annee = false ): string {
 }
 
 /**
+ * Jour de la semaine en minuscules (« samedi ») d'un rang ISO 8601 (1 = lundi … 7 = dimanche)
+ * ou d'une clé de yume_jours_semaine() (« samedi »).
+ *
+ * @param int|string $jour Rang ou clé.
+ */
+function nom_jour( $jour ): string {
+	$jours = function_exists( 'yume_jours_semaine' ) ? yume_jours_semaine() : array();
+	if ( is_int( $jour ) ) {
+		$jour = (string) ( array_keys( $jours )[ $jour - 1 ] ?? '' );
+	}
+	return isset( $jours[ $jour ] ) ? mb_strtolower( (string) $jours[ $jour ] ) : '';
+}
+
+/**
+ * Heure à la française : « 18 h », « 18 h 30 » (espace insécable).
+ *
+ * @param int $heure   Heure (0 à 23).
+ * @param int $minutes Minutes.
+ */
+function heure_fr( int $heure, int $minutes = 0 ): string {
+	return $heure . "\u{00A0}h" . ( $minutes > 0 ? "\u{00A0}" . sprintf( '%02d', $minutes ) : '' );
+}
+
+/**
+ * Date avec le jour de la semaine (fuseau du site) : « samedi 11 oct. », avec l'heure
+ * « samedi 11 oct., 18 h ». Chaîne vide pour un horodatage nul.
+ *
+ * @param int  $ts    Horodatage Unix.
+ * @param bool $heure Ajouter l'heure.
+ */
+function date_jour( int $ts, bool $heure = false ): string {
+	if ( $ts <= 0 ) {
+		return '';
+	}
+	$texte = trim( nom_jour( (int) wp_date( 'N', $ts ) ) . ' ' . date_courte( $ts ) );
+	if ( $heure ) {
+		$texte .= ', ' . heure_fr( (int) wp_date( 'G', $ts ), (int) wp_date( 'i', $ts ) );
+	}
+	return $texte;
+}
+
+/**
+ * Balise <time> d'une date avec le jour de la semaine (date_jour()).
+ *
+ * @param int  $ts    Horodatage Unix.
+ * @param bool $heure Ajouter l'heure.
+ */
+function balise_date_jour( int $ts, bool $heure = false ): string {
+	if ( $ts <= 0 ) {
+		return '';
+	}
+	return '<time datetime="' . esc_attr( gmdate( 'c', $ts ) ) . '">' . esc_html( date_jour( $ts, $heure ) ) . '</time>';
+}
+
+/**
  * Nombre entier à la française (« 84 000 », espace insécable).
  *
  * @param int $nombre Nombre.
