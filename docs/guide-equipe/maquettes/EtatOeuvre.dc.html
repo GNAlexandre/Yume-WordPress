@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — état des œuvres</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;border-radius:6px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:32px;padding:0 10px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #4a3b6e;white-space:nowrap;color:#ebe3f2}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.pink{color:#f3a6c8;border-color:#f3a6c8}.err{color:#ff8f7e;border-color:#ff8f7e}
+.muted{color:#b7a9cc}
+.inp{height:36px;box-sizing:border-box;padding:0 10px;border:1px solid #7f6aa8;border-radius:6px;background:#241740;color:#fff8fb;font:inherit;font-size:14px;width:100%}
+.side a{display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:6px;color:#ebe3f2;font-size:15px;border-left:3px solid transparent}
+.side a.cur{background:#3a2a63;color:#fff8fb;border-left-color:#f3a6c8}
+.side a.sub{padding-left:28px}
+.grp{padding:8px 14px;font-weight:600;color:#fff8fb;font-size:15px}
+.oe{display:grid;grid-template-columns:52px minmax(0,1.3fr) minmax(0,1.6fr) 240px auto;gap:16px;align-items:center;padding:14px 20px;border-top:1px solid #3f3060}
+.cov{width:52px;height:74px;border-radius:4px;background:linear-gradient(160deg,#5b3a7a,#2d1f4f 55%,#c2437e)}
+.tomes{display:flex;gap:6px;flex-wrap:wrap}
+.tomes .chip{height:22px;font-size:11px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1180px; box-sizing: border-box; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; padding: 40px 48px">
+  <nav class="side card" style="padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; align-self: start" aria-label="Espace équipe">
+    <a href="#">Tableau de bord</a>
+    <a href="#">Mes tâches</a>
+    <div class="grp">▾ Catalogue</div>
+    <a href="#" class="sub cur">Œuvres</a>
+    <a href="TousLesTomes.dc.html" class="sub">Tous les tomes</a>
+    <a href="Chapitre.dc.html" class="sub">Ajouter des chapitres</a>
+    <a href="#" class="sub">Lecture à compléter</a>
+    <a href="#" class="sub">Glossaires</a>
+    <div class="grp">▸ Planning</div>
+    <div class="grp">▸ Équipe</div>
+    <div class="grp">▸ Site</div>
+  </nav>
+
+  <main style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+    <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px">
+      <h1 style="font-size: 36px; font-weight: 800">Œuvres</h1>
+      <a href="#" class="btn pri">Nouvelle œuvre</a>
+    </header>
+    <p class="muted" style="margin: 0; max-width: 92ch">L’état de chaque œuvre se change ici, sans ouvrir sa fiche. Il s’affiche sur la bibliothèque, la fiche de l’œuvre et ses filtres. L’état de chaque tome est rappelé à côté.</p>
+
+    <form class="card" style="padding: 16px 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 12px 16px; align-items: end" aria-label="Filtrer les œuvres">
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="o-etat" style="color: #b7a9cc">État</label><select id="o-etat" class="inp" style="height: 42px"><option>Tous</option><option>En cours de publication</option><option>Terminée</option><option>En pause</option><option>Abandonnée</option><option>Licenciée</option></select></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="o-type" style="color: #b7a9cc">Type</label><select id="o-type" class="inp" style="height: 42px"><option>Tous</option></select></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="o-titre" style="color: #b7a9cc">Titre contient</label><input id="o-titre" class="inp" style="height: 42px" type="search"></div>
+      <button type="button" class="btn">Filtrer</button>
+    </form>
+
+    <section class="card" style="display: flex; flex-direction: column; overflow: hidden">
+      <div class="oe" style="border-top: 0; padding-top: 12px; padding-bottom: 8px"><span></span><span class="lbl" style="color: #b7a9cc">Œuvre</span><span class="lbl" style="color: #b7a9cc">Tomes</span><span class="lbl" style="color: #b7a9cc">État de l’œuvre</span><span></span></div>
+
+      <div class="oe">
+        <div class="cov"></div>
+        <div><div style="font-weight: 700; color: #fff8fb">SukaMoka</div><div class="muted" style="font-size: 13px">Light novel · VO : 5 tomes, en cours</div></div>
+        <div class="tomes"><span class="chip info" style="color: #fff8fb">T1 ✓ Publié</span><span class="chip ok">T2 ● En cours · 3/12</span><span class="chip warn">T3 ▲ Planifié</span></div>
+        <div><label class="lbl" for="e1" style="position: absolute; left: -9999px">État de SukaMoka</label><select id="e1" class="inp"><option>● En cours de publication</option><option>✓ Terminée</option><option>⏸ En pause</option><option>✕ Abandonnée</option><option>§ Licenciée</option></select></div>
+        <div style="display: flex; gap: 8px"><a href="#" class="btn sm">Modifier</a></div>
+      </div>
+
+      <div class="oe" style="background: #33245a">
+        <div class="cov"></div>
+        <div><div style="font-weight: 700; color: #fff8fb">Raven of the Inner Palace</div><div class="muted" style="font-size: 13px">Light novel · VO : 7 tomes, terminée</div></div>
+        <div class="tomes"><span class="chip info" style="color: #fff8fb">T1 à T6 ✓ Publiés</span><span class="chip info" style="color: #fff8fb">T7 ✓ Publié</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><select class="inp" aria-label="État de Raven of the Inner Palace"><option>● En cours de publication</option></select><span style="font-size: 12px; color: #8fd6a3">Tous les tomes de la VO sont publiés : <a href="#">passer à « Terminée »</a></span></div>
+        <div style="display: flex; gap: 8px"><a href="#" class="btn sm">Modifier</a></div>
+      </div>
+
+      <div class="oe">
+        <div class="cov"></div>
+        <div><div style="font-weight: 700; color: #fff8fb">Gimai Seikatsu</div><div class="muted" style="font-size: 13px">Light novel · VO : 12 tomes</div></div>
+        <div class="tomes"><span class="chip info" style="color: #fff8fb">T1 à T4 ✓ Publiés</span></div>
+        <div><select class="inp" aria-label="État de Gimai Seikatsu"><option>⏸ En pause</option></select></div>
+        <div style="display: flex; gap: 8px"><a href="#" class="btn sm">Modifier</a></div>
+      </div>
+
+      <div class="oe">
+        <div class="cov"></div>
+        <div><div style="font-weight: 700; color: #fff8fb">Roshidere (Manga)</div><div class="muted" style="font-size: 13px">Manga · éd. française Vega</div></div>
+        <div class="tomes"><span class="muted" style="font-size: 13px">Aucun tome</span></div>
+        <div><select class="inp" aria-label="État de Roshidere (Manga)"><option>§ Licenciée</option></select></div>
+        <div style="display: flex; gap: 8px"><a href="#" class="btn sm">Modifier</a></div>
+      </div>
+    </section>
+
+    <section class="card" style="padding: 18px 22px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px">
+      <div><span class="chip ok">● En cours de publication</span><p style="margin: 8px 0 0; font-size: 13px">L’équipe traduit et publie. Affiché « Traduction en cours ».</p></div>
+      <div><span class="chip info" style="color: #fff8fb">✓ Terminée</span><p style="margin: 8px 0 0; font-size: 13px">Tous les tomes prévus sont publiés. Plus de rappel de planning.</p></div>
+      <div><span class="chip warn">⏸ En pause</span><p style="margin: 8px 0 0; font-size: 13px">Reprise prévue. Les tomes planifiés restent au planning, sans rappels.</p></div>
+      <div><span class="chip err">✕ Abandonnée</span><p style="margin: 8px 0 0; font-size: 13px">Plus de traduction. Les tomes publiés restent lisibles.</p></div>
+      <div><span class="chip">§ Licenciée</span><p style="margin: 8px 0 0; font-size: 13px">Publiée officiellement en France. Lecture et liens retirés selon l’accord.</p></div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cycle de vie d’un tome</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.15}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #4a3b6e;white-space:nowrap;color:#ebe3f2}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}
+.muted{color:#b7a9cc}
+.etat{display:flex;flex-direction:column;gap:12px;padding:22px;min-width:0}
+.fleche{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;font-size:13px;color:#b7a9cc}
+.fleche b{font-size:28px;color:#f3a6c8;line-height:1}
+.mini{display:flex;flex-wrap:wrap;gap:6px}
+.mini span{font-size:12px;padding:2px 8px;border-radius:4px;background:#241740;border:1px solid #4a3b6e}
+ul{margin:0;padding-left:18px}li{margin:3px 0;font-size:14px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 48px; display: flex; flex-direction: column; gap: 28px">
+  <header style="display: flex; flex-direction: column; gap: 8px">
+    <div class="lbl">Cycle de vie d’un tome</div>
+    <h1 style="font-size: 34px; font-weight: 800">Planifié, en cours de publication, publié</h1>
+    <p class="muted" style="margin: 0; max-width: 90ch">Le site propose l’état à partir du planning et des chapitres publiés. L’équipe peut toujours le changer à la main dans « Modifier le tome » ou dans « Tous les tomes » ; son choix l’emporte.</p>
+  </header>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr) 150px minmax(0, 1fr); gap: 0; align-items: stretch">
+    <section class="card etat" style="border-color: #f4c069">
+      <span class="chip warn" style="align-self: flex-start">▲ Planifié</span>
+      <h2 style="font-size: 20px">En préparation</h2>
+      <div class="mini"><span>À faire</span><span>Traduction</span><span>Relecture</span><span>Édition</span></div>
+      <ul>
+        <li>Étapes, avancement, responsables et date cible du <b>planning</b></li>
+        <li>Rappels de retard actifs</li>
+        <li>Public : planning et fiche de l’œuvre « à paraître », pas de lecture</li>
+      </ul>
+    </section>
+    <div class="fleche"><b>→</b>Premier chapitre publié<br><span style="font-size: 12px">(automatique, ou choix manuel)</span></div>
+    <section class="card etat" style="border-color: #8fd6a3">
+      <span class="chip ok" style="align-self: flex-start">● En cours de publication</span>
+      <h2 style="font-size: 20px">Chapitre par chapitre</h2>
+      <div class="mini"><span>3 sur 12</span><span>Prochain : sam. 18 h</span></div>
+      <ul>
+        <li>Chapitres publiés ou programmés au rythme</li>
+        <li>Une annonce par sortie de chapitre</li>
+        <li>Planning : l’avancement suit les chapitres en ligne</li>
+        <li>Public : « En cours », sommaire avec chapitres à venir, pas de PDF/EPUB</li>
+      </ul>
+    </section>
+    <div class="fleche"><b>→</b>« Publié » choisi, ou case « Tome complet » au dernier envoi</div>
+    <section class="card etat" style="border-color: #7f6aa8">
+      <span class="chip info" style="align-self: flex-start; color: #fff8fb">✓ Publié</span>
+      <h2 style="font-size: 20px">Tous les chapitres en ligne</h2>
+      <div class="mini"><span>PDF</span><span>EPUB</span><span>Planning 100 %</span></div>
+      <ul>
+        <li>Liens de téléchargement affichés</li>
+        <li>Annonce « Le tome 2 est complet » (facultative)</li>
+        <li>Plus de rappel pour ce tome</li>
+        <li>Public : « Publié », lecture complète</li>
+      </ul>
+    </section>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px">
+    <section class="card etat" style="background: #241740">
+      <div class="lbl" style="color: #b7a9cc">Raccourci</div>
+      <p style="margin: 0; font-size: 14px"><b style="color: #fff8fb">Planifié → Publié</b> directement : un tome complet publié d’un coup (DOCX entier, case « Tome complet »). C’est le parcours d’avant, inchangé.</p>
+    </section>
+    <section class="card etat" style="background: #241740">
+      <div class="lbl" style="color: #b7a9cc">Retours en arrière</div>
+      <p style="margin: 0; font-size: 14px"><b style="color: #fff8fb">Publié → En cours</b> rouvre le tome (liens masqués). <b style="color: #fff8fb">En cours → Planifié</b> demande s’il faut laisser les chapitres lisibles ou les retirer. Toujours avec confirmation.</p>
+    </section>
+    <section class="card etat" style="background: #241740">
+      <div class="lbl" style="color: #b7a9cc">Et l’œuvre ?</div>
+      <p style="margin: 0; font-size: 14px">Elle a son propre état (En cours de publication, Terminée, En pause, Abandonnée, Licenciée). Quand tous les tomes de la VO sont « Publié », le site propose « Terminée » sans l’imposer.</p>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

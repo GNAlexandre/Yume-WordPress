@@ -1,0 +1,101 @@
+{
+	"_aide": [
+		"Une entrée par maquette de docs/guide-equipe/maquettes (sans l'extension). Toutes facultatives :",
+		"hauteur : hauteur de la page entière (défaut : canvas.json, sinon la hauteur du contenu) ;",
+		"css : styles ajoutés avant la capture (corriger un défaut d'affichage de la maquette) ;",
+		"remplacer : {de, par} remplace un texte (l'élément le plus petit qui le contient), {de, html} son contenu,",
+		"  exact: true pour un élément dont le texte est exactement « de » ; sert à aligner la maquette sur les",
+		"  libellés réels du site (le code fait foi) ;",
+		"retirer : textes dont l'élément est supprimé de la capture ;",
+		"zones : recadrages <maquette>-<zone>.png, union des éléments désignés (sélecteur CSS, ou {css, contient})."
+	],
+	"Main": {
+		"remplacer": [
+			{ "de": "Créer le tome seulement", "par": "Créer le tome" },
+			{ "de": "Les champs du formulaire « Ajouter un tome au planning » sont tous là.", "par": "Facultatifs : le nombre de chapitres prévus (pour « 3 chapitres sur 12 en ligne ») et le rythme (pour proposer la date du chapitre suivant). « Libre » : aucune date proposée." },
+			{ "de": "Le tome est ajouté au planning, sans fichier.", "par": "Le tome est ajouté au planning, sans fichier. Ses chapitres arrivent ensuite avec « Ajouter des chapitres » : un chapitre, plusieurs ou le tome entier." }
+		],
+		"zones": {
+			"contenu": [ "x-dc > div > :not(nav) > *" ]
+		}
+	},
+	"Chapitre": {
+		"css": ".ch{grid-template-columns:104px minmax(0,1fr) 92px 210px !important}",
+		"remplacer": [
+			{ "de": "Brouillon", "par": "Enregistrer en brouillon", "exact": true },
+			{ "de": "Programmer 2 chapitres", "par": "Programmer 2 chapitres un par un", "exact": true }
+		],
+		"zones": {
+			"contenu": [ "x-dc > div > :not(nav) > *" ],
+			"tome": [ { "css": "section", "contient": "1 · Le tome" } ],
+			"fichier": [ { "css": "section", "contient": "2 · Le fichier" } ],
+			"sortie": [ { "css": "section", "contient": "3 · La sortie" } ],
+			"complet": [ { "css": "section", "contient": "Le tome est complet avec ces chapitres" } ],
+			"resume": [ { "css": "section", "contient": "Ce qui va se passer" }, { "css": "button", "contient": "Prévisualiser" }, { "css": "p, div", "contient": "Réversible", "seul": true } ]
+		}
+	},
+	"TousLesTomes": {
+		"zones": {
+			"contenu": [ "x-dc > div > :not(nav) > *" ]
+		}
+	},
+	"TomeEnCours": {
+		"remplacer": [
+			{ "de": "Tous les chapitres sont en ligne : passer le tome à", "par": "Tous les chapitres sont en ligne : passer le tome à « Complet » (sans annonce)" }
+		],
+		"retirer": [ "Annoncer le tome complet" ],
+		"zones": {
+			"contenu": [ "x-dc > div > :not(nav) > *" ],
+			"chapitres": [ { "css": "section", "contient": "Pas encore déposés" } ],
+			"complet": [ { "css": "section", "contient": "Tome complet" } ]
+		}
+	},
+	"Public": {
+		"zones": {
+			"page": [ "x-dc > div > *" ]
+		}
+	},
+	"PublicTome": {
+		"zones": {
+			"page": [ "x-dc > div > *" ]
+		}
+	},
+	"CycleTome": {
+		"remplacer": [
+			{ "de": "Publié → En cours rouvre le tome", "html": "<strong style=\"color:#fff8fb\">Publié → En cours</strong> rouvre le tome (liens masqués). <strong style=\"color:#fff8fb\">En cours → Planifié</strong> retire les chapitres de la lecture : c’est la réparation d’une publication faite par erreur. Toujours avec confirmation." }
+		],
+		"zones": {
+			"page": [ "x-dc > div > *" ]
+		}
+	},
+	"EtatTome": {
+		"remplacer": [
+			{ "de": "3 chapitres sont en ligne. Choisissez", "par": "3 chapitres sont en ligne : ils sont retirés de la lecture (ils repassent en brouillon). Pour réparer une publication faite par erreur." },
+			{ "de": "Laisser en ligne", "par": "Annuler", "exact": true }
+		],
+		"zones": {
+			"contenu": [ "x-dc > div > :not(nav) > *" ],
+			"etats": [ { "css": "section", "contient": "État du tome" }, { "css": "section", "contient": "Si « Planifié »" }, { "css": "section", "contient": "Si « Publié »" } ],
+			"confirmations": [ { "css": "section", "contient": "Confirmation avant un changement" } ]
+		}
+	},
+	"EtatOeuvre": {
+		"remplacer": [
+			{ "de": "Lecture et liens retirés selon l’accord.", "par": "Publiée officiellement en France. Lecture en ligne et liens retirés automatiquement." },
+			{ "de": "Les tomes planifiés restent au planning, sans rappels.", "par": "Reprise prévue. Les tomes restent au planning, sans rappels ni alertes de retard." }
+		],
+		"zones": {
+			"contenu": [ "x-dc > div > :not(nav) > *" ]
+		}
+	},
+	"Schema-Menu": {
+		"zones": {
+			"page": [ "body > div > *" ]
+		}
+	},
+	"Schema-Planning": {
+		"zones": {
+			"page": [ "body > div > *" ]
+		}
+	}
+}

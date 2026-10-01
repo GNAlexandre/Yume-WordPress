@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — ajouter des chapitres à un tome</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:6px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.pink{color:#f3a6c8;border-color:#f3a6c8}
+.muted{color:#b7a9cc}
+.fld{display:flex;flex-direction:column;gap:6px}
+.inp{height:44px;box-sizing:border-box;padding:0 12px;border:1px solid #7f6aa8;border-radius:6px;background:#241740;color:#fff8fb;font:inherit;font-size:15px;width:100%}
+.inp.sm{height:36px;font-size:14px}
+.side a{display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:6px;color:#ebe3f2;font-size:15px;border-left:3px solid transparent}
+.side a.cur{background:#3a2a63;color:#fff8fb;border-left-color:#f3a6c8}
+.side a.sub{padding-left:28px}
+.grp{padding:8px 14px;font-weight:600;color:#fff8fb;font-size:15px}
+.tick{width:22px;height:22px;border-radius:50%;border:1.5px solid #8fd6a3;color:#8fd6a3;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.ch{display:grid;grid-template-columns:150px minmax(0,1fr) 170px 230px;gap:14px;align-items:center;padding:10px 14px;border-top:1px solid #3f3060;font-size:14px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1320px; box-sizing: border-box; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; padding: 40px 48px">
+  <nav class="side card" style="padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; align-self: start" aria-label="Espace équipe">
+    <a href="#">Tableau de bord</a>
+    <a href="#">Mes tâches</a>
+    <div class="grp">▾ Catalogue</div>
+    <a href="#" class="sub">Œuvres</a>
+    <a href="TousLesTomes.dc.html" class="sub">Tous les tomes</a>
+    <a href="Chapitre.dc.html" class="sub cur">Ajouter des chapitres</a>
+    <a href="#" class="sub">Lecture à compléter</a>
+    <a href="#" class="sub">Glossaires</a>
+    <div class="grp">▸ Planning</div>
+    <div class="grp">▸ Équipe</div>
+    <div class="grp">▸ Site</div>
+  </nav>
+
+  <main style="display: flex; flex-direction: column; gap: 22px; min-width: 0">
+    <header style="display: flex; flex-direction: column; gap: 8px">
+      <div class="lbl">Catalogue · ajouter des chapitres</div>
+      <h1 style="font-size: 36px; font-weight: 800">Ajouter des chapitres à un tome</h1>
+      <p class="muted" style="margin: 0; max-width: 84ch">Un seul formulaire pour tous les cas : un chapitre, plusieurs, ou le tome entier. Le DOCX est comparé au tome : les chapitres nouveaux sont ajoutés, ceux déjà en ligne restent tels quels sauf si vous choisissez de les mettre à jour. Rien n’est jamais retiré.</p>
+    </header>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start">
+      <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+
+        <section class="card" style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+          <div class="lbl">1 · Le tome</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px">
+            <div class="fld"><label class="lbl" for="oeuvre" style="color: #b7a9cc">Œuvre</label><select id="oeuvre" class="inp"><option>SukaMoka (LN)</option></select></div>
+            <div class="fld"><label class="lbl" for="tome" style="color: #b7a9cc">Tome</label><select id="tome" class="inp"><option>Tome 2 · en cours · 3 chapitres en ligne</option><option>Tome 1 · complet</option><option>+ Nouveau tome…</option></select></div>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="chip ok">● En cours</span>
+            <span class="chip info">Prologue, Chapitres 1 et 2 en ligne</span>
+            <span class="chip info">3 sur 12</span>
+            <a href="TomeEnCours.dc.html" style="font-size: 14px">Voir le suivi du tome</a>
+          </div>
+          <p class="muted" style="margin: 0; font-size: 13px">Plus de champ « Nature » ici : la nature et le numéro appartiennent au tome, choisis à sa création. Le formulaire ne peut plus renommer un tome par erreur.</p>
+        </section>
+
+        <section class="card" style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+          <div class="lbl">2 · Le fichier</div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px">
+            <div style="border: 2px dashed #f3a6c8; border-radius: 8px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f3a6c8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              <h2 style="font-size: 17px">Déposez le DOCX ou l’EPUB</h2>
+              <p class="muted" style="margin: 0; font-size: 14px">Le chapitre seul, ou le tome avec ses chapitres déjà parus : les deux marchent.</p>
+              <button type="button" class="btn" style="height: 38px">ou choisir un fichier</button>
+            </div>
+            <div class="card" style="background: #241740; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+              <div class="lbl" style="color: #b7a9cc">Fichier analysé</div>
+              <div style="font-weight: 700; color: #fff8fb">SukaMoka_T2_v4.docx</div>
+              <div style="font-size: 13px">5 chapitres repérés · 2 nouveaux</div>
+              <div style="display: flex; gap: 8px; align-items: center"><span class="tick">✓</span><span style="font-size: 13px">Dialogues et pensées reconnus</span></div>
+              <div style="display: flex; gap: 8px; align-items: center"><span class="tick" style="border-color: #f4c069; color: #f4c069">!</span><span style="font-size: 13px">1 description automatique Word ignorée</span></div>
+              <a href="#" style="font-size: 14px">Découpage à corriger ?</a>
+            </div>
+          </div>
+
+          <div class="card" style="background: #241740; display: flex; flex-direction: column">
+            <div class="ch" style="border-top: 0; padding-top: 12px"><span class="lbl" style="color: #b7a9cc">Chapitre</span><span class="lbl" style="color: #b7a9cc">Dans le fichier</span><span class="lbl" style="color: #b7a9cc">Sur le site</span><span class="lbl" style="color: #b7a9cc">Action</span></div>
+            <div class="ch"><strong style="color: #fff8fb">Prologue</strong><span class="muted">identique</span><span><span class="chip ok">En ligne</span></span><span class="muted">Inchangé</span></div>
+            <div class="ch"><strong style="color: #fff8fb">Chapitre 1</strong><span>12 corrections de relecture</span><span><span class="chip ok">En ligne</span></span><select class="inp sm" aria-label="Action pour le chapitre 1"><option>Garder la version en ligne</option><option>Mettre à jour (sans annonce)</option></select></div>
+            <div class="ch"><strong style="color: #fff8fb">Chapitre 2</strong><span class="muted">identique</span><span><span class="chip ok">En ligne</span></span><span class="muted">Inchangé</span></div>
+            <div class="ch" style="background: #2d1f4f"><strong style="color: #fff8fb">Chapitre 3</strong><span>La ville sans ciel · 4 120 mots</span><span><span class="chip pink">Nouveau</span></span><span>Sortie le <strong style="color: #fff8fb">sam. 11 oct. 18 h</strong></span></div>
+            <div class="ch" style="background: #2d1f4f"><strong style="color: #fff8fb">Chapitre 4</strong><span>Les cloches du port · 3 960 mots</span><span><span class="chip pink">Nouveau</span></span><span>Sortie le <strong style="color: #fff8fb">sam. 18 oct. 18 h</strong></span></div>
+          </div>
+        </section>
+
+        <section class="card" style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+          <div class="lbl">3 · La sortie des nouveaux chapitres</div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+            <label style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid #4a3b6e; border-radius: 6px"><input type="radio" name="sortie" style="margin-top: 4px"><span><strong style="color: #fff8fb">Maintenant</strong><br><span class="muted" style="font-size: 13px">Les 2 chapitres ensemble, une annonce.</span></span></label>
+            <label style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid #f3a6c8; background: #33245a; border-radius: 6px"><input type="radio" name="sortie" checked style="margin-top: 4px"><span><strong style="color: #fff8fb">Un par un, au rythme</strong><br><span class="muted" style="font-size: 13px">Chaque samedi 18 h à partir du 11 oct. Une annonce par chapitre.</span></span></label>
+            <label style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid #4a3b6e; border-radius: 6px"><input type="radio" name="sortie" style="margin-top: 4px"><span><strong style="color: #fff8fb">À une date</strong><br><span class="muted" style="font-size: 13px">Les 2 chapitres ensemble, le jour choisi.</span></span></label>
+          </div>
+          <label style="display: flex; gap: 12px; align-items: center"><input type="checkbox" checked><span><strong style="color: #fff8fb">Annoncer les nouveaux chapitres</strong> <span class="muted" style="font-size: 13px">(Discord #sorties et e-mail aux lecteurs qui suivent l’œuvre). Décochez pour un ajout silencieux.</span></span></label>
+        </section>
+
+        <section class="card" style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+          <label style="display: flex; gap: 12px; align-items: flex-start"><input type="checkbox" style="margin-top: 4px"><span><strong style="color: #fff8fb">Le tome est complet avec ces chapitres</strong><br><span class="muted" style="font-size: 13px">Cochez au dernier envoi : le tome passe « Complet », le planning à 100 %, et les liens ci-dessous s’affichent. L’annonce dit « Le tome 2 de SukaMoka est complet », avec PDF et EPUB.</span></span></label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; opacity: .55">
+            <div class="fld"><label class="lbl" for="pdf" style="color: #b7a9cc">Lien PDF</label><input id="pdf" class="inp" placeholder="https://…" disabled></div>
+            <div class="fld"><label class="lbl" for="epub" style="color: #b7a9cc">Lien EPUB</label><input id="epub" class="inp" placeholder="https://…" disabled></div>
+          </div>
+        </section>
+      </div>
+
+      <aside style="display: flex; flex-direction: column; gap: 20px">
+        <section class="card" style="padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <div class="lbl">Ce qui va se passer</div>
+          <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Chapitre 3</strong> programmé le sam. 11 oct. 18 h, sous le Tome 2</span></div>
+          <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Chapitre 4</strong> programmé le sam. 18 oct. 18 h</span></div>
+          <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Annonce</strong> à chaque sortie : « SukaMoka, Tome 2 : chapitre 3 disponible ! »</span></div>
+          <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Planning</strong> : en cours, 5 sur 12 au 18 oct.</span></div>
+          <div style="display: flex; gap: 10px"><span class="tick" style="border-color: #7f6aa8; color: #b7a9cc">–</span><span class="muted">Prologue et chapitres 1 et 2 inchangés : mêmes adresses, commentaires conservés</span></div>
+        </section>
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <button type="button" class="btn pri" style="height: 48px">Programmer 2 chapitres</button>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+            <button type="button" class="btn">Prévisualiser</button>
+            <button type="button" class="btn">Brouillon</button>
+          </div>
+          <p class="muted" style="margin: 0; font-size: 12px">Réversible : un chapitre déprogrammé ou dépublié disparaît du sommaire, le tome reste en ligne.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1320}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

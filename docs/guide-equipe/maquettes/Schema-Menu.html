@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Schéma — menu de l’espace équipe</title>
+<!-- Schéma du guide de l'équipe (pas une maquette d'écran) : le menu de l'espace équipe, entièrement
+     déplié, et qui voit chaque entrée. Source : entrees_navigation_equipe() (includes/planning/equipe.php)
+     et les vues ajoutées (glossaire, commentaires, indicateurs, santé du site). -->
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+h1,h2{font-family:"Outfit","Segoe UI",sans-serif;color:#fff8fb;margin:0;line-height:1.15}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:11px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap}
+.tous{color:#8fd6a3;border-color:#8fd6a3}.edit{color:#f3a6c8;border-color:#f3a6c8}.ger{color:#f4c069;border-color:#f4c069}
+.muted{color:#b7a9cc}
+.ligne{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px;padding:0 14px;border-radius:6px}
+.sub{padding-left:30px}
+.grp{padding:10px 14px 4px;font-weight:700;color:#fff8fb}
+.desc{font-size:13px;color:#b7a9cc}
+</style>
+</head>
+<body>
+<div style="width:1440px;box-sizing:border-box;padding:40px 48px;display:grid;grid-template-columns:520px minmax(0,1fr);gap:40px">
+  <nav class="card" style="padding:16px 12px;display:flex;flex-direction:column;gap:2px" aria-label="Espace équipe">
+    <div class="ligne"><span>Tableau de bord</span><span class="chip tous">Tous</span></div>
+    <div class="ligne"><span>Mes tâches <span class="chip ger" style="margin-left:6px">2 en retard</span></span><span class="chip tous">Tous</span></div>
+    <div class="grp">▾ Catalogue</div>
+    <div class="ligne sub"><span>Œuvres</span><span class="chip edit">Éditeurs, gérants</span></div>
+    <div class="ligne sub"><span>Tous les tomes</span><span class="chip edit">Éditeurs, gérants</span></div>
+    <div class="ligne sub"><span>Ajouter des chapitres</span><span class="chip edit">Éditeurs, gérants</span></div>
+    <div class="ligne sub"><span>Lecture à compléter</span><span class="chip edit">Éditeurs, gérants</span></div>
+    <div class="ligne sub"><span>Glossaires</span><span class="chip edit">Éditeurs, gérants</span></div>
+    <div class="grp">▾ Planning</div>
+    <div class="ligne sub"><span>Planning complet</span><span class="chip tous">Tous</span></div>
+    <div class="ligne sub"><span>Journal</span><span class="chip tous">Tous</span></div>
+    <div class="grp">▾ Équipe</div>
+    <div class="ligne sub"><span>Membres et rôles</span><span class="chip ger">Gérants</span></div>
+    <div class="ligne sub"><span>Commentaires (3)</span><span class="chip edit">Éditeurs, gérants</span></div>
+    <div class="grp">▾ Site</div>
+    <div class="ligne sub"><span>Indicateurs</span><span class="chip ger">Gérants</span></div>
+    <div class="ligne sub"><span>Santé du site</span><span class="chip ger">Gérants</span></div>
+    <div class="ligne sub"><span>Réglages</span><span class="chip ger">Gérants</span></div>
+    <div style="border-top:1px solid #4a3b6e;margin:10px 14px 0;padding-top:10px" class="muted">Votre pseudo · votre rôle<br><span style="text-decoration:underline;color:#ebe3f2">Se déconnecter</span></div>
+  </nav>
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div class="lbl">Schéma · le menu de l’espace équipe</div>
+    <h1 style="font-size:40px">Chacun voit les entrées de son rôle</h1>
+    <p class="muted" style="margin:0;font-size:17px;max-width:760px">Le menu est à gauche de chaque page de l’espace équipe (<strong style="color:#fff8fb">yumenovel.fr/equipe/</strong>). Les quatre rubriques se replient&nbsp;: celle de la page affichée est ouverte. Une entrée absente n’est pas une panne&nbsp;: votre rôle n’en a pas besoin.</p>
+    <div class="card" style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;gap:12px;align-items:baseline"><span class="chip tous">Tous</span><span>Traducteurs, relecteurs, graphistes, éditeurs et gérants.</span></div>
+      <div style="display:flex;gap:12px;align-items:baseline"><span class="chip edit">Éditeurs, gérants</span><span>Éditeurs Yume et gérants&nbsp;: catalogue, publication, glossaires, commentaires.</span></div>
+      <div style="display:flex;gap:12px;align-items:baseline"><span class="chip ger">Gérants</span><span>Gérants seulement&nbsp;: membres, indicateurs, santé du site, réglages.</span></div>
+    </div>
+    <div class="card" style="padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px">
+      <div><strong style="color:#fff8fb">Catalogue</strong><div class="desc">Les œuvres, les tomes, l’ajout de chapitres et les glossaires.</div></div>
+      <div><strong style="color:#fff8fb">Planning</strong><div class="desc">Tous les tomes en préparation, leur avancement et l’historique des mises à jour.</div></div>
+      <div><strong style="color:#fff8fb">Équipe</strong><div class="desc">Les membres et leurs rôles ; les commentaires à modérer (l’entrée n’apparaît que s’il y en a).</div></div>
+      <div><strong style="color:#fff8fb">Site</strong><div class="desc">Les chiffres du site, le bon fonctionnement des rappels et des e-mails, les réglages.</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
