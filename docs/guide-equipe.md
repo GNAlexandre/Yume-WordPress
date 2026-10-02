@@ -4,8 +4,12 @@ Ce guide s'adresse aux traducteurs, relecteurs, graphistes, éditeurs et gérant
 explique comment se connecter, tenir le planning à jour, publier un tome et s'occuper des lecteurs,
 **sans passer par le code ni par les réglages techniques de WordPress**.
 
-> Les écrans de la v2 sont en cours de construction : les libellés peuvent encore bouger un peu.
-> Ce guide suit le fonctionnement arrêté par l'équipe (maquettes validées et contrat technique).
+> Ce guide suit le fonctionnement arrêté par l'équipe (maquettes validées et contrat technique) et
+> le site tel qu'il est en ligne depuis le 29 septembre 2026.
+>
+> **Version Word à distribuer à l'équipe**, procédures pas à pas avec captures :
+> [guide-equipe/Guide-equipe-Yume-Novel.docx](guide-equipe/Guide-equipe-Yume-Novel.docx) (source :
+> [guide-equipe/procedures.md](guide-equipe/procedures.md)).
 
 ## 1. Qui peut faire quoi
 
@@ -41,9 +45,14 @@ voir tous les menus.
 - Traducteurs, relecteurs et graphistes travaillent uniquement dans l'espace équipe : s'ils ouvrent
   l'administration WordPress (`/wp-admin/`), ils y sont renvoyés automatiquement (seule la page
   **Profil** reste accessible).
-- Sécurité : un mot de passe propre à Yume (gestionnaire de mots de passe recommandé) ; activez la
-  **validation en deux étapes** proposée par WordPress.com / Jetpack si vous publiez. Ne partagez
-  jamais un compte : chaque action est enregistrée au nom de son auteur dans le journal.
+- Sécurité : un mot de passe propre à Yume (gestionnaire de mots de passe recommandé). La
+  **validation en deux étapes de WordPress.com** ne protège que la page de connexion WordPress
+  (celle des administrateurs) : elle ne s'applique pas au formulaire `/connexion/`. Pour les
+  éditeurs et les gérants, la recommandation est l'extension **Two-Factor** (installée sur le site,
+  à activer par un administrateur) : chacun la configure dans *Profil → Options de double
+  authentification* (application TOTP et codes de secours), et elle s'applique aussi à
+  `/connexion/`. Ne partagez jamais un compte : chaque action est enregistrée au nom de son auteur
+  dans le journal.
 
 ## 3. L'espace équipe (`/equipe/`)
 
@@ -54,7 +63,7 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Publier un tome, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; pour les gérants
+- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Ajouter des chapitres, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; pour les gérants
   **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
@@ -65,14 +74,30 @@ fiche** (tome publié), **Historique** (le journal de ce tome) et **Gérer dans 
 
 ### Œuvres, nouvelle œuvre et genres (`/equipe/?vue=oeuvres`, éditeurs et gérants)
 
-Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut ou par titre. Pour
-chaque œuvre : **Voir** (publiée) ou **Publier** (brouillon), **Modifier**, **Ajouter un tome au
-planning** (le formulaire du tableau de bord s'ouvre avec l'œuvre déjà choisie) et **Publier un
-tome**.
+Toutes les œuvres du catalogue, **brouillons compris**, filtrables par statut, par état ou par
+titre. Pour chaque œuvre : ses tomes et leur état (« T1 à T6 ✓ Publiés », « T7 ● En cours de
+publication », « T8 ○ Planifié »), son **état** à changer sur place (liste déroulante puis
+**Changer**), **Voir** (publiée) ou **Publier** (brouillon), **Modifier**, **Ajouter un tome au
+planning** (la page **Nouveau tome** s'ouvre avec l'œuvre déjà choisie) et **Ajouter des
+chapitres**.
 
-**Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » sous
-« Ajouter un tome au planning ») et **Modifier** utilisent le même formulaire : titre, type, statut
-de la traduction, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), genres
+**État de l'œuvre** (aussi dans **Modifier**) — une légende le rappelle sous la liste :
+
+- **En cours de publication** : l'équipe traduit et publie ; rappels de planning actifs.
+- **Terminée**, **En pause**, **Abandonnée** : plus aucun retard, rappel ni alerte de planning
+  pour ses tomes (ils affichent « Œuvre en pause », « Œuvre terminée »… dans l'espace équipe) ;
+  rien ne change pour les lecteurs. Quand tous les tomes de la VO sont publiés (fiche détaillée :
+  VO terminée et nombre de tomes), le site propose **passer à « Terminée »** : jamais automatique.
+- **Licenciée** (une page de confirmation dit ce qui sera retiré) : les chapitres en ligne ou
+  programmés repassent en brouillon (adresses et commentaires gardés), les liens PDF et EPUB des
+  tomes sont mis de côté et les e-mails d'alerte en attente annulés ; la fiche et les tomes restent
+  en ligne avec la mention « Licenciée ». En quittant « Licenciée », la case **Remettre en ligne la
+  lecture et les liens retirés à la licence** (cochée) rétablit tout, **sans annonce ni
+  notification** ; décochée, tout reste de côté.
+
+**Nouvelle œuvre** (bouton en haut de la vue, ou lien « L'œuvre n'existe pas encore ? » de la page
+**Nouveau tome**) et **Modifier** utilisent le même formulaire : titre, type, état de
+l'œuvre, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), genres
 (cases à cocher, ou « Ajouter des genres absents de la liste »), synopsis (une ligne vide sépare
 deux paragraphes ; `<strong>gras</strong>` et `<em>italique</em>` sont conservés) et couverture
 (JPG, PNG ou WebP). La partie repliable **Fiche détaillée** contient le statut et le nombre de tomes
@@ -96,6 +121,63 @@ de la VO, la source de la traduction, les jours de sortie, l'équipe affichée e
 Aventure, Isekai, Romance, Slice of life…). Ajoutez-en (plusieurs à la fois, séparés par des
 virgules) ou supprimez-en ; un genre supprimé est retiré des œuvres qui l'avaient et n'est pas
 recréé aux mises à jour.
+
+### Tous les tomes, nouveau tome et fiche d'un tome (`/equipe/?vue=tomes`, éditeurs et gérants)
+
+**Tous les tomes** liste le catalogue, publiés compris, par œuvre. Filtre **Statut** : Planifiés,
+En cours de publication, Publiés, Programmés (tome ou chapitre programmé), Brouillons. Chaque tome
+montre son état, « 3 chapitres sur 12 en ligne » quand le nombre de chapitres prévus est connu et le
+prochain chapitre programmé (« Chapitre 3 programmé le 11 oct. ») ; boutons **Ajouter des
+chapitres** (formulaire de publication, tome déjà choisi), **Voir** et **Modifier**.
+
+**État d'un tome** : le site le propose (planning, chapitres publiés) et l'équipe peut le changer
+dans la fiche du tome (voir **Modifier** ci-dessous). Les lecteurs voient « À paraître », « En
+cours » et « Publié ».
+
+| État | Proposé quand | Ce que voient les lecteurs |
+| --- | --- | --- |
+| **Planifié** | Dès la création, tant qu'aucun chapitre n'est en ligne (un tome programmé reste « Planifié » jusqu'à sa sortie). | Le planning, pas de lecture. |
+| **En cours de publication** | Au premier chapitre publié (aussi pour un tome « Planifié » choisi à la main). | La lecture chapitre par chapitre, pas de PDF ni d'EPUB. |
+| **Publié** | Quand l'équipe coche **Le tome est complet : tout publier maintenant**, à la sortie du dernier chapitre avec **Publier les liens avec le dernier chapitre**, ou quand elle choisit « Publié ». | Tous les chapitres, les liens PDF et EPUB. |
+
+**Nouveau tome** (bouton de *Tous les tomes* ; « Ajouter un tome au planning » du tableau de bord,
+du *Planning complet* et de la vue *Œuvres* mènent à la même page) : œuvre, nature, numéro, titre
+facultatif, étape de départ, responsables, date cible, et, facultatifs, **Chapitres prévus** et
+**Rythme** (« Libre » ou un jour de la semaine, 18 h par défaut : la date du chapitre suivant est
+alors proposée). Le tome est créé en brouillon, sans fichier ni annonce.
+**Créer le tome** ouvre sa fiche ; **Créer le tome et ajouter un chapitre** ouvre le formulaire de
+publication. Si l'œuvre a déjà un tome de même nature et de même numéro, sa fiche s'ouvre au lieu
+d'en créer un second.
+
+**Modifier** (fiche du tome, dans l'espace équipe) :
+
+- **État du tome** : trois boutons (Planifié, En cours de publication, Publié), l'état choisi mis en
+  avant, et sous chacun son encadré : **Planifié** (étape, date cible et avancement du planning,
+  lien « Ouvrir dans le planning »), **En cours de publication** (chapitres en ligne « 3 sur 12 »,
+  prochain chapitre programmé, chapitres prévus et rythme), **Publié** (liens PDF et EPUB, case
+  **Annoncer « Le tome 2 est complet »**, décochée par défaut). Le changement se fait à
+  **Enregistrer** ; s'il touche les lecteurs, un écran de confirmation dit ce qui va changer :
+
+  | Changement | Ce qui se passe |
+  | --- | --- |
+  | En cours → Publié | Liens affichés, planning « Publié » 100 % ; annonce seulement avec la case. Confirmation s'il manque des chapitres prévus. |
+  | Publié → En cours | Le tome est rouvert : liens gardés mais cachés aux lecteurs, planning remis à « Édition ». |
+  | Planifié → Publié | Le tome et ses chapitres en attente sont publiés maintenant (annoncés avec la case, sinon ajoutés au catalogue sans annonce). |
+  | Planifié → En cours | Seulement si des chapitres sont déjà en ligne ; sinon rien ne change et le bouton **Ajouter des chapitres** est proposé. |
+  | En cours ou Publié → Planifié | **Retire la lecture** (pour réparer une publication faite par erreur) : chapitres en ligne et programmés remis en brouillon, tome et annonce retirés, e-mails et notifications pas encore partis annulés, sortie groupée programmée annulée. Ceux déjà envoyés ne peuvent pas être rappelés. Depuis « Publié », il faut en plus cocher « Je comprends ». Pour remettre les chapitres en ligne, redéposez le fichier avec **Ajouter des chapitres** : la sortie est annoncée normalement. |
+
+  Un état choisi à la main est noté (« Choisi par … le … ») ; seule une publication de l'équipe
+  le change ensuite (un chapitre publié dans un tome « Planifié » le passe « En cours de
+  publication »), et ce changement figure au journal ;
+- les champs du tome (œuvre, nature, numéro, titre, responsables), les **crédits** affichés sur la
+  page du tome et la **couverture** (avec son cadrage) ;
+- la liste des **chapitres** (en ligne, programmés, brouillons) : **Voir** ou **Aperçu**, **Publier
+  maintenant** et **Changer la date** (programmé ou brouillon, tome déjà en ligne ; la date proposée
+  suit le rythme), **Retirer** (en ligne ou programmé : un écran demande confirmation, le chapitre
+  repasse en brouillon, son adresse et ses commentaires sont gardés). Une ligne **À venir** compte
+  les chapitres prévus pas encore déposés. La première sortie d'un tome passe toujours par
+  **Ajouter des chapitres** (annonce comprise) ;
+- en bas, **Édition avancée (administration WordPress)**.
 
 ### Planning complet (`/equipe/?vue=planning`)
 
@@ -143,9 +225,10 @@ journal sur ce tome.
 ### Réglages (`/equipe/?vue=reglages`, gérants et administrateurs)
 
 L'entrée **Réglages** du menu affiche tous les réglages du site dans l'espace équipe, sans passer
-par l'administration : *Site et réseaux*, *Planning et rappels*, *Annonces et notifications*,
-*Partenaires* (et *Mises à jour* pour l'administrateur seulement ; voir la section 8 pour le
-détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
+par l'administration : *Site et réseaux*, *Planning et rappels*, *Annonces et notifications*
+(webhooks Discord, e-mails aux lecteurs, modèle d'annonce, notifications navigateur),
+*Partenaires*, *Recrutement* (et *Mises à jour* pour l'administrateur seulement ; voir la
+section 8 pour le détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
 bas de page) : un message en haut de la vue confirme l'enregistrement ou liste ce qui a été
 refusé (par exemple un partenaire sans lien valide, ou un lien qui n'est pas un webhook Discord ;
 l'ancienne valeur est alors conservée).
@@ -236,15 +319,21 @@ Chaque jour vers **9 h (heure de Paris)**, le site vérifie le planning :
 Les rappels d'un même tome s'espacent : un premier rappel, une relance trois jours plus tard, puis
 **au plus un par semaine**. Au-delà de **8 semaines de retard**, plus aucun rappel : le tome reste
 seulement dans le récapitulatif des gérants (« Plus de rappel automatique ») ; mettez-le à jour,
-en pause ou retirez-le du planning. Un tome **en pause** ne reçoit jamais de rappel.
+en pause ou retirez-le du planning. Un tome **en pause**, ou dont l'œuvre est **en pause**,
+**terminée**, **abandonnée** ou **licenciée**, ne reçoit jamais de rappel : ni e-mail, ni message
+Discord, ni signalement « tome bloqué » aux gérants, ni ligne dans le récapitulatif, et il ne
+compte pas comme « en retard ». Repasser l'œuvre « En cours de publication » relance tout.
 
 Pour ne plus recevoir de rappel : mettez le tome à jour (même un petit pourcentage compte). Les
 délais, l'heure et le jour du récapitulatif sont réglés par les gérants.
 
-## 5. Publier un tome (`/equipe/publier/`)
+## 5. Ajouter des chapitres à un tome (`/equipe/publier/`)
 
-Réservé aux **Éditeurs Yume** et aux **Gérants**. Un seul formulaire crée le tome, ses chapitres de
-lecture en ligne, l'annonce, la mise à jour du planning et les notifications.
+Réservé aux **Éditeurs Yume** et aux **Gérants**. Un seul formulaire sert à tous les cas : un
+chapitre, plusieurs, ou le tome entier. Il crée les pages de lecture, l'annonce, la mise à jour du
+planning et les notifications. Le tome doit d'abord exister : créez-le avec **Nouveau tome**
+(« Tous les tomes » ou le planning), puis ajoutez-lui ses chapitres ici. Le parcours chapitre par
+chapitre est détaillé en 5.7.
 
 ### 5.1 Préparer le DOCX
 
@@ -269,23 +358,28 @@ Les ornements Word au format EMF/WMF, les en-têtes et pieds de page sont ignor�
 le rapport). Les sauts de page ne changent rien au texte, mais ils sont proposés comme débuts de
 chapitre possibles (5.2 bis). Un EPUB est accepté en dépannage, mais le DOCX reste la référence.
 
+Le **texte de remplacement** d'une image dans Word devient sa description pour les lecteurs
+d'écran. Les descriptions que Word génère tout seul (« Une image contenant texte, oiseau… », « Le
+contenu généré par l'IA peut être incorrect ») sont ignorées et comptées dans le rapport : si
+l'illustration porte un sens, rédigez vous-même une phrase courte (clic droit sur l'image →
+**Afficher le texte de remplacement**, décochez « Marquer comme décoratif » si besoin). Sans texte,
+le site utilise « Œuvre, Tome N, Chapitre N — illustration ».
+
 ### 5.2 Remplir le formulaire
 
-1. **Œuvre** (liste), puis **Tome du planning** : choisissez le tome déjà prévu au planning (sa
-   nature, son numéro et son titre sont repris, sans créer de doublon) ou « — Nouveau tome — ».
-   Sinon, **Nature** (*Tome*, *Arc*, *Chapitre*, *EX / bonus*), **Numéro**, et un **Titre**
-   facultatif.
-2. **Liens PDF et EPUB** : collez les liens de téléchargement (ClicTune ou autre). **Les fichiers PDF
-   et EPUB ne sont jamais envoyés sur le site** : ce ne sont que des liens.
-3. **Couverture** : glissez l'image (JPG, PNG ou WebP ; 1400 × 2000 px conseillé).
-4. **Déposez le DOCX** du tome. Le site l'analyse et affiche aussitôt :
-   - les **chapitres détectés** avec leur nombre de mots ;
-   - les **avertissements** (par exemple un titre mal formé corrigé automatiquement, des images
-     ignorées) ;
-   - un bouton pour **prévisualiser** un chapitre.
-   Si le découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez les
-   styles dans Word et déposez à nouveau le fichier.
-5. **Crédits** : traduction, relecture, édition / couverture (affichés sur le tome et les chapitres).
+1. **Le tome** : choisissez l'**œuvre**, puis le **tome** dans la liste (tous les tomes de l'œuvre,
+   avec leur parution : à paraître, en cours, complet). « + Nouveau tome » ouvre la création d'un
+   tome. Le formulaire ne modifie jamais la nature ni le numéro d'un tome existant. Il reste
+   possible de créer un tome ici (nature, numéro, titre) si aucun tome n'est choisi, mais « Nouveau
+   tome » est préférable : il enregistre aussi les chapitres prévus et le rythme de sortie.
+2. **Le fichier** : déposez le DOCX (ou l'EPUB). Il peut contenir le seul chapitre à publier, ou le
+   tome avec ses chapitres déjà parus. Le site l'analyse et compare chaque chapitre au tome :
+   **Nouveau**, **En ligne, identique**, **En ligne, modifié** (au choix : « Garder la version en
+   ligne » ou « Mettre à jour (sans annonce) »), **Programmé** ou **Brouillon**. Rien n'est jamais
+   retiré. Si le découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez
+   les styles dans Word et déposez à nouveau le fichier.
+3. **Couverture** (facultative) : glissez l'image (JPG, PNG ou WebP ; 1400 × 2000 px conseillé).
+4. **Crédits** : traduction, relecture, édition / couverture (affichés sur le tome et les chapitres).
 
 ### 5.2 bis Délimiter les chapitres soi-même
 
@@ -326,28 +420,45 @@ chapitre.
 
 ### 5.3 Publier
 
-- **Publier maintenant** : tout est mis en ligne immédiatement ;
-- **Programmer** : choisissez la date et l'heure de sortie ;
-- **Enregistrer en brouillon** : rien n'est visible des lecteurs, vous pourrez reprendre plus tard.
+Choisissez la **sortie des nouveaux chapitres** :
 
-Un tome **sans chapitre ni lien PDF / EPUB** n'est publié qu'après confirmation (« Publier quand
-même ce tome sans chapitre ni lien de téléchargement »).
+- **Maintenant** : les nouveaux chapitres ensemble, une seule annonce ;
+- **Un par un, au rythme** : chaque nouveau chapitre est programmé à la date suivante du rythme du
+  tome (par exemple chaque samedi à 18 h), avec une annonce à chaque sortie ; sans rythme, indiquez
+  une date de départ et un intervalle en jours ;
+- **À une date** : les nouveaux chapitres ensemble, le jour choisi.
 
-À la publication, le site :
+Puis :
 
-- crée le **tome** (couverture, liens PDF / EPUB, crédits) et ses **pages de lecture** (sommaire,
-  navigation chapitre précédent / suivant) ;
-- rédige l'**article d'annonce** « Le tome N de … est disponible ! » (modifiable ensuite comme un
-  article normal) ;
-- passe le planning du tome à **Publié, 100 %** (un arc publié chapitre par chapitre garde son étape
-  jusqu'à la sortie de son dernier chapitre) ;
-- prévient : message sur le salon Discord des sorties, e-mail aux lecteurs qui suivent l'œuvre,
-  newsletter si elle est activée.
+- **Annoncer les nouveaux chapitres** (coché par défaut) : Discord #sorties et e-mail aux lecteurs
+  qui suivent l'œuvre, plus l'article d'annonce à la première sortie du tome (« SukaMoka, Tome 2 :
+  Prologue disponible ! »). Un chapitre mis à jour n'est jamais annoncé ;
+- **Liens PDF et EPUB** : toujours modifiables ; ils ne s'affichent que lorsque le tome passe
+  « Publié ». **Les fichiers PDF et EPUB ne sont jamais envoyés sur le site** : ce ne sont que des
+  liens ;
+- **Publier les liens avec le dernier chapitre** : les chapitres sortent selon le choix ci-dessus
+  (par exemple un par un, au rythme) et le tome passe « Publié », liens affichés, à la sortie de
+  son **dernier chapitre programmé**, avec l'annonce « Le tome 2 de SukaMoka est complet : PDF et
+  EPUB disponibles ». Rien n'est programmé ? Le tome passe « Publié » tout de suite ;
+- **Le tome est complet : tout publier maintenant** : tous les chapitres du tome sortent
+  **maintenant**, y compris ceux déjà programmés (leurs programmations sont annulées) ; le tome
+  passe « Publié », le planning à **Publié, 100 %**. Les choix de sortie sont alors grisés.
 
-Si le tome a **déjà des chapitres**, le formulaire le rappelle sous la zone de dépôt : un nouveau
-fichier les **remplace en place**, par numéro (mêmes adresses, commentaires conservés) ; les
-chapitres absents du nouveau fichier restent en ligne, sauf si vous cochez « Mettre en brouillon les
-chapitres absents du nouveau fichier ».
+Le champ **Chapitres prévus** (fiche du tome, en haut du formulaire) se corrige ici : si le
+fichier apporte plus de chapitres que prévu (6 prévus, DOCX découpé en 15), il est **relevé
+d'office** à 15 à l'enregistrement (noté au journal du planning) ; une valeur saisie plus grande
+est gardée.
+
+Le bouton **Publier les nouveaux chapitres** (ou **Programmer**) applique ces choix ; **Enregistrer
+en brouillon** ne montre rien aux lecteurs. Un tome **sans chapitre ni lien PDF / EPUB** n'est publié
+qu'après confirmation.
+
+Tant que le tome n'est pas complet, il reste **en cours** : sur le site, « Tome 2 · En cours · 3
+chapitres sur 12 · prochain chapitre samedi » ; au planning, l'étape suit les chapitres en ligne au
+lieu de passer à « Publié ». Un tome complet publié d'un coup se comporte comme avant : une annonce
+« Le tome N de … est disponible ! » et le planning à **Publié, 100 %**. Pour programmer la sortie
+d'un tome entier, choisissez **À une date** et cochez **Publier les liens avec le dernier
+chapitre** : tout sort ensemble à cette date, comme un tome complet.
 
 Le DOCX n'est **pas conservé** sur le serveur : seuls les chapitres et les illustrations restent.
 La publication est réversible : dépublier un tome le retire du site, remet son annonce en brouillon
@@ -392,11 +503,10 @@ refait) :
 
 1. Espace équipe → **Tous les tomes** (`/equipe/?vue=tomes`, éditeurs et gérants) : tous les tomes,
    **publiés compris** (la section « Tomes en préparation » du tableau de bord ne montre que le
-   planning à venir). Filtrez par œuvre, par statut (publiés, programmés, brouillons) ou tapez une
-   partie du titre.
-2. Sur la ligne du tome : **Remplacer la lecture en ligne** (le tome a déjà des chapitres en ligne)
-   ou **Lecture en ligne : ajouter le DOCX/EPUB** (il n'en a aucun). **Voir** ouvre la fiche publique,
-   **Modifier** l'administration.
+   planning à venir). Filtrez par œuvre, par statut (à paraître, en cours, complets, programmés,
+   brouillons) ou tapez une partie du titre.
+2. Sur la ligne du tome : **Ajouter des chapitres**. **Voir** ouvre la fiche publique, **Modifier**
+   la fiche du tome dans l'espace équipe.
 3. Le formulaire de publication s'ouvre déjà rempli. En haut, l'encadré **« Remplacer la lecture en
    ligne (N chapitres actuels) »** rappelle ce qui va se passer. **Rien ne change pour les lecteurs
    tant que vous n'avez pas cliqué sur « Remplacer la lecture en ligne maintenant ».**
@@ -470,6 +580,96 @@ vient du fichier `glossaire.yaml` de Yume-Trad :
 - Une entrée peut être masquée derrière « Révéler (spoiler) » avec `spoiler: true` (et `tome: N`)
   dans le fichier.
 
+### 5.7 Publier un tome chapitre par chapitre
+
+La page `/equipe/publier/` s'intitule désormais **« Ajouter des chapitres à un tome »**. Un seul
+formulaire pour tous les cas : un chapitre, plusieurs, ou le tome entier. Exemple : SukaMoka
+Tome 2, d'abord le prologue, puis un chapitre chaque samedi, puis « tome complet » avec les liens
+PDF et EPUB.
+
+**1 · Le tome.** Choisissez l'**œuvre**, puis le **tome** dans la liste : tous les tomes de
+l'œuvre y figurent, avec leur état (« Tome 2 · en cours de publication · 3 chapitres en ligne »,
+« Tome 1 · publié », « Tome 3 · planifié »). Ouvert depuis un tome (par exemple depuis « Tous les
+tomes »), le formulaire arrive avec ce tome déjà choisi. Une fiche rappelle sa parution, les chapitres en ligne, « 3 sur 12 » si le nombre de
+chapitres prévus est connu, et son rythme de sortie (« chaque samedi à 18 h »).
+
+- La **nature et le numéro appartiennent au tome**, choisis à sa création : ce formulaire ne les
+  modifie jamais (un tome 2 ne peut plus devenir « Chapitres 2 » par erreur).
+- Le tome n'existe pas encore ? **« + Nouveau tome »** mène à sa création (avec son rythme et son
+  nombre de chapitres prévus). En dépannage, « Le tome n'existe pas encore ? Le créer ici » propose
+  encore nature, numéro et titre quand aucun tome n'est choisi.
+
+**2 · Le fichier.** Déposez le DOCX (ou l'EPUB) : le chapitre seul, ou le tome avec ses chapitres
+déjà parus, les deux marchent. Après l'analyse, chaque chapitre du fichier est **comparé au tome** :
+
+| État | Ce qui se passe |
+| --- | --- |
+| **Nouveau** | Le chapitre est ajouté au tome (il sortira selon l'étape 3). |
+| **En ligne, identique** | Rien ne change (même adresse, mêmes commentaires). |
+| **En ligne, modifié** | Au choix : **« Garder la version en ligne »** (par défaut, rien ne change) ou **« Mettre à jour (sans annonce) »** : le chapitre est remplacé en place à la sortie (même adresse, mêmes commentaires, même date), sans aucune annonce. |
+| **Programmé** / **Brouillon** | Pas encore visible des lecteurs : mis à jour ; un chapitre programmé garde sa date, un brouillon sort avec les nouveaux. |
+
+**Rien n'est jamais retiré** : un chapitre en ligne absent du fichier reste en ligne. Pour refaire
+toute la lecture en ligne d'un tome (nouvelle traduction, corrections en masse), utilisez l'encadré
+« Remplacer la lecture en ligne », sous le formulaire (voir 5.4 bis).
+
+**3 · La sortie des nouveaux chapitres.**
+
+- **Maintenant** : les nouveaux chapitres ensemble, une seule annonce ;
+- **Un par un, au rythme** : chaque chapitre est programmé à la date suivante du rythme du tome
+  (« chaque samedi à 18 h »), après le dernier chapitre déjà programmé ; une annonce par chapitre,
+  à sa sortie. Si le tome n'a pas de rythme : à partir de la date choisie (ou maintenant), puis un
+  chapitre tous les N jours (7 par défaut) ;
+- **À une date** : les nouveaux chapitres ensemble, le jour choisi.
+
+**« Annoncer les nouveaux chapitres »** est cochée par défaut (Discord #sorties et e-mail aux
+lecteurs qui suivent l'œuvre) ; décochez-la pour un ajout silencieux. Un chapitre **mis à jour**
+n'est jamais annoncé. Pour un tome **déjà paru et complet** (lecture en ligne d'un tome migré),
+c'est la case **« Ajout au catalogue »** qui apparaît, cochée d'office, comme en 5.4.
+
+**Les liens PDF et EPUB** se saisissent à tout moment ; ils restent masqués aux lecteurs tant que
+le tome n'est pas « Publié ». Deux cases décident du moment :
+
+- **« Publier les liens avec le dernier chapitre »** : pour un tome donné en entier mais
+  programmé chapitre par chapitre. Les chapitres sortent au rythme, et le tome passe « Publié »
+  (liens affichés, planning à 100 %, annonce « Le tome 2 de SukaMoka est complet : PDF et EPUB
+  disponibles ») à la sortie de son dernier chapitre programmé — nouveau ou déjà programmé avant.
+  Si rien n'est programmé, c'est tout de suite ;
+- **« Le tome est complet : tout publier maintenant »** : tous les chapitres du tome sortent
+  maintenant, y compris ceux déjà programmés (programmations annulées), et le tome passe
+  « Publié » aussitôt. Les choix de sortie sont grisés.
+
+**Chapitres prévus** : le champ est dans la fiche du tome, en haut du formulaire. Quand le fichier
+apporte plus de chapitres que prévu (un tome planifié à 6 chapitres, un DOCX découpé en 15), le
+nombre est **relevé d'office** à 15 (journal du planning) ; « Ce qui va se passer » l'annonce. Il
+se corrige aussi dans **Modifier le tome**, section « Le tome », quel que soit l'état du tome.
+
+L'état se change aussi à la main dans la fiche du tome (**Modifier**, voir 3) : « Publié » sans
+annonce par défaut, retour à « En cours de publication », ou retour à « Planifié » qui retire la
+lecture après une publication faite par erreur.
+
+**Ce qui va se passer** (à droite) récapitule l'envoi avant de cliquer : chapitres créés et leur
+date, chapitres mis à jour, annonce(s), planning (« en cours, 5 sur 12 au 18 oct. »), chapitres
+inchangés. Le bouton dit « Publier 2 chapitres » ou « Programmer 2 chapitres ». **Enregistrer en
+brouillon** et **Prévisualiser** ne changent rien en ligne.
+
+Ce qui se passe, en résumé :
+
+| Situation | Annonce | Planning |
+| --- | --- | --- |
+| Première sortie d'un tome (le prologue seul, par exemple) | Article et Discord « SukaMoka, Tome 2 : Prologue disponible ! », e-mail aux abonnés | En cours : l'étape reste, l'avancement suit les chapitres en ligne (sur les chapitres prévus) |
+| Nouveaux chapitres d'un tome en cours | « Nouveau chapitre » (Discord, e-mail) à chaque sortie, ou une annonce groupée | Avancement mis à jour |
+| « Le tome est complet : tout publier maintenant », ou « Publier les liens avec le dernier chapitre » (à la sortie du dernier) | Article et Discord « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles » | « Publié », 100 % |
+| Tome complet publié d'un coup (DOCX entier, case cochée) | Comme avant : « Le tome 2 de SukaMoka est disponible ! » | « Publié », 100 % |
+| Tome migré déjà complet, lecture en ligne ajoutée | Aucune (ajout au catalogue) | Inchangé |
+
+Sans JavaScript, le formulaire fonctionne aussi : la comparaison n'est pas affichée avant
+l'envoi et les chapitres en ligne modifiés sont gardés (pour les mettre à jour, utilisez le
+remplacement de 5.4 bis). En ligne de commande : `docx2chapters.php publish … --tome ID
+--chapitres [--sortie rythme] [--complet | --liens-dernier] [--pdf URL --epub URL]
+[--chapitres-prevus N] --publier maintenant` (voir
+`tools/docx2chapters/README.md`).
+
 ## 6. Corriger un chapitre
 
 Pour une coquille signalée par un lecteur (Éditeurs Yume et Gérants) :
@@ -517,7 +717,11 @@ chapitres ; ceux d'un article d'un autre compte passent par un gérant).
 
 Les lecteurs connectés ont un lien **Signaler** sous chaque commentaire (motif facultatif, un
 signalement par compte). Au **3ᵉ signalement**, le commentaire est masqué et repasse en attente
-jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté de votre pseudo.
+jusqu'à votre décision. Deux exceptions : seuls les signalements de comptes inscrits depuis
+**7 jours ou plus** comptent dans ce seuil (des comptes créés à la chaîne ne suffisent pas à faire
+disparaître un commentaire ; les autres signalements restent visibles dans la liste), et un
+commentaire d'un **membre de l'équipe** n'est jamais masqué automatiquement : il reste en ligne,
+signalé, jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté de votre pseudo.
 
 ## 8. Pour les gérants
 
@@ -537,13 +741,16 @@ jusqu'à votre décision. Vos réponses portent un badge **Équipe** à côté d
   page de connexion ; pour un changement d'e-mail ou un compte bloqué, c'est l'administrateur qui
   s'en charge.
 - **Réglages** (menu de l'espace équipe, ou *Yume → Réglages* dans l'administration) :
-  - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X ;
+  - *Site et réseaux* : bannière de l'accueil, liens Ko-fi, Discord et X, recherche dans les
+    chapitres, lecture hors ligne ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),
     heure des rappels, jour du récapitulatif ;
   - *Annonces et notifications* : webhooks Discord (sorties, équipe), e-mails aux lecteurs, modèle
-    du texte d'annonce ;
+    du texte d'annonce, **notifications navigateur** (case à décocher pour couper les notifications
+    push de tout le site, voir « Listes de lecture, cloche et notifications des lecteurs ») ;
   - *Partenaires* : la section « Nos partenaires » de l'accueil (voir ci-dessous) ;
-  - *Recrutement* : la page « Rejoindre l'équipe » (voir ci-dessous) ;
+  - *Recrutement* : la page « Rejoindre l'équipe » : introduction, postes ouverts ou fermés, lien du
+    test de traduction, consigne pour postuler (voir ci-dessous) ;
   - *Mises à jour* : section réservée aux administrateurs (invisible pour les gérants).
 - Le lien **Contact** du menu ouvre le **Discord** de Yume (lien d'invitation réglé dans *Site et
   réseaux*).
@@ -663,8 +870,8 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | Le tome publié n'apparaît pas | Il est en brouillon ou programmé : vérifiez son statut dans *Planning complet* (filtre *Statut*) ou dans *Yume → Tomes*. |
 | Un tome est arrêté mais reste « en retard » et déclenche des rappels | *Planning complet* → dépliez sa ligne → **Mettre en pause** ; **Reprendre** le jour où il repart. |
 | J'ai ajouté un tome au planning par erreur | *Planning complet* → dépliez sa ligne → **Retirer du planning** (brouillon sans chapitre publié). |
-| Un lien PDF ou EPUB est mort | *Yume → Tomes → Modifier* le tome et remplacez le lien. |
-| Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. |
+| Un lien PDF ou EPUB est mort | *Tous les tomes* → **Modifier** le tome → encadré **État du tome**, sous **Publié** : remplacez le lien, puis **Enregistrer**. |
+| Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. Si le document ne peut pas être corrigé, délimitez les chapitres vous-même dans l'aperçu (§5.2 bis). |
 | Un lecteur ne veut plus d'e-mails | Chaque e-mail d'alerte a un lien de désabonnement (une œuvre, les réponses aux commentaires ou tout) : il confirme sans se connecter. Il peut aussi tout régler dans *Mon compte*. |
 | Un lecteur ne reçoit pas les alertes | Il doit avoir l'œuvre en favori avec une alerte active (page *Mon compte*) ; les e-mails aux lecteurs doivent être activés dans *Yume → Réglages*. |
 | J'ai oublié mon mot de passe | Lien « Mot de passe oublié ? » sur la page de connexion. |

@@ -1016,10 +1016,270 @@ yume_tl_test(
 		$html = yume_tl_rendu( 'tome-toc', array(), $arc );
 		yume_assert_contains( '<li class="yn-toc__item yn-toc__item--a-venir"><span class="yn-toc__lien"><span class="yn-toc__numero">Chapitre 3</span>', $html, 'planifié non cliquable' );
 		yume_assert_contains( 'À venir', $html );
-		yume_assert_contains( 'Prévu le ' . date_courte( time() + 3 * DAY_IN_SECONDS ), $html, 'chapitre programmé' );
+		yume_assert_contains( 'Prévu le </span><time datetime="', $html, 'chapitre programmé : date en <time>' );
+		yume_assert_contains( date_courte( time() + 3 * DAY_IN_SECONDS ) . ', ', $html, 'chapitre programmé : jour et heure' );
 		yume_assert_contains( '1 chapitre · ~', $html );
 		yume_assert_contains( '2 à venir', $html );
 		yume_assert_same( 1, yume_tl_compte( '<a class="yn-toc__lien"', $html ), 'seul le chapitre publié est un lien' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Parution : tome publié chapitre par chapitre (à paraître, en cours, complet)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Light novel « SukaMoka » : tome 1 complet (PDF et EPUB), tome 2 en cours (12 chapitres
+ * prévus, un chaque samedi à 18 h) avec prologue, chapitres 1 et 2 en ligne, chapitres 3 et 4
+ * programmés, épilogue en brouillon.
+ *
+ * @return array<string,int>
+ */
+function yume_tl_sukamoka(): array {
+	$oeuvre = yume_tl_oeuvre( 'SukaMoka', array( 'yume_type' => 'light-novel' ) );
+	$t1     = yume_tl_tome(
+		$oeuvre,
+		1,
+		array(
+			'post_date'  => yume_tl_date( 60 ),
+			'meta_input' => array(
+				'yume_lien_pdf'  => 'https://www.clictune.com/pdf1',
+				'yume_lien_epub' => 'https://www.clictune.com/epub1',
+			),
+		)
+	);
+	yume_tl_chapitre( $t1, 1 );
+	$t2       = yume_tl_tome(
+		$oeuvre,
+		2,
+		array(
+			'post_date'  => yume_tl_date( 20 ),
+			'meta_input' => array(
+				'yume_parution'         => 'en_cours',
+				'yume_chapitres_prevus' => 12,
+				'yume_rythme'           => array(
+					'jour'  => 'samedi',
+					'heure' => '18:00',
+				),
+			),
+		)
+	);
+	$prologue = yume_tl_chapitre(
+		$t2,
+		null,
+		array(
+			'post_title' => 'Prologue',
+			'post_name'  => 'prologue',
+			'post_date'  => yume_tl_date( 20 ),
+			'menu_order' => 0,
+			'meta_input' => array( 'yume_nature' => 'prologue' ),
+		)
+	);
+	$c1       = yume_tl_chapitre( $t2, 1, array( 'post_date' => yume_tl_date( 8 ) ) );
+	$c2       = yume_tl_chapitre( $t2, 2, array( 'post_date' => yume_tl_date( 1 ) ) );
+	$c3       = yume_tl_chapitre(
+		$t2,
+		3,
+		array(
+			'post_status' => 'future',
+			'post_date'   => yume_tl_date( -3 ),
+		)
+	);
+	$c4       = yume_tl_chapitre(
+		$t2,
+		4,
+		array(
+			'post_status' => 'future',
+			'post_date'   => yume_tl_date( -10 ),
+		)
+	);
+	yume_tl_chapitre(
+		$t2,
+		null,
+		array(
+			'post_title'  => 'Épilogue',
+			'post_name'   => 'epilogue',
+			'post_status' => 'draft',
+			'meta_input'  => array( 'yume_nature' => 'epilogue' ),
+		)
+	);
+	return compact( 'oeuvre', 't1', 't2', 'prologue', 'c1', 'c2', 'c3', 'c4' );
+}
+
+yume_tl_test(
+	'parution : tome de light novel en cours dans la liste des tomes (pastille, 3 chapitres sur 12, prochain chapitre daté, PDF et EPUB à venir)',
+	static function () {
+		$s  = yume_tl_sukamoka();
+		$st = \Yume\Core\Library\stats_tome( $s['t2'] );
+		yume_assert_same( 'en_cours', $st['parution'], 'parution lue par yume_parution_tome()' );
+		yume_assert_true( $st['en_cours'], 'stats : en cours' );
+		yume_assert_same( 3, $st['publies'] );
+		yume_assert_same( 3, $st['a_venir'] );
+		yume_assert_same( (int) get_post_time( 'U', true, $s['c3'] ), $st['prochain'], 'prochain chapitre programmé' );
+		yume_assert_same( 'complet', \Yume\Core\Library\stats_tome( $s['t1'] )['parution'] );
+
+		$html = yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] );
+		yume_assert_same( 1, yume_tl_compte( 'yn-tome-list__en-cours', $html ), 'une seule pastille « En cours »' );
+		yume_assert_contains( '<span class="yn-chip yn-chip--ok yn-tome-list__en-cours"><span aria-hidden="true">●</span> En cours</span>', $html, 'pastille avec texte' );
+		yume_assert_contains( '3 chapitres sur 12 · ', $html );
+		$ts3 = (int) get_post_time( 'U', true, $s['c3'] );
+		yume_assert_contains( '<span class="yn-tome-list__prochain">prochain chapitre <time datetime="' . esc_attr( gmdate( 'c', $ts3 ) ) . '">' . esc_html( \Yume\Core\Library\date_jour( $ts3 ) ) . '</time></span>', $html, 'prochain chapitre daté' );
+		yume_assert_true( 1 === preg_match( '/^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) \d{1,2} /u', \Yume\Core\Library\date_jour( $ts3 ) ), 'jour de la semaine en français' );
+		yume_assert_contains( '<span class="yn-tome-list__telechargement yn-muted">PDF et EPUB quand le tome sera complet</span>', $html );
+		yume_assert_same( 1, yume_tl_compte( 'yn-tome-list__telechargement', $html ), 'mention pour le tome en cours seulement' );
+		yume_assert_same( 1, yume_tl_compte( 'yn-telechargement--pdf', $html ), 'PDF du tome 1 seulement' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $s['prologue'] ) ) . '">Lire en ligne', $html, 'Lire en ligne : premier chapitre publié' );
+		yume_assert_contains( '<span class="yn-visually-hidden">En ligne </span>depuis le <time', $html, 'tome en cours : en ligne depuis le' );
+		yume_assert_contains( '<span class="yn-visually-hidden">Publié le </span><time', $html, 'tome complet : publié le' );
+		yume_assert_not_contains( 'Chapitre 3', $html, 'aucun titre de chapitre à venir dans la liste' );
+
+		// Des liens enregistrés pour un tome en cours (tome rouvert par l'équipe) : masqués, la
+		// mention reste ; repassé « Publié » : boutons, plus de mention.
+		update_post_meta( $s['t2'], 'yume_lien_pdf', 'https://www.clictune.com/pdf2' );
+		$html = yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] );
+		yume_assert_same( 1, yume_tl_compte( 'yn-tome-list__telechargement', $html ), 'liens masqués : mention gardée' );
+		yume_assert_same( 1, yume_tl_compte( 'yn-telechargement--pdf', $html ), 'PDF du tome en cours masqué' );
+		yume_assert_not_contains( 'yn-telechargement--', yume_tl_rendu( 'tome-header', array(), $s['t2'] ), 'page du tome : aucun bouton' );
+		update_post_meta( $s['t2'], 'yume_parution', 'complet' );
+		$html = yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] );
+		yume_assert_same( 0, yume_tl_compte( 'yn-tome-list__telechargement', $html ) );
+		yume_assert_same( 2, yume_tl_compte( 'yn-telechargement--pdf', $html ) );
+		yume_assert_contains( 'yn-telechargement--pdf', yume_tl_rendu( 'tome-header', array(), $s['t2'] ), 'tome « Publié » : bouton PDF' );
+		update_post_meta( $s['t2'], 'yume_parution', 'en_cours' );
+
+		// Nombre prévu inconnu : résumé habituel.
+		update_post_meta( $s['t2'], 'yume_chapitres_prevus', 0 );
+		$html = yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] );
+		yume_assert_not_contains( ' sur 12', $html );
+		yume_assert_contains( '2 chapitres + prologue · ', $html );
+	}
+);
+
+yume_tl_test(
+	'parution : page du tome en cours (pastille « 3 sur 12 », rythme, sommaire daté, « Chapitres 5 à 10 », téléchargement à venir)',
+	static function () {
+		$s    = yume_tl_sukamoka();
+		$html = yume_tl_rendu( 'tome-header', array(), $s['t2'] );
+		yume_assert_contains( '<span class="yn-chip yn-chip--ok yn-tome-header__parution"><span aria-hidden="true">●</span> Tome en cours · 3 sur 12</span>', $html );
+		yume_assert_contains( '<p class="yn-tome-header__rythme">Un nouveau chapitre chaque samedi à 18' . "\u{00A0}" . 'h</p>', $html );
+		yume_assert_contains( '<p class="yn-tome-header__telechargement yn-muted">PDF et EPUB seront proposés quand les 12 chapitres seront en ligne.</p>', $html );
+		yume_assert_not_contains( 'yn-telechargement--', $html, 'aucun bouton de téléchargement' );
+		yume_assert_contains( 'en ligne depuis le <time', $html );
+		yume_assert_contains( '>Commencer la lecture', $html );
+
+		update_post_meta(
+			$s['t2'],
+			'yume_rythme',
+			array(
+				'jour'  => 'mercredi',
+				'heure' => '20:30',
+			)
+		);
+		update_post_meta( $s['t2'], 'yume_chapitres_prevus', 0 );
+		$html = yume_tl_rendu( 'tome-header', array(), $s['t2'] );
+		yume_assert_contains( 'Un nouveau chapitre chaque mercredi à 20' . "\u{00A0}h\u{00A0}" . '30', $html );
+		yume_assert_contains( '<span aria-hidden="true">●</span> Tome en cours</span>', $html, 'sans nombre prévu : pastille seule' );
+		yume_assert_contains( 'PDF et EPUB seront proposés quand le tome sera complet.', $html );
+		update_post_meta( $s['t2'], 'yume_chapitres_prevus', 12 );
+
+		$html = yume_tl_rendu( 'tome-toc', array(), $s['t2'] );
+		yume_assert_contains( '2 chapitres + prologue · ~', $html, 'résumé' );
+		yume_assert_contains( '· 9 à venir</p>', $html, '3 programmés ou en brouillon + 6 pas encore créés' );
+		yume_assert_same( 3, yume_tl_compte( '<a class="yn-toc__lien"', $html ), 'seuls les chapitres publiés sont des liens' );
+		foreach ( array( 'c3', 'c4' ) as $cle ) {
+			$ts = (int) get_post_time( 'U', true, $s[ $cle ] );
+			yume_assert_contains( '<span class="yn-chip yn-chip--warn yn-toc__a-venir yn-toc__programme"><span class="yn-visually-hidden">Prévu le </span><time datetime="' . esc_attr( gmdate( 'c', $ts ) ) . '">' . esc_html( \Yume\Core\Library\date_jour( $ts, true ) ) . '</time></span>', $html, 'date de sortie de ' . $cle );
+		}
+		yume_assert_contains( '<li class="yn-toc__item yn-toc__item--a-venir yn-toc__item--prevus"><span class="yn-toc__lien"><span class="yn-toc__numero">Chapitres 5 à 10</span><span class="yn-toc__sous-titre">à venir</span>', $html );
+		$prevus = strpos( $html, 'Chapitres 5 à 10' );
+		yume_assert_true( strpos( $html, '>Chapitre 4<' ) < $prevus && $prevus < strpos( $html, '>Épilogue<' ), 'ligne placée après le chapitre 4, avant l’épilogue' );
+		yume_assert_contains( '>À venir</span>', $html, 'épilogue en brouillon : « À venir » sans date' );
+
+		// Un seul chapitre prévu manquant.
+		update_post_meta( $s['t2'], 'yume_chapitres_prevus', 7 );
+		yume_assert_contains( '<span class="yn-toc__numero">Chapitre 5</span><span class="yn-toc__sous-titre">à venir</span>', yume_tl_rendu( 'tome-toc', array(), $s['t2'] ) );
+
+		// Brouillon : absent de la liste publique ; « À paraître » dans l'aperçu de l'équipe.
+		$t3 = yume_tl_tome( $s['oeuvre'], 3, array( 'post_status' => 'draft' ) );
+		yume_assert_not_contains( 'Tome 3', yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] ), 'tome à paraître absent de la liste publique' );
+		yume_assert_same( '', yume_tl_rendu( 'tome-header', array(), $t3 ), 'brouillon invisible pour un visiteur' );
+		wp_set_current_user( yume_factory_user( 'administrator' ) );
+		yume_assert_contains( '<span aria-hidden="true">▲</span> À paraître</span>', yume_tl_rendu( 'tome-header', array(), $t3 ) );
+		wp_set_current_user( 0 );
+	}
+);
+
+yume_tl_test(
+	'parution : carte d’accueil d’un tome de light novel en cours (dernier chapitre, datée de sa sortie)',
+	static function () {
+		$s    = yume_tl_sukamoka();
+		$ln   = yume_tl_oeuvre( 'Raven of the Inner Palace', array( 'yume_type' => 'light-novel' ) );
+		$r6   = yume_tl_tome( $ln, 6, array( 'post_date' => yume_tl_date( 5 ) ) );
+		$html = yume_tl_rendu( 'latest-releases' );
+		yume_assert_true( strpos( $html, get_permalink( $s['t2'] ) ) < strpos( $html, get_permalink( $r6 ) ), 'le tome en cours est daté de son dernier chapitre' );
+		yume_assert_contains( 'Tome 2 · ch. 2 · <time datetime="' . esc_attr( gmdate( 'c', (int) get_post_time( 'U', true, $s['c2'] ) ) ) . '"', $html, 'Tome 2 · ch. 2' );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $s['c2'] ) ) . '">Lire<span class="yn-visually-hidden"> — Chapitre 2 de SukaMoka, Tome 2</span>', $html, 'Lire : dernier chapitre en ligne' );
+		yume_assert_contains( 'yn-releases__en-cours">Tome en cours</span>', $html );
+		yume_assert_contains( 'Tome 1 · <time', $html, 'tome complet : libellé seul' );
+		yume_assert_same( 1, yume_tl_compte( 'yn-releases__en-cours', $html ) );
+	}
+);
+
+yume_tl_test(
+	'parution : tome complet et arc antérieur inchangés ; statistiques recalculées quand yume_parution change',
+	static function () {
+		$s = yume_tl_sukamoka();
+		// Tome marqué complet par l'équipe : plus de pastille, ni chapitres à venir, ni mention.
+		update_post_meta( $s['t2'], 'yume_parution', 'complet' );
+		$st = \Yume\Core\Library\stats_tome( $s['t2'] );
+		yume_assert_same( 'complet', $st['parution'], 'cache invalidé par yume_parution' );
+		yume_assert_true( ! $st['en_cours'] );
+		$html = yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] );
+		yume_assert_not_contains( 'yn-tome-list__en-cours', $html );
+		yume_assert_not_contains( 'yn-tome-list__telechargement', $html );
+		yume_assert_not_contains( 'prochain chapitre', $html );
+		yume_assert_contains( '2 chapitres + prologue · ', $html );
+		$toc = yume_tl_rendu( 'tome-toc', array(), $s['t2'] );
+		yume_assert_not_contains( 'à venir', $toc );
+		yume_assert_not_contains( 'Chapitre 3', $toc, 'chapitres programmés masqués d’un tome complet' );
+		$tete = yume_tl_rendu( 'tome-header', array(), $s['t2'] );
+		yume_assert_not_contains( 'yn-tome-header__rythme', $tete, 'pas de rythme pour un tome complet' );
+		yume_assert_not_contains( 'yn-tome-header__parution', $tete );
+		yume_assert_contains( 'publié le <time', $tete );
+
+		// Retour en cours : le cache versionné est renouvelé par la méta.
+		$version = version_cache();
+		update_post_meta( $s['t2'], 'yume_parution', 'en_cours' );
+		yume_assert_true( version_cache() !== $version, 'nouvelle version du cache' );
+		yume_assert_contains( 'yn-tome-list__en-cours', yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] ) );
+		$version = version_cache();
+		update_post_meta( $s['t2'], 'yume_chapitres_prevus', 14 );
+		yume_assert_true( version_cache() !== $version, 'yume_chapitres_prevus invalide aussi le cache' );
+		yume_assert_contains( '3 chapitres sur 14', yume_tl_rendu( 'tome-list', array(), $s['oeuvre'] ) );
+
+		// Tome de light novel antérieur (méta vide) avec un chapitre en brouillon : complet.
+		$ancien = yume_tl_tome( $s['oeuvre'], 5 );
+		yume_tl_chapitre( $ancien, 1 );
+		yume_tl_chapitre( $ancien, 2, array( 'post_status' => 'draft' ) );
+		yume_assert_same( 'complet', \Yume\Core\Library\stats_tome( $ancien )['parution'] );
+
+		// Arc antérieur (méta vide) : règle historique, sans nombre prévu.
+		$wn  = yume_tl_oeuvre( 'Web', array( 'yume_type' => 'web-novel' ) );
+		$arc = yume_tl_tome( $wn, 7, array( 'meta_input' => array( 'yume_nature' => 'arc' ) ) );
+		yume_tl_chapitre( $arc, 1 );
+		yume_tl_chapitre( $arc, 2, array( 'post_status' => 'draft' ) );
+		$st = \Yume\Core\Library\stats_tome( $arc );
+		yume_assert_true( $st['en_cours'] && 'en_cours' === $st['parution'], 'arc en cours' );
+		yume_assert_same( 0, $st['prochain'] );
+		$tete = yume_tl_rendu( 'tome-header', array(), $arc );
+		yume_assert_contains( '<span aria-hidden="true">●</span> Arc en cours</span>', $tete );
+		yume_assert_not_contains( 'yn-tome-header__rythme', $tete );
+		$toc = yume_tl_rendu( 'tome-toc', array(), $arc );
+		yume_assert_not_contains( 'yn-toc__item--prevus', $toc );
+		yume_assert_contains( '1 à venir', $toc );
+		yume_assert_contains( 'yn-tome-list__en-cours', yume_tl_rendu( 'tome-list', array(), $wn ) );
 	}
 );
 

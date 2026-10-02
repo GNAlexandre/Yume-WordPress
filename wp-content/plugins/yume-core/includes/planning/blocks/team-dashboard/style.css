@@ -1365,6 +1365,123 @@
 	}
 }
 
+/* Vue « Œuvres » : état de chaque œuvre, tomes et leur état, légende, confirmation (oeuvres-etat.php). */
+.yn-team .yn-oeuvres__ligne {
+	grid-template-columns: 48px minmax(0, 1fr) minmax(220px, 280px);
+	align-items: start;
+}
+
+.yn-team .yn-oeuvres__ligne .yn-lecture__actions {
+	grid-column: 2 / -1;
+	justify-content: flex-start;
+}
+
+.yn-team .yn-oeuvre__tomes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-oeuvre-etat,
+.yn-oeuvre-etat__form {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	margin: 0;
+}
+
+.yn-oeuvre-etat__champs {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.yn-oeuvre-etat__champs select {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 38px;
+	padding-block: 6px;
+	font-size: 14px;
+}
+
+.yn-oeuvre-etat__suggestion {
+	margin: 0;
+	color: var(--wp--preset--color--succes);
+	font-size: 13px;
+}
+
+.yn-oeuvre-etat__suggestion a {
+	white-space: nowrap;
+}
+
+.yn-team .yn-oeuvres-legende {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 14px 18px;
+	margin: 0;
+	padding: 18px 20px;
+	list-style: none;
+}
+
+.yn-oeuvres-legende p {
+	margin: 8px 0 0;
+	font-size: 13px;
+}
+
+.yn-oeuvre-confirmation {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-width: 760px;
+	padding: 20px;
+}
+
+.yn-oeuvre-confirmation h3 {
+	font-size: 20px;
+}
+
+.yn-oeuvre-confirmation__etats {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+
+.yn-team .yn-oeuvre-confirmation__effets {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding-left: 20px;
+}
+
+.yn-oeuvre-confirmation__restaurer {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+}
+
+@media (max-width: 699.98px) {
+	.yn-team .yn-oeuvres__ligne {
+		grid-template-columns: 48px minmax(0, 1fr);
+	}
+
+	.yn-team .yn-oeuvres__ligne .yn-oeuvre-etat,
+	.yn-team .yn-oeuvres__ligne .yn-lecture__actions {
+		grid-column: 1 / -1;
+	}
+
+	.yn-oeuvre-confirmation {
+		padding: 16px;
+	}
+}
+
 /* Vue « Œuvres » : formulaire « Nouvelle œuvre » (oeuvres-equipe.php). */
 .yn-team__genres {
 	display: flex;
@@ -1596,4 +1713,539 @@
 .yn-team__champ input[type="range"] {
 	min-height: 0;
 	padding: 0;
+}
+
+/* Fiches de tome (tome-fiche-equipe.php) : « Nouveau tome » et « Modifier le tome ». Formulaire
+   en deux colonnes (champs, puis couverture / état / boutons), une seule sous 1000 px. */
+.yn-team .yn-fiche {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+	align-items: start;
+	gap: 22px;
+}
+
+.yn-fiche__principal,
+.yn-fiche__cote {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	min-width: 0;
+}
+
+/* Heure du rythme et date-heure d'un chapitre : même apparence que les autres champs du thème
+   (dont la règle commune ne couvre pas ces deux types). */
+.yn-team input[type="time"],
+.yn-team input[type="datetime-local"] {
+	box-sizing: border-box;
+	max-width: 100%;
+	min-height: 38px;
+	padding: 6px 12px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius);
+	background: var(--wp--preset--color--bande);
+	color: var(--wp--preset--color--texte);
+	color-scheme: dark light;
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+.yn-team .yn-fiche__retour {
+	font-size: 14px;
+}
+
+.yn-team .yn-fiche__boutons {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.yn-team .yn-fiche__boutons .yn-btn {
+	justify-content: center;
+	width: 100%;
+	text-align: center;
+}
+
+.yn-team .yn-fiche__avancee {
+	font-size: 13px;
+	text-align: center;
+}
+
+.yn-team .yn-fiche__case {
+	align-items: flex-start;
+	font-size: 14px;
+	white-space: normal;
+}
+
+.yn-team .yn-fiche__case input[type="checkbox"] {
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.yn-team .yn-fiche__liste,
+.yn-team .yn-fiche__tomes {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-fiche__liste li {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+.yn-team .yn-fiche__tomes li {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 6px 10px;
+}
+
+.yn-fiche__coche {
+	display: inline-flex;
+	flex-shrink: 0;
+	justify-content: center;
+	align-items: center;
+	width: 22px;
+	height: 22px;
+	border: 1.5px solid var(--wp--preset--color--succes);
+	border-radius: 50%;
+	color: var(--wp--preset--color--succes);
+	font-size: 12px;
+}
+
+.yn-fiche__coche--non {
+	border-color: var(--wp--preset--color--filet);
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-team .yn-fiche__couverture .yn-cadrage__cadre {
+	width: 140px;
+}
+
+/* Les trois états de parution. */
+.yn-team .yn-parutions {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 14px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-parutions__etat {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 14px 16px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+	font-size: 14px;
+}
+
+.yn-team .yn-parutions__etat strong,
+.yn-team .yn-chapitres__titre strong {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+/* Chapitres du tome : repère, titre et état, actions. */
+.yn-team .yn-chapitres {
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+	overflow: hidden;
+}
+
+.yn-team .yn-chapitres__tete {
+	padding: 16px 20px 10px;
+}
+
+.yn-team .yn-chapitres__tete > h3 {
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 18px;
+}
+
+.yn-team .yn-chapitres__note {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 0 20px 12px;
+	font-size: 14px;
+}
+
+.yn-team .yn-chapitres__note:empty {
+	display: none;
+}
+
+.yn-team .yn-chapitres__liste {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-chapitres__ligne {
+	display: grid;
+	grid-template-columns: 52px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 8px 14px;
+	margin: 0;
+	padding: 12px 20px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	scroll-margin-top: 24px;
+}
+
+.yn-chapitres__repere {
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 17px;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+.yn-chapitres__ligne--a-venir .yn-chapitres__repere {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-chapitres__infos {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.yn-team .yn-chapitres__etat {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	font-size: 13px;
+}
+
+.yn-chapitres__actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+}
+
+.yn-team .yn-chapitres__form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+}
+
+.yn-team .yn-chapitres__date input[type="datetime-local"] {
+	max-width: 100%;
+	min-height: 32px;
+	padding: 4px 8px;
+	font-size: 13px;
+}
+
+.yn-chapitres__retour,
+.yn-chapitres__confirmation {
+	grid-column: 1 / -1;
+}
+
+.yn-team .yn-chapitres__confirmation {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px 14px;
+	border: 1px solid var(--wp--preset--color--erreur);
+	border-radius: var(--yn-radius-card);
+	font-size: 14px;
+}
+
+/* État du tome (« Modifier le tome ») : trois segments (boutons radio), l'état choisi mis en
+   avant, puis un encadré par état. Sans JavaScript, tout reste visible ; :has() suit le choix. */
+.yn-fiche__large {
+	display: flex;
+	grid-column: 1 / -1;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+}
+
+.yn-team .yn-etat {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	scroll-margin-top: 24px;
+}
+
+.yn-team .yn-etat__tete {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 6px 16px;
+}
+
+.yn-team .yn-etat__tete > p {
+	max-width: 70ch;
+	font-size: 13px;
+}
+
+.yn-team .yn-etat__choix {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius-card);
+	overflow: hidden;
+}
+
+.yn-team .yn-etat__option {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+	padding: 14px 16px;
+	border-left: 1px solid var(--wp--preset--color--filet);
+	cursor: pointer;
+}
+
+.yn-team .yn-etat__option:first-of-type {
+	border-left: 0;
+}
+
+.yn-etat__radio {
+	position: absolute;
+	top: 14px;
+	right: 14px;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	accent-color: var(--wp--preset--color--accent);
+}
+
+.yn-team .yn-etat__option strong {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding-right: 24px;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 15px;
+}
+
+.yn-team .yn-etat__icone {
+	height: 22px;
+	padding: 0 8px;
+}
+
+.yn-etat__texte {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 13px;
+}
+
+.yn-etat__actuel {
+	align-self: flex-start;
+	margin-top: 2px;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.yn-team .yn-etat__option:has(.yn-etat__radio:checked) {
+	background: var(--wp--preset--color--bande);
+	box-shadow: inset 0 -3px 0 var(--wp--preset--color--accent);
+}
+
+.yn-team .yn-etat__option:has(.yn-etat__radio:focus-visible) {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: -2px;
+}
+
+.yn-team .yn-etat__encadres {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	align-items: start;
+	gap: 16px;
+}
+
+.yn-team .yn-etat__encadre {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+	padding: 16px 18px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card);
+	font-size: 14px;
+	opacity: 0.8;
+}
+
+.yn-team .yn-etat > *,
+.yn-team .yn-etat__encadre > *,
+.yn-team .yn-etat-confirmation form > * {
+	margin: 0;
+}
+
+.yn-team .yn-etat:has(#yn-tome-etat-a-paraitre:checked) .yn-etat__encadre--a_paraitre,
+.yn-team .yn-etat:has(#yn-tome-etat-en-cours:checked) .yn-etat__encadre--en_cours,
+.yn-team .yn-etat:has(#yn-tome-etat-complet:checked) .yn-etat__encadre--complet {
+	border-color: var(--wp--preset--color--accent);
+	opacity: 1;
+}
+
+@supports not selector(:has(*)) {
+	.yn-team .yn-etat__option--choisi {
+		background: var(--wp--preset--color--bande);
+		box-shadow: inset 0 -3px 0 var(--wp--preset--color--accent);
+	}
+
+	.yn-team .yn-etat__encadre--choisi {
+		border-color: var(--wp--preset--color--accent);
+		opacity: 1;
+	}
+}
+
+.yn-etat__si {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-etat__encadre--a_paraitre .yn-etat__si {
+	color: var(--wp--preset--color--avertissement);
+}
+
+.yn-etat__encadre--en_cours .yn-etat__si {
+	color: var(--wp--preset--color--succes);
+}
+
+.yn-team .yn-etat__grille {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	align-items: end;
+	gap: 10px 12px;
+}
+
+.yn-etat__curseurs {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.yn-team .yn-etat__ligne {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.yn-team .yn-etat__ligne strong,
+.yn-team .yn-etat__prochain strong {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-etat__barre {
+	display: block;
+	height: 8px;
+	border-radius: 4px;
+	background: var(--wp--preset--color--filet);
+	overflow: hidden;
+}
+
+.yn-etat__barre > span {
+	display: block;
+	height: 100%;
+	border-radius: 4px;
+	background: var(--wp--preset--color--succes);
+}
+
+.yn-team .yn-etat__suite {
+	margin: 0;
+}
+
+/* Écran de confirmation d'un changement d'état (?etat=…). */
+.yn-team .yn-etat-confirmation {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	border-color: var(--wp--preset--color--avertissement);
+	font-size: 14px;
+	scroll-margin-top: 24px;
+}
+
+.yn-team .yn-etat-confirmation--retrait {
+	border-color: var(--wp--preset--color--erreur);
+}
+
+.yn-team .yn-etat-confirmation form {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+}
+
+.yn-team .yn-etat-confirmation h3 {
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 18px;
+}
+
+@media (max-width: 999.98px) {
+	.yn-team .yn-fiche {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-team .yn-etat__encadres {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 699.98px) {
+	.yn-team .yn-etat__choix {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-team .yn-etat__option {
+		border-top: 1px solid var(--wp--preset--color--filet);
+		border-left: 0;
+	}
+
+	.yn-team .yn-etat__option:first-of-type {
+		border-top: 0;
+	}
+}
+
+@media (max-width: 699.98px) {
+	.yn-team .yn-chapitres__tete,
+	.yn-team .yn-chapitres__note {
+		padding-inline: 16px;
+	}
+
+	.yn-team .yn-chapitres__ligne {
+		grid-template-columns: 40px minmax(0, 1fr);
+		padding: 12px 16px;
+	}
+
+	.yn-chapitres__actions {
+		grid-column: 1 / -1;
+		justify-content: stretch;
+	}
+
+	.yn-chapitres__actions > .yn-btn,
+	.yn-team .yn-chapitres__form {
+		flex: 1 1 140px;
+	}
+
+	.yn-team .yn-chapitres__form .yn-btn {
+		flex: 1 1 auto;
+		justify-content: center;
+	}
+
+	.yn-team .yn-chapitres__date input[type="datetime-local"] {
+		flex: 1 1 100%;
+	}
 }

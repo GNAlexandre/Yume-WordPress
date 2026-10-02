@@ -114,6 +114,31 @@ final class Texte {
 	);
 
 	/**
+	 * Descriptions d'image générées automatiquement par Word / Office (texte de remplacement
+	 * proposé par la reconnaissance d'image), à ne jamais reprendre comme texte alternatif.
+	 *
+	 * Expressions régulières appliquées au texte normalisé par alt_automatique() : minuscules,
+	 * sans accents (sans_accents()), apostrophes droites, espaces réduites, ponctuation finale
+	 * retirée. Un motif ancré (^) reconnaît un début de phrase ; les autres, une mention
+	 * n'importe où (Word accole souvent la description et la mention « généré par l'IA »).
+	 * Les débuts trop génériques (« Gros plan de », « A close-up of ») ne sont pas repris :
+	 * un humain peut légitimement les écrire.
+	 *
+	 * @var string[]
+	 */
+	public const ALT_AUTOMATIQUES = array(
+		// Français (Office 365, Word 2019 et suivants).
+		'/^une image contenant\b/',
+		'/le contenu genere par l\'ia peut etre incorrect/',
+		'/description generee automatiquement/',
+		'/description generee avec un niveau de confiance (?:tres )?(?:eleve|moyen|faible)/',
+		// Anglais.
+		'/^a picture containing\b/',
+		'/ai-generated content may be incorrect/',
+		'/description automatically generated/',
+	);
+
+	/**
 	 * Libellés des natures de chapitre.
 	 *
 	 * @var array<string,string>
@@ -137,6 +162,29 @@ final class Texte {
 	public static function espaces( string $texte ): string {
 		$texte = str_replace( array( self::INSECABLE, self::FINE, "\u{2007}", "\t", "\r", "\n" ), ' ', $texte );
 		return trim( (string) preg_replace( '/ {2,}/', ' ', $texte ) );
+	}
+
+	/**
+	 * Le texte alternatif est-il une description générée automatiquement par Word / Office
+	 * (« Une image contenant texte, oiseau, croquis Le contenu généré par l'IA peut être
+	 * incorrect. », « A picture containing text Description automatically generated »…) ?
+	 * Casse, accents, espaces et ponctuation finale indifférents (motifs : ALT_AUTOMATIQUES).
+	 *
+	 * @param string $alt Texte alternatif.
+	 */
+	public static function alt_automatique( string $alt ): bool {
+		$texte = self::sans_accents( mb_strtolower( self::espaces( $alt ), 'UTF-8' ) );
+		$texte = str_replace( array( '’', '‘', '`' ), "'", $texte );
+		$texte = (string) preg_replace( '/[\s.…!?:;,]+$/u', '', $texte );
+		if ( '' === $texte ) {
+			return false;
+		}
+		foreach ( self::ALT_AUTOMATIQUES as $motif ) {
+			if ( preg_match( $motif, $texte ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

@@ -1,7 +1,18 @@
 /**
- * Bloc yume/publish-form : amélioration progressive du formulaire de publication.
+ * Bloc yume/publish-form : amélioration progressive du formulaire « Ajouter des chapitres à un
+ * tome ».
  *
  * Sans JavaScript, le formulaire est envoyé à admin-post.php. Avec JavaScript :
+ * - le tome d'abord : liste des tomes de l'œuvre choisie (avec leur parution), fiche du tome
+ *   (parution, chapitres en ligne, chapitres prévus, rythme), création du tome ici seulement si
+ *   aucun n'est choisi, lien « + Nouveau tome » ;
+ * - comparaison du fichier avec le tome (renvoyée par l'analyse) : « Nouveau », « En ligne,
+ *   identique », « En ligne, modifié » (choix « Garder la version en ligne » / « Mettre à jour
+ *   (sans annonce) », champ choix[clé]), « Programmé », « Brouillon » ;
+ * - sortie des nouveaux chapitres (maintenant, un par un au rythme ou tous les N jours, à une
+ *   date), annonce (« Annoncer les nouveaux chapitres », ou « Ajout au catalogue » pour un tome
+ *   complet déjà paru), « Le tome est complet » (liens PDF et EPUB activés seulement alors) ;
+ * - récapitulatif « Ce qui va se passer » (data-yn-recap) recalculé à chaque changement ;
  * - glisser-déposer de la couverture et du DOCX/EPUB (le champ fichier reste utilisable
  *   au clavier) ;
  * - analyse immédiate du fichier déposé (POST /yume/v1/publications/analyse) : chapitres
@@ -14,12 +25,9 @@
  * - enregistrement via l'API REST (POST /yume/v1/publications) avec barre de progression,
  *   puis publication ou programmation (POST /yume/v1/publications/{id}/publier) ;
  * - aperçu du chapitre 1 dans un nouvel onglet ;
- * - liste « Tome du planning » limitée aux tomes de l'œuvre choisie, qui préremplit nature,
- *   numéro et titre et cible ce tome (pas de doublon) ;
  * - tome sans chapitre ni lien PDF/EPUB : confirmation explicite avant de publier ;
- * - case « Ajout au catalogue » (sans annonce) : cochée d'office pour un tome déjà publié
- *   (tant qu'elle n'a pas été touchée), récapitulatif et messages adaptés, valeur envoyée
- *   explicitement à la publication ;
+ * - case « Ajout au catalogue » (sans annonce) : cochée d'office pour un tome complet déjà
+ *   publié (tant qu'elle n'a pas été touchée), valeur envoyée explicitement à la publication ;
  * - tome paru avec sa lecture en ligne : « Vérifier (sans rien changer en ligne) » prépare une
  *   version en attente (rapport et aperçus affichés dans l'encadré), « Remplacer la lecture en
  *   ligne maintenant » l'applique (POST …/publier), « Annuler le remplacement » la supprime
@@ -150,6 +158,35 @@
 		var recapAnnonce = racine.querySelector( '[data-yn-recap-annonce]' );
 		var recapNotifications = racine.querySelector( '[data-yn-recap-notifications]' );
 		var recapCatalogue = racine.querySelector( '[data-yn-recap-catalogue]' );
+		// Ajout de chapitres : tome, comparaison, sortie, annonce, tome complet, récapitulatif.
+		var modeChamp = form.querySelector( '[data-yn-mode]' );
+		var chapitresMode = !! ( modeChamp && modeChamp.value === 'chapitres' );
+		var creation = racine.querySelector( '[data-yn-creation]' );
+		var ficheTome = racine.querySelector( '[data-yn-fiche-tome]' );
+		var nouveauTome = racine.querySelector( '[data-yn-nouveau-tome]' );
+		var comparaison = racine.querySelector( '[data-yn-comparaison]' );
+		var comparaisonBilan = racine.querySelector( '[data-yn-comparaison-bilan]' );
+		var comparaisonLignes = racine.querySelector( '[data-yn-comparaison-lignes]' );
+		var choixSortie = form.querySelectorAll( '[data-yn-sortie-choix]' );
+		var rythmeTexte = racine.querySelector( '[data-yn-rythme-texte]' );
+		var sortieDate = racine.querySelector( '[data-yn-sortie-date]' );
+		var sortieIntervalle = racine.querySelector( '[data-yn-sortie-intervalle]' );
+		var intervalle = form.querySelector( '[data-yn-intervalle]' );
+		var blocAnnoncer = racine.querySelector( '[data-yn-bloc-annoncer]' );
+		var annoncerCase = form.querySelector( '[data-yn-annoncer]' );
+		var blocCatalogue = racine.querySelector( '[data-yn-bloc-catalogue]' );
+		var completCase = form.querySelector( '[data-yn-complet]' );
+		var liensDernierCase = form.querySelector( '[data-yn-liens-dernier]' );
+		var liensComplet = form.querySelectorAll( '[data-yn-lien]' );
+		var prevusChamp = form.querySelector( '[data-yn-prevus]' );
+		var prevusAide = racine.querySelector( '[data-yn-prevus-aide]' );
+		var prevusTouche = false;
+		var recap = racine.querySelector( '[data-yn-recap]' );
+		var publierLibelle = racine.querySelector( '[data-yn-publier-libelle]' );
+		// Dernière analyse : comparaison avec le tome et informations du tome (rythme, dates).
+		var comparaisonCourante = null;
+		var infosAnalyse = null;
+		var lignesComparaison = [];
 		var declencheur = null;
 		var sourceAEnvoyer = false;
 		var analyseCourante = 0;
@@ -272,30 +309,446 @@
 			avertissements.hidden = ! ( liste && liste.length );
 		}
 
-		function majRecap( chapitres ) {
-			var nature = form.querySelector( '[data-yn-nature]' );
-			var numero = form.querySelector( '[data-yn-numero]' );
-			var oeuvre = form.querySelector( '[data-yn-oeuvre]' );
-			if ( recapTome && nature && numero ) {
-				recapTome.textContent = '';
-				var libelle = nature.options[ nature.selectedIndex ].text + ( numero.value ? ' ' + numero.value.replace( '.', ',' ) : '' );
-				recapTome.appendChild( el( 'strong', '', libelle ) );
-				var nomOeuvre = oeuvre && oeuvre.value ? oeuvre.options[ oeuvre.selectedIndex ].text.replace( / \([^)]*\)$/, '' ) : '';
-				recapTome.appendChild( document.createTextNode( ( nomOeuvre ? ' de ' + nomOeuvre : '' ) + ' avec sa couverture et ses liens de téléchargement' ) );
+		function pluriel( n, un, plusieurs ) {
+			return n + ' ' + ( n > 1 ? plusieurs : un );
+		}
+
+		function dateCourte( d ) {
+			if ( ! d || isNaN( d.getTime() ) ) {
+				return '';
 			}
-			if ( recapChapitres && chapitres ) {
-				var numerotes = chapitres.filter( function ( c ) {
-					return c.nature === 'chapitre';
-				} ).length;
-				var speciaux = chapitres.filter( function ( c ) {
-					return c.nature !== 'chapitre';
-				} ).map( function ( c ) {
-					return c.titre.toLowerCase();
+			if ( typeof Intl === 'undefined' ) {
+				return d.toLocaleString();
+			}
+			var jour = new Intl.DateTimeFormat( 'fr-FR', { weekday: 'short', day: 'numeric', month: 'short' } ).format( d );
+			var heure = new Intl.DateTimeFormat( 'fr-FR', { hour: '2-digit', minute: '2-digit' } ).format( d );
+			return jour + ' ' + heure;
+		}
+
+		function tomeOption() {
+			var option = planning ? planning.options[ planning.selectedIndex ] : null;
+			return option && option.value && option.value !== '-' ? option : null;
+		}
+
+		function nomOeuvre() {
+			var oeuvre = form.querySelector( '[data-yn-oeuvre]' );
+			return oeuvre && oeuvre.value ? oeuvre.options[ oeuvre.selectedIndex ].text.replace( / \([^)]*\)$/, '' ) : '';
+		}
+
+		/**
+		 * Informations du tome choisi : liste (attributs data-*), complétées par la dernière
+		 * analyse (chapitres en ligne, dates au rythme).
+		 */
+		function infosTome() {
+			var option = tomeOption();
+			if ( ! option ) {
+				return null;
+			}
+			var infos = {
+				id: option.value,
+				libelle: option.text.split( ' · ' )[ 0 ],
+				parution: option.getAttribute( 'data-parution' ) || '',
+				parutionLibelle: option.getAttribute( 'data-parution-libelle' ) || '',
+				enLigne: parseInt( option.getAttribute( 'data-en-ligne' ) || '0', 10 ),
+				prevus: parseInt( option.getAttribute( 'data-prevus' ) || '0', 10 ),
+				rythme: option.getAttribute( 'data-rythme' ) || '',
+				publie: option.getAttribute( 'data-publie' ) === '1',
+				catalogue: option.getAttribute( 'data-catalogue' ) === '1',
+				lien: option.getAttribute( 'data-lien' ) || '',
+				enLigneLibelle: '',
+				datesRythme: [],
+			};
+			if ( infosAnalyse && String( infosAnalyse.id ) === String( infos.id ) ) {
+				infos.enLigne = infosAnalyse.en_ligne;
+				infos.enLigneLibelle = infosAnalyse.en_ligne_libelle || '';
+				infos.datesRythme = infosAnalyse.dates_rythme || [];
+			}
+			return infos;
+		}
+
+		function sortieChoisie() {
+			// « Le tome est complet : tout publier maintenant » remplace le choix de sortie.
+			if ( completCase && completCase.checked ) {
+				return 'maintenant';
+			}
+			var choisie = 'maintenant';
+			Array.prototype.forEach.call( choixSortie, function ( radio ) {
+				if ( radio.checked ) {
+					choisie = radio.value;
+				}
+			} );
+			return choisie;
+		}
+
+		/**
+		 * Lignes de la comparaison qui sortiront (chapitres nouveaux et brouillons du tome).
+		 */
+		function aSortir() {
+			return ( comparaisonCourante ? comparaisonCourante.lignes : [] ).filter( function ( l ) {
+				return l.etat === 'nouveau' || l.etat === 'brouillon';
+			} );
+		}
+
+		/**
+		 * Dates de sortie prévues pour n chapitres (null : maintenant), comme le serveur
+		 * (Service::calendrier()) : au rythme du tome (dates renvoyées par l'analyse), sinon à
+		 * partir de la date choisie (ou maintenant) puis tous les N jours.
+		 */
+		function datesSortie( n ) {
+			var sortie = sortieChoisie();
+			var choisie = date && date.value ? new Date( date.value ) : null;
+			var dates = [];
+			var infos = infosTome();
+			for ( var i = 0; i < n; i++ ) {
+				if ( sortie === 'maintenant' ) {
+					dates.push( null );
+				} else if ( sortie === 'date' ) {
+					dates.push( choisie );
+				} else if ( infos && infos.rythme ) {
+					var prevue = infos.datesRythme[ i ];
+					dates.push( prevue && prevue.date ? new Date( prevue.date ) : undefined );
+				} else {
+					var pas = Math.max( 1, Math.min( 60, parseInt( ( intervalle && intervalle.value ) || '7', 10 ) || 7 ) );
+					var depart = choisie || new Date();
+					dates.push( i === 0 ? choisie : new Date( depart.getTime() + i * pas * 86400000 ) );
+				}
+			}
+			return dates;
+		}
+
+		function libelleDate( d ) {
+			if ( d === null ) {
+				return 'maintenant';
+			}
+			if ( d === undefined ) {
+				return 'au rythme du tome';
+			}
+			return 'le ' + dateCourte( d );
+		}
+
+		function ajouterRecap( ok, html ) {
+			var li = el( 'li' );
+			li.appendChild( el( 'span', 'yn-chip yn-chip--' + ( ok ? 'ok' : 'info' ), ok ? '✓' : '–' ) );
+			li.firstChild.setAttribute( 'aria-hidden', 'true' );
+			var texte = el( 'span' );
+			html.forEach( function ( morceau ) {
+				texte.appendChild( typeof morceau === 'string' ? document.createTextNode( morceau ) : el( 'strong', '', morceau.fort ) );
+			} );
+			li.appendChild( texte );
+			recap.appendChild( li );
+		}
+
+		function libelleChapitreLigne( l ) {
+			return l.libelle + ( l.sous_titre && l.libelle.indexOf( l.sous_titre ) < 0 ? ' — ' + l.sous_titre : '' );
+		}
+
+		function groupeChapitres( lignes ) {
+			if ( ! lignes.length ) {
+				return '';
+			}
+			if ( lignes.length === 1 ) {
+				return lignes[ 0 ].libelle;
+			}
+			return lignes[ 0 ].libelle + ' à ' + lignes[ lignes.length - 1 ].libelle;
+		}
+
+		function minusculeChapitre( texte ) {
+			return /^Chapitre/.test( texte ) ? texte.charAt( 0 ).toLowerCase() + texte.slice( 1 ) : texte;
+		}
+
+		/**
+		 * Récapitulatif « Ce qui va se passer » : chapitres créés avec leur date, mises à jour,
+		 * annonce(s), planning, tome complet, chapitres inchangés.
+		 */
+		function majRecap() {
+			if ( ! recap || ! chapitresMode ) {
+				return;
+			}
+			var infos = infosTome();
+			var oeuvreNom = nomOeuvre();
+			var libelleTome = infos ? infos.libelle : 'Le nouveau tome';
+			var sortie = sortieChoisie();
+			var muet = modeCatalogue();
+			var complet = !! ( completCase && completCase.checked );
+			var sortants = aSortir();
+			var dates = datesSortie( sortants.length );
+			var premiereSortie = ! infos || ! infos.publie;
+			recap.textContent = '';
+			if ( ! comparaisonCourante ) {
+				ajouterRecap( true, [ { fort: libelleTome }, ( oeuvreNom ? ' de ' + oeuvreNom : '' ) + ' reçoit les nouveaux chapitres du fichier (déposez-le pour voir le détail)' ] );
+			} else if ( ! sortants.length ) {
+				ajouterRecap( false, [ 'Aucun nouveau chapitre dans ce fichier' ] );
+			} else {
+				sortants.slice( 0, 6 ).forEach( function ( l, i ) {
+					ajouterRecap( true, [ { fort: libelleChapitreLigne( l ) }, ' ' + ( dates[ i ] === null ? 'en ligne maintenant' : 'programmé ' + libelleDate( dates[ i ] ) ) + ( i === 0 ? ', sous le ' + libelleTome : '' ) ] );
 				} );
-				recapChapitres.textContent = '';
-				recapChapitres.appendChild( el( 'strong', '', chapitres.length + ( chapitres.length > 1 ? ' pages de lecture' : ' page de lecture' ) ) );
-				var detail = numerotes + ( numerotes > 1 ? ' chapitres' : ' chapitre' ) + ( speciaux.length ? ' + ' + speciaux.join( ', ' ) : '' );
-				recapChapitres.appendChild( document.createTextNode( ' (' + detail + '), navigation et sommaire' ) );
+				if ( sortants.length > 6 ) {
+					ajouterRecap( true, [ '… et ' + pluriel( sortants.length - 6, 'autre chapitre', 'autres chapitres' ) ] );
+				}
+			}
+			var majs = comparaisonCourante ? comparaisonCourante.lignes.filter( function ( l ) {
+				return l.etat === 'modifie' && l.choix === 'maj';
+			} ) : [];
+			if ( majs.length ) {
+				ajouterRecap( true, [ { fort: groupeChapitres( majs ) }, ' mis à jour en place (sans annonce) : mêmes adresses, commentaires conservés' ] );
+			}
+			if ( muet ) {
+				ajouterRecap( false, [ { fort: 'Aucune annonce' }, ' : ajout au catalogue, ni article, ni Discord, ni e-mail' ] );
+			} else if ( sortants.length || ! comparaisonCourante ) {
+				var titre = ( oeuvreNom ? oeuvreNom + ', ' : '' ) + libelleTome + ' : ' + ( sortants.length ? minusculeChapitre( sortie === 'rythme' ? sortants[ 0 ].libelle : groupeChapitres( sortants ) ) : 'nouveaux chapitres' ) + ( ( sortants.length > 1 && sortie !== 'rythme' ) || ! sortants.length ? ' disponibles !' : ' disponible !' );
+				if ( premiereSortie && complet && sortie !== 'rythme' ) {
+					ajouterRecap( true, [ { fort: 'Annonce' }, ' : « Le ' + libelleTome.toLowerCase() + ( oeuvreNom ? ' de ' + oeuvreNom : '' ) + ' est disponible ! » (article, Discord, e-mail)' ] );
+				} else if ( sortie === 'rythme' && sortants.length > 1 ) {
+					ajouterRecap( true, [ { fort: 'Annonce à chaque sortie' }, ' : « ' + titre + ' »' + ( premiereSortie ? ' (article pour la première)' : '' ) ] );
+				} else {
+					ajouterRecap( true, [ { fort: 'Annonce' }, ' : « ' + titre + ' »' + ( premiereSortie ? ' (article, Discord, e-mail)' : ' (Discord et e-mail aux lecteurs qui suivent l’œuvre)' ) ] );
+				}
+			}
+			majPrevus();
+			var prevus = prevusAffiches();
+			var nomTome = 'Le ' + libelleTome.toLowerCase() + ( oeuvreNom ? ' de ' + oeuvreNom : '' );
+			var liensDernier = !! ( liensDernierCase && liensDernierCase.checked && ! complet );
+			if ( complet ) {
+				ajouterRecap( true, [ { fort: 'Tome publié maintenant' }, ' : tous les chapitres en ligne tout de suite (programmés compris), liens PDF/EPUB affichés, planning « Publié », 100 %' + ( ! premiereSortie && ! muet ? ', annonce « ' + nomTome + ' est complet »' : '' ) ] );
+			} else if ( liensDernier ) {
+				var derniere = dates.length ? dates[ dates.length - 1 ] : null;
+				ajouterRecap( true, [ { fort: 'Liens PDF/EPUB' }, ( derniere ? ' ' + libelleDate( derniere ) : ' à la sortie du dernier chapitre programmé' ) + ' : le tome passe « Publié », planning 100 %' + ( muet ? '' : ', annonce « ' + nomTome + ' est complet »' ) ] );
+			} else if ( infos && prevus > 0 ) {
+				var total = infos.enLigne + sortants.length;
+				var fin = dates.length ? dates[ dates.length - 1 ] : null;
+				ajouterRecap( true, [ { fort: 'Planning' }, ' : en cours, ' + Math.min( total, prevus ) + ' sur ' + prevus + ( fin ? ' ' + libelleDate( fin ).replace( /^le /, 'au ' ) : '' ) ] );
+			} else {
+				ajouterRecap( true, [ { fort: 'Planning' }, ' : en cours, étape inchangée (« Publié » quand le tome sera complet)' ] );
+			}
+			var gardes = comparaisonCourante ? comparaisonCourante.lignes.filter( function ( l ) {
+				return l.etat === 'identique' || ( l.etat === 'modifie' && l.choix !== 'maj' );
+			} ) : [];
+			if ( gardes.length ) {
+				ajouterRecap( false, [ groupeChapitres( gardes ) + ( gardes.length > 1 ? ' inchangés' : ' inchangé' ) + ' : mêmes adresses, commentaires conservés' ] );
+			}
+			majBoutonPublier( sortants.length, sortie );
+		}
+
+		function majBoutonPublier( n, sortie ) {
+			if ( ! publierLibelle ) {
+				return;
+			}
+			var quoi = comparaisonCourante ? pluriel( n, 'chapitre', 'chapitres' ) : 'les nouveaux chapitres';
+			if ( comparaisonCourante && ! n ) {
+				publierLibelle.textContent = completCase && completCase.checked ? 'Marquer le tome complet' : 'Enregistrer (aucun nouveau chapitre)';
+				return;
+			}
+			publierLibelle.textContent = ( sortie === 'maintenant' ? 'Publier ' : 'Programmer ' ) + quoi + ( sortie === 'rythme' ? ' un par un' : '' );
+		}
+
+		/**
+		 * Comparaison du fichier avec le tome (analyse) : un chapitre par ligne, son état, et le
+		 * choix « Garder la version en ligne » / « Mettre à jour (sans annonce) » d'un chapitre
+		 * en ligne modifié (champ choix[clé], envoyé avec le formulaire).
+		 */
+		function afficherComparaison( comp ) {
+			comparaisonCourante = comp || null;
+			lignesComparaison = [];
+			if ( ! comparaison ) {
+				return;
+			}
+			comparaisonLignes.textContent = '';
+			if ( ! comp || ! comp.lignes || ! comp.lignes.length ) {
+				comparaison.hidden = true;
+				majRecap();
+				return;
+			}
+			var parties = [];
+			if ( comp.nouveaux ) {
+				parties.push( pluriel( comp.nouveaux, 'nouveau', 'nouveaux' ) );
+			}
+			if ( comp.identiques ) {
+				parties.push( pluriel( comp.identiques, 'en ligne identique', 'en ligne identiques' ) );
+			}
+			if ( comp.modifies ) {
+				parties.push( pluriel( comp.modifies, 'en ligne modifié', 'en ligne modifiés' ) );
+			}
+			if ( comp.programmes ) {
+				parties.push( pluriel( comp.programmes, 'programmé', 'programmés' ) );
+			}
+			if ( comp.brouillons ) {
+				parties.push( pluriel( comp.brouillons, 'brouillon', 'brouillons' ) );
+			}
+			comparaisonBilan.textContent = pluriel( comp.lignes.length, 'chapitre repéré', 'chapitres repérés' ) + ' : ' + parties.join( ', ' ) + '. Rien n’est jamais retiré du tome.';
+			comp.lignes.forEach( function ( l, i ) {
+				var tr = el( 'tr' );
+				var td = el( 'td' );
+				td.appendChild( el( 'strong', '', l.libelle ) );
+				tr.appendChild( td );
+				td = el( 'td', 'yn-muted', ( l.etat === 'identique' ? 'identique' : ( l.sous_titre ? l.sous_titre + ' · ' : '' ) + nombre( l.nb_mots ) + ' mots' ) );
+				tr.appendChild( td );
+				td = el( 'td' );
+				var variante = { nouveau: 'ok', identique: 'info', modifie: 'warn', programme: 'info', brouillon: 'info' }[ l.etat ] || 'info';
+				td.appendChild( el( 'span', 'yn-chip yn-chip--' + variante, l.etat === 'programme' && l.existant && l.existant.date_libelle ? l.etat_libelle + ' · ' + l.existant.date_libelle : l.etat_libelle ) );
+				if ( l.existant && l.existant.lien ) {
+					var voir = lien( l.existant.lien, 'Voir' );
+					voir.target = '_blank';
+					voir.rel = 'noopener';
+					voir.appendChild( el( 'span', 'yn-visually-hidden', ' — ' + l.libelle ) );
+					td.appendChild( document.createTextNode( ' ' ) );
+					td.appendChild( voir );
+				}
+				tr.appendChild( td );
+				td = el( 'td', 'yn-publish__comparaison-action' );
+				var ref = { l: l, action: td };
+				if ( l.etat === 'modifie' ) {
+					[ [ 'garder', 'Garder la version en ligne' ], [ 'maj', 'Mettre à jour (sans annonce)' ] ].forEach( function ( c ) {
+						var id = 'yn-publish-choix-' + i + '-' + c[ 0 ];
+						var p = el( 'span', 'yn-publish__choix' );
+						var radio = el( 'input' );
+						radio.type = 'radio';
+						radio.name = 'choix[' + l.cle + ']';
+						radio.value = c[ 0 ];
+						radio.id = id;
+						radio.checked = ( l.choix || 'garder' ) === c[ 0 ];
+						radio.addEventListener( 'change', function () {
+							l.choix = radio.value;
+							majRecap();
+						} );
+						var etiquette = el( 'label', '', c[ 1 ] );
+						etiquette.htmlFor = id;
+						etiquette.appendChild( el( 'span', 'yn-visually-hidden', ' — ' + l.libelle ) );
+						p.appendChild( radio );
+						p.appendChild( etiquette );
+						td.appendChild( p );
+					} );
+				}
+				tr.appendChild( td );
+				comparaisonLignes.appendChild( tr );
+				lignesComparaison.push( ref );
+			} );
+			comparaison.hidden = false;
+			majActionsComparaison();
+		}
+
+		/**
+		 * Colonne « Action » des chapitres qui sortent : date prévue selon la sortie choisie.
+		 */
+		function majActionsComparaison() {
+			var sortants = aSortir();
+			var dates = datesSortie( sortants.length );
+			lignesComparaison.forEach( function ( ref ) {
+				var l = ref.l;
+				if ( l.etat === 'modifie' ) {
+					return;
+				}
+				var rang = sortants.indexOf( l );
+				var texte = { identique: 'Inchangé', programme: 'Mis à jour, date gardée' }[ l.etat ] || '';
+				if ( rang >= 0 ) {
+					texte = dates[ rang ] === null ? 'Sortie maintenant' : 'Sortie ' + libelleDate( dates[ rang ] );
+				}
+				ref.action.textContent = texte;
+			} );
+			majRecap();
+		}
+
+		/**
+		 * Sortie choisie : date (« À une date », ou départ d'une sortie un par un sans rythme),
+		 * intervalle (un par un sans rythme), texte du rythme du tome.
+		 */
+		function majSortie() {
+			var sortie = sortieChoisie();
+			var infos = infosTome();
+			var rythme = infos ? infos.rythme : '';
+			if ( rythmeTexte ) {
+				rythmeTexte.textContent = rythme
+					? rythme.charAt( 0 ).toUpperCase() + rythme.slice( 1 ) + ', après le dernier chapitre déjà programmé. Une annonce par chapitre.'
+					: 'Ce tome n’a pas de rythme : à partir de la date choisie (ou maintenant), puis tous les N jours. Une annonce par chapitre.';
+			}
+			if ( sortieDate ) {
+				sortieDate.hidden = ! ( sortie === 'date' || ( sortie === 'rythme' && ! rythme ) );
+			}
+			if ( sortieIntervalle ) {
+				sortieIntervalle.hidden = ! ( sortie === 'rythme' && ! rythme );
+			}
+			if ( date ) {
+				date.required = sortie === 'date';
+			}
+			majActionsComparaison();
+		}
+
+		function majComplet() {
+			var coche = !! ( completCase && completCase.checked );
+			// Tout publier maintenant : le choix de sortie et « avec le dernier chapitre » sont sans objet.
+			Array.prototype.forEach.call( choixSortie, function ( radio ) {
+				radio.disabled = coche;
+			} );
+			if ( liensDernierCase ) {
+				if ( coche ) {
+					liensDernierCase.checked = false;
+				}
+				liensDernierCase.disabled = coche;
+			}
+			majSortie();
+			majRecap();
+		}
+
+		/**
+		 * Chapitres prévus : ceux du tome, relevés au nombre de chapitres qu'aura le tome si le
+		 * fichier en apporte plus (sauf saisie de l'équipe).
+		 */
+		function majPrevus() {
+			if ( ! prevusChamp || prevusTouche ) {
+				return;
+			}
+			var infos = infosTome();
+			var prevus = infos ? infos.prevus : 0;
+			var total = comparaisonCourante && comparaisonCourante.lignes ? Math.max( comparaisonCourante.lignes.length, ( infos ? infos.enLigne : 0 ) + aSortir().length ) : 0;
+			if ( prevus > 0 && total > prevus ) {
+				prevusChamp.value = String( total );
+				if ( prevusAide ) {
+					prevusAide.textContent = 'Relevé de ' + prevus + ' à ' + total + ' : le fichier apporte plus de chapitres que prévu. Modifiable ici.';
+				}
+				return;
+			}
+			prevusChamp.value = prevus > 0 ? String( prevus ) : '';
+			if ( prevusAide ) {
+				prevusAide.textContent = 'Relevé tout seul si le fichier apporte plus de chapitres que prévu. Modifiable ici.';
+			}
+		}
+
+		function prevusAffiches() {
+			var n = prevusChamp ? parseInt( prevusChamp.value || '0', 10 ) : 0;
+			return isNaN( n ) ? 0 : n;
+		}
+
+		/**
+		 * Fiche du tome choisi (parution, chapitres en ligne, prévus, rythme) et création du
+		 * tome ici (nature, numéro, titre) seulement si aucun tome n'est choisi.
+		 */
+		function majFicheTome() {
+			var infos = infosTome();
+			if ( creation ) {
+				creation.hidden = !! infos;
+				Array.prototype.forEach.call( creation.querySelectorAll( 'input, select' ), function ( champ ) {
+					champ.disabled = !! infos;
+				} );
+			}
+			if ( ! ficheTome ) {
+				return;
+			}
+			ficheTome.hidden = ! infos;
+			if ( ! infos ) {
+				return;
+			}
+			var puce = ficheTome.querySelector( '[data-yn-fiche-parution]' );
+			puce.className = 'yn-chip yn-chip--' + ( infos.parution === 'complet' ? 'ok' : 'info' );
+			puce.textContent = infos.parutionLibelle;
+			ficheTome.querySelector( '[data-yn-fiche-en-ligne]' ).textContent = infos.enLigne
+				? ( infos.enLigneLibelle ? infos.enLigneLibelle + ' en ligne' : pluriel( infos.enLigne, 'chapitre en ligne', 'chapitres en ligne' ) )
+				: 'Aucun chapitre en ligne';
+			ficheTome.querySelector( '[data-yn-fiche-prevus]' ).textContent = infos.prevus ? infos.enLigne + ' sur ' + infos.prevus : '';
+			majPrevus();
+			ficheTome.querySelector( '[data-yn-fiche-rythme]' ).textContent = infos.rythme ? infos.rythme.charAt( 0 ).toUpperCase() + infos.rythme.slice( 1 ) : '';
+			var voir = ficheTome.querySelector( '[data-yn-fiche-lien]' );
+			voir.hidden = ! infos.lien;
+			if ( infos.lien ) {
+				voir.href = infos.lien;
 			}
 		}
 
@@ -336,7 +789,14 @@
 			attente.hidden = false;
 		}
 
+		/**
+		 * Sans annonce ? Case « Ajout au catalogue » cochée (tome complet déjà paru), ou case
+		 * « Annoncer les nouveaux chapitres » décochée.
+		 */
 		function modeCatalogue() {
+			if ( blocAnnoncer && ! blocAnnoncer.hidden ) {
+				return ! ( annoncerCase && annoncerCase.checked );
+			}
 			return !! ( sansAnnonce && sansAnnonce.checked );
 		}
 
@@ -351,17 +811,37 @@
 			if ( recapCatalogue ) {
 				recapCatalogue.hidden = ! muet;
 			}
+			majRecap();
+		}
+
+		function basculerBloc( bloc, visible ) {
+			if ( ! bloc ) {
+				return;
+			}
+			bloc.hidden = ! visible;
+			Array.prototype.forEach.call( bloc.querySelectorAll( 'input' ), function ( champ ) {
+				champ.disabled = ! visible;
+			} );
 		}
 
 		/**
-		 * Valeur par défaut de la case « Ajout au catalogue » : cochée pour un tome déjà
-		 * publié, décochée sinon, tant que l'utilisateur ne l'a pas changée lui-même.
+		 * Annonce selon le tome : « Ajout au catalogue » cochée d'office pour un tome complet
+		 * déjà paru (lecture en ligne d'un tome migré), sinon « Annoncer les nouveaux
+		 * chapitres » cochée, tant que l'utilisateur n'a pas changé la case lui-même.
 		 */
-		function defautAnnonce( publie ) {
-			if ( ! sansAnnonce || sansAnnonceTouchee ) {
-				return;
+		function defautAnnonce( catalogue ) {
+			if ( blocAnnoncer && blocCatalogue ) {
+				basculerBloc( blocCatalogue, !! catalogue );
+				basculerBloc( blocAnnoncer, ! catalogue );
 			}
-			sansAnnonce.checked = !! publie;
+			if ( ! sansAnnonceTouchee ) {
+				if ( sansAnnonce ) {
+					sansAnnonce.checked = !! catalogue;
+				}
+				if ( annoncerCase ) {
+					annoncerCase.checked = true;
+				}
+			}
 			majModeAnnonce();
 		}
 
@@ -626,7 +1106,7 @@
 			liste.setAttribute( 'aria-busy', 'true' );
 			var donnees = new FormData();
 			donnees.append( 'source', fichier );
-			[ 'oeuvre_id', 'nature', 'numero' ].forEach( function ( nom ) {
+			[ 'oeuvre_id', 'tome_id', 'nature', 'numero' ].forEach( function ( nom ) {
 				var champ = form.elements.namedItem( nom );
 				if ( champ && champ.value ) {
 					donnees.append( nom, champ.value );
@@ -650,7 +1130,9 @@
 				afficherFiche( fichier.name, ext, taille( fichier.size ) + ' · analysé : ' + rapport.resume, 'ok' );
 				afficherChapitres( rapport.chapitres || [] );
 				afficherAvertissements( rapport.avertissements || [] );
-				majRecap( rapport.chapitres || [] );
+				infosAnalyse = rapport.tome || null;
+				afficherComparaison( rapport.comparaison || null );
+				majFicheTome();
 				if ( essai ) {
 					annoncer( 'Découpage vérifié (rien n’est enregistré) : ' + rapport.resume + '.' + ( planActif.checked ? '' : ' Cochez « Utiliser ce découpage » pour l’appliquer à l’enregistrement.' ), 'succes' );
 					return;
@@ -658,11 +1140,14 @@
 				construirePlan( rapport );
 				var texte = 'Analyse terminée : ' + rapport.resume + '.';
 				if ( rapport.tome_existant && etat ) {
-					etat.textContent = 'Tome existant (' + rapport.tome_existant.etat.toLowerCase() + ') : mise à jour';
+					etat.textContent = 'Tome existant (' + rapport.tome_existant.etat.toLowerCase() + ')';
 				}
-				defautAnnonce( rapport.tome_existant ? rapport.tome_existant.statut === 'publish' : false );
-				if ( rapport.tome_existant ) {
-					texte += ' ' + rapport.tome_existant.titre + ' existe déjà (' + rapport.tome_existant.etat.toLowerCase() + ') : il sera mis à jour, ses adresses sont conservées.';
+				defautAnnonce( rapport.tome ? rapport.tome.sans_annonce : false );
+				if ( rapport.tome_existant && rapport.comparaison ) {
+					var comp = rapport.comparaison;
+					texte += ' Comparé à ' + rapport.tome_existant.titre + ' : ' + pluriel( comp.nouveaux + comp.brouillons, 'chapitre à sortir', 'chapitres à sortir' )
+						+ ( comp.identiques ? ', ' + pluriel( comp.identiques, 'déjà en ligne à l’identique', 'déjà en ligne à l’identique' ) : '' )
+						+ ( comp.modifies ? ', ' + pluriel( comp.modifies, 'en ligne modifié (à garder ou mettre à jour)', 'en ligne modifiés (à garder ou mettre à jour)' ) : '' ) + '.';
 				}
 				annoncer( texte, 'succes' );
 			} ).catch( function ( erreur ) {
@@ -754,7 +1239,7 @@
 					}
 				} );
 				if ( ! trouves ) {
-					var vide = el( 'option', '', 'Aucun tome en préparation pour cette œuvre' );
+					var vide = el( 'option', '', 'Aucun tome pour cette œuvre : créez-le avec + Nouveau tome' );
 					vide.disabled = true;
 					vide.value = '-';
 					planning.appendChild( vide );
@@ -767,18 +1252,29 @@
 			}
 		}
 
+		/**
+		 * Tome choisi : il est la cible (sa nature et son numéro ne changent jamais), sa fiche
+		 * s'affiche, l'annonce par défaut suit sa parution ; le fichier déjà choisi est comparé
+		 * à nouveau, à ce tome.
+		 */
 		function choisirPlanning() {
-			var option = planning.options[ planning.selectedIndex ];
-			if ( ! option || ! option.value || option.value === '-' ) {
+			var option = tomeOption();
+			infosAnalyse = null;
+			var aComparer = !! ( sourceAEnvoyer && source.files && source.files.length );
+			if ( ! option ) {
 				tome.value = '';
 				if ( etat ) {
-					etat.textContent = 'Nouveau tome';
+					etat.textContent = 'Choisissez le tome';
 				}
 				defautAnnonce( false );
-				majRecap( null );
+				majFicheTome();
+				majSortie();
+				if ( aComparer ) {
+					analyser( false );
+				}
 				return;
 			}
-			defautAnnonce( option.getAttribute( 'data-publie' ) === '1' );
+			defautAnnonce( option.getAttribute( 'data-catalogue' ) === '1' );
 			var oeuvre = form.querySelector( '[data-yn-oeuvre]' );
 			var nature = form.querySelector( '[data-yn-nature]' );
 			var numero = form.querySelector( '[data-yn-numero]' );
@@ -803,9 +1299,13 @@
 			}
 			tome.value = option.value;
 			if ( etat ) {
-				etat.textContent = 'Tome du planning : mise à jour';
+				etat.textContent = ( option.getAttribute( 'data-parution-libelle' ) || 'Tome existant' ) + ' : ajout de chapitres';
 			}
-			majRecap( null );
+			majFicheTome();
+			majSortie();
+			if ( aComparer ) {
+				analyser( false );
+			}
 		}
 
 		function envoyer( evenement ) {
@@ -816,7 +1316,11 @@
 				return;
 			}
 			evenement.preventDefault();
-			if ( etape === 'programmer' && ! date.value ) {
+			// Ajout de chapitres : « Vérifier » et « Remplacer » passent au remplacement en deux temps.
+			var remplacementExplicite = etape === 'verifier' || etape === 'remplacer' || etape === 'annuler_remplacement';
+			var ajout = chapitresMode && ! remplacementExplicite;
+			var sortieAjout = ajout ? sortieChoisie() : '';
+			if ( ( etape === 'programmer' || ( ajout && etape === 'publier' && sortieAjout === 'date' ) ) && ! date.value ) {
 				annoncer( 'Indiquez la date et l’heure de sortie pour programmer la publication.', 'erreur' );
 				date.focus();
 				return;
@@ -835,8 +1339,18 @@
 				annoncer( 'Aucun remplacement n’est en attente : déposez le nouveau DOCX ou EPUB, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'erreur' );
 				return;
 			}
-			var remplace = etape === 'remplacer' || ( etape === 'publier' && ( enAttente() || ( aVerifier && !! racine.querySelector( '[data-yn-mode-remplacement]' ) ) ) );
-			if ( ( etape === 'publier' || etape === 'remplacer' ) && ! window.confirm(
+			var remplace = etape === 'remplacer' || ( ! ajout && etape === 'publier' && ( enAttente() || ( aVerifier && !! racine.querySelector( '[data-yn-mode-remplacement]' ) ) ) );
+			if ( ajout && etape === 'publier' ) {
+				var nbSortants = comparaisonCourante ? aSortir().length : 0;
+				var question = ( sortieAjout === 'maintenant' ? 'Publier maintenant ' : 'Programmer ' )
+					+ ( comparaisonCourante ? pluriel( nbSortants, 'chapitre', 'chapitres' ) : 'les nouveaux chapitres' )
+					+ ( sortieAjout === 'rythme' ? ' un par un' : '' ) + ' ?'
+					+ ( modeCatalogue() ? ' Sans annonce (ni article, ni Discord, ni e-mail).' : ' Les lecteurs qui suivent l’œuvre seront prévenus' + ( sortieAjout === 'maintenant' ? '.' : ' à chaque sortie.' ) )
+					+ ( completCase && completCase.checked ? ' Le tome passera « Publié ».' : '' );
+				if ( ! window.confirm( question ) ) {
+					return;
+				}
+			} else if ( ( etape === 'publier' || etape === 'remplacer' ) && ! window.confirm(
 				remplace
 					? 'Remplacer maintenant la lecture en ligne par la nouvelle version ? Les lecteurs verront aussitôt les chapitres remplacés (mêmes adresses, commentaires conservés).' + ( modeCatalogue() ? ' Ajout au catalogue : aucune annonce (ni article, ni Discord, ni e-mail).' : '' )
 					: ( modeCatalogue()
@@ -850,6 +1364,9 @@
 			[ 'action', '_yume_nonce', '_wp_http_referer', 'etape' ].forEach( function ( nom ) {
 				donnees.delete( nom );
 			} );
+			if ( chapitresMode && remplacementExplicite ) {
+				donnees.set( 'mode', 'remplacement' );
+			}
 			if ( ! sourceAEnvoyer || ! ( source.files && source.files.length ) ) {
 				donnees.delete( 'source' );
 				donnees.delete( 'plan' );
@@ -883,7 +1400,11 @@
 						return { numero: c.numero, nature: c.nature, titre: c.libelle, sous_titre: c.sous_titre, nb_mots: c.nb_mots };
 					} ) );
 				}
-				afficherAttente( rapport.remplacement );
+				// Ajout de chapitres : les mises à jour choisies attendent la sortie, sans encadré.
+				afficherAttente( rapport.remplacement && rapport.remplacement.mode !== 'chapitres' ? rapport.remplacement : null );
+				if ( ajout && rapport.comparaison ) {
+					afficherComparaison( rapport.comparaison );
+				}
 				if ( etat ) {
 					etat.textContent = rapport.remplacement
 						? 'Version en attente : rien n’a changé en ligne'
@@ -897,6 +1418,13 @@
 					// Remplacement en attente : aperçu de la nouvelle version, jamais du chapitre en ligne.
 					var versions = rapport.remplacement ? rapport.remplacement.chapitres : null;
 					var cible = versions && versions.length ? versions[ 0 ].apercu : ( rapport.chapitres && rapport.chapitres.length ? rapport.chapitres[ 0 ].apercu : rapport.tome.apercu );
+					if ( ajout ) {
+						// Ajout de chapitres : aperçu du premier chapitre nouveau (ou mis à jour).
+						var nouveau = ( rapport.chapitres || [] ).filter( function ( c ) {
+							return c.action === 'cree' || c.action === 'maj';
+						} )[ 0 ];
+						cible = nouveau && nouveau.apercu ? nouveau.apercu : cible;
+					}
 					if ( fenetre ) {
 						fenetre.location.href = cible;
 					} else {
@@ -909,9 +1437,22 @@
 				if ( etape === 'publier' || etape === 'programmer' || etape === 'remplacer' ) {
 					var sortir = function ( confirme ) {
 						var sortieDonnees = new FormData();
-						sortieDonnees.append( 'quand', etape === 'programmer' ? date.value : 'maintenant' );
+						var avecDate = etape === 'programmer' || ( ajout && ( sortieAjout === 'date' || ( sortieAjout === 'rythme' && ! ( infosTome() || {} ).rythme && date.value ) ) );
+						sortieDonnees.append( 'quand', avecDate ? date.value : 'maintenant' );
 						// Toujours explicite : sans ce champ, l'API choisit selon le statut du tome.
 						sortieDonnees.append( 'sans_annonce', rapport.sans_annonce ? '1' : '0' );
+						if ( ajout ) {
+							sortieDonnees.append( 'mode', 'chapitres' );
+							sortieDonnees.append( 'sortie', etape === 'programmer' ? 'date' : sortieAjout );
+							sortieDonnees.append( 'intervalle', ( intervalle && intervalle.value ) || '7' );
+							sortieDonnees.append( 'complet', completCase && completCase.checked ? '1' : '0' );
+							sortieDonnees.append( 'liens_dernier', liensDernierCase && liensDernierCase.checked && ! ( completCase && completCase.checked ) ? '1' : '0' );
+							if ( ( completCase && completCase.checked ) || ( liensDernierCase && liensDernierCase.checked ) ) {
+								Array.prototype.forEach.call( liensComplet, function ( champ ) {
+									sortieDonnees.append( champ.name, champ.value );
+								} );
+							}
+						}
 						if ( confirme ) {
 							sortieDonnees.append( 'confirmer_vide', '1' );
 						}
@@ -933,7 +1474,12 @@
 						}
 						var dateSortie = new Date( sortie.date ).toLocaleString( 'fr-FR', { dateStyle: 'full', timeStyle: 'short' } );
 						var texteSortie;
-						if ( sortie.sans_annonce && sortie.remplacement ) {
+						if ( sortie.message ) {
+							// Ajout de chapitres : message du serveur (chapitres en ligne et programmés, annonce, tome complet).
+							texteSortie = sortie.message;
+							afficherComparaison( null );
+							infosAnalyse = null;
+						} else if ( sortie.sans_annonce && sortie.remplacement ) {
 							texteSortie = sortie.tome.titre + ' : lecture en ligne remplacée (' + sortie.en_ligne + ( sortie.en_ligne > 1 ? ' chapitres' : ' chapitre' ) + ' en ligne'
 								+ ( sortie.chapitres > 0 ? ' ; ' + sortie.chapitres + ( sortie.chapitres > 1 ? ' nouveaux' : ' nouveau' ) : '' )
 								+ '), sans annonce : ni article, ni Discord, ni e-mail. La date de sortie du tome ne change pas.';
@@ -948,7 +1494,9 @@
 									: sortie.tome.titre + ' est en ligne ! L’annonce et les notifications sont parties ; la lecture en ligne reste à ajouter (Lecture à compléter).' )
 								: sortie.tome.titre + ' sortira le ' + dateSortie + '.';
 						}
-						if ( etat ) {
+						if ( etat && sortie.mode === 'chapitres' ) {
+							etat.textContent = { a_paraitre: 'Planifié', en_cours: 'En cours de publication', complet: 'Publié' }[ sortie.parution ] || 'Tome publié';
+						} else if ( etat ) {
 							etat.textContent = sortie.sans_annonce
 								? ( sortie.remplacement ? 'Lecture en ligne remplacée' : ( sortie.statut === 'publish' ? 'Lecture en ligne ajoutée' : 'Lecture en ligne programmée' ) )
 								: ( sortie.statut === 'publish' ? 'Tome publié' : 'Sortie programmée' );
@@ -960,6 +1508,12 @@
 						);
 						afficherResultat( rapportCourant, sortie );
 					} );
+				}
+				if ( ajout && rapport.message ) {
+					// Ajout de chapitres enregistré en brouillon : rien n'a changé en ligne.
+					annoncer( rapport.message, 'succes' );
+					afficherResultat( rapport, null );
+					return null;
 				}
 				if ( rapport.remplacement && ( etape === 'verifier' || rapport.import ) ) {
 					annoncer( rapport.remplacement.message, 'succes' );
@@ -1115,20 +1669,42 @@
 		if ( date ) {
 			date.addEventListener( 'change', majDate );
 			date.addEventListener( 'input', majDate );
+			date.addEventListener( 'change', majActionsComparaison );
 		}
 		[ 'oeuvre_id', 'nature', 'numero' ].forEach( function ( nom ) {
 			var champ = form.elements.namedItem( nom );
 			if ( champ ) {
 				champ.addEventListener( 'change', function () {
 					if ( nom === 'oeuvre_id' ) {
+						var avant = tome.value;
 						filtrerPlanning();
+						if ( nouveauTome && window.URL ) {
+							try {
+								var adresse = new URL( nouveauTome.href, window.location.href );
+								if ( champ.value ) {
+									adresse.searchParams.set( 'oeuvre', champ.value );
+								} else {
+									adresse.searchParams.delete( 'oeuvre' );
+								}
+								nouveauTome.href = adresse.toString();
+							} catch ( err ) {
+								// Adresse non modifiable : le lien reste tel quel.
+							}
+						}
+						if ( avant !== tome.value ) {
+							choisirPlanning();
+						}
 					}
-					majRecap( null );
+					majRecap();
 				} );
 			}
 		} );
 		if ( planning ) {
-			planning.addEventListener( 'change', choisirPlanning );
+			planning.addEventListener( 'change', function ( e ) {
+				// Autre tome : ses propres chapitres prévus.
+				prevusTouche = false;
+				choisirPlanning( e );
+			} );
 			filtrerPlanning();
 		}
 		if ( sansAnnonce ) {
@@ -1136,8 +1712,37 @@
 				sansAnnonceTouchee = true;
 				majModeAnnonce();
 			} );
-			majModeAnnonce();
 		}
+		if ( annoncerCase ) {
+			annoncerCase.addEventListener( 'change', function () {
+				sansAnnonceTouchee = true;
+				majModeAnnonce();
+			} );
+		}
+		Array.prototype.forEach.call( choixSortie, function ( radio ) {
+			radio.addEventListener( 'change', majSortie );
+		} );
+		if ( intervalle ) {
+			intervalle.addEventListener( 'input', majActionsComparaison );
+		}
+		if ( completCase ) {
+			completCase.addEventListener( 'change', majComplet );
+		}
+		if ( liensDernierCase ) {
+			liensDernierCase.addEventListener( 'change', majRecap );
+		}
+		if ( prevusChamp ) {
+			prevusChamp.addEventListener( 'input', function () {
+				prevusTouche = true;
+				majRecap();
+			} );
+		}
+		if ( chapitresMode ) {
+			majFicheTome();
+			majSortie();
+			majComplet();
+		}
+		majModeAnnonce();
 		racine.addEventListener( 'click', function ( e ) {
 			var bouton = e.target.closest ? e.target.closest( 'button[type="submit"]' ) : null;
 			if ( bouton ) {

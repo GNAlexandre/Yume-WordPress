@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Schéma — planning et rappels</title>
+<!-- Schéma du guide de l'équipe (pas une maquette d'écran) : étapes du planning, champs d'une tâche
+     (champs_tache(), includes/planning/equipe.php), états publics et rappels automatiques
+     (includes/planning/rappels.php). -->
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+h1,h2,h3{font-family:"Outfit","Segoe UI",sans-serif;color:#fff8fb;margin:0;line-height:1.15}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.pink{color:#f3a6c8;border-color:#f3a6c8}.red{color:#ff9d9d;border-color:#ff9d9d}
+.muted{color:#b7a9cc}
+.etape{flex:1;padding:14px 16px;text-align:center;font-weight:700;color:#fff8fb;border-radius:8px;background:#3a2a63;border:1px solid #7f6aa8}
+.fleche{color:#f3a6c8;font-size:22px;align-self:center}
+.inp{height:36px;box-sizing:border-box;padding:0 12px;border:1px solid #7f6aa8;border-radius:6px;background:#241740;color:#fff8fb;display:flex;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 18px;border-radius:6px;font-weight:700;background:#f3a6c8;color:#2a1240}
+ul{margin:0;padding-left:20px}
+li{margin:4px 0}
+</style>
+</head>
+<body>
+<div style="width:1440px;box-sizing:border-box;padding:40px 48px;display:flex;flex-direction:column;gap:26px">
+  <div>
+    <div class="lbl">Schéma · le planning</div>
+    <h1 style="font-size:40px;margin-top:8px">Une étape après l’autre, et un mot à chaque avancée</h1>
+  </div>
+
+  <div style="display:flex;gap:12px">
+    <div class="etape">À faire</div><span class="fleche">→</span>
+    <div class="etape">Traduction</div><span class="fleche">→</span>
+    <div class="etape">Relecture</div><span class="fleche">→</span>
+    <div class="etape">Édition</div><span class="fleche">→</span>
+    <div class="etape" style="background:#244a36;border-color:#8fd6a3">Publié <span class="muted" style="font-weight:400">(automatique)</span></div>
+  </div>
+  <p class="muted" style="margin:-10px 0 0">On passe à l’étape suivante quand la précédente est à 100 %. La personne suivante voit alors le tome dans <strong style="color:#fff8fb">Mes tâches</strong>.</p>
+
+  <div style="display:grid;grid-template-columns:600px minmax(0,1fr);gap:28px;align-items:start">
+    <section class="card" style="padding:22px 24px;display:flex;flex-direction:column;gap:14px">
+      <div class="lbl">Une tâche dans « Mes tâches » (schéma simplifié)</div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:20px">SukaMoka — Tome 3</h3><span class="chip ok">● À l’heure</span></div>
+      <div>
+        <div style="display:flex;justify-content:space-between"><span>Avancement</span><strong style="color:#fff8fb">60 %</strong></div>
+        <div style="height:8px;border-radius:4px;background:#3f3060;margin-top:6px"><div style="width:60%;height:8px;border-radius:4px;background:#8fd6a3"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><div class="lbl" style="color:#b7a9cc">Étape</div><div class="inp">Traduction ▾</div></div>
+        <div><div class="lbl" style="color:#b7a9cc">Date cible</div><div class="inp">06/12/2026</div></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center"><span style="width:16px;height:16px;border:1.5px solid #7f6aa8;border-radius:3px"></span>Tome bloqué <span class="muted">→ Raison du blocage</span></div>
+      <div><div class="lbl" style="color:#b7a9cc">Note pour l’équipe (facultatif)</div><div class="inp muted">Ex.&nbsp;: chapitres 1 à 12 relus, reste la postface</div></div>
+      <div><span class="btn">Enregistrer</span></div>
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <section class="card" style="padding:20px 24px">
+        <div class="lbl" style="margin-bottom:10px">Ce que voient les lecteurs sur /planning/</div>
+        <div style="display:grid;grid-template-columns:150px 1fr;gap:10px 16px;align-items:center">
+          <span class="chip ok">● À l’heure</span><span>La date cible tient.</span>
+          <span class="chip warn">▲ En retard</span><span>Date cible dépassée, ou aucune mise à jour depuis 14 jours.</span>
+          <span class="chip red">■ Bloqué</span><span>Le tome est marqué bloqué (la raison est affichée).</span>
+          <span class="chip info">✓ Publié</span><span>Le tome est sorti.</span>
+        </div>
+        <p class="muted" style="margin:12px 0 0;font-size:14px">La note pour l’équipe n’est jamais montrée aux lecteurs.</p>
+      </section>
+      <section class="card" style="padding:20px 24px">
+        <div class="lbl" style="margin-bottom:10px">Rappels automatiques, chaque jour vers 9 h</div>
+        <ul>
+          <li><strong style="color:#fff8fb">Date cible dépassée</strong>&nbsp;: e-mail au responsable et message sur le Discord de l’équipe.</li>
+          <li><strong style="color:#fff8fb">14 jours sans mise à jour</strong>&nbsp;: rappel « mets ton planning à jour ».</li>
+          <li>Ensuite&nbsp;: une relance 3 jours plus tard, puis au plus une par semaine ; plus rien après 8 semaines de retard.</li>
+          <li><strong style="color:#fff8fb">Chaque lundi</strong>&nbsp;: récapitulatif aux gérants.</li>
+        </ul>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><span class="chip pink">Tome en pause&nbsp;: aucun rappel</span><span class="chip pink">Œuvre en pause, terminée, abandonnée ou licenciée&nbsp;: aucun rappel</span></div>
+      </section>
+    </div>
+  </div>
+</div>
+</body>
+</html>

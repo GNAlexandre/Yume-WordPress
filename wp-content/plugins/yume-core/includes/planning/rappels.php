@@ -8,10 +8,11 @@
  *   signalement aux gérants. Rappels plafonnés (BUG-10) : un premier rappel, une relance
  *   après le délai minimal (3 jours, méta _yume_dernier_rappel), puis au plus un par semaine ;
  *   au-delà de yume_rappels_plafond semaines de retard (8 par défaut), plus aucun rappel : le
- *   tome ne figure plus que dans le récapitulatif. Un tome en pause (méta yume_pause) n'est
- *   jamais rappelé ni signalé ;
+ *   tome ne figure plus que dans le récapitulatif. Un tome en pause (méta yume_pause) ou d'une
+ *   œuvre en pause, terminée, abandonnée ou licenciée (tome_sans_rappels()) n'est jamais
+ *   rappelé ni signalé ;
  * - chaque semaine, le jour digest_jour : récapitulatif aux gérants (sorties de la semaine,
- *   retards, bloqués, sorties prévues).
+ *   retards, bloqués, sorties prévues), sans les tomes de ces œuvres.
  *
  * @package Yume\Core
  */
@@ -71,15 +72,16 @@ function rappels_envoyes_depuis( int $tome_id, int $depuis ): int {
 }
 
 /**
- * Un rappel de retard peut-il partir aujourd'hui pour ce tome ? Jamais pour un tome en pause
- * ni au-delà du plafond ; sinon le premier rappel part, la relance attend le délai minimal
- * (delai_rappel()) et les suivants une semaine.
+ * Un rappel de retard peut-il partir aujourd'hui pour ce tome ? Jamais pour un tome en pause,
+ * d'une œuvre en pause, terminée, abandonnée ou licenciée, ni au-delà du plafond ; sinon le
+ * premier rappel part, la relance attend le délai minimal (delai_rappel()) et les suivants une
+ * semaine.
  *
  * @param array $ligne Ligne du planning.
  */
 function rappel_permis( array $ligne ): bool {
 	$tome_id = (int) $ligne['tome_id'];
-	if ( est_en_pause( $tome_id ) || rappels_plafonnes( $ligne ) ) {
+	if ( tome_sans_rappels( $tome_id ) || rappels_plafonnes( $ligne ) ) {
 		return false;
 	}
 	$dernier = ts_gmt( (string) get_post_meta( $tome_id, META_DERNIER_RAPPEL, true ) );
@@ -257,7 +259,8 @@ function executer_rappels(): array {
 		)
 	) as $ligne ) {
 		$tome_id = (int) $ligne['tome_id'];
-		if ( ! in_array( $ligne['etat'], array( 'en_retard', 'bloque' ), true ) || est_en_pause( $tome_id ) ) {
+		// Tome en pause ou d'une œuvre en pause, terminée… : ni rappel ni signalement aux gérants.
+		if ( ! in_array( $ligne['etat'], array( 'en_retard', 'bloque' ), true ) || tome_sans_rappels( $tome_id ) ) {
 			continue;
 		}
 
@@ -423,12 +426,15 @@ function envoyer_digest( bool $forcer = false ): array {
 		return $resultat;
 	}
 
-	$lignes    = lignes_planning(
+	$lignes = lignes_planning(
 		array(
 			'public'                 => false,
 			'inclure_publies_depuis' => 7,
 		)
 	);
+	// Œuvres en pause, terminées, abandonnées ou licenciées : ni retard, ni blocage, ni sortie
+	// prévue dans le récapitulatif (leurs sorties de la semaine, s'il y en a, restent listées).
+	$lignes    = array_values( array_filter( $lignes, static fn( array $l ): bool => 'publie' === $l['etat'] || ! oeuvre_sans_rappels( (int) $l['oeuvre_id'] ) ) );
 	$sorties   = array_values( array_filter( $lignes, static fn( array $l ): bool => 'publie' === $l['etat'] ) );
 	$retards   = array_values( array_filter( $lignes, static fn( array $l ): bool => 'en_retard' === $l['etat'] ) );
 	$bloques   = array_values( array_filter( $lignes, static fn( array $l ): bool => 'bloque' === $l['etat'] ) );

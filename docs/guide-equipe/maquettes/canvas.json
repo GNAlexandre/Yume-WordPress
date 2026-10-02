@@ -1,0 +1,173 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Main.dc.html": {
+      "h": 1060,
+      "title": "1 · Nouveau tome (remplace « Ajouter un tome au planning »)",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Chapitre.dc.html": {
+      "h": 2040,
+      "title": "2 · Ajouter des chapitres à un tome (un, plusieurs ou tous)",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "TomeEnCours.dc.html": {
+      "h": 1400,
+      "title": "4 · Modifier le tome, dans l’espace équipe (remplace l’écran wp-admin)",
+      "w": 1440,
+      "x": 1520,
+      "y": 1740
+    },
+    "Public.dc.html": {
+      "h": 1180,
+      "title": "5 · Fiche œuvre, vue lecteur (page large)",
+      "w": 1440,
+      "x": 0,
+      "y": 3560
+    },
+    "PublicTome.dc.html": {
+      "h": 1180,
+      "title": "6 · Page du tome en cours, vue lecteur (page large)",
+      "w": 1440,
+      "x": 1520,
+      "y": 3560
+    },
+    "TousLesTomes.dc.html": {
+      "h": 1180,
+      "title": "3 · Tous les tomes (vue existante, nouvelles actions)",
+      "w": 1440,
+      "x": 0,
+      "y": 1740
+    },
+    "CycleTome.dc.html": {
+      "h": 900,
+      "title": "7 · Cycle de vie d’un tome : Planifié → En cours de publication → Publié",
+      "w": 1440,
+      "x": 0,
+      "y": 5320
+    },
+    "EtatTome.dc.html": {
+      "h": 1240,
+      "title": "8 · État du tome dans « Modifier le tome »",
+      "w": 1440,
+      "x": 1520,
+      "y": 5320
+    },
+    "EtatOeuvre.dc.html": {
+      "h": 1180,
+      "title": "9 · État des œuvres, modifiable depuis la liste « Œuvres »",
+      "w": 1440,
+      "x": 0,
+      "y": 6340
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-01T10:30:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "r1": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "Espace équipe — créer un tome vide, puis y ajouter des chapitres",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "r2": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "Tous les tomes et la fiche d’un tome, sans quitter l’espace équipe",
+      "w": 240,
+      "x": 0,
+      "y": 1440
+    },
+    "r3": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "Côté lecteurs — fiche œuvre et page du tome en cours",
+      "w": 240,
+      "x": 0,
+      "y": 3260
+    },
+    "s1": {
+      "fill": "purple",
+      "text": "Deux gestes au lieu de trois parcours. « Nouveau tome » remplace le formulaire « Ajouter un tome au planning » : mêmes champs, une seule page, ouverte depuis le Planning complet et la vue Œuvres. « Ajouter des chapitres » reçoit un DOCX avec un chapitre, plusieurs ou le tome entier. « Tome complet » est une case de ce même formulaire, avec les liens PDF et EPUB.",
+      "w": 420,
+      "x": 3040,
+      "y": 0
+    },
+    "s2": {
+      "fill": "orange",
+      "text": "Ce qui change dans le code : le champ « Nature » quitte le formulaire de publication (il renommait le tome) ; un tome peut être « En cours » quelle que soit sa nature ; un tome publié qui reçoit un fichier n’est plus traité comme un « remplacement » à vérifier en deux temps quand il n’apporte que des chapitres nouveaux ; la case « Ajout au catalogue (sans annonce) » n’est plus cochée d’office pour un tome en cours.",
+      "w": 420,
+      "x": 3040,
+      "y": 620
+    },
+    "s3": {
+      "fill": "green",
+      "text": "Déjà dans le code et réutilisé : création d’un tome au planning (brouillon), pastille « En cours » et chapitres « à venir » du sommaire, sortie partielle du planning, annonce d’un chapitre isolé (Discord, e-mail), sortie groupée de plusieurs chapitres, programmation par chapitre.",
+      "w": 420,
+      "x": 3040,
+      "y": 1240
+    },
+    "s4": {
+      "fill": "teal",
+      "text": "États de parution, calculés, jamais choisis : « À paraître » tant qu’aucun chapitre n’est en ligne ; « En cours » dès le premier chapitre publié ; « Complet » quand l’équipe coche « Tome complet ». Un tome programmé dont le 1er chapitre sort samedi reste « À paraître » jusqu’à samedi.",
+      "w": 420,
+      "x": 3040,
+      "y": 1860
+    },
+    "s5": {
+      "fill": "red",
+      "text": "Bug actuel : le bouton « Modifier » de Tous les tomes appelle get_edit_post_link() et ouvre l’écran d’édition de l’administration WordPress, sans le thème du site. La proposition : « Modifier » ouvre ?vue=tomes&modifier=ID dans l’espace équipe, comme « Modifier l’œuvre » dans la vue Œuvres. L’écran WordPress reste accessible par un petit lien « Édition avancée ».",
+      "w": 420,
+      "x": 3040,
+      "y": 2480
+    },
+    "r4": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "États : le tome (planifié, en cours, publié) et l’œuvre (en cours, terminée…)",
+      "w": 240,
+      "x": 0,
+      "y": 5020
+    },
+    "s6": {
+      "fill": "blue",
+      "text": "Changement par rapport aux écrans 1 à 6 : l’état du tome n’est plus seulement calculé. Le site le propose (planning, chapitres publiés), l’équipe peut le choisir. Libellés côté équipe : Planifié, En cours de publication, Publié. Côté lecteurs : À paraître, En cours, Publié. L’état de l’œuvre réutilise la taxonomie « Statut de la traduction » existante (En cours, Terminée, En pause, Licenciée, Abandonnée), modifiable désormais depuis la liste.",
+      "w": 420,
+      "x": 3040,
+      "y": 5320
+    },
+    "s7": {
+      "fill": "orange",
+      "text": "À trancher : « Licenciée » doit-il retirer la lecture en ligne et les liens automatiquement, ou seulement l’afficher ? « En pause » doit-il couper les rappels de planning de tous les tomes de l’œuvre ? « En cours → Planifié » : laisser les chapitres lisibles par défaut ?",
+      "w": 420,
+      "x": 3040,
+      "y": 5980
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Chapitre.dc.html",
+    "TousLesTomes.dc.html",
+    "TomeEnCours.dc.html",
+    "Public.dc.html",
+    "PublicTome.dc.html",
+    "CycleTome.dc.html",
+    "EtatTome.dc.html",
+    "EtatOeuvre.dc.html"
+  ],
+  "pages": [],
+  "title": "Publication par chapitre"
+}

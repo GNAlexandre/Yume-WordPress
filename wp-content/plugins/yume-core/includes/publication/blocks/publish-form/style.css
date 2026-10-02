@@ -815,8 +815,8 @@
 	display: none;
 }
 
-/* Tome qui a déjà des chapitres : le nouveau fichier les remplace en place. */
-.yn-publish__remplacement {
+/* Tome qui a déjà des chapitres : le nouveau fichier leur est comparé. */
+.yn-publish__note-tome {
 	max-width: 460px;
 	margin: 4px 0 0;
 	padding: 10px 14px;
@@ -1013,9 +1013,9 @@
 	}
 }
 
-/* Tome déjà paru avec sa lecture en ligne (?tome=ID) : ce que fait le remplacement. */
+/* Tome déjà paru avec sa lecture en ligne (?tome=ID) : remplacer toute la lecture en ligne, sous le formulaire. */
 .yn-publish__mode-remplacement {
-	margin-bottom: 20px;
+	margin-top: 28px;
 	padding: 16px 20px;
 	border-left: 4px solid var(--wp--preset--color--avertissement);
 	font-size: 14px;
@@ -1093,4 +1093,231 @@
 	flex: 1 1 140px;
 	min-width: 0;
 	overflow-wrap: anywhere;
+}
+
+/* Ajouter des chapitres : étapes (1 · le tome, 2 · le fichier, 3 · la sortie). */
+.yn-publish__etape-titre {
+	margin: 0;
+	padding: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.yn-publish__champs > .yn-publish__etape-titre {
+	float: left;
+	grid-column: 1 / -1;
+	width: 100%;
+}
+
+.yn-publish__etape-titre--seul {
+	margin-bottom: -8px;
+}
+
+/* Fiche du tome choisi : parution, chapitres en ligne, prévus, rythme. */
+.yn-publish__fiche-tome {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 14px;
+	padding: 10px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--bande);
+	font-size: 14px;
+}
+
+/* Chapitres prévus, modifiables depuis la fiche du tome (relevés si le fichier en apporte plus). */
+.yn-publish__prevus {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	flex-basis: 100%;
+	padding-top: 6px;
+	border-top: 1px dashed var(--wp--preset--color--filet);
+}
+
+.yn-publish__prevus input {
+	width: 6em;
+}
+
+.yn-publish__prevus .yn-publish__aide {
+	flex: 1 1 16em;
+	min-width: 0;
+}
+
+.yn-publish__fiche-tome[hidden],
+.yn-publish__creation[hidden],
+.yn-publish__comparaison[hidden],
+.yn-publish__champ[hidden],
+.yn-publish__option[hidden] {
+	display: none;
+}
+
+/* Création du tome ici (aucun tome choisi). */
+.yn-publish__creation summary {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.yn-publish__creation-champs {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 16px;
+	margin-top: 12px;
+}
+
+.yn-publish__creation .yn-publish__aide {
+	margin: 8px 0 0;
+}
+
+/* Comparaison du fichier avec le tome. */
+.yn-publish__comparaison {
+	overflow-x: auto;
+}
+
+.yn-publish__comparaison:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-publish__comparaison-bilan {
+	margin: 0 0 8px;
+	font-size: 14px;
+}
+
+.yn-publish__comparaison table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+.yn-publish__comparaison :where(th, td) {
+	padding: 8px 10px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	text-align: left;
+	vertical-align: top;
+}
+
+.yn-publish__comparaison th {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.yn-publish__choix {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+
+.yn-publish__choix + .yn-publish__choix {
+	margin-top: 4px;
+}
+
+/* Sortie des nouveaux chapitres. */
+.yn-publish__sortie {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin: 0;
+	padding: 24px;
+}
+
+.yn-publish__sortie > legend {
+	float: left;
+	width: 100%;
+}
+
+.yn-publish__sorties {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.yn-publish__choix-sortie {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0;
+	padding: 12px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius, 6px);
+	font-size: 14px;
+}
+
+.yn-publish__choix-sortie:has(input:checked) {
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-publish__choix-sortie label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.yn-publish__choix-sortie input {
+	flex-shrink: 0;
+	margin-top: 3px;
+}
+
+.yn-publish__sortie-reglages {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+}
+
+.yn-publish__sortie-reglages .yn-publish__champ {
+	flex: 0 1 260px;
+}
+
+.yn-publish__option--annoncer {
+	padding: 12px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-left: 3px solid var(--wp--preset--color--accent);
+	border-radius: var(--yn-radius, 6px);
+}
+
+/* Le tome est complet : liens PDF et EPUB (activés seulement avec la case). */
+.yn-publish__complet {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding-top: 12px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-publish__liens-complet {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px 16px;
+}
+
+.yn-publish__liens-complet .yn-publish__aide {
+	grid-column: 1 / -1;
+	margin: 0;
+}
+
+.yn-publish__liens-complet input:disabled {
+	opacity: 0.6;
+}
+
+@media (max-width: 599.98px) {
+	.yn-publish__sorties,
+	.yn-publish__liens-complet,
+	.yn-publish__creation-champs {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-publish__creation-champs .yn-publish__champ--4 {
+		grid-column: auto;
+	}
+
+	.yn-publish__sortie {
+		padding: 16px;
+	}
 }

@@ -10,6 +10,8 @@
 #   rendu        démo (tools/playground/demo.php) servie par php -S, styles calculés des blocs vérifiés
 #                dans Chromium (tools/ci/rendu.js) sur WordPress 6.6 et la dernière, puis comparés ;
 #                axe-core (WCAG 2.1 A/AA) sur les mêmes pages : aucune violation sérieuse ou critique
+#   guide        guide de l'équipe en Word (docs/guide-equipe) à jour par rapport à procedures.md et à
+#                ses images : tools/guide/construire.js --verifier (Node seul, ni Chromium ni LibreOffice)
 #   archives     dist/yume-core.zip et dist/yume.zip en artefacts téléchargeables
 #
 # Une seule exécution par changement : déclenché par les pull requests (ouverture, nouveau push
@@ -299,6 +301,30 @@ jobs:
           node tools/ci/rendu.js --comparer \
             "$RUNNER_TEMP/rendu/rendu-mesures-6.6/rendu-mesures.json" \
             "$RUNNER_TEMP/rendu/rendu-mesures-latest/rendu-mesures.json"
+
+  # Le DOCX commité doit correspondre à sa source : construire.js écrit l'empreinte SHA-256 de
+  # procedures.md, des images citées et de lui-même dans les propriétés du document ; --verifier la
+  # recalcule. En cas d'échec : node tools/guide/construire.js, puis commiter le DOCX.
+  guide:
+    name: Guide de l'équipe (DOCX à jour)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      # Versions figées par tools/guide/package-lock.json ; aucun navigateur n'est téléchargé.
+      - name: Installer les dépendances du guide
+        working-directory: tools/guide
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: npm ci --no-audit --no-fund
+
+      - name: DOCX à jour (tools/guide/construire.js --verifier)
+        run: node tools/guide/construire.js --verifier
 
   archives:
     name: Archives yume-core.zip et yume.zip

@@ -168,6 +168,13 @@ final class Epub_Converter {
 	private int $ignorees = 0;
 
 	/**
+	 * Textes alternatifs générés par Word (EPUB exporté depuis Word) et ignorés.
+	 *
+	 * @var int
+	 */
+	private int $alt_automatiques = 0;
+
+	/**
 	 * Feuilles de style du document en cours.
 	 *
 	 * @var Epub_Css
@@ -1179,6 +1186,11 @@ final class Epub_Converter {
 		}
 		if ( null === $cle ) {
 			$alt = trim( $el->getAttribute( 'alt' ) );
+			if ( '' !== $alt && Texte::alt_automatique( $alt ) ) {
+				// Description de la reconnaissance d'image de Word (« Une image contenant… »).
+				$alt = '';
+				++$this->alt_automatiques;
+			}
 			$cle = Docx_Converter::analyser_image( $this->zip, $this->resultat, $chemin, $alt );
 			if ( null === $cle ) {
 				++$this->ignorees;
@@ -1466,6 +1478,9 @@ final class Epub_Converter {
 	 * @param float $debut Horodatage de début.
 	 */
 	private function conclure( float $debut ): void {
+		if ( $this->alt_automatiques > 0 ) {
+			$this->resultat->avertir( Docx_Converter::avertissement_alt_automatiques( $this->alt_automatiques ) );
+		}
 		$stats                          = &$this->resultat->stats;
 		$stats['format']                = 'epub';
 		$stats['fichier']               = basename( $this->chemin );
@@ -1476,6 +1491,7 @@ final class Epub_Converter {
 		$stats['images_emf']            = 0;
 		$stats['images_emf_converties'] = 0;
 		$stats['sauts_de_page']         = 0;
+		$stats['alt_automatiques']      = $this->alt_automatiques;
 		$stats['duree_ms']              = (int) round( ( microtime( true ) - $debut ) * 1000 );
 		$stats['memoire_max_mo']        = round( memory_get_peak_usage( true ) / 1048576, 1 );
 	}

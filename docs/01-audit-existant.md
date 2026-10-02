@@ -78,7 +78,7 @@ Conclusion : la mise en page est **entièrement pilotée par 4 styles de paragra
 
 ## 5. Synthèse des points bloquants
 
-1. **Plateforme** : l'hébergement « Simple » interdit tout développement. Changement de plan obligatoire (voir plan, §2).
+1. **Plateforme** : l'hébergement « Simple » interdit tout développement. Changement de plan obligatoire (voir plan, §2). *Note (octobre 2026) : le plan actuel a suffi ; la première extension installée a déclenché le passage à l'hébergement Atomic, sans changement de plan.*
 2. **Modèle de contenu** : tout est page/article, rien n'est structuré (œuvre, tome, chapitre, équipe, planning). Impossible d'automatiser sans types de contenu dédiés.
 3. **Processus** : chaque sortie = plusieurs éditions manuelles → erreurs, incohérences, lenteur.
 4. **Lecture** : aucune expérience de lecture (progression, réglages, mode sombre, navigation).

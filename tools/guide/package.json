@@ -1,0 +1,16 @@
+{
+	"name": "yume-guide-equipe",
+	"private": true,
+	"description": "Guide de l'équipe en Word (docs/guide-equipe) : captures des maquettes (Playwright) et construction du DOCX (docx).",
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"captures": "node captures.js",
+		"construire": "node construire.js",
+		"verifier": "node construire.js --verifier"
+	},
+	"devDependencies": {
+		"docx": "9.8.1",
+		"jszip": "3.10.1",
+		"playwright": "1.63.0"
+	}
+}

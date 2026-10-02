@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>SukaMoka Tome 2 en cours — vue lecteur</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:6px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}
+.muted{color:#b7a9cc}
+.toc{display:grid;grid-template-columns:150px minmax(0,1fr) 220px 100px;gap:20px;align-items:center;padding:14px 20px;border-top:1px solid #3f3060;font-size:15px}
+.nav a{color:#ebe3f2;font-size:15px}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1180px; box-sizing: border-box; display: flex; flex-direction: column">
+  <header style="background: #241740; border-bottom: 1px solid #3f3060; padding: 0 48px; height: 72px; display: flex; align-items: center; gap: 32px">
+    <div style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 22px; color: #fff8fb">Yume Novel</div>
+    <nav class="nav" style="display: flex; gap: 26px; flex-grow: 1" aria-label="Principal"><a href="#">Bibliothèque</a><a href="#">Planning</a><a href="#">Actualités</a><a href="#">Yume Novel</a><a href="#">Contact</a></nav>
+    <a href="#" class="btn" style="height: 36px">Ko-fi</a>
+    <a href="#" class="btn" style="height: 36px">Mon compte</a>
+  </header>
+
+  <main style="padding: 36px 48px 48px">
+    <div style="max-width: 1344px; margin: 0 auto; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 40px; align-items: start">
+      <aside style="display: flex; flex-direction: column; gap: 16px">
+        <div style="width: 260px; height: 380px; border-radius: 8px; background: linear-gradient(160deg, #5b3a7a, #2d1f4f 55%, #c2437e)"></div>
+        <div class="card" style="padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+          <div class="lbl">Téléchargement</div>
+          <div class="muted">PDF et EPUB seront proposés quand les 12 chapitres seront en ligne.</div>
+        </div>
+        <div class="card" style="padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px">
+          <div class="lbl">Crédits</div>
+          <div>Traduction : Cerale</div><div>Relecture : Shadowadow</div>
+        </div>
+      </aside>
+
+      <div style="display: flex; flex-direction: column; gap: 22px; min-width: 0">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div class="muted" style="font-size: 13px"><a href="#">Bibliothèque</a> › <a href="Public.dc.html">SukaMoka</a> › Tome 2</div>
+          <div style="display: flex; gap: 8px"><span class="chip info">Light novel</span><span class="chip ok">● En cours · 3 sur 12</span></div>
+          <h1 style="font-size: 44px; font-weight: 800">SukaMoka — Tome 2</h1>
+          <div class="muted">3 chapitres en ligne · 49 min de lecture · un nouveau chapitre chaque samedi à 18 h</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap"><a href="#" class="btn pri">Reprendre au chapitre 2</a><a href="#" class="btn">Être prévenu du chapitre 3</a></div>
+        </div>
+
+        <section style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: baseline; gap: 14px"><h2 style="font-size: 26px">Sommaire</h2><span class="muted">3 chapitres · 49 min · 9 à venir</span></div>
+          <div class="card" style="display: flex; flex-direction: column">
+            <div class="toc" style="border-top: 0"><strong style="color: #fff8fb">Illustrations</strong><span class="muted">6 planches</span><span></span><span></span></div>
+            <div class="toc"><strong style="color: #fff8fb">Prologue</strong><span></span><span class="muted">27 sept.</span><span class="muted">13 min</span></div>
+            <div class="toc"><strong style="color: #fff8fb">Chapitre 1</strong><span>Le marché des lanternes</span><span class="muted">4 oct.</span><span class="muted">19 min</span></div>
+            <div class="toc" style="background: #241740"><strong style="color: #fff8fb">Chapitre 2</strong><span>Sous la pluie de cendres · <span class="chip ok" style="height: 20px; font-size: 11px">Votre lecture · 41 %</span></span><span class="muted">4 oct.</span><span class="muted">17 min</span></div>
+            <div class="toc" style="color: #b7a9cc"><span>Chapitre 3</span><span>La ville sans ciel</span><span><span class="chip warn" style="height: 22px">samedi 11 oct. 18 h</span></span><span></span></div>
+            <div class="toc" style="color: #b7a9cc"><span>Chapitre 4</span><span>Les cloches du port</span><span><span class="chip warn" style="height: 22px">samedi 18 oct. 18 h</span></span><span></span></div>
+            <div class="toc" style="color: #7f6aa8"><span>Chapitres 5 à 10</span><span>à venir</span><span></span><span></span></div>
+            <div class="toc" style="color: #7f6aa8"><span>Épilogue</span><span>à venir</span><span></span><span></span></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

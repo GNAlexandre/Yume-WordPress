@@ -1,6 +1,62 @@
 # Mise en production : liste de contrôle (WordPress.com et GitHub)
 
-Liste à dérouler **avant d'ouvrir la v2 au public**, puis à revérifier à chaque changement d'équipe.
+## État au 1er octobre 2026
+
+La bascule a eu lieu le **29 septembre 2026** (première sauvegarde Jetpack à 6 h 32 UTC, release
+v2.0.0 à 6 h 40 UTC, pages créées par la migration à 9 h 01, heure de Paris). Hébergement
+WordPress.com Atomic, WordPress 7.1.2, PHP 8.4.26, Yume Core 2.1.4 et thème yume 2.1.4 actifs.
+Relevé fait par le connecteur WordPress.com et GitHub ; seules les cases prouvées par ce relevé sont
+cochées, les autres restent à faire ou à vérifier.
+
+**Vérifié**
+
+- [x] Akismet (5.7.2) actif.
+- [x] Jetpack Backup actif : identifiants gérés, 4 sauvegardes, dernière réussie le 30/09 à 21 h 16 UTC.
+- [x] Jetpack Scan : aucune menace.
+- [x] Protection des comptes (Jetpack) active.
+- [x] Inscription WordPress fermée (« Tout le monde peut s'enregistrer » décoché). Attention : le
+      formulaire d'inscription du site suit ce réglage (`yume_inscriptions_ouvertes` lit
+      `users_can_register`), donc aucun nouveau compte lecteur ne peut être créé tant qu'il est
+      décoché.
+- [x] Rôle par défaut : Abonné (affiché « Lecteur »).
+- [x] Site public (*WordPress.com → Réglages → Confidentialité*).
+- [x] Code à jour : release v2.1.4 installée (plugin et thème).
+
+**Reste à faire d'après le relevé**
+
+- [ ] **Jetpack Monitor** (surveillance des temps d'arrêt) : inactif (§4).
+- [ ] **2FA** : aucune imposée ; l'extension Two Factor est installée mais inactive. Choisir entre
+      Two Factor et la validation en deux étapes WordPress.com (§1).
+- [ ] **4 administrateurs** (roshidere974, calumini, raiteijgarden, tournelalexandre) alors que la
+      cible est un seul ; les rôles Gérant, Traducteur, Relecteur et Graphiste ne sont attribués à
+      personne (seuls deux Éditeurs Yume : Cerale, Shadowadow) (§1, §2).
+- [ ] **Extensions et thèmes inutilisés** : Gutenberg 24.1.0 actif (plugin de développement, à
+      retirer) ; Classic Editor, Crowdsignal Dashboard, Crowdsignal Forms, Layout Grid, Two Factor
+      inactifs ; thèmes Twenty Twenty-Four et Twenty Twenty-Two inutilisés. Jetpack 16.3-a.7 (alpha)
+      est mis à jour par la plateforme (§4).
+- [ ] **Test de restauration** : aucun consigné (§5).
+- [ ] **Export XML mensuel** conservé hors WordPress.com : aucun consigné (§5).
+- [ ] **Adresse e-mail d'administration** : Gmail personnel ; à passer sur une boîte de l'équipe ou
+      à consigner comme choix (§1).
+- [ ] **Langue des flux RSS** : `rss_language = en`, à passer en `fr` (§7).
+- [ ] **Permaliens des articles** : `/%year%/%monthnum%/%day%/%postname%/` hérités de l'ancien
+      site ; décision à prendre (§7).
+- [ ] **Inscriptions des lecteurs** : fermées par le réglage ci-dessus ; décider si elles
+      rouvrent (rôle par défaut Abonné, Akismet actif) ou si les comptes restent créés à la main (§2).
+- [ ] **Modération des commentaires** désactivée (aucune mise en attente du premier commentaire) :
+      à confirmer comme choix ou à activer (§7).
+- [ ] **Webhooks Discord** : régénération après la préproduction non consignée (§7).
+- [ ] **Règles GitHub** : ruleset de tags `v*` avec *Restrict updates* et *Restrict deletions*
+      à mettre en place ou à vérifier, puisque le tag v2.1.4 a été déplacé après quatre runs de
+      release en échec ; ruleset de `main` et environnement `release` à vérifier (§9.2, §9.3).
+- [ ] Journal d'activité relu à J+1 et J+7, aucun nouvel administrateur : non consigné (§10).
+
+Décisions ouvertes correspondantes : `journal-des-decisions.md` §4.
+
+---
+
+Liste à dérouler **avant d'ouvrir la v2 au public** (fait le 29 septembre 2026), puis à
+revérifier à chaque changement d'équipe et à chaque relevé.
 Elle reprend l'audit de sécurité (§3.3, AMEL-01, SEC-08, SEC-09, SEC-14) : la sécurité du site
 dépend autant des réglages de l'hébergeur et de GitHub que du code.
 
@@ -194,8 +250,11 @@ Détail de la chaîne de publication : `docs/05-pipeline-github-wordpress.md` §
 - [ ] **Branche `main`** (*New branch ruleset*, cible « Default branch », *Active*) : *Restrict
       deletions*, *Block force pushes*, *Require a pull request before merging* (1 approbation,
       *Dismiss stale approvals*, *Require review from Code Owners*), *Require status checks to
-      pass* (jobs de `ci.yml` : **Syntaxe PHP**, **Normes de code (PHPCS)**, **Tests WordPress**,
-      **Rendu WordPress**, tels qu'ils apparaissent après un premier run). Mainteneur seul : mettre 0 approbation
+      pass* avec tous les jobs de `ci.yml`, tels qu'ils apparaissent après un premier run :
+      **Syntaxe PHP 8.1**, **8.2**, **8.3** et **8.4** ; **Normes de code (PHPCS)** ; **Tests
+      WordPress** (les 4 combinaisons : 6.6 et latest, SQLite et MariaDB) ; **Rendu WordPress**
+      (6.6 et latest) ; **Rendu identique sur WordPress 6.6 et la dernière** ; **Archives
+      yume-core.zip et yume.zip**. Mainteneur seul : mettre 0 approbation
       requise ou s'ajouter en *Bypass list* « pull requests only », sinon aucune fusion possible.
 - [ ] **Tags `v*`** (*New tag ruleset*, cible `refs/tags/v*`, *Active*) : *Restrict creations*,
       *Restrict updates*, *Restrict deletions*, *Block force pushes* ; *Bypass list* = le ou les

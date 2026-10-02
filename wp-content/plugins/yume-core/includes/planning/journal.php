@@ -7,8 +7,9 @@
  * note_equipe (jamais publique), et les événements creation, publie (sortie complète, partielle,
  * retour en ligne, dernier chapitre), depublie, chapitre_publie, retire (tome retiré du planning), etape_forcee (équipe seulement), rappel, signalement
  * (gérants, non public), digest (non public), lecture_ajoutee (lecture en ligne d'un tome
- * déjà paru ajoutée sans annonce : équipe seulement) et pause (tome mis en pause ou repris :
- * équipe seulement).
+ * déjà paru ajoutée sans annonce : équipe seulement), pause (tome mis en pause ou repris :
+ * équipe seulement) et parution (état du tome choisi dans « Modifier le tome », ou changé par
+ * une publication : équipe seulement).
  *
  * @package Yume\Core
  */
@@ -32,7 +33,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution', 'chapitres_prevus' );
 }
 
 /**
@@ -353,6 +354,9 @@ function texte_changement( $ligne, bool $equipe ): string {
 			}
 			return '1' === (string) $ligne->nouveau ? __( 'a mis en pause', 'yume-core' ) : __( 'a repris', 'yume-core' );
 
+		case 'parution':
+			return $equipe ? texte_parution_journal( is_string( $ancien ) ? $ancien : '', is_array( $nouveau ) ? $nouveau : array() ) : '';
+
 		case 'etape_forcee':
 			if ( ! $equipe ) {
 				return '';
@@ -439,6 +443,23 @@ function texte_changement( $ligne, bool $equipe ): string {
 			/* translators: %s : rôles manquants */
 			return sprintf( __( 'signalé aux gérants : %s', 'yume-core' ), $manquant ? implode( ', ', $manquant ) : __( 'tome bloqué', 'yume-core' ) );
 
+		case 'chapitres_prevus':
+			// Chapitres prévus relevés ou saisis à l'ajout de chapitres : équipe seulement.
+			if ( ! $equipe ) {
+				return '';
+			}
+			$de = (int) ( is_scalar( $ancien ) ? $ancien : 0 );
+			$a  = (int) ( is_scalar( $nouveau ) ? $nouveau : 0 );
+			return 0 === $de
+				/* translators: %d : nombre de chapitres */
+				? sprintf( __( 'chapitres prévus : %d', 'yume-core' ), $a )
+				/* translators: 1: avant, 2: après */
+				: sprintf( __( 'chapitres prévus : %1$d → %2$d', 'yume-core' ), $de, $a );
+
+		case 'etat_oeuvre':
+			// Changement d'état d'une œuvre (oeuvres-etat.php) : équipe seulement.
+			return $equipe ? texte_etat_oeuvre_journal( is_array( $nouveau ) ? $nouveau : array() ) : '';
+
 		case 'glossaire':
 			// Module glossaire (import d'un glossaire d'œuvre) : équipe seulement.
 			$infos = is_array( $nouveau ) ? $nouveau : array();
@@ -457,6 +478,48 @@ function texte_changement( $ligne, bool $equipe ): string {
 	}
 	/* translators: 1: champ, 2: valeur */
 	return sprintf( __( '%1$s : %2$s', 'yume-core' ), str_replace( '_', ' ', $champ ), wp_html_excerpt( valeur_journal( $nouveau ), 60, '…' ) );
+}
+
+/**
+ * Texte d'un changement d'état du tome (journal « parution », équipe seulement) : « état :
+ * En cours de publication → Planifié (3 chapitres retirés de la lecture) ».
+ *
+ * @param string $ancien Ancien état (clé de yume_etats_tome(), '' : selon les chapitres).
+ * @param array  $infos  etat, auto (changement par une publication), retires, annules, tome,
+ *                       rouvert, publie, annonce.
+ */
+function texte_parution_journal( string $ancien, array $infos ): string {
+	$etats   = yume_etats_tome();
+	$nom     = static function ( string $etat ) use ( $etats ): string {
+		return $etats[ $etat ] ?? __( 'selon les chapitres', 'yume-core' );
+	};
+	$details = array();
+	if ( ! empty( $infos['auto'] ) ) {
+		$details[] = __( 'par une publication', 'yume-core' );
+	}
+	if ( ! empty( $infos['retires'] ) ) {
+		/* translators: %d : nombre de chapitres */
+		$details[] = sprintf( _n( '%d chapitre retiré de la lecture', '%d chapitres retirés de la lecture', (int) $infos['retires'], 'yume-core' ), (int) $infos['retires'] );
+	}
+	if ( ! empty( $infos['annules'] ) ) {
+		/* translators: %d : nombre de chapitres */
+		$details[] = sprintf( _n( '%d chapitre programmé annulé', '%d chapitres programmés annulés', (int) $infos['annules'], 'yume-core' ), (int) $infos['annules'] );
+	}
+	if ( ! empty( $infos['tome'] ) ) {
+		$details[] = __( 'tome retiré de la lecture', 'yume-core' );
+	}
+	if ( ! empty( $infos['rouvert'] ) ) {
+		$details[] = __( 'liens PDF et EPUB masqués', 'yume-core' );
+	}
+	if ( ! empty( $infos['publie'] ) ) {
+		$details[] = __( 'tome publié', 'yume-core' );
+	}
+	if ( array_key_exists( 'annonce', $infos ) ) {
+		$details[] = $infos['annonce'] ? __( 'annoncé', 'yume-core' ) : __( 'sans annonce', 'yume-core' );
+	}
+	/* translators: 1: ancien état, 2: nouvel état */
+	$texte = sprintf( __( 'état : %1$s → %2$s', 'yume-core' ), $nom( $ancien ), $nom( (string) ( $infos['etat'] ?? '' ) ) );
+	return $details ? $texte . ' (' . implode( ', ', $details ) . ')' : $texte;
 }
 
 /**

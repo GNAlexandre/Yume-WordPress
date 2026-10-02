@@ -18,20 +18,28 @@ Le pipeline repose donc sur deux mécanismes standards de WordPress :
 
 ```
 GitHub (GNAlexandre/Yume-WordPress)
-   ├─ push sur develop ──▶ GitHub Actions : lint, tests, build ─▶ artefacts de test (zips) ─▶ préprod locale
-   └─ tag v2.x.y sur main ─▶ GitHub Actions : CI, approbation (env. release), build
+   ├─ pull request vers main ─▶ GitHub Actions (ci.yml) : syntaxe, PHPCS, tests, rendu, archives
+   │                                  ─▶ artefacts de test (zips) ─▶ préprod locale, relecture
+   └─ tag v2.x.y sur main ─▶ GitHub Actions (release.yml) : versions, CI, approbation humaine
+                                  (environnement release), zips + SHA256SUMS
                                   ─▶ Release GitHub (yume-core.zip, yume.zip, SHA256SUMS)
                                                           │
                        yumenovel.fr ◀── vérification toutes les 12 h ── Plugin Update Checker
                                         (installation seulement si SHA-256 = SHA256SUMS)
 ```
 
+La CI ne tourne que sur les pull requests (ouverture, nouveau push, réouverture), au lancement
+manuel (`workflow_dispatch`) et quand `release.yml` l'appelle (`workflow_call`) ; il n'y a pas de
+branche `develop` : on travaille sur des branches de pull request vers `main`. Une mise à jour du
+site passe toujours par une release, c'est-à-dire par un tag `v*` posé après le Go de l'équipe
+puis par l'approbation humaine de l'environnement `release` (`06-contrat-technique.md` §0 bis).
+
 ## 2. Arborescence du dépôt
 
 ```
 Yume-WordPress/
 ├── .github/workflows/
-│   ├── ci.yml                 ← php -l (PHP 8.1 à 8.4), PHPCS (non bloquant), tests WordPress (SQLite), archives zip
+│   ├── ci.yml                 ← php -l (PHP 8.1 à 8.4), PHPCS (bloquant, zéro écart), tests WordPress (SQLite et MariaDB), rendu, archives zip
 │   └── release.yml            ← sur tag v* : vérifie les versions, CI, approbation (env. release), zips + SHA256SUMS, release
 ├── wp-content/
 │   ├── plugins/yume-core/     ← plugin métier (modules includes/<module>/, tests/, lib/plugin-update-checker)
@@ -89,9 +97,11 @@ puis le fichier temporaire est supprimé. Les PDF et EPUB ne transitent jamais p
 
 - Tests : mini-framework sans dépendance (`wp-content/plugins/yume-core/tests/`, `yume_test()`),
   exécuté par WP-CLI dans une transaction annulée ; un fichier par module.
-- CI (`.github/workflows/ci.yml`) : `php -l` sur PHP 8.1 à 8.4, PHPCS WordPress-Extra (non bloquant
-  tant que les écarts restants ne sont pas corrigés), tests dans un WordPress fr_FR sur SQLite,
-  construction des archives.
+- CI (`.github/workflows/ci.yml`), déclenchée par les pull requests, le lancement manuel et
+  `release.yml` : `php -l` sur PHP 8.1 à 8.4, PHPCS WordPress-Extra + WordPress-Docs (**bloquant :
+  zéro écart**, erreurs et avertissements), tests dans un WordPress fr_FR 6.6 et dernière version,
+  sur SQLite et MariaDB 10.11, contrôle de rendu dans Chromium (styles calculés et axe-core),
+  construction des archives. Détail des jobs : `guide-developpeur.md` §6.
 - Versionnage sémantique (`YUME_CORE_VERSION`, en-tête du thème) ; migrations de schéma via `dbDelta`
   à l'activation et à chaque montée de version.
 
@@ -145,8 +155,11 @@ changement d'équipe.
       *Restrict creations*, *Restrict updates*, *Restrict deletions*, *Block force pushes* ; liste
       de contournement limitée au(x) mainteneur(s) qui publient.
 - [ ] **Protection de la branche par défaut** (`main`, ruleset de branche) : PR obligatoire,
-      1 relecture approuvée, relecture invalidée par un nouveau push, checks CI requis
-      (Syntaxe, Tests), pas de force push ni de suppression, historique linéaire conseillé.
+      1 relecture approuvée, relecture invalidée par un nouveau push, tous les checks de `ci.yml`
+      requis : Syntaxe PHP (8.1, 8.2, 8.3, 8.4), Normes de code (PHPCS), Tests WordPress (les
+      4 combinaisons : 6.6 et latest, SQLite et MariaDB), Rendu WordPress (6.6 et latest), Rendu
+      identique sur WordPress 6.6 et la dernière, Archives ; pas de force push ni de suppression,
+      historique linéaire conseillé.
 - [ ] **Actions** (*Settings → Actions → General*) : *Workflow permissions* = « Read repository
       contents » (lecture seule par défaut ; `release.yml` n'accorde `contents: write` qu'au job
       `publier`), « Allow GitHub Actions to create and approve pull requests » décoché ; actions

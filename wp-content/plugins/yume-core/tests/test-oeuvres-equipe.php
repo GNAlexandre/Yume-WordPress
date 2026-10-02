@@ -4,7 +4,7 @@
  * oeuvres-equipe.php) : droits (edit_yume_oeuvres), création d'une œuvre (brouillon ou publiée,
  * champs, genres, couverture), refus (titre vide ou déjà pris, type inconnu, nonce), bouton
  * « Publier », liste (brouillons compris, filtres, actions), entrée de navigation et
- * présélection de l'œuvre dans « Ajouter un tome au planning ».
+ * présélection de l'œuvre dans « Nouveau tome » (« Ajouter un tome au planning »).
  *
  * Lancement : tools/localenv/test.sh oeuvres-equipe
  *
@@ -12,7 +12,8 @@
  */
 
 use function Yume\Core\Planning\creer_oeuvre;
-use function Yume\Core\Planning\formulaire_ajout;
+use function Yume\Core\Planning\formulaire_nouveau_tome;
+use function Yume\Core\Planning\url_nouveau_tome;
 use function Yume\Core\Planning\modifier_oeuvre;
 use function Yume\Core\Planning\navigation_equipe;
 use function Yume\Core\Planning\nettoyer_synopsis;
@@ -315,7 +316,7 @@ yume_toe_test(
 			array(),
 			$editeur
 		);
-		yume_assert_contains( 'Statut de la traduction inconnu', $statut['message'] );
+		yume_assert_contains( 'État de l’œuvre inconnu', $statut['message'] );
 		$nonce = traiter_formulaire_oeuvre(
 			wp_slash(
 				array(
@@ -400,20 +401,19 @@ yume_toe_test(
 		yume_assert_contains( 'Message de création', $html );
 		yume_assert_contains( 'Web novel', $html );
 		yume_assert_contains( 'name="action" value="yume_oeuvre_publier"', $html );
-		yume_assert_contains( 'name="oeuvre_id" value="' . $brouillon . '"', $html );
-		yume_assert_not_contains( 'name="oeuvre_id" value="' . $publiee . '"', $html, 'pas de « Publier » pour une œuvre publiée' );
+		yume_assert_contains( 'value="yume_oeuvre_publier"><input type="hidden" name="oeuvre_id" value="' . $brouillon . '"', $html );
+		yume_assert_not_contains( 'value="yume_oeuvre_publier"><input type="hidden" name="oeuvre_id" value="' . $publiee . '"', $html, 'pas de « Publier » pour une œuvre publiée' );
 		yume_assert_contains( esc_url( (string) get_permalink( $publiee ) ), $html );
 		yume_assert_contains( '>Modifier<', $html );
 		yume_assert_contains( esc_url( url_vue_equipe( 'oeuvres', array( 'modifier' => $brouillon ) ) ), $html );
-		yume_assert_contains( 'oeuvre_ajout=' . $brouillon, $html );
+		yume_assert_contains( esc_url( url_nouveau_tome( $brouillon, 'oeuvres' ) ), $html, '« Ajouter un tome au planning » : vue « Nouveau tome »' );
 		yume_assert_contains( esc_url( add_query_arg( 'oeuvre', $brouillon, yume_url_page( 'publier' ) ) ), $html );
 		yume_assert_contains( 'enctype="multipart/form-data"', $html );
 		yume_assert_contains( 'value="yume_oeuvre_creer"', $html );
 		yume_assert_contains( 'Créer et publier', $html );
 		yume_assert_false( (bool) get_transient( 'yume_planning_retour_' . $editeur ), 'retour lu une fois' );
 
-		$_GET['oeuvre_ajout'] = (string) $brouillon;
-		yume_assert_contains( '<option value="' . $brouillon . '" selected=\'selected\'>', formulaire_ajout( array(), null ) );
+		yume_assert_contains( '<option value="' . $brouillon . '" selected=\'selected\'>', formulaire_nouveau_tome( array(), null, $brouillon, 'oeuvres' ) );
 	}
 );
 

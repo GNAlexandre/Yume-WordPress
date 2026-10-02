@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Fiche œuvre SukaMoka — vue lecteur</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:6px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.pink{color:#f3a6c8;border-color:#f3a6c8}
+.muted{color:#b7a9cc}
+.trow{display:grid;grid-template-columns:72px minmax(0,1.6fr) 200px minmax(0,1fr);gap:24px;align-items:center;padding:16px 20px;border-top:1px solid #3f3060}
+.cov{width:64px;height:92px;border-radius:4px;background:linear-gradient(160deg,#5b3a7a,#2d1f4f 55%,#c2437e)}
+.nav a{color:#ebe3f2;font-size:15px}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1180px; box-sizing: border-box; display: flex; flex-direction: column">
+  <header style="background: #241740; border-bottom: 1px solid #3f3060; padding: 0 48px; height: 72px; display: flex; align-items: center; gap: 32px">
+    <div style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 22px; color: #fff8fb">Yume Novel</div>
+    <nav class="nav" style="display: flex; gap: 26px; flex-grow: 1" aria-label="Principal"><a href="#">Bibliothèque</a><a href="#">Planning</a><a href="#">Actualités</a><a href="#">Yume Novel</a><a href="#">Contact</a></nav>
+    <a href="#" class="btn" style="height: 36px">Ko-fi</a>
+    <a href="#" class="btn" style="height: 36px">Mon compte</a>
+  </header>
+
+  <section style="background: linear-gradient(180deg, #2d1f4f, #1b1231); padding: 40px 48px 32px">
+    <div style="max-width: 1344px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr) 320px; gap: 40px; align-items: start">
+      <div style="width: 220px; height: 320px; border-radius: 8px; background: linear-gradient(160deg, #5b3a7a, #2d1f4f 55%, #c2437e)"></div>
+      <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0">
+        <div class="muted" style="font-size: 13px"><a href="#">Bibliothèque</a> › SukaMoka</div>
+        <div style="display: flex; gap: 8px"><span class="chip info">Light novel</span><span class="chip ok">● Traduction en cours</span></div>
+        <h1 style="font-size: 48px; font-weight: 800">SukaMoka</h1>
+        <p style="margin: 0; max-width: 72ch; font-size: 16px">Cinq années se sont écoulées depuis le tragique incident qui a mis fin une fois pour toutes à la vie paisible sur Regul Aire. Les Beasts ont atteint l’île flottante et menacent les derniers survivants…</p>
+        <div style="display: flex; gap: 10px; margin-top: 6px"><a href="#" class="btn pri">Reprendre : Tome 2, chapitre 2</a><a href="#" class="btn">Suivre l’œuvre</a><a href="#" class="btn">Ajouter à une liste</a></div>
+      </div>
+      <aside class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 10px">
+        <div class="lbl">Prochaine sortie</div>
+        <div style="font-family: 'Outfit', sans-serif; font-weight: 700; color: #fff8fb; font-size: 20px">Tome 2 · Chapitre 3</div>
+        <div>samedi 11 octobre, 18 h</div>
+        <div class="muted" style="font-size: 13px">Un chapitre chaque samedi · 3 sur 12 en ligne</div>
+        <div style="height: 6px; background: #4a3b6e; border-radius: 3px"><div style="width: 25%; height: 6px; background: #8fd6a3; border-radius: 3px"></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main style="padding: 8px 48px 48px">
+    <div style="max-width: 1344px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px">
+      <nav style="display: flex; gap: 28px; border-bottom: 1px solid #3f3060" aria-label="Onglets de l’œuvre">
+        <a href="#" style="padding: 12px 0; color: #fff8fb; font-weight: 700; box-shadow: inset 0 -2px 0 #f3a6c8">Tomes</a>
+        <a href="#" style="padding: 12px 0; color: #b7a9cc">Actualités</a>
+        <a href="#" style="padding: 12px 0; color: #b7a9cc">Glossaire</a>
+      </nav>
+      <div class="card" style="display: flex; flex-direction: column">
+        <div class="trow" style="border-top: 0; padding-top: 12px; padding-bottom: 8px"><span></span><span class="lbl" style="color: #b7a9cc">Tome</span><span class="lbl" style="color: #b7a9cc">Publié le</span><span class="lbl" style="color: #b7a9cc">Lire · télécharger</span></div>
+        <div class="trow">
+          <div class="cov"></div>
+          <div><a href="#" style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px">Tome 1</a><div class="muted" style="font-size: 14px">14 chapitres · 5 h 20 de lecture</div></div>
+          <div>12 juin 2026</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap"><a href="#" class="btn pri">Lire en ligne</a><a href="#" class="btn">PDF</a><a href="#" class="btn">EPUB</a></div>
+        </div>
+        <div class="trow" style="background: #241740">
+          <div class="cov"></div>
+          <div><div style="display: flex; gap: 10px; align-items: center"><a href="PublicTome.dc.html" style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px">Tome 2</a><span class="chip ok">● En cours</span></div><div class="muted" style="font-size: 14px">3 chapitres sur 12 · prochain chapitre samedi 11 octobre</div></div>
+          <div>depuis le 27 sept. 2026</div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center"><a href="PublicTome.dc.html" class="btn pri">Lire en ligne</a><span class="muted" style="font-size: 13px">PDF et EPUB quand le tome sera complet</span></div>
+        </div>
+        <div class="trow">
+          <div class="cov" style="background: #3a2a63; border: 1px dashed #7f6aa8; box-sizing: border-box"></div>
+          <div><div style="display: flex; gap: 10px; align-items: center"><span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px; color: #fff8fb">Tome 3</span><span class="chip warn">▲ À paraître</span></div><div class="muted" style="font-size: 14px">Traduction en cours · début prévu en 2027</div></div>
+          <div class="muted">—</div>
+          <div><a href="#">Voir le planning</a></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -11,6 +11,11 @@
  *       [--nature tome] [--titre "…"] [--pdf URL] [--epub URL] [--couverture image.jpg] \
  *       [--traduction X] [--relecture Y] [--edition Z] [--retirer-absents] \
  *       [--publier maintenant|AAAA-MM-JJTHH:MM] [--sans-annonce|--avec-annonce]
+ *   Ajouter des chapitres à un tome existant (comparés au tome, rien n'est retiré) :
+ *   … publish chapitre-3.docx --site … --user … --oeuvre 12 --tome 345 --chapitres \
+ *       [--publier maintenant|AAAA-MM-JJTHH:MM] [--sortie maintenant|rythme|date]
+ *       [--intervalle 7] [--complet | --liens-dernier] [--pdf URL --epub URL]
+ *       [--chapitres-prevus N]
  *
  * Voir tools/docx2chapters/README.md. Utilise le convertisseur du plugin
  * (wp-content/plugins/yume-core/includes/import/), qui n'a besoin d'aucune fonction WordPress.
@@ -71,6 +76,22 @@ Options de publish :
   --avec-annonce                          annonce la sortie même si le tome est déjà publié
                                           (défaut du site pour un nouveau tome)
 
+Ajouter des chapitres à un tome existant (publish … --tome ID --chapitres) :
+  --tome ID                               tome choisi (sa nature et son numéro ne changent jamais ;
+                                          --numero et --nature deviennent inutiles)
+  --chapitres                             le fichier est comparé au tome : les chapitres nouveaux
+                                          sont ajoutés, ceux déjà en ligne gardés, rien n'est retiré
+  --sortie maintenant|rythme|date         nouveaux chapitres ensemble maintenant (une annonce), un
+                                          par un au rythme du tome (ou tous les --intervalle jours
+                                          depuis --publier DATE), ou ensemble à la date --publier
+  --intervalle N                          jours entre deux chapitres sans rythme (défaut : 7)
+  --complet                               le tome est complet : tout publier maintenant, chapitres
+                                          déjà programmés compris (avec --pdf, --epub)
+  --liens-dernier                         liens --pdf et --epub affichés (tome « Publié ») à la
+                                          sortie du dernier chapitre programmé du tome
+  --chapitres-prevus N                    chapitres prévus du tome (relevé d'office si le tome en
+                                          compte plus)
+
 Options de convert et analyse :
   --sans-typographie                      n'ajoute pas d'espaces insécables devant ? ! : ;
   --json                                  (analyse) rapport au format JSON
@@ -96,7 +117,7 @@ AIDE;
 function yume_d2c_arguments( array $argv ): array {
 	$positionnels = array();
 	$options      = array();
-	$drapeaux     = array( 'retirer-absents', 'sans-annonce', 'avec-annonce', 'sans-typographie', 'json', 'aide', 'help' );
+	$drapeaux     = array( 'retirer-absents', 'sans-annonce', 'avec-annonce', 'sans-typographie', 'json', 'aide', 'help', 'chapitres', 'complet', 'liens-dernier' );
 	for ( $i = 0, $n = count( $argv ); $i < $n; $i++ ) {
 		$arg = $argv[ $i ];
 		if ( str_starts_with( $arg, '--' ) ) {
@@ -418,8 +439,27 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	} elseif ( ! empty( $o['avec-annonce'] ) ) {
 		$annonce['sans_annonce'] = '0';
 	}
-	$nature = (string) ( $o['nature'] ?? 'tome' );
-	if ( ! isset( $o['numero'] ) && ! in_array( $nature, array( 'ex', 'bonus' ), true ) ) {
+	$nature    = (string) ( $o['nature'] ?? 'tome' );
+	$chapitres = ! empty( $o['chapitres'] );
+	if ( $chapitres && empty( $o['tome'] ) ) {
+		yume_d2c_erreur( '--chapitres demande le tome choisi : --tome ID.', 2 );
+	}
+	foreach ( array( 'complet', 'liens-dernier', 'chapitres-prevus' ) as $option ) {
+		if ( ! empty( $o[ $option ] ) && ! $chapitres ) {
+			yume_d2c_erreur( '--' . $option . ' s’utilise avec --tome ID --chapitres.', 2 );
+		}
+	}
+	if ( ! empty( $o['complet'] ) && ! empty( $o['liens-dernier'] ) ) {
+		yume_d2c_erreur( '--complet ou --liens-dernier, pas les deux.', 2 );
+	}
+	if ( isset( $o['chapitres-prevus'] ) && ! preg_match( '/^\d{1,3}$/', (string) $o['chapitres-prevus'] ) ) {
+		yume_d2c_erreur( '--chapitres-prevus : un nombre entier de 0 à 999.', 2 );
+	}
+	$sortie = isset( $o['sortie'] ) ? (string) $o['sortie'] : '';
+	if ( '' !== $sortie && ! in_array( $sortie, array( 'maintenant', 'rythme', 'date' ), true ) ) {
+		yume_d2c_erreur( '--sortie maintenant, rythme ou date.', 2 );
+	}
+	if ( ! isset( $o['numero'] ) && empty( $o['tome'] ) && ! in_array( $nature, array( 'ex', 'bonus' ), true ) ) {
 		yume_d2c_erreur( 'option --numero manquante.', 2 );
 	}
 	$ext  = strtolower( pathinfo( $fichier, PATHINFO_EXTENSION ) );
@@ -450,6 +490,17 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	if ( ! empty( $o['retirer-absents'] ) ) {
 		$champs['retirer_absents'] = '1';
 	}
+	if ( ! empty( $o['tome'] ) ) {
+		$champs['tome_id'] = (string) (int) $o['tome'];
+	}
+	if ( $chapitres ) {
+		$champs['mode']          = 'chapitres';
+		$champs['complet']       = empty( $o['complet'] ) ? '0' : '1';
+		$champs['liens_dernier'] = empty( $o['liens-dernier'] ) ? '0' : '1';
+		if ( isset( $o['chapitres-prevus'] ) ) {
+			$champs['chapitres_prevus'] = (string) (int) $o['chapitres-prevus'];
+		}
+	}
 	$champs += $annonce;
 	if ( ! empty( $o['couverture'] ) ) {
 		$couv = (string) $o['couverture'];
@@ -476,8 +527,18 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	$tome = $json['tome'];
 	echo "\n" . $tome['titre'] . ' — ' . $tome['etat'] . ( ! empty( $tome['reutilise'] ) ? ' (tome existant mis à jour)' : ' (créé)' ) . "\n";
 	echo '  Aperçu : ' . $tome['apercu'] . "\n  Modifier : " . $tome['edition'] . "\n";
-	foreach ( $json['chapitres'] as $c ) {
-		echo '  · ' . yume_d2c_largeur( (string) $c['titre'], 40 ) . ' ' . yume_d2c_largeur( (string) $c['etat'], 10 ) . ' ' . $c['apercu'] . "\n";
+	if ( ! empty( $json['comparaison']['lignes'] ) ) {
+		// Ajout de chapitres : état de chaque chapitre du fichier par rapport au tome.
+		foreach ( $json['comparaison']['lignes'] as $c ) {
+			echo '  · ' . yume_d2c_largeur( (string) $c['titre'], 40 ) . ' ' . yume_d2c_largeur( (string) $c['etat_libelle'], 22 ) . ( 'modifie' === $c['etat'] ? ' (' . ( 'maj' === $c['choix'] ? 'mis à jour à la sortie' : 'version en ligne gardée' ) . ')' : '' ) . "\n";
+		}
+		if ( ! empty( $json['message'] ) ) {
+			echo '  ' . $json['message'] . "\n";
+		}
+	} else {
+		foreach ( $json['chapitres'] as $c ) {
+			echo '  · ' . yume_d2c_largeur( (string) $c['titre'], 40 ) . ' ' . yume_d2c_largeur( (string) $c['etat'], 10 ) . ' ' . $c['apercu'] . "\n";
+		}
 	}
 	if ( ! empty( $json['article'] ) ) {
 		echo '  Annonce : ' . $json['article']['titre'] . ' (' . $json['article']['etat'] . ') ' . $json['article']['edition'] . "\n";
@@ -490,11 +551,31 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	}
 
 	if ( ! empty( $o['publier'] ) && is_string( $o['publier'] ) ) {
-		list( $statut, $sortie ) = yume_d2c_post( yume_d2c_url( (string) $o['site'], 'yume/v1/publications/' . (int) $tome['id'] . '/publier', $jolie ), array( 'quand' => $o['publier'] ) + ( $annonce ? $annonce : array( 'sans_annonce' => empty( $json['sans_annonce'] ) ? '0' : '1' ) ), (string) $o['user'], $pass );
-		if ( $statut < 200 || $statut >= 300 || null === $sortie ) {
-			yume_d2c_erreur( 'brouillon enregistré, mais la publication a échoué : ' . ( $sortie['message'] ?? 'HTTP ' . $statut ) );
+		$demande = array( 'quand' => $o['publier'] ) + ( $annonce ? $annonce : array( 'sans_annonce' => empty( $json['sans_annonce'] ) ? '0' : '1' ) );
+		if ( $chapitres ) {
+			$demande['mode']          = 'chapitres';
+			$demande['sortie']        = '' !== $sortie ? $sortie : ( 'maintenant' === $o['publier'] ? 'maintenant' : 'date' );
+			$demande['intervalle']    = (string) (int) ( $o['intervalle'] ?? 7 );
+			$demande['complet']       = empty( $o['complet'] ) ? '0' : '1';
+			$demande['liens_dernier'] = empty( $o['liens-dernier'] ) ? '0' : '1';
+			foreach ( array(
+				'pdf'  => 'lien_pdf',
+				'epub' => 'lien_epub',
+			) as $option => $champ ) {
+				if ( ( ! empty( $o['complet'] ) || ! empty( $o['liens-dernier'] ) ) && isset( $o[ $option ] ) && is_string( $o[ $option ] ) ) {
+					$demande[ $champ ] = $o[ $option ];
+				}
+			}
 		}
-		echo "\n" . ( 'publish' === $sortie['statut'] ? 'Publié : ' . $sortie['tome']['lien'] : 'Sortie programmée le ' . $sortie['date'] ) . ( ! empty( $sortie['sans_annonce'] ) ? ' (sans annonce)' : '' ) . "\n";
+		list( $statut, $sortie_json ) = yume_d2c_post( yume_d2c_url( (string) $o['site'], 'yume/v1/publications/' . (int) $tome['id'] . '/publier', $jolie ), $demande, (string) $o['user'], $pass );
+		if ( $statut < 200 || $statut >= 300 || null === $sortie_json ) {
+			yume_d2c_erreur( 'brouillon enregistré, mais la publication a échoué : ' . ( $sortie_json['message'] ?? 'HTTP ' . $statut ) );
+		}
+		if ( ! empty( $sortie_json['message'] ) ) {
+			echo "\n" . $sortie_json['message'] . "\n";
+		} else {
+			echo "\n" . ( 'publish' === $sortie_json['statut'] ? 'Publié : ' . $sortie_json['tome']['lien'] : 'Sortie programmée le ' . $sortie_json['date'] ) . ( ! empty( $sortie_json['sans_annonce'] ) ? ' (sans annonce)' : '' ) . "\n";
+		}
 	}
 }
 

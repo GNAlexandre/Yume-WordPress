@@ -1,5 +1,9 @@
 # 03 · Modèle de données
 
+> Document antérieur au contrat technique : en cas de divergence, `06-contrat-technique.md` fait
+> foi (métadonnées §4, rôles §5, tables §13, REST §12). Les noms ci-dessous ont été alignés sur le
+> code pour les écarts les plus visibles ; le contrat reste la référence complète.
+
 Tout est déclaré dans le plugin `yume-core` (`register_post_type`, `register_taxonomy`,
 `register_post_meta` avec `show_in_rest`), jamais via un plugin de champs personnalisés.
 
@@ -19,12 +23,15 @@ yume_oeuvre ──1..n──▶ yume_tome ──1..n──▶ yume_chapitre
 | --- | --- | --- |
 | `post_title`, `post_content` | — | Titre principal, synopsis |
 | `post_thumbnail` | image | Couverture / visuel de la série |
-| `titres_alternatifs` | string[] | FR, EN, romaji, japonais |
-| `auteur`, `illustrateur`, `editeur_vo` | string | |
-| `nb_tomes_vo`, `statut_vo` | int, enum (`en_cours`, `termine`) | |
-| `jour_sortie` | enum[] | mercredi, samedi, dimanche… (planning) |
-| `liens_externes` | {label,url}[] | Novel-Index, MangaDex, éditeur |
-| `note_moyenne`, `nb_notes`, `nb_favoris` | cache | recalculés à chaque vote |
+| `yume_titres_alt` | string[] | FR, EN, romaji, japonais |
+| `yume_auteur`, `yume_illustrateur`, `yume_editeur_vo` | string | |
+| `yume_nb_tomes_vo`, `yume_statut_vo` | int, enum (`en_cours`, `termine`) | |
+| `yume_jours_sortie` | enum[] | mercredi, samedi, dimanche… (planning) |
+| `yume_liens` | {label,url}[] | Novel-Index, MangaDex, éditeur |
+| `yume_note_moyenne`, `yume_nb_notes`, `yume_nb_favoris` | cache | recalculés à chaque vote |
+
+Toutes les métadonnées portent le préfixe `yume_` (contrat §4) ; les tableaux des tomes et des
+chapitres ci-dessous omettent ce préfixe pour rester lisibles.
 
 Taxonomies : `yume_type` (light-novel, web-novel, manga) · `yume_statut` (en-cours, terminee,
 en-pause, licenciee, abandonnee) · `yume_genre` (fantasy, romance, tranche-de-vie, …).
@@ -34,7 +41,7 @@ en-pause, licenciee, abandonnee) · `yume_genre` (fantasy, romance, tranche-de-v
 | Champ | Type | Notes |
 | --- | --- | --- |
 | `oeuvre_id` | int | parent |
-| `numero`, `titre`, `nature` | int, string, enum (`tome`, `arc`, `ex`, `bonus`) | |
+| `numero`, `titre`, `nature` | int, string, enum (`tome`, `arc`, `ex`, `bonus`, `chapitres`) | `chapitres` : sortie chapitre par chapitre, sans tome |
 | `post_thumbnail` | image | Couverture du tome |
 | `lien_pdf`, `lien_epub` | url | **Liens externes de téléchargement saisis par l'équipe ; les fichiers ne sont jamais hébergés sur le site** |
 | `date_publication` | datetime | |
@@ -53,7 +60,7 @@ en-pause, licenciee, abandonnee) · `yume_genre` (fantasy, romance, tranche-de-v
 | Champ | Type | Notes |
 | --- | --- | --- |
 | `tome_id`, `numero`, `sous_titre` | | |
-| `post_content` | HTML normalisé | classes `dialogue`, `pensee`, `center`, `illustration` |
+| `post_content` | HTML normalisé | classes `yn-dialogue`, `yn-thought`, `yn-center`, `yn-illustration` |
 | `credits` | {traduction:string, relecture:string, edition:string} | |
 | `nb_mots`, `temps_lecture` | cache | |
 | `source` | {format:`docx`|`epub`, hash, importe_le} | traçabilité de l'import |
@@ -66,11 +73,23 @@ Créées à l'activation (`dbDelta`), préfixe `{$wpdb->prefix}yume_` :
 
 | Table | Colonnes | Usage |
 | --- | --- | --- |
-| `favoris` | user_id, oeuvre_id, created_at, alerte (`immediat`/`hebdo`/`jamais`) | Favoris + préférence d'alerte |
+| `favoris` | user_id, oeuvre_id, frequence (`immediat`/`hebdo`/`jamais`), created_at | Favoris + préférence d'alerte |
 | `notes` | user_id, oeuvre_id, note (1–5), updated_at | Notation |
-| `progression` | user_id, oeuvre_id, chapitre_id, paragraphe, pourcentage, updated_at | Marque-page (une ligne par œuvre et par utilisateur) |
-| `planning_journal` | tome_id, user_id, champ, ancienne_valeur, nouvelle_valeur, created_at | Historique public/équipe |
-| `notifications` | id, user_id, canal, sujet, statut, envoye_le | File d'envoi (Action Scheduler) |
+| `progression` | user_id, oeuvre_id, tome_id, chapitre_id, paragraphe, pourcentage, updated_at | Marque-page (une ligne par œuvre et par utilisateur) |
+| `planning_journal` | id, tome_id, user_id, champ, ancien, nouveau, public, created_at | Historique public/équipe |
+| `notifications` | id, destinataire, user_id, sujet, html, contexte, statut, tentatives, created_at, envoye_le | File d'envoi (WP-Cron, file maison) |
+
+### Tables ajoutées depuis
+
+Créées par les modules social et glossaire après la rédaction de ce document ; colonnes et règles
+dans le contrat §13.
+
+| Table | Usage |
+| --- | --- |
+| `listes`, `listes_oeuvres` | Listes de lecture des lecteurs (listes système À lire / En cours / Terminé, listes personnelles, page publique à jeton) |
+| `notifications_lecteur` | Centre de notifications (cloche) : sorties des œuvres en favori, réponses aux commentaires |
+| `push` | Abonnements Web Push (un par appareil, liés à la session WordPress) |
+| `glossaire`, `glossaire_versions` | Entrées du glossaire par œuvre et historique des versions YAML (5 dernières) |
 
 Réglages de lecture : `user_meta yume_reglages` (JSON : police, taille, interligne, opacité, thème,
 largeur) ; pour les visiteurs, `localStorage` uniquement.
@@ -79,7 +98,7 @@ largeur) ; pour les visiteurs, `localStorage` uniquement.
 
 | Rôle | Capacités clés |
 | --- | --- |
-| `lecteur` (= subscriber) | `read`, `yume_favoris`, `yume_noter`, `yume_commenter`, `yume_progression` |
+| `subscriber`, affiché « Lecteur » | `read` seulement : favoris, notes, commentaires et progression sont ouverts à tout compte connecté (pas de capacités `yume_favoris` / `yume_noter`) |
 | `yume_traducteur`, `yume_relecteur`, `yume_graphiste` | + `yume_maj_planning` (ses tomes), `upload_files` |
 | `yume_editeur` | + `yume_publier`, `edit_yume_*`, `moderate_comments`, `yume_maj_planning_tous` |
 | `yume_gerant` | + `yume_gerer_equipe`, `yume_reglages`, `edit_others_yume_*` |

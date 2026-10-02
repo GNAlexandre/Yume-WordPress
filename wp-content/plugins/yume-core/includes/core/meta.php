@@ -120,6 +120,28 @@ function san_enum( $v, array $valeurs, string $defaut = '' ): string {
 }
 
 /**
+ * Rythme de sortie d'un tome : { jour : lundi…dimanche, heure : HH:MM } ; vide (chaîne) si
+ * le jour manque ou est inconnu (sortie libre). Heure par défaut : 18:00.
+ *
+ * @param mixed $v Valeur.
+ * @return array{jour:string,heure:string}|string
+ */
+function san_rythme( $v ) {
+	if ( ! is_array( $v ) ) {
+		return '';
+	}
+	$jour = san_enum( $v['jour'] ?? '', array_keys( yume_jours_semaine() ) );
+	if ( '' === $jour ) {
+		return '';
+	}
+	$heure = is_string( $v['heure'] ?? null ) && preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', $v['heure'] ) ? $v['heure'] : '18:00';
+	return array(
+		'jour'  => $jour,
+		'heure' => $heure,
+	);
+}
+
+/**
  * Liste de textes (tableau ou texte d'une valeur par ligne).
  *
  * @param mixed $v Valeur.
@@ -436,18 +458,18 @@ function definitions_meta(): array {
 			),
 		),
 		CPT_TOME     => array(
-			'yume_oeuvre_id'     => array(
+			'yume_oeuvre_id'        => array(
 				'type'        => 'integer',
 				'description' => __( 'Œuvre du tome (obligatoire).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_entier',
 				'default'     => 0,
 			),
-			'yume_numero'        => array(
+			'yume_numero'           => array(
 				'type'        => 'number',
 				'description' => __( 'Numéro du tome (ex. 9, 26.5).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_nombre',
 			),
-			'yume_nature'        => array(
+			'yume_nature'           => array(
 				'type'        => 'string',
 				'description' => __( 'Nature : tome, arc, ex, bonus, chapitres.', 'yume-core' ),
 				'sanitize'    => static function ( $v ) {
@@ -459,22 +481,53 @@ function definitions_meta(): array {
 					'enum' => array_keys( yume_natures_tome() ),
 				),
 			),
-			'yume_lien_pdf'      => array(
+			'yume_parution'         => array(
+				'type'        => 'string',
+				'description' => __( 'Parution du tome : vide (déduite, tomes antérieurs), « planifie » (« Planifié » choisi par l’équipe : rien de lisible), « en_cours » (chapitres publiés au fil de l’eau) ou « complet » (« Publié » : tous les chapitres en ligne, marqué par l’équipe). Lire avec yume_parution_tome().', 'yume-core' ),
+				'sanitize'    => static function ( $v ) {
+					return san_enum( $v, array( '', 'planifie', 'en_cours', 'complet' ), '' );
+				},
+				'default'     => '',
+				'schema'      => array(
+					'type' => 'string',
+					'enum' => array( '', 'planifie', 'en_cours', 'complet' ),
+				),
+			),
+			'yume_chapitres_prevus' => array(
+				'type'        => 'integer',
+				'description' => __( 'Nombre de chapitres prévus pour le tome (0 : inconnu), pour « 3 sur 12 ».', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_entier',
+				'default'     => 0,
+			),
+			'yume_rythme'           => array(
+				'type'        => 'object',
+				'description' => __( 'Rythme de sortie des chapitres : jour (lundi…dimanche) et heure (HH:MM, heure du site) ; vide : libre.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_rythme',
+				'schema'      => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'jour'  => array( 'type' => 'string' ),
+						'heure' => array( 'type' => 'string' ),
+					),
+					'additionalProperties' => false,
+				),
+			),
+			'yume_lien_pdf'         => array(
 				'type'        => 'string',
 				'description' => __( 'Lien externe de téléchargement PDF.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_url',
 			),
-			'yume_lien_epub'     => array(
+			'yume_lien_epub'        => array(
 				'type'        => 'string',
 				'description' => __( 'Lien externe de téléchargement EPUB.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_url',
 			),
-			'yume_equivalence'   => array(
+			'yume_equivalence'      => array(
 				'type'        => 'string',
 				'description' => __( 'Équivalence (ex. « cet arc équivaut au tome 3 du LN »).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_texte',
 			),
-			'yume_illustrations' => array(
+			'yume_illustrations'    => array(
 				'type'        => 'array',
 				'description' => __( 'Galerie d’illustrations (pièces jointes).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_ids',
@@ -487,14 +540,14 @@ function definitions_meta(): array {
 					),
 				),
 			),
-			'yume_credits'       => array(
+			'yume_credits'          => array(
 				'type'        => 'object',
 				'description' => __( 'Crédits du tome.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_trio_textes',
 				'default'     => $trio_vide,
 				'schema'      => $trio_txt,
 			),
-			'yume_etape'         => array(
+			'yume_etape'            => array(
 				'type'        => 'string',
 				'description' => __( 'Étape du planning.', 'yume-core' ),
 				'sanitize'    => static function ( $v ) {
@@ -506,7 +559,7 @@ function definitions_meta(): array {
 					'enum' => array_keys( yume_etapes() ),
 				),
 			),
-			'yume_avancement'    => array(
+			'yume_avancement'       => array(
 				'type'        => 'object',
 				'description' => __( 'Avancement de chaque étape (0 à 100).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_avancement',
@@ -533,7 +586,7 @@ function definitions_meta(): array {
 					'additionalProperties' => false,
 				),
 			),
-			'yume_responsables'  => array(
+			'yume_responsables'     => array(
 				'type'        => 'object',
 				'description' => __( 'Responsable de chaque étape (ID utilisateur, 0 = personne).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_responsables',
@@ -541,41 +594,41 @@ function definitions_meta(): array {
 				'schema'      => schema_trio( 'integer' ),
 				'prive'       => true,
 			),
-			'yume_date_cible'    => array(
+			'yume_date_cible'       => array(
 				'type'        => 'string',
 				'description' => __( 'Date de sortie visée (Y-m-d).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_date',
 			),
-			'yume_bloque'        => array(
+			'yume_bloque'           => array(
 				'type'        => 'boolean',
 				'description' => __( 'Tome bloqué.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_booleen',
 				'default'     => false,
 			),
-			'yume_bloque_raison' => array(
+			'yume_bloque_raison'    => array(
 				'type'        => 'string',
 				'description' => __( 'Raison du blocage.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_texte',
 			),
-			'yume_derniere_maj'  => array(
+			'yume_derniere_maj'     => array(
 				'type'        => 'string',
 				'description' => __( 'Dernière mise à jour du planning (GMT, Y-m-d H:i:s).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_datetime',
 			),
-			'yume_maj_par'       => array(
+			'yume_maj_par'          => array(
 				'type'        => 'integer',
 				'description' => __( 'Auteur de la dernière mise à jour du planning (ID utilisateur).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_entier',
 				'default'     => 0,
 				'prive'       => true,
 			),
-			'yume_note_equipe'   => array(
+			'yume_note_equipe'      => array(
 				'type'        => 'string',
 				'description' => __( 'Note interne de l’équipe (jamais publique).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_texte_long',
 				'equipe'      => true,
 			),
-			'yume_pause'         => array(
+			'yume_pause'            => array(
 				'type'          => 'object',
 				'description'   => __( 'Tome mis en pause par l’équipe (ni retard ni rappel) : depuis (GMT, Y-m-d H:i:s) et par (ID utilisateur) ; vide sinon.', 'yume-core' ),
 				'sanitize'      => static function ( $v ) {
@@ -595,7 +648,7 @@ function definitions_meta(): array {
 				'prive'         => true,
 				'lecture_seule' => true,
 			),
-			'yume_nb_chapitres'  => array(
+			'yume_nb_chapitres'     => array(
 				'type'          => 'integer',
 				'description'   => __( 'Nombre de chapitres publiés (cache).', 'yume-core' ),
 				'sanitize'      => __NAMESPACE__ . '\\san_entier',

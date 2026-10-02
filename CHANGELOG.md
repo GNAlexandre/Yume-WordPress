@@ -2,6 +2,42 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.9 — 2026-10-02
+
+- Fin d'un tome : « Le tome est complet » publie tout maintenant (chapitres programmés compris) ; option « Publier les liens avec le dernier chapitre » (tome « Publié » à la sortie du dernier chapitre programmé) ; « Chapitres prévus » relevé d'office quand le fichier apporte plus de chapitres et modifiable dans le formulaire de publication et dans « Modifier le tome » ; docx2chapters --liens-dernier, --chapitres-prevus ; guide Word mis à jour.
+
+## 2.1.5-dev.8 — 2026-10-01
+
+- État du tome choisi par l'équipe (Planifié, En cours de publication, Publié) avec confirmations ; retour à « Planifié » retire la lecture ; guide Word de l'équipe aligné sur les écrans.
+
+## 2.1.5-dev.7 — 2026-10-01
+
+- État des œuvres modifiable depuis la liste « Œuvres » ; « Licenciée » retire la lecture en ligne et les liens (réversible) ; œuvre en pause, terminée, abandonnée ou licenciée : plus de rappels ni d'alertes.
+
+## 2.1.5-dev.6 — 2026-10-01
+
+- Guide de l'équipe en Word (docs/guide-equipe) : procédures illustrées, généré depuis procedures.md par tools/guide, vérifié en CI.
+
+## 2.1.5-dev.5 — 2026-10-01
+
+- États : libellés équipe d’un tome (Planifié, En cours de publication, Publié) et d’une œuvre, œuvres sans rappels de planning (socle).
+
+## 2.1.5-dev.4 — 2026-10-01
+
+- Publication chapitre par chapitre : « Nouveau tome » (remplace « Ajouter un tome au planning »), « Modifier le tome » dans l'espace équipe (plus d'écran wp-admin sans thème), « Tous les tomes » par parution, formulaire « Ajouter des chapitres » (comparaison au tome, sortie maintenant / au rythme / à une date, annonces de chapitre, « Tome complet » avec PDF et EPUB), affichage public « En cours · 3 sur 12 ».
+
+## 2.1.5-dev.3 — 2026-10-01
+
+- Tomes : parution (à paraître, en cours, complet), chapitres prévus et rythme de sortie (socle de la publication chapitre par chapitre).
+
+## 2.1.5-dev.2 — 2026-10-01
+
+- Import : les descriptions d’image générées par Word (« Une image contenant… », « Le contenu généré par l’IA peut être incorrect ») ne sont plus reprises comme texte alternatif ni comme titre des illustrations ; avertissement à l’import.
+
+## 2.1.5-dev.1 — 2026-10-01
+
+- Documentation : état de production au 1er octobre 2026, journal des décisions, règle de livraison d'après-lancement, contrôles CI obligatoires alignés sur ci.yml, modèle de données et guides remis à jour.
+
 ## 2.1.4 — 2026-09-30
 
 - Easter egg WordEnd : mini-jeu caché « Chtholly – Bats-toi contre ton destin » (code Konami, appui long sur la bascule de thème, papillon de la fiche SukaSuka) : Chtholly contre des vagues de Timeres, décor peint, musique de fond réglable.

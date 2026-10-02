@@ -132,14 +132,15 @@ if ( ! function_exists( 'yume_timp_docx' ) ) {
 	 * Construit un DOCX temporaire (styles français, titres Titre1) à partir du contenu de
 	 * w:body, avec les fonctions de tools/fixtures/build-fixtures.php.
 	 *
-	 * @param string $corps Contenu de w:body (yume_fx_t(), yume_fx_p()…).
+	 * @param string               $corps  Contenu de w:body (yume_fx_t(), yume_fx_p()…).
+	 * @param array<string,string> $medias Images de word/media/ : nom => contenu (relation yume_fx_rid()).
 	 * @return string Chemin du fichier (à supprimer par l'appelant).
 	 * @throws Yume_Test_Failure Outil de fixtures absent.
 	 */
-	function yume_timp_docx( string $corps ): string {
+	function yume_timp_docx( string $corps, array $medias = array() ): string {
 		yume_timp_outils_fixtures();
 		$fichier = get_temp_dir() . 'yume-test-' . wp_generate_password( 8, false ) . '.docx';
-		yume_fx_docx( $fichier, $corps, yume_fx_styles_fr(), '', array() );
+		yume_fx_docx( $fichier, $corps, yume_fx_styles_fr(), '', $medias );
 		return $fichier;
 	}
 
@@ -147,11 +148,12 @@ if ( ! function_exists( 'yume_timp_docx' ) ) {
 	 * Construit un EPUB 3 minimal (un fichier XHTML par page, feuilles de style de
 	 * OEBPS/styles/) dans un fichier temporaire.
 	 *
-	 * @param array<string,array{0:string,1:string}> $pages   Nom → [ajout dans <head>, contenu de <body>].
+	 * @param array<string,array{0:string,1:string}> $pages    Nom → [ajout dans <head>, contenu de <body>].
 	 * @param array<string,string>                   $feuilles Nom → CSS.
+	 * @param array<string,string>                   $images   Nom (OEBPS/images/) → contenu PNG.
 	 * @return string Chemin (à supprimer par l'appelant).
 	 */
-	function yume_timp_epub( array $pages, array $feuilles = array() ): string {
+	function yume_timp_epub( array $pages, array $feuilles = array(), array $images = array() ): string {
 		$manifeste = '';
 		$spine     = '';
 		$entrees   = array(
@@ -162,6 +164,10 @@ if ( ! function_exists( 'yume_timp_docx' ) ) {
 		foreach ( $feuilles as $nom => $css ) {
 			$manifeste                        .= '<item id="css' . ( ++$i ) . '" href="styles/' . $nom . '" media-type="text/css"/>';
 			$entrees[ 'OEBPS/styles/' . $nom ] = $css;
+		}
+		foreach ( $images as $nom => $png ) {
+			$manifeste                        .= '<item id="img' . ( ++$i ) . '" href="images/' . $nom . '" media-type="image/png"/>';
+			$entrees[ 'OEBPS/images/' . $nom ] = $png;
 		}
 		foreach ( $pages as $nom => $page ) {
 			$manifeste                       .= '<item id="p' . ( ++$i ) . '" href="texte/' . $nom . '" media-type="application/xhtml+xml"/>';
@@ -469,6 +475,133 @@ yume_test(
 		yume_assert_true( $r->copier_image( 'grande', $copie ) );
 		yume_assert_same( 'image/png', wp_getimagesize( $copie )['mime'] );
 		wp_delete_file( $copie );
+	}
+);
+
+yume_test(
+	'texte : descriptions d’image générées par Word reconnues (alt_automatique), textes alternatifs humains conservés',
+	function () {
+		$automatiques = array(
+			'Une image contenant texte, oiseau, croquis, encre Le contenu généré par l’IA peut être incorrect.',
+			'Une image contenant texte, oiseau, affiche, Visage humain',
+			'UNE IMAGE CONTENANT DESSIN',
+			"une  image\tcontenant intérieur .",
+			"Portrait d'un héros Le contenu généré par l'IA peut être incorrect",
+			"Une image contenant texte\n\nDescription générée automatiquement",
+			'Logo Description générée avec un niveau de confiance très élevé',
+			'Description générée avec un niveau de confiance moyen',
+			'Carte Description générée avec un niveau de confiance faible',
+			'A picture containing text, bird, sketch',
+			'A close-up of a bird AI-generated content may be incorrect.',
+			'Text Description automatically generated',
+			'Diagram Description automatically generated with low confidence',
+		);
+		foreach ( $automatiques as $alt ) {
+			yume_assert_true( Texte::alt_automatique( $alt ), 'description automatique : ' . $alt );
+		}
+		$humains = array(
+			'',
+			'Carte du continent',
+			'Haruhiro et Yume devant la Crête Brumeuse',
+			'Illustration de la brume',
+			'Une image de la carte, dessinée par l’auteur',
+			'Gros plan de la lame',
+			'A close-up of the blade',
+			'Le contenu de la lettre',
+			'Description de la scène générée par le narrateur',
+		);
+		foreach ( $humains as $alt ) {
+			yume_assert_false( Texte::alt_automatique( $alt ), 'texte humain : ' . $alt );
+		}
+	}
+);
+
+yume_test(
+	'docx : description automatique de Word retirée (alt vide, compteur, avertissement unique)',
+	function () {
+		yume_timp_outils_fixtures();
+		$png     = yume_fx_image( 'png', 40, 30 );
+		$fichier = yume_timp_docx(
+			yume_fx_t( 'Chapitre 1', array( 'style' => 'Titre1' ) )
+			. yume_fx_p( yume_fx_dessin( yume_fx_rid( 'oiseau.png' ), 'Une image contenant texte, oiseau, croquis, encre Le contenu généré par l’IA peut être incorrect.' ) )
+			. yume_fx_t( 'Entre les deux images.' )
+			. yume_fx_p( yume_fx_dessin( yume_fx_rid( 'affiche.png' ), 'Une image contenant texte, oiseau, affiche, Visage humain' ) ),
+			array(
+				'oiseau.png'  => $png,
+				'affiche.png' => $png,
+			)
+		);
+		try {
+			$r = Docx_Converter::convert_file( $fichier );
+		} finally {
+			wp_delete_file( $fichier );
+		}
+		yume_assert_same( array( 'oiseau', 'affiche' ), array_keys( $r->images ) );
+		yume_assert_same( '', $r->images['oiseau']['alt'] );
+		yume_assert_same( '', $r->images['affiche']['alt'] );
+		yume_assert_same( 2, $r->stats['alt_automatiques'] );
+		yume_assert_same( 2, $r->stats['images_gardees'] );
+		yume_assert_same( 1, count( preg_grep( '/automatiques? de Word/', $r->warnings ) ), 'un seul avertissement : ' . implode( ' | ', $r->warnings ) );
+		yume_assert_contains( '2 descriptions automatiques de Word ignorées (« Une image contenant… ») : rédigez le texte alternatif dans Word si l’image porte un sens.', implode( "\n", $r->warnings ) );
+		$c = yume_timp_chapitre( $r, 'Chapitre 1' );
+		yume_assert_same( array( 'oiseau', 'affiche' ), $c['images'] );
+		yume_assert_contains( Blocks::image_jeton( 'oiseau', '' ), $c['blocks'], 'jeton sans texte alternatif' );
+		yume_assert_not_contains( 'Une image contenant', $c['blocks'] );
+	}
+);
+
+yume_test(
+	'docx : texte alternatif rédigé dans Word conservé tel quel, sans avertissement',
+	function () {
+		yume_timp_outils_fixtures();
+		$fichier = yume_timp_docx(
+			yume_fx_t( 'Chapitre 1', array( 'style' => 'Titre1' ) )
+			. yume_fx_p( yume_fx_dessin( yume_fx_rid( 'carte.png' ), 'Carte du continent' ) ),
+			array( 'carte.png' => yume_fx_image( 'png', 40, 30 ) )
+		);
+		try {
+			$r = Docx_Converter::convert_file( $fichier );
+		} finally {
+			wp_delete_file( $fichier );
+		}
+		yume_assert_same( 'Carte du continent', $r->images['carte']['alt'] );
+		yume_assert_same( 0, $r->stats['alt_automatiques'] );
+		yume_assert_same( array(), preg_grep( '/automatique/', $r->warnings ), implode( ' | ', $r->warnings ) );
+		yume_assert_contains( Blocks::image_jeton( 'carte', 'Carte du continent' ), yume_timp_chapitre( $r, 'Chapitre 1' )['blocks'] );
+	}
+);
+
+yume_test(
+	'epub : attribut alt généré par Word (export EPUB) retiré, texte humain conservé',
+	function () {
+		yume_timp_outils_fixtures();
+		$png    = yume_fx_image( 'png', 40, 30 );
+		$chemin = yume_timp_epub(
+			array(
+				'c1.xhtml' => array(
+					'',
+					'<h1>Chapitre 1</h1>'
+					. '<p><img src="../images/oiseau.png" alt="A picture containing text, bird, sketch Description automatically generated"/></p>'
+					. '<p>Entre les deux images.</p>'
+					. '<p><img src="../images/carte.png" alt="Carte du continent"/></p>',
+				),
+			),
+			array(),
+			array(
+				'oiseau.png' => $png,
+				'carte.png'  => $png,
+			)
+		);
+		try {
+			$r = Epub_Converter::convert_file( $chemin );
+		} finally {
+			wp_delete_file( $chemin );
+		}
+		yume_assert_same( '', $r->images['oiseau']['alt'] );
+		yume_assert_same( 'Carte du continent', $r->images['carte']['alt'] );
+		yume_assert_same( 1, $r->stats['alt_automatiques'] );
+		yume_assert_contains( '1 description automatique de Word ignorée (« Une image contenant… ») : rédigez le texte alternatif dans Word si l’image porte un sens.', implode( "\n", $r->warnings ) );
+		yume_assert_same( array( 'oiseau', 'carte' ), $r->chapters[0]['images'] );
 	}
 );
 

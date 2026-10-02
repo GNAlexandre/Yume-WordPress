@@ -34,6 +34,7 @@ Implémentation PHP native (`ZipArchive` + `DOMDocument`/`XMLReader`), sans PHPW
 | Note de bas de page | `<sup class="yn-note">n</sup>` + liste en fin de chapitre | (absentes dans Grimgar, présentes ailleurs) |
 | `<a:blip r:embed>` JPG/PNG/WebP | `<figure class="yn-illustration"><img …></figure>` ; fichier versé dans la médiathèque, rattaché au chapitre | redimension max 1600 px, WebP |
 | `<a:blip>` EMF/WMF/EMZ/WMZ | **converti en PNG** quand le métafichier porte une image bitmap (`Metafichier` : plus grand bitmap de `EMR_STRETCHDIBITS`, `EMR_BITBLT`, `EMR_STRETCHBLT`, `EMR_SETDIBITSTODEVICE`… ou `META_STRETCHDIB`, `META_DIBSTRETCHBLT`, `META_DIBBITBLT` en WMF ; EMZ/WMZ décompressés) puis traité comme une image PNG (galerie ou position dans le chapitre, WebP) ; dessin purement vectoriel ou fichier invalide : **ignoré** avec sa raison dans le rapport d'import | DIB 1/4/8/16/24/32 bits `BI_RGB`/`BI_BITFIELDS` via GD ; `BI_JPEG`/`BI_PNG` extraits tels quels ; limites : 12 000 px de côté, 60 Mpx, largeur × hauteur × 4 ≤ 256 Mo, tailles déclarées confrontées à la taille réelle |
+| `wp:docPr descr` / `title` (texte de remplacement Word) ou `alt` (EPUB) | Texte alternatif de l'image (`alt`) ; **vide** si c'est une description générée par Word (« Une image contenant… », « Le contenu généré par l'IA peut être incorrect », « Description générée automatiquement », équivalents anglais : `Texte::alt_automatique()`, motifs dans `Texte::ALT_AUTOMATIQUES`), cas comptés (`stats.alt_automatiques`) et signalés une fois dans le rapport | à la publication, le **titre** du média est toujours « Œuvre, Tome N, Chapitre N — illustration » ; son `alt` est celui du document s'il en a un, sinon ce libellé |
 | Images avant le premier `Titre1` | Galerie du tome (`illustrations`), pas un chapitre | couverture, pages couleur |
 | En-têtes / pieds de page / sections | ignorés | |
 
@@ -47,6 +48,18 @@ classes ci-dessus).
 convertis en PNG : 2 dans la galerie, 4 dans les chapitres 11 et 19 ; avant la version 2.0.1 ces 6 EMF
 étaient ignorés), 2 sauts de page ignorés. Un rapport d'import est joint à la publication (nombre de mots par chapitre,
 avertissements) et l'éditeur peut **prévisualiser chaque chapitre** avant de publier.
+
+### 2.3 Fichier comparé à un tome existant (ajout de chapitres)
+
+Pour la publication chapitre par chapitre (formulaire « Ajouter des chapitres à un tome », contrat
+§8), le fichier peut ne contenir qu'un chapitre, ou le tome avec ses chapitres déjà parus. Chaque
+chapitre converti est rapproché du tome par nature + numéro (le prologue vaut 0) et comparé au
+chapitre en ligne sur son **texte** : titre et contenu, illustrations, balises, commentaires de
+blocs et entités retirés, toutes les espaces (insécables comprises) réduites à une
+(`Service::texte_normalise()`). Une illustration changée ne rend donc pas un chapitre « modifié » ;
+une phrase corrigée, si. L'empreinte de chaque chapitre est notée à sa création
+(`_yume_empreinte_texte`) et recalculée depuis `post_content` pour les chapitres plus anciens ou
+retouchés dans l'éditeur.
 
 ## 3. Conversion EPUB → chapitres
 
@@ -125,7 +138,7 @@ n'a pas de position dans le tome. Un vrai chapitre de nature « Illustrations »
 | Interligne | `--yn-lh` | 1,6 | 1,3–2,1 (« compact → large ») |
 | Opacité du fond | `--yn-bg-alpha` | 0,93 | 0,6–1 (« transparent → opaque », l'illustration/bandeau de l'œuvre en arrière-plan) |
 | Police | `--yn-font` | Literata (défaut « Avenir » remplacé par une police libre équivalente : Nunito Sans) | 13 choix : Avenir/Nunito Sans, Merriweather, Arial, Roboto, Calibri/Carlito, Times New Roman, Verdana, Georgia, Garamond/EB Garamond, Trebuchet MS, Courier New, Literata, OpenDyslexic (dyslexie ; aussi par la case « Police adaptée à la dyslexie » du groupe Accessibilité) |
-| Thème | `data-yn-theme` | suit le site | nocturne · papier · sépia |
+| Thème | `data-yn-theme` | suit le site | nuit · papier · sépia |
 | Largeur | `--yn-width` | 68 ch | 56–80 |
 
 Persistance : `localStorage['yn.reglages']` pour tous ; `PUT /yume/v1/moi/reglages` pour les membres.
@@ -139,7 +152,7 @@ Boutons « Valider » (applique et enregistre) et « Réinitialiser par défaut 
 - À l'ouverture d'un chapitre déjà entamé : bandeau « Reprendre au paragraphe 42 ».
 - Fiche œuvre / accueil / compte : carte « Reprendre la lecture — Tome 7, chapitre 3, 41 % ».
 
-### 4.4 CSS du lecteur (extrait de `themes/yume/assets/reader.css`)
+### 4.4 CSS du lecteur (extrait de `themes/yume/assets/css/reader.css`)
 
 ```css
 .yn-reader{max-width:var(--yn-width,68ch);margin-inline:auto;font:var(--yn-size,18px)/var(--yn-lh,1.6) var(--yn-font,Literata,Georgia,serif);text-align:justify;hyphens:auto;-webkit-hyphens:auto;text-wrap:pretty;color:var(--yn-ink);background:color-mix(in srgb,var(--yn-paper) calc(var(--yn-bg-alpha,.93)*100%),transparent)}

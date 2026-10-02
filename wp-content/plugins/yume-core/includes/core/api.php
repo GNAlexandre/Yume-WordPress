@@ -501,12 +501,16 @@ function yume_jours_semaine(): array {
 /**
  * Liens externes de téléchargement d'un tome (pour un chapitre : ceux de son tome).
  *
+ * Un tome « Planifié » ou « En cours de publication » choisi par l'équipe (méta yume_parution
+ * = planifie ou en_cours) n'en montre aucun aux lecteurs : les liens restent enregistrés (voir
+ * yume_liens_tome_masques()) et réapparaissent quand le tome repasse « Publié ».
+ *
  * @param int $tome_id ID du tome.
  * @return array{pdf:string,epub:string}
  */
 function yume_liens_telechargement( int $tome_id ): array {
 	$tome_id = yume_get_tome_id( $tome_id );
-	if ( ! $tome_id ) {
+	if ( ! $tome_id || yume_liens_tome_masques( $tome_id ) ) {
 		return array(
 			'pdf'  => '',
 			'epub' => '',
@@ -631,4 +635,189 @@ function yume_est_page_illustrations(): bool {
  */
 function yume_url_illustrations_avant( int $chapitre_id ): string {
 	return url_illustrations_avant( $chapitre_id );
+}
+
+/**
+ * Parution d'un tome (publication chapitre par chapitre) :
+ *
+ * - « a_paraitre » : aucun chapitre lisible (tome en brouillon, programmé ou en attente) ;
+ * - « en_cours » : tome en ligne dont des chapitres restent à sortir (méta yume_parution =
+ *   en_cours, posée à la publication d'un chapitre sans « Tome complet ») ;
+ * - « complet » : méta yume_parution = complet (case « Tome complet », état « Publié »), ou
+ *   tome en ligne antérieur à cette méta qui n'est pas une sortie progressive en cours.
+ *
+ * Méta « planifie » (état « Planifié » choisi par l'équipe dans « Modifier le tome ») :
+ * « a_paraitre », quel que soit le statut du tome. Un choix de l'équipe est noté dans la méta
+ * interne _yume_parution_manuelle (yume_parution_manuelle()).
+ *
+ * Tomes antérieurs (méta vide) : un arc, un recueil « Chapitres » ou un tome de web novel en
+ * ligne reste « en_cours » tant que des chapitres sont programmés ou en brouillon, ou que son
+ * étape de planning n'est pas « publié » (règle historique de la bibliothèque) ; tout autre tome
+ * en ligne est « complet ».
+ *
+ * @param int $tome_id Tome.
+ * @return string a_paraitre | en_cours | complet
+ */
+function yume_parution_tome( int $tome_id ): string {
+	$tome_id = yume_get_tome_id( $tome_id );
+	if ( ! $tome_id ) {
+		return 'a_paraitre';
+	}
+	$meta = (string) get_post_meta( $tome_id, 'yume_parution', true );
+	if ( 'planifie' === $meta ) {
+		$etat = 'a_paraitre';
+	} elseif ( 'publish' !== get_post_status( $tome_id ) ) {
+		$etat = 'complet' === $meta ? 'complet' : 'a_paraitre';
+	} elseif ( 'complet' === $meta || 'en_cours' === $meta ) {
+		$etat = $meta;
+	} else {
+		$etat = yume_parution_historique( $tome_id );
+	}
+	/**
+	 * Filtre la parution d'un tome.
+	 *
+	 * @param string $etat    a_paraitre | en_cours | complet.
+	 * @param int    $tome_id Tome.
+	 */
+	return (string) apply_filters( 'yume_parution_tome', $etat, $tome_id );
+}
+
+/**
+ * Parution d'un tome en ligne sans méta yume_parution (tomes antérieurs) : voir
+ * yume_parution_tome().
+ *
+ * @param int $tome_id Tome publié.
+ * @return string en_cours | complet
+ */
+function yume_parution_historique( int $tome_id ): string {
+	$nature      = (string) get_post_meta( $tome_id, 'yume_nature', true );
+	$oeuvre_id   = yume_get_oeuvre_id( $tome_id );
+	$progressive = in_array( $nature, array( 'arc', 'chapitres' ), true ) || ( $oeuvre_id > 0 && has_term( 'web-novel', 'yume_type', $oeuvre_id ) );
+	if ( ! $progressive ) {
+		return 'complet';
+	}
+	$etape = (string) get_post_meta( $tome_id, 'yume_etape', true );
+	if ( '' !== $etape && 'publie' !== $etape ) {
+		return 'en_cours';
+	}
+	return yume_get_chapitres( $tome_id, array( 'status' => array( 'future', 'draft', 'pending' ) ) ) ? 'en_cours' : 'complet';
+}
+
+/**
+ * Libellés des parutions (clé => libellé).
+ *
+ * @return array<string,string>
+ */
+function yume_parutions(): array {
+	return array(
+		'a_paraitre' => __( 'À paraître', 'yume-core' ),
+		'en_cours'   => __( 'En cours', 'yume-core' ),
+		'complet'    => __( 'Publié', 'yume-core' ),
+	);
+}
+
+/**
+ * Les liens PDF et EPUB d'un tome sont-ils masqués aux lecteurs ? Vrai quand l'équipe a choisi
+ * l'état « Planifié » ou « En cours de publication » (méta yume_parution = planifie ou
+ * en_cours) : un tome rouvert garde ses liens en base sans les montrer.
+ *
+ * @param int $tome_id Tome.
+ */
+function yume_liens_tome_masques( int $tome_id ): bool {
+	return in_array( (string) get_post_meta( $tome_id, 'yume_parution', true ), array( 'planifie', 'en_cours' ), true );
+}
+
+/**
+ * Dernier choix d'état fait à la main par l'équipe (« Modifier le tome »), ou null : méta
+ * interne _yume_parution_manuelle {etat: planifie|en_cours|complet, date: GMT « Y-m-d H:i:s »,
+ * par: ID}. Effacée quand une action de l'équipe ailleurs change l'état (publication d'un
+ * chapitre d'un tome « Planifié », « Tome complet » du formulaire de publication), changement
+ * alors journalisé.
+ *
+ * @param int $tome_id Tome.
+ * @return array{etat:string,date:string,par:int}|null
+ */
+function yume_parution_manuelle( int $tome_id ): ?array {
+	$choix = get_post_meta( $tome_id, '_yume_parution_manuelle', true );
+	if ( ! is_array( $choix ) || empty( $choix['etat'] ) ) {
+		return null;
+	}
+	return array(
+		'etat' => (string) $choix['etat'],
+		'date' => (string) ( $choix['date'] ?? '' ),
+		'par'  => (int) ( $choix['par'] ?? 0 ),
+	);
+}
+
+/**
+ * Libellés de l'état d'un tome dans l'espace équipe (clé de yume_parution_tome() => libellé) :
+ * « Planifié » (au planning, rien de lisible), « En cours de publication » (chapitre par chapitre),
+ * « Publié » (tous les chapitres en ligne). Côté lecteurs : yume_parutions().
+ *
+ * @return array<string,string>
+ */
+function yume_etats_tome(): array {
+	return array(
+		'a_paraitre' => __( 'Planifié', 'yume-core' ),
+		'en_cours'   => __( 'En cours de publication', 'yume-core' ),
+		'complet'    => __( 'Publié', 'yume-core' ),
+	);
+}
+
+/**
+ * Libellés de l'état d'une œuvre dans l'espace équipe (slug du terme yume_statut => libellé) :
+ * mêmes termes que le « Statut de la traduction », « en-cours » nommé « En cours de publication ».
+ * Termes inconnus : leur nom.
+ *
+ * @return array<string,string>
+ */
+function yume_etats_oeuvre(): array {
+	$libelles = array(
+		'en-cours'   => __( 'En cours de publication', 'yume-core' ),
+		'terminee'   => __( 'Terminée', 'yume-core' ),
+		'en-pause'   => __( 'En pause', 'yume-core' ),
+		'abandonnee' => __( 'Abandonnée', 'yume-core' ),
+		'licenciee'  => __( 'Licenciée', 'yume-core' ),
+	);
+	$termes   = yume_statuts();
+	return array_intersect_key( $libelles, $termes ) + array_diff_key( $termes, $libelles );
+}
+
+/**
+ * États d'œuvre où le planning ne relance personne (ni rappel de retard, ni récapitulatif) :
+ * en pause, abandonnée, licenciée, terminée.
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function yume_oeuvre_sans_rappels( int $oeuvre_id ): bool {
+	$etats = $oeuvre_id > 0 ? wp_get_object_terms( $oeuvre_id, 'yume_statut', array( 'fields' => 'slugs' ) ) : array();
+	return is_array( $etats ) && (bool) array_intersect( $etats, array( 'en-pause', 'abandonnee', 'licenciee', 'terminee' ) );
+}
+
+/**
+ * Prochaine date de sortie selon le rythme du tome (méta yume_rythme), strictement après
+ * $apres (défaut : maintenant), dans le fuseau du site ; null si le tome n'a pas de rythme.
+ *
+ * @param int                     $tome_id Tome.
+ * @param \DateTimeImmutable|null $apres   Référence.
+ */
+function yume_prochaine_sortie_rythme( int $tome_id, ?\DateTimeImmutable $apres = null ): ?\DateTimeImmutable {
+	$rythme = get_post_meta( $tome_id, 'yume_rythme', true );
+	if ( ! is_array( $rythme ) || empty( $rythme['jour'] ) ) {
+		return null;
+	}
+	$jours = array_keys( yume_jours_semaine() );
+	$rang  = array_search( (string) $rythme['jour'], $jours, true );
+	if ( false === $rang ) {
+		return null;
+	}
+	$heure = preg_match( '/^(\d{2}):(\d{2})$/', (string) ( $rythme['heure'] ?? '' ), $m ) ? array( (int) $m[1], (int) $m[2] ) : array( 18, 0 );
+	$apres = ( $apres ?? new \DateTimeImmutable( 'now', wp_timezone() ) )->setTimezone( wp_timezone() );
+	$date  = $apres->setTime( $heure[0], $heure[1] );
+	$ecart = ( (int) $rang + 1 - (int) $date->format( 'N' ) + 7 ) % 7;
+	$date  = $date->modify( '+' . $ecart . ' days' );
+	if ( $date <= $apres ) {
+		$date = $date->modify( '+7 days' );
+	}
+	return $date;
 }
