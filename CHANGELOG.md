@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.6 — 2026-10-02
+
+- Yume Novel 2.1.6 : section Planning de l'accueil sous « Dernières sorties » (prochain tome à la une avec compte à rebours et avancement, chapitres en lecture programmés et publiés récemment, tomes en préparation), page Planning enrichie (bandeau du prochain tome, vue « Chapitres », barres d'avancement, tomes publiés chapitre par chapitre « En cours · N chapitres sur M » avec prochain chapitre, cartes sur mobile, légende complétée), guide de l'équipe mis à jour.
+
 ## 2.1.5 — 2026-10-02
 
 - Yume Novel 2.1.5 : publication chapitre par chapitre (Nouveau tome, Ajouter des chapitres avec sortie maintenant, au rythme ou à une date, liens PDF/EPUB avec le dernier chapitre ou tout publier maintenant), Modifier le tome et Tous les tomes dans l'espace équipe, état des tomes (Planifié, En cours de publication, Publié) et des œuvres (Licenciée réversible, En pause sans rappels), affichage « En cours · 3 sur 12 » pour les lecteurs, descriptions d'image Word ignorées à l'import, guide Word de l'équipe.

@@ -88,6 +88,23 @@
 			"contenu": [ "x-dc > div > :not(nav) > *" ]
 		}
 	},
+	"Accueil": {
+		"zones": {
+			"page": [ "x-dc > div > *" ],
+			"planning": [ "section[aria-labelledby=\"t-planning\"]" ],
+			"une": [ "main section[aria-label=\"À la une : prochain tome\"]" ]
+		}
+	},
+	"PagePlanning": {
+		"css": "#yn-vue-chapitres{margin-top:4px !important}",
+		"zones": {
+			"page": [ "x-dc > div > *" ],
+			"une": [ "section[aria-label=\"À la une : prochain tome\"]" ],
+			"vues": [ "[role=\"tablist\"]", "#yn-vue-tableau" ],
+			"chapitres": [ "#yn-vue-chapitres" ],
+			"legende": [ "section[aria-labelledby=\"yn-planning-legende\"]" ]
+		}
+	},
 	"Schema-Menu": {
 		"zones": {
 			"page": [ "body > div > *" ]

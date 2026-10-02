@@ -133,8 +133,10 @@ Une tâche **En attente** attend l'étape précédente : par exemple, la relectu
 | **En retard** | La date cible est dépassée, **ou** personne n'a mis le tome à jour depuis 14 jours. |
 | **Bloqué** | Le tome est marqué bloqué. La raison est affichée. |
 | **Publié** | Le tome est sorti. |
+| **En cours de publication** | Le tome sort chapitre par chapitre, lisible en ligne au fil des sorties. |
+| **Chapitre programmé** | La date et l'heure de sortie du prochain chapitre. |
 
-Les lecteurs voient l'étape, les pourcentages, le pseudo des responsables et la date cible. Ils ne voient jamais la note pour l'équipe.
+Les lecteurs voient l'étape, les pourcentages, le pseudo des responsables et la date cible. Ils ne voient jamais la note pour l'équipe. Le planning nourrit aussi la section **Planning** de l'accueil : voir « Ce que voient les lecteurs ».
 
 ## Recevoir (ou ne plus recevoir) les rappels
 
@@ -654,6 +656,75 @@ Vous pouvez aussi changer l'état dans la fiche de l'œuvre (**Modifier**, champ
 # Ce que voient les lecteurs
 
 Il est utile de savoir ce que montre le site, pour répondre aux lecteurs sur Discord.
+
+> **Nouveau** : depuis la version 2.1.6, l'accueil a une section **Planning** à la place de la carte « Prochaines sorties », et la page Planning montre le prochain tome et une vue **Chapitres**. Rien n'est à saisir en plus : tout vient du planning, des chapitres publiés ou programmés avec **Ajouter des chapitres**, et des champs **Chapitres prévus** et **Rythme** du tome.
+
+## La page d'accueil
+
+En haut, **Dernières sorties** ne change pas : les derniers tomes et chapitres parus. Juste en dessous, la section **Planning**, sur toute la largeur.
+
+![La section « Planning » de l'accueil : le prochain tome à la une, puis les chapitres et les tomes en préparation.](images/Accueil-planning.png)
+
+- **À la une : prochain tome** : la couverture, l'œuvre, le tome, la date de sortie et un compte à rebours (« J-2 »). À droite, les barres **Traduction**, **Relecture** et **Édition**. Les boutons **Suivre l'œuvre** et **Voir la fiche**.
+- **Chapitres en lecture**, à gauche :
+  - les tomes publiés chapitre par chapitre, avec leur progression (« 3 / 12 ») et leur rythme (« Chaque samedi à 18 h ») ;
+  - **Prochains · programmés** : les prochains chapitres programmés, avec leur date et le bouton **Me prévenir** ;
+  - le repère **Aujourd'hui** ;
+  - **Publiés récemment** : les chapitres parus ces 14 derniers jours, avec **Lire**. Un chapitre de moins de 48 h porte le badge **Nouveau** ;
+  - le lien **Tous les chapitres publiés**.
+- **Tomes en préparation**, à droite : les tomes suivants, avec leur étape, le pourcentage, la date cible (ou « à venir ») et une pastille d'état (**À l'heure**, **En retard**, **Bloqué**). Une légende explique les pastilles.
+
+Les deux colonnes ont la même hauteur. Sur téléphone, elles deviennent deux onglets : **Chapitres** et **Tomes**. Viennent ensuite, sans changement, les **Actualités**, le Discord et **Nos partenaires**.
+
+> **À savoir** : seules les œuvres publiques apparaissent. Un chapitre retiré (licence, retour d'un tome à « Planifié ») n'apparaît jamais.
+
+## La page Planning
+
+La page **yumenovel.fr/planning/** garde tout ce qu'elle montrait : l'introduction, les filtres, les boutons **Flux RSS**, **JSON** et **S'abonner au calendrier (ICS)**, **En bref**, le tableau, le calendrier, le journal et la légende. Ce qui change :
+
+![Sous l'introduction, le même bandeau qu'à l'accueil : le prochain tome à la une.](images/PagePlanning-une.png)
+
+- Sous l'introduction, le bandeau **À la une : prochain tome**, comme à l'accueil.
+- Trois vues au lieu de deux : **Tableau**, **Chapitres** et **Calendrier**.
+- Dans le tableau, chaque étape a sa barre d'avancement avec son pourcentage.
+- Un tome publié chapitre par chapitre affiche « En cours · 3 chapitres sur 12 », une petite barre, « Prochain : ch. 3 · sam. 3 oct. 18 h » et la pastille **En cours de publication**.
+- Sur téléphone, le tableau devient une carte par tome.
+
+![Les trois vues et le tableau : barres d'avancement, tomes en cours de publication et prochain chapitre.](images/PagePlanning-vues.png)
+
+La vue **Chapitres** remplace le tableau par la file des chapitres, groupée par jour : les prochains chapitres programmés, le repère « Aujourd'hui », puis les chapitres publiés. Un encadré rappelle que **les sorties de tomes sont aussi dans le calendrier ICS** (les chapitres n'y sont pas).
+
+![La vue « Chapitres » de la page Planning.](images/PagePlanning-chapitres.png)
+
+La légende a deux entrées de plus : **En cours de publication** (le tome sort chapitre par chapitre) et **Chapitre programmé** (la date et l'heure du prochain chapitre).
+
+![La légende de la page Planning.](images/PagePlanning-legende.png){largeur=60%}
+
+## Faire apparaître un chapitre dans « Prochains » de l'accueil
+
+Un chapitre apparaît dans **Prochains · programmés** dès qu'il est programmé. Il n'y a rien d'autre à faire.
+
+1. Ouvrez **Ajouter des chapitres** et choisissez le tome.
+2. Déposez le DOCX.
+3. Dans la partie 3, choisissez **Un par un, au rythme** (un chapitre à chaque date du rythme du tome) ou **À une date** (le jour et l'heure choisis).
+4. Cliquez sur le bouton **Programmer** (son texte donne le nombre de chapitres, par exemple **Programmer 1 chapitre**), puis confirmez.
+
+L'accueil montre les 3 prochains chapitres programmés. À sa sortie, le chapitre passe dans **Publiés récemment**, avec le badge **Nouveau** pendant 48 h, et y reste 14 jours.
+
+> **À savoir** : un chapitre publié tout de suite (**Maintenant**) va directement dans **Publiés récemment**. Pour que l'accueil affiche « 3 / 12 » et le rythme, remplissez **Chapitres prévus** et **Rythme** dans la fiche du tome (voir « Modifier les informations d'un tome »).
+
+## Mettre un tome à la une
+
+Le site choisit tout seul le tome à la une : le tome à venir dont la date de sortie est la plus proche. Pour qu'un tome y figure :
+
+1. Donnez-lui une **Date cible** au planning (dans **Mes tâches** ou dans **Modifier le tome**), ou programmez sa sortie avec **Ajouter des chapitres** (**À une date**).
+2. Vérifiez qu'aucun autre tome à venir n'a une date plus proche.
+
+La date programmée compte en priorité ; sinon, c'est la date cible.
+
+> **Attention** : un tome **bloqué** n'est jamais à la une. Le tome suivant prend sa place jusqu'à ce que **Tome bloqué** soit décoché.
+
+> **À savoir** : un tome déjà en cours de publication chapitre par chapitre n'est pas à la une : il apparaît dans **Chapitres en lecture**. Un tome publié, ou d'une œuvre qui n'est pas publique, n'y est jamais non plus.
 
 ## La fiche d'une œuvre
 

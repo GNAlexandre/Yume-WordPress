@@ -1,0 +1,876 @@
+/**
+ * Vitrine du planning (vitrine.php) : section « Planning » de l'accueil (yume/planning-accueil),
+ * bandeau « À la une », file des chapitres (frise), tomes en préparation, vue « Chapitres » de
+ * la page Planning.
+ *
+ * Structure seulement : couleurs et polices viennent des variables du thème (thèmes Nuit, Papier
+ * et Sépia compris), cartes, boutons, pastilles et barres des classes du thème (yn-card, yn-btn,
+ * yn-chip, yn-bar, yn-label). Deux colonnes à partir de 900 px, une en dessous (onglets
+ * « Chapitres » | « Tomes » si JavaScript est actif) ; cibles tactiles de 44 px.
+ */
+
+/* ==========================================================================
+   Commun
+   ========================================================================== */
+
+.yn-planning-accueil {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.yn-planning-accueil > *,
+.yn-vitrine-panneau > *,
+.yn-vitrine-une > *,
+.yn-vitrine__tete > * {
+	margin: 0;
+}
+
+.yn-vitrine__tete {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 4px 24px;
+}
+
+.yn-planning-accueil .yn-section__lien a,
+.yn-vitrine__lien-tete a,
+.yn-vitrine__lien a {
+	font-weight: 700;
+}
+
+.yn-vitrine-panneau .yn-vitrine__titre {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 21px;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.yn-vitrine-panneau .yn-vitrine__soustitre {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-vitrine__lien-tete {
+	font-size: 13px;
+}
+
+.yn-vitrine-panneau .yn-vitrine__lien {
+	margin: 0;
+	font-size: 14px;
+}
+
+.yn-vitrine__icone {
+	flex-shrink: 0;
+}
+
+/* Cibles tactiles : 44 px (même dans le bloc planning, qui réduit ses boutons). */
+.yn-vitrine-une .yn-btn.yn-btn,
+.yn-vitrine-panneau .yn-btn.yn-btn {
+	min-height: 44px;
+}
+
+.yn-vitrine__suivre {
+	display: inline-flex;
+	margin: 0;
+}
+
+/* ==========================================================================
+   À la une : prochain tome
+   ========================================================================== */
+
+.yn-vitrine-une {
+	display: grid;
+	grid-template-columns: 180px minmax(0, 1fr) minmax(260px, 340px);
+	grid-template-areas:
+		"couv corps suivi"
+		"couv actions suivi";
+	grid-template-rows: 1fr auto;
+	gap: 16px 36px;
+	align-items: stretch;
+	padding: 24px 32px;
+	border-left: 4px solid var(--wp--preset--color--accent);
+}
+
+.yn-vitrine-une > * {
+	min-width: 0;
+}
+
+.yn-vitrine-une .yn-vitrine-une__couverture {
+	grid-area: couv;
+	align-self: center;
+	width: 100%;
+}
+
+.yn-vitrine-une__couverture > span {
+	position: relative;
+}
+
+.yn-vitrine-une__corps {
+	display: flex;
+	grid-area: corps;
+	flex-direction: column;
+	justify-content: flex-end;
+	gap: 12px;
+}
+
+.yn-vitrine-une__corps > * {
+	margin: 0;
+}
+
+.yn-vitrine-une .yn-vitrine-une__surtitre {
+	align-self: flex-start;
+	padding: 3px 12px;
+	border: 1px solid var(--wp--preset--color--accent);
+	border-radius: 12px;
+}
+
+.yn-vitrine-une .yn-vitrine-une__oeuvre {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: clamp(28px, 3vw, 42px);
+	font-weight: 800;
+	line-height: 1.1;
+	text-wrap: balance;
+}
+
+.yn-vitrine-une__tome {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px 16px;
+}
+
+.yn-vitrine-une__numero {
+	color: var(--wp--preset--color--accent-2);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 24px;
+	font-weight: 700;
+}
+
+.yn-vitrine-une .yn-vitrine-une__date {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--wp--preset--color--texte);
+	font-size: 12px;
+}
+
+.yn-vitrine-une__sous-titre {
+	max-width: 52ch;
+	font-size: 15px;
+}
+
+.yn-vitrine-une__actions {
+	display: flex;
+	grid-area: actions;
+	flex-wrap: wrap;
+	align-self: start;
+	gap: 12px;
+}
+
+.yn-vitrine-une__suivi {
+	display: flex;
+	grid-area: suivi;
+	flex-direction: column;
+	justify-content: center;
+	gap: 14px;
+	padding-left: 32px;
+	border-left: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-vitrine-une__suivi > * {
+	margin: 0;
+}
+
+.yn-vitrine-une__rebours {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 6px 14px;
+}
+
+.yn-vitrine-une__j {
+	color: var(--wp--preset--color--accent);
+	font-family: var(--wp--preset--font-family--mono);
+	font-size: 64px;
+	font-weight: 500;
+	line-height: 1;
+}
+
+.yn-vitrine-une__j--jour {
+	font-size: 36px;
+}
+
+.yn-vitrine-une .yn-vitrine-une__dans {
+	max-width: 14ch;
+	padding-bottom: 6px;
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-vitrine-une__etapes {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-vitrine-une__etapes li {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+}
+
+.yn-vitrine-une .yn-vitrine-une__etape {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-vitrine-une .yn-bar {
+	height: 8px;
+	border-radius: 4px;
+	background: var(--wp--preset--color--selection);
+}
+
+.yn-vitrine-une__reste {
+	color: var(--wp--preset--color--texte);
+	font-size: 14px;
+}
+
+/* Page Planning : bandeau plus compact. */
+.yn-vitrine-une--planning {
+	grid-template-columns: 140px minmax(0, 1fr) minmax(240px, 320px);
+	padding: 20px 28px;
+}
+
+.yn-vitrine-une--planning .yn-vitrine-une__oeuvre {
+	font-size: clamp(24px, 2.4vw, 34px);
+}
+
+.yn-vitrine-une--planning .yn-vitrine-une__j {
+	font-size: 52px;
+}
+
+/* ==========================================================================
+   Deux files : chapitres | tomes (onglets sous 900 px)
+   ========================================================================== */
+
+.yn-vitrine-files {
+	display: grid;
+	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+	gap: 24px;
+	align-items: stretch;
+}
+
+.yn-vitrine-files__onglets {
+	grid-column: 1 / -1;
+}
+
+.yn-vitrine-panneau {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	min-width: 0;
+	padding: 20px 24px;
+}
+
+/* La légende et le lien de bas de carte restent en bas : les deux colonnes ont la même hauteur. */
+.yn-vitrine-legende,
+.yn-vitrine-chapitres--accueil > .yn-vitrine__lien {
+	margin-top: auto;
+}
+
+.yn-vitrine-files__onglets {
+	display: flex;
+	gap: 4px;
+	padding: 4px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-vitrine-files__onglets[hidden] {
+	display: none;
+}
+
+.yn-vitrine-files__onglets button {
+	flex: 1 1 0;
+	min-height: 44px;
+	padding: 0 12px;
+	border: 0;
+	border-radius: var(--yn-radius, 6px);
+	background: transparent;
+	color: var(--wp--preset--color--texte);
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.yn-vitrine-files__onglets button[aria-selected="true"] {
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-vitrine-files__onglets button[aria-selected="true"] .yn-muted {
+	color: inherit;
+}
+
+.yn-vitrine-files__onglets button:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+@media (min-width: 900px) {
+	/* Bureau : les deux colonnes, jamais d'onglets. */
+	.yn-vitrine-files__onglets,
+	.yn-vitrine-files__onglets:not([hidden]) {
+		display: none;
+	}
+}
+
+@media (max-width: 899.98px) {
+	.yn-vitrine-files {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 12px;
+	}
+
+	.yn-vitrine-files.est-onglets > .yn-vitrine-panneau:not(.est-actif) {
+		display: none;
+	}
+}
+
+/* ==========================================================================
+   Tomes en cours de publication (« 3 / 12 »)
+   ========================================================================== */
+
+.yn-vitrine-encours {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-vitrine-encours__item {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 12px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-vitrine-encours__item > * {
+	margin: 0;
+}
+
+.yn-vitrine-encours__tete {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.yn-vitrine-encours__nom {
+	min-width: 0;
+}
+
+.yn-vitrine-encours__nom b {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-vitrine-encours__nom a {
+	text-decoration: none;
+}
+
+.yn-vitrine-encours__nom a:hover b,
+.yn-vitrine-encours__nom a:focus-visible b {
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-vitrine-encours .yn-vitrine-encours__compte {
+	color: var(--wp--preset--color--texte-fort);
+	white-space: nowrap;
+}
+
+.yn-vitrine-encours .yn-bar {
+	background: var(--wp--preset--color--filet);
+}
+
+.yn-vitrine-encours__rythme {
+	font-size: 13px;
+}
+
+/* ==========================================================================
+   Frise des chapitres
+   ========================================================================== */
+
+.yn-vitrine-frise {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-left: 8px;
+	padding-left: 20px;
+	border-left: 2px solid var(--wp--preset--color--filet);
+}
+
+.yn-vitrine-frise > * {
+	margin: 0;
+}
+
+.yn-vitrine-frise .yn-vitrine-frise__titre,
+.yn-vitrine-frise .yn-vitrine-frise__titre-jour {
+	margin: 0;
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--mono);
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: 0.08em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.yn-vitrine-frise .yn-vitrine-frise__titre--prochains {
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-vitrine-frise__liste {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-vitrine-frise__liste--jours {
+	gap: 14px;
+}
+
+.yn-vitrine-frise__jour {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+}
+
+.yn-vitrine-frise .yn-vitrine-frise__titre-jour {
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-vitrine-frise__item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 8px 16px;
+	min-height: 48px;
+	margin: 0;
+}
+
+.yn-vitrine-frise__point {
+	position: absolute;
+	top: 50%;
+	left: -28px;
+	box-sizing: border-box;
+	width: 14px;
+	height: 14px;
+	margin-top: -7px;
+	border: 2px solid var(--wp--preset--color--accent);
+	border-radius: 50%;
+	background: var(--wp--preset--color--carte);
+}
+
+.yn-vitrine-frise__item--publie .yn-vitrine-frise__point {
+	border: 0;
+	background: var(--wp--preset--color--texte-faible);
+}
+
+.yn-vitrine-frise__item.est-nouveau .yn-vitrine-frise__point {
+	background: var(--wp--preset--color--accent);
+}
+
+.yn-vitrine-frise .yn-vitrine-frise__date {
+	flex: 0 0 172px;
+	white-space: nowrap;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+}
+
+.yn-vitrine-frise__liste--jours .yn-vitrine-frise__date {
+	flex-basis: 72px;
+}
+
+.yn-vitrine-frise .est-nouveau .yn-vitrine-frise__date {
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-vitrine-frise__texte {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.yn-vitrine-frise__oeuvre {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-vitrine-frise__detail {
+	font-size: 14px;
+}
+
+.yn-vitrine-frise__action,
+.yn-vitrine-frise__item > .yn-vitrine__suivre {
+	flex-shrink: 0;
+}
+
+.yn-vitrine-frise__aujourdhui {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 36px;
+}
+
+.yn-vitrine-frise__repere {
+	position: absolute;
+	top: 50%;
+	left: -31px;
+	box-sizing: border-box;
+	width: 20px;
+	height: 20px;
+	margin-top: -10px;
+	border: 4px solid var(--wp--preset--color--carte);
+	border-radius: 50%;
+	background: var(--wp--preset--color--accent);
+}
+
+.yn-vitrine-frise__aujourdhui .yn-chip {
+	font-family: var(--wp--preset--font-family--mono);
+	font-weight: 500;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.yn-vitrine-frise__filet {
+	flex: 1 1 auto;
+	height: 1px;
+	background: var(--wp--preset--color--bordure);
+}
+
+.yn-vitrine-frise__vide {
+	margin: 0;
+}
+
+/* ==========================================================================
+   Tomes en préparation
+   ========================================================================== */
+
+.yn-vitrine-tomes__liste {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-vitrine-tomes__item {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 14px 0;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-vitrine-tomes__item:first-child {
+	padding-top: 0;
+}
+
+.yn-vitrine-tomes__item:last-child {
+	border-bottom: 0;
+}
+
+.yn-vitrine-tomes__item > * {
+	margin: 0;
+}
+
+.yn-vitrine-tomes__nom b {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-vitrine-tomes__nom a {
+	text-decoration: none;
+}
+
+.yn-vitrine-tomes__nom a:hover b,
+.yn-vitrine-tomes__nom a:focus-visible b {
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-vitrine-tomes__etape {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.yn-vitrine-tomes .yn-vitrine-tomes__etape .yn-label {
+	flex: 0 0 128px;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-vitrine-tomes__etape .yn-bar {
+	flex: 1 1 auto;
+}
+
+.yn-vitrine-tomes__item--bloque .yn-bar {
+	outline: 1px dashed var(--wp--preset--color--erreur);
+	outline-offset: -1px;
+}
+
+.yn-vitrine-tomes__pied {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 6px 12px;
+}
+
+.yn-vitrine-tomes__pied .yn-chip {
+	white-space: normal;
+}
+
+.yn-vitrine-tomes__vide {
+	margin: 0;
+}
+
+.yn-vitrine-legende {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	padding-top: 14px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-vitrine-legende > * {
+	margin: 0;
+}
+
+.yn-vitrine-legende ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-vitrine-legende li {
+	margin: 0;
+}
+
+/* ==========================================================================
+   Page Planning : vue « Chapitres »
+   ========================================================================== */
+
+.yn-vitrine-chapitres__grille {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+	gap: 24px 32px;
+	align-items: start;
+}
+
+.yn-vitrine-chapitres__cote {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.yn-vitrine-chapitres__cote > * {
+	margin: 0;
+}
+
+.yn-vitrine-chapitres__cote .yn-vitrine-encours {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.yn-vitrine-ics {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 14px;
+	border: 1px dashed var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius-card, 10px);
+}
+
+.yn-vitrine-ics > * {
+	margin: 0;
+}
+
+.yn-vitrine-ics__titre {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-vitrine-ics__texte {
+	font-size: 13px;
+}
+
+/* ==========================================================================
+   Tablette et mobile
+   ========================================================================== */
+
+@media (max-width: 1099.98px) {
+	.yn-vitrine-une,
+	.yn-vitrine-une--planning {
+		grid-template-columns: 140px minmax(0, 1fr);
+		grid-template-areas:
+			"couv corps"
+			"couv actions"
+			"suivi suivi";
+		grid-template-rows: 1fr auto auto;
+		gap: 16px 24px;
+	}
+
+	.yn-vitrine-une__suivi {
+		padding-top: 16px;
+		padding-left: 0;
+		border-top: 1px solid var(--wp--preset--color--filet);
+		border-left: 0;
+	}
+}
+
+@media (max-width: 899.98px) {
+	.yn-vitrine-chapitres__grille {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 599.98px) {
+	.yn-vitrine-une,
+	.yn-vitrine-une--planning {
+		grid-template-columns: 96px minmax(0, 1fr);
+		grid-template-areas:
+			"couv corps"
+			"suivi suivi"
+			"actions actions";
+		grid-template-rows: auto auto auto;
+		padding: 16px;
+	}
+
+	.yn-vitrine-une .yn-vitrine-une__couverture {
+		align-self: start;
+		padding: 8px;
+		font-size: 12px;
+	}
+
+	.yn-vitrine-une__corps {
+		justify-content: flex-start;
+		gap: 8px;
+	}
+
+	.yn-vitrine-une .yn-vitrine-une__oeuvre,
+	.yn-vitrine-une--planning .yn-vitrine-une__oeuvre {
+		font-size: 22px;
+	}
+
+	.yn-vitrine-une__numero {
+		font-size: 18px;
+	}
+
+	.yn-vitrine-une__j,
+	.yn-vitrine-une--planning .yn-vitrine-une__j {
+		font-size: 40px;
+	}
+
+	.yn-vitrine-une__j--jour,
+	.yn-vitrine-une--planning .yn-vitrine-une__j--jour {
+		font-size: 28px;
+	}
+
+	.yn-vitrine-une__actions > * {
+		flex: 1 1 auto;
+	}
+
+	.yn-vitrine-une__actions .yn-btn {
+		width: 100%;
+	}
+
+	.yn-vitrine-panneau {
+		padding: 16px;
+	}
+
+	/* Frise : date au-dessus du titre, bouton réduit à son icône (nom accessible conservé). */
+	.yn-vitrine-frise {
+		padding-left: 16px;
+	}
+
+	.yn-vitrine-frise__point {
+		left: -24px;
+	}
+
+	.yn-vitrine-frise__repere {
+		left: -27px;
+	}
+
+	.yn-vitrine-frise__item {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas:
+			"date action"
+			"texte action";
+		gap: 2px 12px;
+		padding-block: 4px;
+	}
+
+	.yn-vitrine-frise .yn-vitrine-frise__date {
+		grid-area: date;
+	}
+
+	.yn-vitrine-frise__texte {
+		grid-area: texte;
+	}
+
+	.yn-vitrine-frise__item > .yn-vitrine-frise__action,
+	.yn-vitrine-frise__item > .yn-vitrine__suivre {
+		grid-area: action;
+	}
+
+	.yn-vitrine-frise__action {
+		min-width: 44px;
+		padding: 0 12px;
+	}
+
+	.yn-vitrine-frise__action .yn-vitrine__btn-texte {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.yn-vitrine-tomes .yn-vitrine-tomes__etape .yn-label {
+		flex-basis: 112px;
+	}
+}

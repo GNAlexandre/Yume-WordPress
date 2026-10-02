@@ -24,6 +24,7 @@ require_once __DIR__ . '/evenements.php';
 require_once __DIR__ . '/rappels.php';
 require_once __DIR__ . '/rest.php';
 require_once __DIR__ . '/blocs.php';
+require_once __DIR__ . '/vitrine.php';
 require_once __DIR__ . '/equipe.php';
 require_once __DIR__ . '/reglages-equipe.php';
 require_once __DIR__ . '/lecture-a-completer.php';

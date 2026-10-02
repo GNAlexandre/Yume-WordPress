@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Planning · Retenu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#fff8fb}
+</style>
+</helmet>
+<div style="width: 1440px; height: 2600px; box-sizing: border-box; background: #1b1231; color: #ebe3f2; font-family: 'Nunito Sans', 'Segoe UI', sans-serif; font-size: 15px; display: flex; flex-direction: column; overflow: hidden">
+
+  <!-- En-tête du site -->
+  <header style="height: 68px; flex-shrink: 0; box-sizing: border-box; padding: 0 48px; display: flex; align-items: center; gap: 32px; border-bottom: 1px solid #4a3b6e; background: #1b1231">
+    <a href="#" style="font-family: Outfit, sans-serif; font-weight: 800; font-size: 22px; color: #fff8fb">Yume Novel</a>
+    <nav aria-label="Menu principal" style="display: flex; align-items: center; gap: 22px; font-size: 15px">
+      <button type="button" aria-expanded="false" style="display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0; border: 0; background: transparent; color: #ebe3f2; font: inherit; cursor: pointer">Bibliothèque<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <a href="#" aria-current="page" style="display: inline-flex; align-items: center; min-height: 40px; color: #fff8fb; font-weight: 700; border-bottom: 2px solid #f3a6c8; box-sizing: border-box">Planning</a>
+      <a href="#" style="color: #ebe3f2">Actualités</a>
+      <button type="button" aria-expanded="false" style="display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0; border: 0; background: transparent; color: #ebe3f2; font: inherit; cursor: pointer">Yume Novel<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <a href="#" style="color: #ebe3f2">Contact</a>
+    </nav>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px">
+      <button type="button" style="display: inline-flex; align-items: center; gap: 10px; width: 220px; height: 40px; padding: 0 14px; box-sizing: border-box; border: 1px solid #4a3b6e; border-radius: 10px; background: #241740; color: #b7a9cc; font: inherit; font-size: 14px; cursor: pointer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+        Rechercher sur le site
+      </button>
+      <button type="button" aria-label="Passer au thème clair" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #4a3b6e; border-radius: 10px; background: transparent; color: #fff8fb; cursor: pointer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+      </button>
+      <a href="#" title="Soutenir Yume Novel sur Ko-fi (nouvel onglet)" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; box-sizing: border-box; border-radius: 10px; background: #f7c59f; color: #2a1240; font-weight: 700; font-size: 14px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"></path></svg>
+        Ko-fi
+      </a>
+      <a href="#" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-weight: 700; font-size: 14px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+        Connexion
+      </a>
+    </div>
+  </header>
+
+  <main style="padding: 28px 48px 32px; display: flex; flex-direction: column; gap: 20px">
+
+    <!-- Titre + intro -->
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <h1 style="margin: 0; font-family: Outfit, sans-serif; font-weight: 800; font-size: 34px; color: #fff8fb">Planning</h1>
+        <p style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">MIS À JOUR IL Y A 2 H PAR L’ÉQUIPE</p>
+      </div>
+      <p style="margin: 0; max-width: 92ch; font-size: 16px; line-height: 1.5; color: #ebe3f2">Chaque tome passe par trois étapes : traduction, relecture, édition. Les jours de sortie habituels sont le mardi et le samedi. Les dates sont indicatives : la relecture décide.</p>
+    </div>
+
+    <!-- À la une : prochain tome (compact) -->
+    <section aria-label="À la une : prochain tome" style="background: #241740; border: 1px solid #4a3b6e; border-left: 4px solid #f3a6c8; border-radius: 10px; padding: 20px 28px; box-sizing: border-box; display: grid; grid-template-columns: 116px minmax(0, 1fr) 360px; gap: 32px; align-items: center">
+      <div style="height: 172px; border-radius: 10px; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e); display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; box-sizing: border-box; border: 1px solid #4a3b6e">
+        <strong style="font-family: Outfit, sans-serif; font-size: 13px; line-height: 1.2; color: #fff8fb">Silent Witch · T.7</strong>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <span style="align-self: flex-start; border: 1px solid #f3a6c8; color: #f3a6c8; border-radius: 12px; padding: 2px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em">À LA UNE · PROCHAIN TOME</span>
+        <h2 style="margin: 0; font-family: Outfit, sans-serif; font-weight: 800; font-size: 32px; line-height: 1.1; color: #fff8fb">Secrets of the Silent Witch</h2>
+        <div style="display: flex; align-items: baseline; gap: 16px">
+          <span style="font-family: Outfit, sans-serif; font-weight: 700; font-size: 20px; color: #f7c59f">Tome 7</span>
+          <span style="display: flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #ebe3f2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b7a9cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+            SAMEDI 3 OCTOBRE 2026
+          </span>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 4px">
+          <a href="#" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; box-sizing: border-box; border-radius: 10px; background: #f3a6c8; color: #2a1240; font-weight: 700">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+            Suivre l’œuvre
+          </a>
+          <a href="#" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-weight: 700">Voir la fiche</a>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; border-left: 1px solid #4a3b6e; padding-left: 28px">
+        <div style="display: flex; align-items: flex-end; gap: 12px">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 52px; line-height: 1; color: #f3a6c8">J-2</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc; padding-bottom: 4px">SORTIE DANS<br>2 JOURS</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px"><span style="width: 100px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #ebe3f2">TRADUCTION</span><div style="flex-grow: 1; height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div><span style="width: 44px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span></div>
+        <div style="display: flex; align-items: center; gap: 10px"><span style="width: 100px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #ebe3f2">RELECTURE</span><div style="flex-grow: 1; height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div><span style="width: 44px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span></div>
+        <div style="display: flex; align-items: center; gap: 10px"><span style="width: 100px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #ebe3f2">ÉDITION</span><div style="flex-grow: 1; height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 80%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div><span style="width: 44px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">80 %</span></div>
+        <p style="margin: 0; font-size: 14px; color: #ebe3f2">Encore l’édition à finir.</p>
+      </div>
+    </section>
+
+    <!-- En bref -->
+    <section aria-labelledby="yn-planning-chiffres" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+      <h2 id="yn-planning-chiffres" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0">En bref</h2>
+      <div style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">PROCHAINE SORTIE</span>
+        <strong style="font-family: Outfit, sans-serif; font-weight: 700; font-size: 22px; color: #fff8fb">sam. 3 oct.</strong>
+        <span style="font-size: 14px; color: #ebe3f2">Silent Witch · T.7</span>
+      </div>
+      <div style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">PUIS</span>
+        <strong style="font-family: Outfit, sans-serif; font-weight: 700; font-size: 22px; color: #fff8fb">sam. 3 oct. 18 h</strong>
+        <span style="font-size: 14px; color: #ebe3f2">SukaMoka · T.2 ch. 3</span>
+      </div>
+      <div style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">EN COURS</span>
+        <strong style="font-family: Outfit, sans-serif; font-weight: 700; font-size: 22px; color: #fff8fb">7 tomes</strong>
+        <span style="font-size: 14px; color: #ebe3f2">sur 4 œuvres · 2 en publication</span>
+      </div>
+      <div style="background: #2d1f4f; border: 1px solid #4a3b6e; border-left: 4px solid #f4c069; border-radius: 10px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">RETARDS</span>
+        <strong style="font-family: Outfit, sans-serif; font-weight: 700; font-size: 22px; color: #f4c069">1</strong>
+        <span style="font-size: 14px; color: #ebe3f2">l’équipe est prévenue</span>
+      </div>
+    </section>
+
+    <!-- Filtres + flux -->
+    <nav aria-label="Filtrer le planning" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">TYPE D’ŒUVRE</span>
+        <ul aria-label="Type d’œuvre" style="list-style: none; margin: 0; padding: 0; display: flex; gap: 6px">
+          <li><a href="#" aria-current="true" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 18px; border: 1px solid #f3a6c8; background: #3a2a63; color: #fff8fb; font-size: 14px; font-weight: 700">Tout</a></li>
+          <li><a href="#" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 18px; border: 1px solid #4a3b6e; color: #ebe3f2; font-size: 14px; font-weight: 600">Light novels</a></li>
+          <li><a href="#" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 18px; border: 1px solid #4a3b6e; color: #ebe3f2; font-size: 14px; font-weight: 600">Web novels</a></li>
+          <li><a href="#" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 18px; border: 1px solid #4a3b6e; color: #ebe3f2; font-size: 14px; font-weight: 600">Manga</a></li>
+        </ul>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">ÉTAT</span>
+        <ul aria-label="État" style="list-style: none; margin: 0; padding: 0; display: flex; gap: 6px">
+          <li><a href="#" style="display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 18px; border: 1px solid #4a3b6e; color: #8fd6a3; font-size: 14px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>À l’heure</a></li>
+          <li><a href="#" style="display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 18px; border: 1px solid #4a3b6e; color: #f4c069; font-size: 14px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 17h-19z"></path><path d="M12 10v4M12 17h.01"></path></svg>En retard</a></li>
+          <li><a href="#" style="display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 18px; border: 1px solid #4a3b6e; color: #ff8f7e; font-size: 14px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M5.6 5.6l12.8 12.8"></path></svg>Bloqué</a></li>
+        </ul>
+      </div>
+      <p style="margin: 0 0 0 auto; display: flex; gap: 8px">
+        <a href="#" style="display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-size: 14px; font-weight: 700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>Flux RSS</a>
+        <a href="#" style="display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-size: 14px; font-weight: 700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"></path></svg>JSON</a>
+        <a href="#" style="display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-size: 14px; font-weight: 700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>S’abonner au calendrier (ICS)</a>
+      </p>
+    </nav>
+
+    <!-- Bascule de vue : 3 onglets -->
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <div role="tablist" aria-label="Affichage du planning" style="display: inline-flex; gap: 4px; padding: 4px; background: #241740; border: 1px solid #4a3b6e; border-radius: 12px">
+        <button type="button" role="tab" aria-selected="true" aria-controls="yn-vue-tableau" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: #f3a6c8; color: #2a1240; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 10h18M9 10v10"></path></svg>
+          Tableau
+        </button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="yn-vue-chapitres" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: transparent; color: #ebe3f2; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"></path><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>
+          Chapitres <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500">· 7</span>
+        </button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="yn-vue-calendrier" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: transparent; color: #ebe3f2; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+          Calendrier
+        </button>
+      </div>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">8 TOMES · TRIÉS PAR SORTIE PRÉVUE</span>
+    </div>
+
+    <!-- Tableau enrichi -->
+    <section id="yn-vue-tableau" role="tabpanel" aria-label="Tableau" style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; overflow: hidden; margin-top: -6px">
+      <table style="width: 100%; border-collapse: collapse; table-layout: fixed">
+        <caption style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Avancement de chaque tome en cours : étapes, sortie prévue, état et dernière mise à jour.</caption>
+        <colgroup><col style="width: 384px"><col style="width: 128px"><col style="width: 128px"><col style="width: 128px"><col style="width: 168px"><col style="width: 288px"><col style="width: 118px"></colgroup>
+        <thead>
+          <tr style="background: #241740; border-bottom: 1px solid #4a3b6e">
+            <th scope="col" style="padding: 12px 16px 12px 20px; text-align: left; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">ŒUVRE · TOME</th>
+            <th scope="col" style="padding: 12px 24px 12px 0; text-align: left; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">TRADUCTION</th>
+            <th scope="col" style="padding: 12px 24px 12px 0; text-align: left; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">RELECTURE</th>
+            <th scope="col" style="padding: 12px 24px 12px 0; text-align: left; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">ÉDITION</th>
+            <th scope="col" style="padding: 12px 16px 12px 0; text-align: left; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">SORTIE PRÉVUE</th>
+            <th scope="col" style="padding: 12px 16px 12px 0; text-align: left; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">ÉTAT</th>
+            <th scope="col" style="padding: 12px 20px 12px 0; text-align: left; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">DERNIÈRE MAJ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Silent Witch T.7 -->
+          <tr style="border-bottom: 1px solid #4a3b6e">
+            <th scope="row" style="padding: 12px 16px 12px 20px; text-align: left; font-weight: 400; vertical-align: middle">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span aria-hidden="true" style="width: 30px; height: 42px; flex-shrink: 0; border-radius: 4px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e)"></span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><a href="#" style="color: #fff8fb; font-weight: 700">Secrets of the Silent Witch</a><span style="font-size: 14px; color: #b7a9cc">Tome 7</span></span>
+              </div>
+            </th>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">80 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 80%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-direction: column; gap: 2px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #fff8fb">SAM. 3 OCT.</span><span style="font-size: 13px; color: #b7a9cc">dans 2 jours</span></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="border: 1px solid #8fd6a3; color: #8fd6a3; border-radius: 12px; padding: 2px 10px; font-size: 12px">À l’heure</span><span style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #f3a6c8; color: #f3a6c8; border-radius: 12px; padding: 2px 10px; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Programmé</span></div></td>
+            <td style="padding: 12px 20px 12px 0; font-size: 14px; color: #b7a9cc">il y a 1 j</td>
+          </tr>
+
+          <!-- SukaMoka T.2 : chapitre par chapitre -->
+          <tr style="border-bottom: 1px solid #4a3b6e; background: #2f2154">
+            <th scope="row" style="padding: 12px 16px 12px 20px; text-align: left; font-weight: 400; vertical-align: middle">
+              <div style="display: flex; align-items: flex-start; gap: 12px">
+                <span aria-hidden="true" style="width: 30px; height: 42px; flex-shrink: 0; border-radius: 4px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e)"></span>
+                <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+                  <span style="display: flex; flex-direction: column; gap: 2px"><a href="#" style="color: #fff8fb; font-weight: 700">SukaMoka</a><span style="font-size: 14px; color: #b7a9cc">Tome 2</span></span>
+                  <span style="display: flex; align-items: center; gap: 10px"><span style="font-size: 13px; color: #ebe3f2; white-space: nowrap"><b style="color: #f7c59f">En cours</b> · 3 chapitres sur 12</span><span aria-hidden="true" style="flex-grow: 1; display: flex; gap: 3px"><span style="flex: 1; height: 6px; border-radius: 2px; background: #f3a6c8"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #f3a6c8"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #f3a6c8"></span><span style="flex: 1; height: 6px; border-radius: 2px; border: 1px solid #f3a6c8; box-sizing: border-box"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span></span></span>
+                  <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #f3a6c8; background: #241740; color: #f3a6c8; border-radius: 12px; padding: 2px 10px; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Prochain : ch. 3 · sam. 3 oct. 18 h</span>
+                </span>
+              </div>
+            </th>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">42 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 42%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">33 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 33%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">33 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 33%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-direction: column; gap: 2px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #fff8fb">SAM. 3 OCT. · 18 H</span><span style="font-size: 13px; color: #b7a9cc">chapitre 3</span></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #f7c59f; color: #f7c59f; border-radius: 12px; padding: 2px 10px; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"></path><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>En cours de publication</span><span style="border: 1px solid #8fd6a3; color: #8fd6a3; border-radius: 12px; padding: 2px 10px; font-size: 12px">À l’heure</span></div></td>
+            <td style="padding: 12px 20px 12px 0; font-size: 14px; color: #b7a9cc">il y a 2 h</td>
+          </tr>
+
+          <!-- Lanternes T.3 : chapitre par chapitre -->
+          <tr style="border-bottom: 1px solid #4a3b6e; background: #2f2154">
+            <th scope="row" style="padding: 12px 16px 12px 20px; text-align: left; font-weight: 400; vertical-align: middle">
+              <div style="display: flex; align-items: flex-start; gap: 12px">
+                <span aria-hidden="true" style="width: 30px; height: 42px; flex-shrink: 0; border-radius: 4px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e)"></span>
+                <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+                  <span style="display: flex; flex-direction: column; gap: 2px"><a href="#" style="color: #fff8fb; font-weight: 700">Les Lanternes de Brume-Haute</a><span style="font-size: 14px; color: #b7a9cc">Tome 3</span></span>
+                  <span style="display: flex; align-items: center; gap: 10px"><span style="font-size: 13px; color: #ebe3f2; white-space: nowrap"><b style="color: #f7c59f">En cours</b> · 4 chapitres sur 10</span><span aria-hidden="true" style="flex-grow: 1; display: flex; gap: 3px"><span style="flex: 1; height: 6px; border-radius: 2px; background: #f3a6c8"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #f3a6c8"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #f3a6c8"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #f3a6c8"></span><span style="flex: 1; height: 6px; border-radius: 2px; border: 1px solid #f3a6c8; box-sizing: border-box"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span><span style="flex: 1; height: 6px; border-radius: 2px; background: #3a2a63"></span></span></span>
+                  <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #f3a6c8; background: #241740; color: #f3a6c8; border-radius: 12px; padding: 2px 10px; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Prochain : ch. 5 · mar. 6 oct. 20 h</span>
+                </span>
+              </div>
+            </th>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">70 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 70%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">50 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 50%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">50 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 50%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-direction: column; gap: 2px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #fff8fb">MAR. 6 OCT. · 20 H</span><span style="font-size: 13px; color: #b7a9cc">chapitre 5</span></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #f7c59f; color: #f7c59f; border-radius: 12px; padding: 2px 10px; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"></path><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>En cours de publication</span><span style="border: 1px solid #8fd6a3; color: #8fd6a3; border-radius: 12px; padding: 2px 10px; font-size: 12px">À l’heure</span></div></td>
+            <td style="padding: 12px 20px 12px 0; font-size: 14px; color: #b7a9cc">il y a 4 j</td>
+          </tr>
+
+          <!-- Lanternes T.4 -->
+          <tr style="border-bottom: 1px solid #4a3b6e">
+            <th scope="row" style="padding: 12px 16px 12px 20px; text-align: left; font-weight: 400; vertical-align: middle">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span aria-hidden="true" style="width: 30px; height: 42px; flex-shrink: 0; border-radius: 4px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e)"></span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><a href="#" style="color: #fff8fb; font-weight: 700">Les Lanternes de Brume-Haute</a><span style="font-size: 14px; color: #b7a9cc">Tome 4</span></span>
+              </div>
+            </th>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f4c069">60 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 60%; height: 6px; border-radius: 3px; background: #f4c069"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #b7a9cc">0 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"></div></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-direction: column; gap: 2px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #fff8fb">15 OCT.</span><span style="font-size: 13px; color: #b7a9cc">date cible</span></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="border: 1px solid #f4c069; color: #f4c069; border-radius: 12px; padding: 2px 10px; font-size: 12px">En retard · Relecture</span></div></td>
+            <td style="padding: 12px 20px 12px 0; font-size: 14px; color: #b7a9cc">il y a 15 j</td>
+          </tr>
+
+          <!-- SukaMoka T.3 -->
+          <tr style="border-bottom: 1px solid #4a3b6e">
+            <th scope="row" style="padding: 12px 16px 12px 20px; text-align: left; font-weight: 400; vertical-align: middle">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span aria-hidden="true" style="width: 30px; height: 42px; flex-shrink: 0; border-radius: 4px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e)"></span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><a href="#" style="color: #fff8fb; font-weight: 700">SukaMoka</a><span style="font-size: 14px; color: #b7a9cc">Tome 3</span></span>
+              </div>
+            </th>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">30 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 30%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #b7a9cc">0 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #b7a9cc">0 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"></div></div></td>
+            <td style="padding: 12px 16px 12px 0"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">À VENIR</span></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="border: 1px solid #8fd6a3; color: #8fd6a3; border-radius: 12px; padding: 2px 10px; font-size: 12px">À l’heure</span></div></td>
+            <td style="padding: 12px 20px 12px 0; font-size: 14px; color: #b7a9cc">il y a 2 j</td>
+          </tr>
+
+          <!-- Grimgar T.10 -->
+          <tr style="border-bottom: 1px solid #4a3b6e">
+            <th scope="row" style="padding: 12px 16px 12px 20px; text-align: left; font-weight: 400; vertical-align: middle">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span aria-hidden="true" style="width: 30px; height: 42px; flex-shrink: 0; border-radius: 4px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e)"></span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><a href="#" style="color: #fff8fb; font-weight: 700">Grimgar of Fantasy and Ash</a><span style="font-size: 14px; color: #b7a9cc">Tome 10</span></span>
+              </div>
+            </th>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #f3a6c8">10 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 10%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #b7a9cc">0 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #b7a9cc">0 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"></div></div></td>
+            <td style="padding: 12px 16px 12px 0"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">À VENIR</span></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="border: 1px solid #8fd6a3; color: #8fd6a3; border-radius: 12px; padding: 2px 10px; font-size: 12px">À l’heure</span></div></td>
+            <td style="padding: 12px 20px 12px 0; font-size: 14px; color: #b7a9cc">il y a 6 j</td>
+          </tr>
+
+          <!-- Silent Witch T.8 -->
+          <tr style="border-bottom: 1px solid #4a3b6e">
+            <th scope="row" style="padding: 12px 16px 12px 20px; text-align: left; font-weight: 400; vertical-align: middle">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span aria-hidden="true" style="width: 30px; height: 42px; flex-shrink: 0; border-radius: 4px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e)"></span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><a href="#" style="color: #fff8fb; font-weight: 700">Secrets of the Silent Witch</a><span style="font-size: 14px; color: #b7a9cc">Tome 8</span></span>
+              </div>
+            </th>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #ff8f7e">0 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63; border: 1px dashed #ff8f7e; box-sizing: border-box"></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #b7a9cc">0 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"></div></div></td>
+            <td style="padding: 12px 16px 12px 0"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">À VENIR</span></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px"><span style="border: 1px solid #ff8f7e; color: #ff8f7e; border-radius: 12px; padding: 2px 10px; font-size: 12px">Bloqué · il manque un relecteur</span><a href="#" style="font-size: 13px; font-weight: 700">Rejoindre l’équipe →</a></div></td>
+            <td style="padding: 12px 20px 12px 0; font-size: 14px; color: #b7a9cc">il y a 3 sem.</td>
+          </tr>
+
+          <!-- Grimgar T.9 -->
+          <tr>
+            <th scope="row" style="padding: 12px 16px 12px 20px; text-align: left; font-weight: 400; vertical-align: middle">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span aria-hidden="true" style="width: 30px; height: 42px; flex-shrink: 0; border-radius: 4px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #3a2a63, #2d1f4f 55%, #7a3b6e)"></span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><a href="#" style="color: #fff8fb; font-weight: 700">Grimgar of Fantasy and Ash</a><span style="font-size: 14px; color: #b7a9cc">Tome 9</span></span>
+              </div>
+            </th>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div></div></td>
+            <td style="padding: 12px 24px 12px 0"><div style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8fd6a3">100 %</span><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 100%; height: 6px; border-radius: 3px; background: #8fd6a3"></div></div></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-direction: column; gap: 2px"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #fff8fb">MAR. 29 SEPT.</span><span style="font-size: 13px; color: #b7a9cc">paru</span></div></td>
+            <td style="padding: 12px 16px 12px 0"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px"><span style="border: 1px solid #b7a9cc; color: #b7a9cc; border-radius: 12px; padding: 2px 10px; font-size: 12px">Publié</span><a href="#" style="font-size: 13px; font-weight: 700">Lire le tome →</a></div></td>
+            <td style="padding: 12px 20px 12px 0; font-size: 14px; color: #b7a9cc">il y a 2 j</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Vignette : contenu de l'onglet Chapitres -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px; border-top: 1px dashed #4a3b6e; padding-top: 14px">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">VIGNETTE · ONGLET CHAPITRES</span>
+      <span style="font-size: 13px; color: #b7a9cc">Ce que l’on voit en cliquant sur « Chapitres » à la place du tableau.</span>
+    </div>
+    <section id="yn-vue-chapitres" role="tabpanel" aria-label="Chapitres" style="margin-top: -6px; background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 20px 24px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start">
+      <div style="display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <h2 style="margin: 0; font-family: Outfit, sans-serif; font-weight: 700; font-size: 21px; color: #fff8fb">Chapitres en lecture</h2>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">PUBLICATION CHAPITRE PAR CHAPITRE</span>
+        </div>
+
+        <div style="margin-left: 8px; border-left: 2px solid #4a3b6e; padding-left: 20px; display: flex; flex-direction: column; gap: 8px">
+          <h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #f3a6c8">PROCHAINS · PROGRAMMÉS</h3>
+          <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px">
+            <li style="position: relative; display: flex; align-items: center; gap: 16px; min-height: 50px">
+              <span aria-hidden="true" style="position: absolute; left: -28px; top: 50%; margin-top: -7px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; border: 2px solid #f3a6c8; background: #2d1f4f"></span>
+              <h4 style="margin: 0; width: 132px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">SAM. 10 OCT.</h4>
+              <span style="flex-grow: 1; min-width: 0; display: flex; align-items: center; gap: 14px"><span style="width: 44px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #ebe3f2">18 H</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="color: #fff8fb">SukaMoka</b><span style="font-size: 14px; color: #b7a9cc">Tome 2 · Chapitre 4</span></span></span>
+              <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #7f6aa8; background: transparent; color: #fff8fb; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>Me prévenir</button>
+            </li>
+            <li style="position: relative; display: flex; align-items: center; gap: 16px; min-height: 50px">
+              <span aria-hidden="true" style="position: absolute; left: -28px; top: 50%; margin-top: -7px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; border: 2px solid #f3a6c8; background: #2d1f4f"></span>
+              <h4 style="margin: 0; width: 132px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">MAR. 6 OCT.</h4>
+              <span style="flex-grow: 1; min-width: 0; display: flex; align-items: center; gap: 14px"><span style="width: 44px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #ebe3f2">20 H</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="color: #fff8fb">Les Lanternes de Brume-Haute</b><span style="font-size: 14px; color: #b7a9cc">Tome 3 · Chapitre 5</span></span></span>
+              <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #7f6aa8; background: transparent; color: #fff8fb; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>Me prévenir</button>
+            </li>
+            <li style="position: relative; display: flex; align-items: center; gap: 16px; min-height: 50px">
+              <span aria-hidden="true" style="position: absolute; left: -28px; top: 50%; margin-top: -7px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; border: 2px solid #f3a6c8; background: #2d1f4f"></span>
+              <h4 style="margin: 0; width: 132px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #f3a6c8">SAM. 3 OCT.</h4>
+              <span style="flex-grow: 1; min-width: 0; display: flex; align-items: center; gap: 14px"><span style="width: 44px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #ebe3f2">18 H</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="color: #fff8fb">SukaMoka</b><span style="font-size: 14px; color: #b7a9cc">Tome 2 · Chapitre 3 · dans 2 jours</span></span></span>
+              <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #7f6aa8; background: transparent; color: #fff8fb; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>Me prévenir</button>
+            </li>
+          </ol>
+
+          <div style="position: relative; display: flex; align-items: center; gap: 12px; min-height: 36px">
+            <span aria-hidden="true" style="position: absolute; left: -31px; top: 50%; margin-top: -10px; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%; background: #f3a6c8; border: 4px solid #2d1f4f"></span>
+            <span style="background: #f3a6c8; color: #2a1240; border-radius: 12px; padding: 4px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; font-weight: 500">AUJOURD’HUI · JEU. 1ER OCT.</span>
+            <span aria-hidden="true" style="flex-grow: 1; height: 1px; background: #7f6aa8"></span>
+          </div>
+
+          <h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">PUBLIÉS RÉCEMMENT</h3>
+          <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px">
+            <li style="position: relative; display: flex; align-items: center; gap: 16px; min-height: 50px">
+              <span aria-hidden="true" style="position: absolute; left: -28px; top: 50%; margin-top: -7px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: #f3a6c8"></span>
+              <h4 style="margin: 0; width: 132px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #f3a6c8">AUJOURD’HUI</h4>
+              <span style="flex-grow: 1; min-width: 0; display: flex; align-items: center; gap: 14px"><span style="width: 44px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #ebe3f2">18 H</span><span style="display: flex; flex-direction: column; gap: 2px"><span style="display: flex; align-items: center; gap: 8px"><b style="color: #fff8fb">SukaMoka</b><span style="background: #f3a6c8; color: #2a1240; font-size: 12px; font-weight: 700; padding: 1px 10px; border-radius: 12px">Nouveau</span></span><span style="font-size: 14px; color: #b7a9cc">Tome 2 · Chapitre 2</span></span></span>
+              <a href="#" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; box-sizing: border-box; border-radius: 10px; background: #f3a6c8; color: #2a1240; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"></path><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>Lire</a>
+            </li>
+            <li style="position: relative; display: flex; align-items: center; gap: 16px; min-height: 50px">
+              <span aria-hidden="true" style="position: absolute; left: -28px; top: 50%; margin-top: -7px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: #b7a9cc"></span>
+              <h4 style="margin: 0; width: 132px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">MAR. 29 SEPT.</h4>
+              <span style="flex-grow: 1; min-width: 0; display: flex; align-items: center; gap: 14px"><span style="width: 44px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #ebe3f2">18 H</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="color: #fff8fb">SukaMoka</b><span style="font-size: 14px; color: #b7a9cc">Tome 2 · Chapitre 1</span></span></span>
+              <a href="#" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"></path><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>Lire</a>
+            </li>
+            <li style="position: relative; display: flex; align-items: center; gap: 16px; min-height: 50px">
+              <span aria-hidden="true" style="position: absolute; left: -28px; top: 50%; margin-top: -7px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: #b7a9cc"></span>
+              <h4 style="margin: 0; width: 132px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">LUN. 28 SEPT.</h4>
+              <span style="flex-grow: 1; min-width: 0; display: flex; align-items: center; gap: 14px"><span style="width: 44px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #ebe3f2">18 H</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="color: #fff8fb">SukaMoka</b><span style="font-size: 14px; color: #b7a9cc">Tome 2 · Prologue</span></span></span>
+              <a href="#" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"></path><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>Lire</a>
+            </li>
+            <li style="position: relative; display: flex; align-items: center; gap: 16px; min-height: 50px">
+              <span aria-hidden="true" style="position: absolute; left: -28px; top: 50%; margin-top: -7px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: #b7a9cc"></span>
+              <h4 style="margin: 0; width: 132px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">DIM. 27 SEPT.</h4>
+              <span style="flex-grow: 1; min-width: 0; display: flex; align-items: center; gap: 14px"><span style="width: 44px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #ebe3f2">20 H</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="color: #fff8fb">Les Lanternes de Brume-Haute</b><span style="font-size: 14px; color: #b7a9cc">Tome 3 · Chapitre 4</span></span></span>
+              <a href="#" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"></path><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>Lire</a>
+            </li>
+          </ol>
+        </div>
+      </div>
+
+      <aside style="display: flex; flex-direction: column; gap: 12px">
+        <div style="background: #241740; border: 1px solid #4a3b6e; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px"><span><b style="color: #fff8fb">SukaMoka</b> <span style="color: #b7a9cc">· Tome 2</span></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #fff8fb">3 / 12</span></div>
+          <div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 25%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div>
+          <span style="font-size: 13px; color: #b7a9cc">Chaque samedi à 18 h</span>
+        </div>
+        <div style="background: #241740; border: 1px solid #4a3b6e; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px"><span><b style="color: #fff8fb">Les Lanternes de Brume-Haute</b> <span style="color: #b7a9cc">· T.3</span></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #fff8fb">4 / 10</span></div>
+          <div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #3a2a63"><div style="width: 40%; height: 6px; border-radius: 3px; background: #f3a6c8"></div></div>
+          <span style="font-size: 13px; color: #b7a9cc">Rythme libre</span>
+        </div>
+        <div style="background: #241740; border: 1px solid #4a3b6e; border-left: 4px solid #f3a6c8; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+          <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #fff8fb">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f3a6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+            Les sorties de tomes sont aussi dans le calendrier ICS
+          </span>
+          <span style="font-size: 14px; color: #ebe3f2">Chaque chapitre programmé y figure avec son heure de sortie.</span>
+          <a href="#" style="align-self: flex-start; display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; box-sizing: border-box; border-radius: 10px; border: 1px solid #7f6aa8; color: #fff8fb; font-size: 14px; font-weight: 700">S’abonner au calendrier (ICS)</a>
+        </div>
+        <a href="#" style="font-size: 14px; font-weight: 700">Tous les chapitres publiés →</a>
+      </aside>
+    </section>
+
+    <!-- Journal + légende -->
+    <div style="display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; margin-top: 12px">
+      <section aria-labelledby="yn-planning-journal-titre" style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px">
+        <h2 id="yn-planning-journal-titre" style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">JOURNAL DES MISES À JOUR</h2>
+        <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+          <li style="display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid #4a3b6e">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #f3a6c8; padding-top: 2px">1ER OCT. 18:00</span>
+            <span style="font-size: 14px"><b style="color: #fff8fb">Cerale</b> · SukaMoka T.2 → <span style="color: #8fd6a3; font-weight: 700">Chapitre 2 publié</span></span>
+          </li>
+          <li style="display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid #4a3b6e">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc; padding-top: 2px">30 SEPT. 17:57</span>
+            <span style="font-size: 14px"><b style="color: #fff8fb">Shadowadow</b> · Silent Witch T.7 → <span style="color: #8fd6a3; font-weight: 700">Relecture 100 %</span></span>
+          </li>
+          <li style="display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid #4a3b6e">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc; padding-top: 2px">29 SEPT. 19:55</span>
+            <span style="font-size: 14px"><b style="color: #fff8fb">Angeloids</b> · SukaMoka T.2 → <span style="color: #f3a6c8; font-weight: 700">Traduction 25 %</span></span>
+          </li>
+          <li style="display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 12px; padding: 10px 0">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #b7a9cc; padding-top: 2px">29 SEPT. 12:00</span>
+            <span style="font-size: 14px"><b style="color: #fff8fb">Mael7523</b> · Grimgar T.9 → <span style="color: #ebe3f2; font-weight: 700">Publié</span></span>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="yn-planning-legende" style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px">
+        <h2 id="yn-planning-legende" style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 12px; letter-spacing: .08em; color: #b7a9cc">COMMENT LIRE CE PLANNING</h2>
+        <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+          <li style="display: flex; align-items: center; gap: 12px"><span style="width: 196px; flex-shrink: 0"><span style="border: 1px solid #8fd6a3; color: #8fd6a3; border-radius: 12px; padding: 2px 10px; font-size: 12px">À l’heure</span></span><span>la date cible tient.</span></li>
+          <li style="display: flex; align-items: center; gap: 12px"><span style="width: 196px; flex-shrink: 0"><span style="border: 1px solid #f4c069; color: #f4c069; border-radius: 12px; padding: 2px 10px; font-size: 12px">En retard</span></span><span>date dépassée ou aucune nouvelle depuis 14 jours.</span></li>
+          <li style="display: flex; align-items: center; gap: 12px"><span style="width: 196px; flex-shrink: 0"><span style="border: 1px solid #ff8f7e; color: #ff8f7e; border-radius: 12px; padding: 2px 10px; font-size: 12px">Bloqué</span></span><span>il manque quelqu’un : <a href="#" style="font-weight: 700">rejoindre l’équipe</a>.</span></li>
+          <li style="display: flex; align-items: center; gap: 12px"><span style="width: 196px; flex-shrink: 0"><span style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #f3a6c8; color: #f3a6c8; border-radius: 12px; padding: 2px 10px; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Programmé</span></span><span>la sortie est programmée : le tome paraîtra tout seul à cette date.</span></li>
+          <li style="display: flex; align-items: center; gap: 12px"><span style="width: 196px; flex-shrink: 0"><span style="border: 1px solid #b7a9cc; color: #b7a9cc; border-radius: 12px; padding: 2px 10px; font-size: 12px">Publié</span></span><span>le tome est sorti : bonne lecture !</span></li>
+          <li style="display: flex; align-items: center; gap: 12px"><span style="width: 196px; flex-shrink: 0"><span style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #f7c59f; color: #f7c59f; border-radius: 12px; padding: 2px 10px; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"></path><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>En cours de publication</span></span><span>le tome sort chapitre par chapitre, lisible en ligne au fil des sorties.</span></li>
+          <li style="display: flex; align-items: center; gap: 12px"><span style="width: 196px; flex-shrink: 0"><span style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #f3a6c8; background: #241740; color: #f3a6c8; border-radius: 12px; padding: 2px 10px; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Chapitre programmé</span></span><span>la date et l’heure de sortie du prochain chapitre.</span></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <!-- Pied de page -->
+  <footer style="margin-top: auto; flex-shrink: 0; border-top: 1px solid #4a3b6e; background: #241740; padding: 22px 48px; box-sizing: border-box; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px">
+    <p style="margin: 0; font-size: 14px; color: #b7a9cc">Yume Novel © 2026 · Fan-traductions à but non lucratif · Partenaires : <a href="#">MassNovel</a> · <a href="#">Novel Index</a> · <a href="#">Novel de l’Aube</a> · <a href="#">J-Garden</a></p>
+    <nav aria-label="Liens du pied de page" style="display: flex; gap: 18px; font-size: 14px">
+      <a href="#" style="color: #ebe3f2">Discord</a>
+      <a href="#" style="color: #ebe3f2">X / Twitter</a>
+      <a href="#" style="color: #ebe3f2">Ko-fi</a>
+      <a href="#" style="color: #ebe3f2">FAQ</a>
+      <a href="#" style="color: #ebe3f2">Contactez-nous</a>
+      <a href="#" style="color: #ebe3f2">Mentions légales</a>
+    </nav>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2600}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

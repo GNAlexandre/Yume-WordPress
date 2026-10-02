@@ -296,6 +296,8 @@ Un tome programmé s'affiche « Programmé le … » et n'est jamais en retard.
 | ▲ **En retard** | Date cible dépassée, **ou** aucune mise à jour depuis 14 jours |
 | ■ **Bloqué** | Le tome est marqué bloqué (la raison est affichée) |
 | **Publié** | Le tome est sorti |
+| **En cours de publication** | Le tome sort chapitre par chapitre, lisible en ligne au fil des sorties |
+| **Chapitre programmé** | Date et heure de sortie du prochain chapitre |
 
 Ce qui est public : l'étape, les pourcentages, le pseudo des responsables, la date cible, l'état et
 l'historique des changements. Ce qui ne l'est pas : la note pour l'équipe.
@@ -306,6 +308,49 @@ les dates de sortie à Google Agenda, Apple Calendrier ou Outlook, qui se metten
 date cible y apparaît comme « (prévision) » : seule une sortie programmée y est confirmée. Chaque
 œuvre a enfin son flux RSS (`/oeuvres/{œuvre}/feed/`) avec ses nouveaux tomes, chapitres et
 actualités.
+
+### Le planning vu par les lecteurs : l'accueil et la page Planning (2.1.6)
+
+**Rien n'est à saisir en plus** : tout vient du planning, des chapitres publiés ou programmés
+(« Ajouter des chapitres ») et des champs **Chapitres prévus** et **Rythme** du tome.
+
+**Accueil.** « Dernières sorties » reste en haut. La carte « Prochaines sorties » est remplacée par
+une section **Planning** pleine largeur :
+
+- **À la une : prochain tome** : couverture, œuvre, tome, date, compte à rebours (« J-2 »), barres
+  Traduction / Relecture / Édition, boutons **Suivre l'œuvre** et **Voir la fiche** ;
+- deux colonnes de même hauteur :
+  - **Chapitres en lecture** : les tomes publiés chapitre par chapitre (« 3 / 12 » et leur
+    rythme) ; **Prochains · programmés** (les 3 prochains chapitres programmés, bouton **Me
+    prévenir**) ; le repère **Aujourd'hui** ; **Publiés récemment** (chapitres des 14 derniers
+    jours, badge **Nouveau** pendant 48 h, bouton **Lire**) ; lien **Tous les chapitres publiés →** ;
+  - **Tomes en préparation** : étape, pourcentage, date cible ou « à venir », pastille d'état,
+    légende.
+
+Sur mobile, les deux colonnes deviennent des onglets **Chapitres** / **Tomes**. Actualités, Discord et
+partenaires ne changent pas.
+
+**Page Planning** (`/planning/`). Tout l'existant reste (intro, filtres, RSS / JSON / ICS, « En
+bref », tableau, calendrier, journal, légende). En plus :
+
+- le même bandeau **À la une : prochain tome**, sous l'intro ;
+- une troisième vue **Chapitres** (**Tableau** | **Chapitres** | **Calendrier**, `?vue=chapitres`) :
+  la file des chapitres groupée par jour, avec « Les sorties de tomes sont aussi dans le calendrier ICS » (le flux ICS ne contient que les tomes) ;
+- dans le tableau, des barres d'avancement avec leur pourcentage ; pour un tome publié chapitre par
+  chapitre : « En cours · 3 chapitres sur 12 », une mini-barre, « Prochain : ch. 3 · sam. 3 oct.
+  18 h » et la pastille **En cours de publication** ;
+- sur mobile, le tableau devient une carte par tome ;
+- deux entrées de légende : **En cours de publication** et **Chapitre programmé**.
+
+Règles (seules les œuvres publiques apparaissent ; un chapitre retiré n'apparaît jamais) :
+
+| Pour… | Il faut… |
+| --- | --- |
+| Faire apparaître un chapitre dans « Prochains » de l'accueil | Le programmer : **Ajouter des chapitres**, sortie **Un par un, au rythme** ou **À une date**. À sa sortie, il passe dans « Publiés récemment » (14 jours) |
+| Mettre un tome à la une | Lui donner une **Date cible** au planning, ou programmer sa sortie. Le tome à la une est le tome à venir dont la date (programmée, sinon cible) est la plus proche |
+
+Un tome **bloqué** n'est jamais à la une ; un tome déjà en cours de publication chapitre par
+chapitre non plus (il est dans la file des chapitres).
 
 ### Rappels automatiques
 
