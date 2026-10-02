@@ -188,6 +188,11 @@ if ( $yume_tome ) {
 							?>
 						</span>
 						<span class="yn-muted" data-yn-fiche-rythme><?php echo esc_html( '' !== $yume_rythme ? ucfirst( $yume_rythme ) : '' ); ?></span>
+						<span class="yn-publish__prevus">
+							<label for="yn-publish-prevus" class="yn-label"><?php esc_html_e( 'Chapitres prévus', 'yume-core' ); ?></label>
+							<input id="yn-publish-prevus" name="chapitres_prevus" type="number" min="0" max="999" step="1" inputmode="numeric" value="<?php echo esc_attr( (string) $v['chapitres_prevus'] ); ?>" aria-describedby="yn-publish-prevus-aide" data-yn-prevus>
+							<span id="yn-publish-prevus-aide" class="yn-muted yn-publish__aide" data-yn-prevus-aide><?php esc_html_e( 'Relevé tout seul si le fichier apporte plus de chapitres que prévu. Modifiable ici.', 'yume-core' ); ?></span>
+						</span>
 						<a href="<?php echo esc_url( $yume_infos ? (string) $yume_infos['lien'] : '' ); ?>" data-yn-fiche-lien <?php echo $yume_infos && '' !== $yume_infos['lien'] ? '' : 'hidden'; ?>><?php esc_html_e( 'Voir le tome', 'yume-core' ); ?></a>
 					</div>
 					<details class="yn-publish__creation yn-publish__champ--6" data-yn-creation <?php echo $yume_tome ? 'hidden' : ''; ?>>
@@ -483,14 +488,6 @@ if ( $yume_tome ) {
 					</div>
 
 					<div class="yn-publish__complet" data-yn-bloc-complet>
-						<p class="yn-publish__option">
-							<input type="hidden" name="complet" value="0">
-							<input id="yn-publish-complet" type="checkbox" name="complet" value="1" aria-describedby="yn-publish-complet-aide" data-yn-complet <?php checked( $v['complet'] ); ?>>
-							<span class="yn-publish__option-texte">
-								<label for="yn-publish-complet"><?php esc_html_e( 'Le tome est complet avec ces chapitres', 'yume-core' ); ?></label>
-								<span id="yn-publish-complet-aide" class="yn-muted yn-publish__option-aide"><?php esc_html_e( 'Cochez au dernier envoi (ou pour un tome publié d’un coup) : le tome passe « Publié », le planning à 100 %, et les liens ci-dessous s’affichent. Pour un tome déjà en cours, l’annonce dit « Le tome est complet », avec PDF et EPUB.', 'yume-core' ); ?></span>
-							</span>
-						</p>
 						<div class="yn-publish__liens-complet">
 							<p class="yn-publish__champ">
 								<label for="yn-publish-pdf" class="yn-label"><?php esc_html_e( 'Lien de téléchargement · PDF', 'yume-core' ); ?></label>
@@ -500,8 +497,24 @@ if ( $yume_tome ) {
 								<label for="yn-publish-epub" class="yn-label"><?php esc_html_e( 'Lien de téléchargement · EPUB', 'yume-core' ); ?></label>
 								<input id="yn-publish-epub" name="lien_epub" type="url" value="<?php echo esc_attr( (string) $v['lien_epub'] ); ?>" placeholder="https://www.clictune.com/…" data-yn-lien="epub" aria-describedby="yn-publish-liens-aide">
 							</p>
-							<p id="yn-publish-liens-aide" class="yn-muted yn-publish__aide"><?php esc_html_e( 'Liens externes (ClicTune, Mega…) : les fichiers PDF et EPUB ne sont jamais hébergés sur le site. Pris en compte avec la case « Le tome est complet ».', 'yume-core' ); ?></p>
+							<p id="yn-publish-liens-aide" class="yn-muted yn-publish__aide"><?php esc_html_e( 'Liens externes (ClicTune, Mega…) : les fichiers PDF et EPUB ne sont jamais hébergés sur le site. Ils s’affichent quand le tome passe « Publié » : choisissez quand ci-dessous.', 'yume-core' ); ?></p>
 						</div>
+						<p class="yn-publish__option" data-yn-bloc-liens-dernier>
+							<input type="hidden" name="liens_dernier" value="0">
+							<input id="yn-publish-liens-dernier" type="checkbox" name="liens_dernier" value="1" aria-describedby="yn-publish-liens-dernier-aide" data-yn-liens-dernier <?php checked( $v['liens_dernier'] ); ?>>
+							<span class="yn-publish__option-texte">
+								<label for="yn-publish-liens-dernier"><?php esc_html_e( 'Publier les liens avec le dernier chapitre', 'yume-core' ); ?></label>
+								<span id="yn-publish-liens-dernier-aide" class="yn-muted yn-publish__option-aide"><?php esc_html_e( 'Les chapitres sortent comme prévu ci-dessus. À la sortie du dernier chapitre programmé, le tome passe « Publié » : liens PDF et EPUB affichés, planning à 100 %, annonce « Le tome est complet ».', 'yume-core' ); ?></span>
+							</span>
+						</p>
+						<p class="yn-publish__option">
+							<input type="hidden" name="complet" value="0">
+							<input id="yn-publish-complet" type="checkbox" name="complet" value="1" aria-describedby="yn-publish-complet-aide" data-yn-complet <?php checked( $v['complet'] ); ?>>
+							<span class="yn-publish__option-texte">
+								<label for="yn-publish-complet"><?php esc_html_e( 'Le tome est complet : tout publier maintenant', 'yume-core' ); ?></label>
+								<span id="yn-publish-complet-aide" class="yn-muted yn-publish__option-aide"><?php esc_html_e( 'Tous les chapitres du tome sortent tout de suite, y compris ceux déjà programmés ; le tome passe « Publié », les liens s’affichent, le planning passe à 100 %. Remplace le choix de sortie ci-dessus.', 'yume-core' ); ?></span>
+							</span>
+						</p>
 					</div>
 				</fieldset>
 			</div>

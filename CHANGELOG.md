@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5-dev.9 — 2026-10-02
+
+- Fin d'un tome : « Le tome est complet » publie tout maintenant (chapitres programmés compris) ; option « Publier les liens avec le dernier chapitre » (tome « Publié » à la sortie du dernier chapitre programmé) ; « Chapitres prévus » relevé d'office quand le fichier apporte plus de chapitres et modifiable dans le formulaire de publication et dans « Modifier le tome » ; docx2chapters --liens-dernier, --chapitres-prevus ; guide Word mis à jour.
+
 ## 2.1.5-dev.8 — 2026-10-01
 
 - État du tome choisi par l'équipe (Planifié, En cours de publication, Publié) avec confirmations ; retour à « Planifié » retire la lecture ; guide Word de l'équipe aligné sur les écrans.

@@ -1811,7 +1811,6 @@ function encadre_etat_planifie( int $id, array $s, string $classe ): string {
  * @param string $classe Classes de l'encadré.
  */
 function encadre_etat_en_cours( int $id, array $s, array $bilan, string $classe ): string {
-	$rythme = is_array( $s['rythme'] ?? null ) ? $s['rythme'] : array();
 	$prevus = $bilan['prevus'];
 	$html   = '<section class="' . esc_attr( $classe ) . '" aria-labelledby="yn-etat-en-cours-titre"><h4 class="yn-label yn-etat__si" id="yn-etat-en-cours-titre">' . esc_html__( 'Si « En cours de publication »', 'yume-core' ) . '</h4>';
 	$html  .= '<p class="yn-etat__ligne"><span>' . esc_html__( 'Chapitres en ligne', 'yume-core' ) . '</span><strong>' . esc_html(
@@ -1835,8 +1834,7 @@ function encadre_etat_en_cours( int $id, array $s, array $bilan, string $classe 
 	} else {
 		$html .= '<p class="yn-etat__prochain yn-muted">' . esc_html__( 'Aucun chapitre programmé.', 'yume-core' ) . '</p>';
 	}
-	$html .= '<div class="yn-etat__grille">' . champs_rythme( 'yn-tome', is_scalar( $s['chapitres_prevus'] ?? null ) ? (string) $s['chapitres_prevus'] : '', (string) ( $rythme['jour'] ?? '' ), (string) ( $rythme['heure'] ?? '' ) ) . '</div>';
-	return $html . '<p class="yn-muted">' . esc_html__( 'L’avancement du planning suit les chapitres en ligne ; « Ajouter des chapitres » programme les suivants au rythme.', 'yume-core' ) . '</p></section>';
+	return $html . '<p class="yn-muted">' . esc_html__( 'L’avancement du planning suit les chapitres en ligne ; « Ajouter des chapitres » programme les suivants au rythme. Chapitres prévus et rythme : section « Le tome ».', 'yume-core' ) . '</p></section>';
 }
 
 /**
@@ -2065,7 +2063,10 @@ function formulaire_tome( int $id, ?array $retour, ?array $etat = null ): string
 		)
 	);
 	$html .= champ_saisie( 'yn-tome-titre', 'titre', __( 'Titre (facultatif)', 'yume-core' ), $val( 'titre' ), 'text', array( 'maxlength' => 150 ) );
-	$html .= '</div></section>';
+	// Chapitres prévus et rythme : valables quel que soit l'état du tome (relevés aussi à l'ajout de chapitres).
+	$rythme_tome = is_array( $s['rythme'] ?? null ) ? $s['rythme'] : array();
+	$html       .= champs_rythme( 'yn-tome', is_scalar( $s['chapitres_prevus'] ?? null ) ? (string) $s['chapitres_prevus'] : '', (string) ( $rythme_tome['jour'] ?? '' ), (string) ( $rythme_tome['heure'] ?? '' ) );
+	$html       .= '</div></section>';
 
 	// Équipe (les dates et le rythme sont dans l'état du tome).
 	if ( current_user_can( 'yume_maj_planning_tous' ) ) {

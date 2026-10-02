@@ -76,8 +76,12 @@ un fichier illisible n'est jamais envoyé.
   `--sortie maintenant` (défaut avec `--publier maintenant` : une seule annonce), `--sortie
   rythme` (un par un, au rythme du tome, ou tous les `--intervalle` jours depuis la date de
   `--publier`), `--sortie date` (ensemble, à la date de `--publier`). `--complet` (avec `--pdf`,
-  `--epub`) : le tome est complet avec ces chapitres (parution « complet », planning à 100 %,
-  annonce de fin).
+  `--epub`) : le tome est complet, tout est publié maintenant, chapitres déjà programmés compris
+  (parution « complet », planning à 100 %, annonce de fin ; `--sortie` est alors ignorée).
+  `--liens-dernier` (avec `--pdf`, `--epub`) : les chapitres sortent selon `--sortie` et le tome
+  passe « Publié », liens affichés, à la sortie de son dernier chapitre programmé (tout de suite
+  si rien n'est programmé). `--chapitres-prevus N` : chapitres prévus du tome, relevé d'office si
+  le tome en compte plus après l'ajout.
 
   ```sh
   php tools/docx2chapters/docx2chapters.php publish chapitre-3.docx --site … --user … \
@@ -85,6 +89,9 @@ un fichier illisible n'est jamais envoyé.
   php tools/docx2chapters/docx2chapters.php publish fin.docx --site … --user … --oeuvre 12 \
     --tome 345 --chapitres --complet --pdf https://www.clictune.com/x --epub https://www.clictune.com/y \
     --publier maintenant
+  php tools/docx2chapters/docx2chapters.php publish tome-2.docx --site … --user … --oeuvre 12 \
+    --tome 345 --chapitres --sortie rythme --liens-dernier --pdf https://www.clictune.com/x \
+    --epub https://www.clictune.com/y --publier maintenant
   ```
 - **Liens PDF / EPUB** : uniquement des liens externes (ClicTune, Mega…). Les fichiers PDF et EPUB
   ne sont jamais hébergés sur le site.

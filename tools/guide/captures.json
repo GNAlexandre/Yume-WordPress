@@ -30,7 +30,7 @@
 			"tome": [ { "css": "section", "contient": "1 · Le tome" } ],
 			"fichier": [ { "css": "section", "contient": "2 · Le fichier" } ],
 			"sortie": [ { "css": "section", "contient": "3 · La sortie" } ],
-			"complet": [ { "css": "section", "contient": "Le tome est complet avec ces chapitres" } ],
+			"complet": [ { "css": "section", "contient": "Le tome est complet : tout publier maintenant" } ],
 			"resume": [ { "css": "section", "contient": "Ce qui va se passer" }, { "css": "button", "contient": "Prévisualiser" }, { "css": "p, div", "contient": "Réversible", "seul": true } ]
 		}
 	},

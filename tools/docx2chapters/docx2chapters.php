@@ -14,7 +14,8 @@
  *   Ajouter des chapitres à un tome existant (comparés au tome, rien n'est retiré) :
  *   … publish chapitre-3.docx --site … --user … --oeuvre 12 --tome 345 --chapitres \
  *       [--publier maintenant|AAAA-MM-JJTHH:MM] [--sortie maintenant|rythme|date]
- *       [--intervalle 7] [--complet --pdf URL --epub URL]
+ *       [--intervalle 7] [--complet | --liens-dernier] [--pdf URL --epub URL]
+ *       [--chapitres-prevus N]
  *
  * Voir tools/docx2chapters/README.md. Utilise le convertisseur du plugin
  * (wp-content/plugins/yume-core/includes/import/), qui n'a besoin d'aucune fonction WordPress.
@@ -84,7 +85,12 @@ Ajouter des chapitres à un tome existant (publish … --tome ID --chapitres) :
                                           par un au rythme du tome (ou tous les --intervalle jours
                                           depuis --publier DATE), ou ensemble à la date --publier
   --intervalle N                          jours entre deux chapitres sans rythme (défaut : 7)
-  --complet                               le tome est complet avec ces chapitres (avec --pdf, --epub)
+  --complet                               le tome est complet : tout publier maintenant, chapitres
+                                          déjà programmés compris (avec --pdf, --epub)
+  --liens-dernier                         liens --pdf et --epub affichés (tome « Publié ») à la
+                                          sortie du dernier chapitre programmé du tome
+  --chapitres-prevus N                    chapitres prévus du tome (relevé d'office si le tome en
+                                          compte plus)
 
 Options de convert et analyse :
   --sans-typographie                      n'ajoute pas d'espaces insécables devant ? ! : ;
@@ -111,7 +117,7 @@ AIDE;
 function yume_d2c_arguments( array $argv ): array {
 	$positionnels = array();
 	$options      = array();
-	$drapeaux     = array( 'retirer-absents', 'sans-annonce', 'avec-annonce', 'sans-typographie', 'json', 'aide', 'help', 'chapitres', 'complet' );
+	$drapeaux     = array( 'retirer-absents', 'sans-annonce', 'avec-annonce', 'sans-typographie', 'json', 'aide', 'help', 'chapitres', 'complet', 'liens-dernier' );
 	for ( $i = 0, $n = count( $argv ); $i < $n; $i++ ) {
 		$arg = $argv[ $i ];
 		if ( str_starts_with( $arg, '--' ) ) {
@@ -438,8 +444,16 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	if ( $chapitres && empty( $o['tome'] ) ) {
 		yume_d2c_erreur( '--chapitres demande le tome choisi : --tome ID.', 2 );
 	}
-	if ( ! empty( $o['complet'] ) && ! $chapitres ) {
-		yume_d2c_erreur( '--complet s’utilise avec --tome ID --chapitres.', 2 );
+	foreach ( array( 'complet', 'liens-dernier', 'chapitres-prevus' ) as $option ) {
+		if ( ! empty( $o[ $option ] ) && ! $chapitres ) {
+			yume_d2c_erreur( '--' . $option . ' s’utilise avec --tome ID --chapitres.', 2 );
+		}
+	}
+	if ( ! empty( $o['complet'] ) && ! empty( $o['liens-dernier'] ) ) {
+		yume_d2c_erreur( '--complet ou --liens-dernier, pas les deux.', 2 );
+	}
+	if ( isset( $o['chapitres-prevus'] ) && ! preg_match( '/^\d{1,3}$/', (string) $o['chapitres-prevus'] ) ) {
+		yume_d2c_erreur( '--chapitres-prevus : un nombre entier de 0 à 999.', 2 );
 	}
 	$sortie = isset( $o['sortie'] ) ? (string) $o['sortie'] : '';
 	if ( '' !== $sortie && ! in_array( $sortie, array( 'maintenant', 'rythme', 'date' ), true ) ) {
@@ -480,8 +494,12 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 		$champs['tome_id'] = (string) (int) $o['tome'];
 	}
 	if ( $chapitres ) {
-		$champs['mode']    = 'chapitres';
-		$champs['complet'] = empty( $o['complet'] ) ? '0' : '1';
+		$champs['mode']          = 'chapitres';
+		$champs['complet']       = empty( $o['complet'] ) ? '0' : '1';
+		$champs['liens_dernier'] = empty( $o['liens-dernier'] ) ? '0' : '1';
+		if ( isset( $o['chapitres-prevus'] ) ) {
+			$champs['chapitres_prevus'] = (string) (int) $o['chapitres-prevus'];
+		}
 	}
 	$champs += $annonce;
 	if ( ! empty( $o['couverture'] ) ) {
@@ -535,15 +553,16 @@ function yume_d2c_publish( string $fichier, array $o ): void {
 	if ( ! empty( $o['publier'] ) && is_string( $o['publier'] ) ) {
 		$demande = array( 'quand' => $o['publier'] ) + ( $annonce ? $annonce : array( 'sans_annonce' => empty( $json['sans_annonce'] ) ? '0' : '1' ) );
 		if ( $chapitres ) {
-			$demande['mode']       = 'chapitres';
-			$demande['sortie']     = '' !== $sortie ? $sortie : ( 'maintenant' === $o['publier'] ? 'maintenant' : 'date' );
-			$demande['intervalle'] = (string) (int) ( $o['intervalle'] ?? 7 );
-			$demande['complet']    = empty( $o['complet'] ) ? '0' : '1';
+			$demande['mode']          = 'chapitres';
+			$demande['sortie']        = '' !== $sortie ? $sortie : ( 'maintenant' === $o['publier'] ? 'maintenant' : 'date' );
+			$demande['intervalle']    = (string) (int) ( $o['intervalle'] ?? 7 );
+			$demande['complet']       = empty( $o['complet'] ) ? '0' : '1';
+			$demande['liens_dernier'] = empty( $o['liens-dernier'] ) ? '0' : '1';
 			foreach ( array(
 				'pdf'  => 'lien_pdf',
 				'epub' => 'lien_epub',
 			) as $option => $champ ) {
-				if ( ! empty( $o['complet'] ) && isset( $o[ $option ] ) && is_string( $o[ $option ] ) ) {
+				if ( ( ! empty( $o['complet'] ) || ! empty( $o['liens-dernier'] ) ) && isset( $o[ $option ] ) && is_string( $o[ $option ] ) ) {
 					$demande[ $champ ] = $o[ $option ];
 				}
 			}

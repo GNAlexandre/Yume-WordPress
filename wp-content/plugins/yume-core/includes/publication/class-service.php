@@ -461,22 +461,34 @@ final class Service {
 		if ( ! isset( $natures[ $nature ] ) ) {
 			return new \WP_Error( 'yume_nature_invalide', __( 'Nature de tome inconnue.', 'yume-core' ), array( 'status' => 400 ) );
 		}
-		$champs = array(
-			'oeuvre_id'       => absint( $brut['oeuvre_id'] ?? 0 ),
-			'tome_id'         => absint( $brut['tome_id'] ?? 0 ),
-			'nature'          => $nature,
-			'numero'          => self::numero( $brut['numero'] ?? '' ),
-			'titre'           => sanitize_text_field( (string) ( $brut['titre'] ?? '' ) ),
-			'date_sortie'     => sanitize_text_field( (string) ( $brut['date_sortie'] ?? '' ) ),
-			'couverture_id'   => absint( $brut['couverture_id'] ?? 0 ),
-			'retirer_absents' => rest_sanitize_boolean( $brut['retirer_absents'] ?? false ),
+		$champs       = array(
+			'oeuvre_id'        => absint( $brut['oeuvre_id'] ?? 0 ),
+			'tome_id'          => absint( $brut['tome_id'] ?? 0 ),
+			'nature'           => $nature,
+			'numero'           => self::numero( $brut['numero'] ?? '' ),
+			'titre'            => sanitize_text_field( (string) ( $brut['titre'] ?? '' ) ),
+			'date_sortie'      => sanitize_text_field( (string) ( $brut['date_sortie'] ?? '' ) ),
+			'couverture_id'    => absint( $brut['couverture_id'] ?? 0 ),
+			'retirer_absents'  => rest_sanitize_boolean( $brut['retirer_absents'] ?? false ),
 			// Null : selon le tome (déjà paru : sans annonce), voir sans_annonce_par_defaut().
-			'sans_annonce'    => isset( $brut['sans_annonce'] ) && '' !== $brut['sans_annonce'] ? rest_sanitize_boolean( $brut['sans_annonce'] ) : null,
-			'mode'            => sanitize_key( is_scalar( $brut['mode'] ?? '' ) ? (string) ( $brut['mode'] ?? '' ) : '' ),
+			'sans_annonce'     => isset( $brut['sans_annonce'] ) && '' !== $brut['sans_annonce'] ? rest_sanitize_boolean( $brut['sans_annonce'] ) : null,
+			'mode'             => sanitize_key( is_scalar( $brut['mode'] ?? '' ) ? (string) ( $brut['mode'] ?? '' ) : '' ),
 			// Null : selon la préparation (mode chapitres), voir publier().
-			'complet'         => isset( $brut['complet'] ) && '' !== $brut['complet'] ? rest_sanitize_boolean( $brut['complet'] ) : null,
-			'choix'           => array(),
+			'complet'          => isset( $brut['complet'] ) && '' !== $brut['complet'] ? rest_sanitize_boolean( $brut['complet'] ) : null,
+			// Liens PDF/EPUB affichés à la sortie du dernier chapitre programmé (mode chapitres).
+			'liens_dernier'    => isset( $brut['liens_dernier'] ) && '' !== $brut['liens_dernier'] ? rest_sanitize_boolean( $brut['liens_dernier'] ) : null,
+			// Null : chapitres prévus inchangés, relevés seulement si le fichier en apporte plus.
+			'chapitres_prevus' => null,
+			'choix'            => array(),
 		);
+		$prevus_saisi = $brut['chapitres_prevus'] ?? null;
+		if ( null !== $prevus_saisi && ( ! is_scalar( $prevus_saisi ) || '' !== trim( (string) $prevus_saisi ) ) ) {
+			$prevus_saisi = is_scalar( $prevus_saisi ) ? trim( (string) $prevus_saisi ) : '';
+			if ( ! preg_match( '/^\d{1,3}$/', $prevus_saisi ) ) {
+				return new \WP_Error( 'yume_chapitres_prevus_invalide', __( 'Chapitres prévus : indiquez un nombre entier de 0 à 999.', 'yume-core' ), array( 'status' => 400 ) );
+			}
+			$champs['chapitres_prevus'] = (int) $prevus_saisi;
+		}
 		if ( ! in_array( $champs['mode'], array( '', self::MODE_CHAPITRES, self::MODE_REMPLACEMENT ), true ) ) {
 			return new \WP_Error( 'yume_mode_invalide', __( 'Mode de publication inconnu (chapitres ou remplacement).', 'yume-core' ), array( 'status' => 400 ) );
 		}
@@ -1031,6 +1043,49 @@ final class Service {
 			$dates[] = 0 === $i ? $date : $depart->modify( '+' . ( $i * $intervalle ) . ' days' );
 		}
 		return $dates;
+	}
+
+	/**
+	 * Chapitres prévus d'un tome après un ajout de chapitres : la valeur saisie (0 : inconnu),
+	 * sinon la valeur actuelle ; si le tome compte désormais plus de chapitres que ce nombre
+	 * (tome entier déposé, découpage plus fin), il est relevé à ce compte. Journalisé.
+	 *
+	 * @param int      $tome_id Tome.
+	 * @param int|null $saisi   Valeur saisie (null : aucune).
+	 * @param bool     $relever Relever automatiquement si dépassé.
+	 * @return array{avant:int,apres:int,auto:bool}
+	 */
+	public static function ajuster_chapitres_prevus( int $tome_id, ?int $saisi, bool $relever = true ): array {
+		$avant = (int) get_post_meta( $tome_id, 'yume_chapitres_prevus', true );
+		$apres = null === $saisi ? $avant : $saisi;
+		$auto  = false;
+		if ( $relever && $apres > 0 ) {
+			$compte = 0;
+			foreach ( yume_get_chapitres( $tome_id, array( 'status' => array( 'publish', 'future', 'draft', 'pending', 'private' ) ) ) as $chapitre ) {
+				if ( ! get_post_meta( $chapitre->ID, self::META_RETIRE, true ) ) {
+					++$compte;
+				}
+			}
+			if ( $compte > $apres ) {
+				$apres = $compte;
+				$auto  = true;
+			}
+		}
+		if ( $apres !== $avant ) {
+			if ( $apres > 0 ) {
+				update_post_meta( $tome_id, 'yume_chapitres_prevus', $apres );
+			} else {
+				delete_post_meta( $tome_id, 'yume_chapitres_prevus' );
+			}
+			if ( function_exists( 'yume_journal_planning' ) ) {
+				yume_journal_planning( $tome_id, get_current_user_id(), 'chapitres_prevus', (string) $avant, (string) $apres );
+			}
+		}
+		return array(
+			'avant' => $avant,
+			'apres' => $apres,
+			'auto'  => $auto,
+		);
 	}
 
 	/**
@@ -1710,6 +1765,9 @@ final class Service {
 				}
 			}
 
+			// Chapitres prévus : valeur saisie, sinon relevée si le tome en compte désormais plus.
+			$prevus = self::ajuster_chapitres_prevus( $tome_id, $attente ? null : $champs['chapitres_prevus'], ! $attente );
+
 			$meta = array_merge(
 				(array) get_post_meta( $tome_id, self::META, true ),
 				array(
@@ -1730,9 +1788,11 @@ final class Service {
 				$meta['resume']  = self::resume( $resultat );
 			}
 			if ( $chapitres_mode ) {
-				// « Le tome est complet » et ses liens : repris par publier() s'il ne les reçoit pas.
-				$meta['complet'] = ! empty( $champs['complet'] );
-				$meta['liens']   = $meta['complet'] ? $liens_complet : array();
+				// « Le tome est complet », « Liens avec le dernier chapitre » et les liens : repris
+				// par publier() s'il ne les reçoit pas.
+				$meta['complet']       = ! empty( $champs['complet'] );
+				$meta['liens_dernier'] = ! $meta['complet'] && ! empty( $champs['liens_dernier'] );
+				$meta['liens']         = $meta['complet'] || $meta['liens_dernier'] ? $liens_complet : array();
 			}
 			update_post_meta( $tome_id, self::META, $meta );
 
@@ -1777,6 +1837,7 @@ final class Service {
 			 * @param array<string,mixed> $rapport Rapport.
 			 */
 			do_action( 'yume_publication_preparee', $tome_id, $rapport );
+			$rapport['chapitres_prevus'] = $prevus;
 			return $rapport;
 		} finally {
 			if ( $source_brute ) {
@@ -2258,7 +2319,16 @@ final class Service {
 		$meta    = get_post_meta( $tome_id, self::META, true );
 		$meta    = is_array( $meta ) ? $meta : array();
 		$complet = isset( $options['complet'] ) && null !== $options['complet'] ? (bool) $options['complet'] : ! empty( $meta['complet'] );
-		$liens   = self::liens( isset( $options['liens'] ) && is_array( $options['liens'] ) && $options['liens'] ? $options['liens'] : (array) ( $meta['liens'] ?? array() ) );
+		// « Liens avec le dernier chapitre » : le tome passe « Publié » (liens affichés) à la sortie
+		// de son dernier chapitre programmé. Sans objet si le tome est complet tout de suite.
+		$liens_dernier = ! $complet && ( isset( $options['liens_dernier'] ) && null !== $options['liens_dernier'] ? (bool) $options['liens_dernier'] : ! empty( $meta['liens_dernier'] ) );
+		// « Le tome est complet » : tout est publié maintenant, chapitres déjà programmés compris.
+		if ( $complet ) {
+			$sortie = 'maintenant';
+			$date   = null;
+			self::annuler_programmations( $tome_id );
+		}
+		$liens = self::liens( isset( $options['liens'] ) && is_array( $options['liens'] ) && $options['liens'] ? $options['liens'] : (array) ( $meta['liens'] ?? array() ) );
 		if ( is_wp_error( $liens ) ) {
 			return $liens;
 		}
@@ -2271,7 +2341,7 @@ final class Service {
 
 		$a_publier = array_values(
 			array_filter(
-				yume_get_chapitres( $tome_id, array( 'status' => array( 'draft', 'pending' ) ) ),
+				yume_get_chapitres( $tome_id, array( 'status' => $complet ? array( 'draft', 'pending', 'future' ) : array( 'draft', 'pending' ) ) ),
 				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true ) && ! metadata_exists( 'post', $c->ID, Remplacement::META_DE )
 			)
 		);
@@ -2295,6 +2365,12 @@ final class Service {
 				$fin = $d;
 			}
 		}
+		// Liens avec le dernier chapitre, mais rien d'autre n'est programmé : c'est une sortie
+		// complète, maintenant, ou à la date choisie pour la première sortie du tome entier.
+		if ( $liens_dernier && null === self::dernier_programme( $tome_id ) && ( null === $fin || ( ! $deja_sorti && count( $creneaux ) <= 1 ) ) ) {
+			$complet       = true;
+			$liens_dernier = false;
+		}
 		// Tome complet publié d'un coup (tous ses chapitres ensemble) : sortie de tome habituelle.
 		$complet_direct = $complet && ! $deja_sorti && count( $creneaux ) <= 1;
 		if ( ! $deja_sorti ) {
@@ -2315,6 +2391,15 @@ final class Service {
 		$etat_complet    = $complet_direct ? 'fait' : '';
 		$complet_le      = '';
 		$article_complet = null;
+		if ( $liens_dernier ) {
+			// Liens avec le dernier chapitre : à la sortie du dernier chapitre programmé du tome
+			// (nouveaux ou déjà programmés), ou tout de suite s'il n'y en a aucun.
+			$dernier = self::dernier_programme( $tome_id );
+			if ( $dernier && ( null === $fin || $dernier > $fin ) ) {
+				$fin = $dernier;
+			}
+			$complet = true;
+		}
 		if ( $complet && ! $complet_direct ) {
 			if ( null === $fin && 'publish' === get_post_status( $tome_id ) ) {
 				$fait = self::marquer_complet( $tome_id, $liens, ! $muet );
@@ -2342,13 +2427,14 @@ final class Service {
 			array_merge(
 				$meta,
 				array(
-					'sortie'       => null === $premiere ? 'maintenant' : $premiere->format( DATE_ATOM ),
-					'sortie_par'   => get_current_user_id(),
-					'sortie_le'    => current_time( 'mysql', true ),
-					'sans_annonce' => $muet,
+					'sortie'        => null === $premiere ? 'maintenant' : $premiere->format( DATE_ATOM ),
+					'sortie_par'    => get_current_user_id(),
+					'sortie_le'     => current_time( 'mysql', true ),
+					'sans_annonce'  => $muet,
 					// « Tome complet » traité : il ne s'appliquera pas à une prochaine sortie.
-					'complet'      => false,
-					'liens'        => array(),
+					'complet'       => false,
+					'liens_dernier' => false,
+					'liens'         => array(),
 				)
 			)
 		);

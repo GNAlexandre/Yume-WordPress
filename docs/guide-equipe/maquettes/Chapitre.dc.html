@@ -68,6 +68,11 @@ h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
             <span class="chip info">3 sur 12</span>
             <a href="TomeEnCours.dc.html" style="font-size: 14px">Voir le suivi du tome</a>
           </div>
+          <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap">
+            <label class="lbl" for="prevus" style="color: #b7a9cc">Chapitres prévus</label>
+            <input id="prevus" class="inp" type="number" value="12" style="width: 90px">
+            <span class="muted" style="font-size: 13px">Relevé d’office si le fichier en apporte plus (6 prévus, DOCX découpé en 15 → 15).</span>
+          </div>
           <p class="muted" style="margin: 0; font-size: 13px">Plus de champ « Nature » ici : la nature et le numéro appartiennent au tome, choisis à sa création. Le formulaire ne peut plus renommer un tome par erreur.</p>
         </section>
 
@@ -111,11 +116,14 @@ h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
         </section>
 
         <section class="card" style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
-          <label style="display: flex; gap: 12px; align-items: flex-start"><input type="checkbox" style="margin-top: 4px"><span><strong style="color: #fff8fb">Le tome est complet avec ces chapitres</strong><br><span class="muted" style="font-size: 13px">Cochez au dernier envoi : le tome passe « Complet », le planning à 100 %, et les liens ci-dessous s’affichent. L’annonce dit « Le tome 2 de SukaMoka est complet », avec PDF et EPUB.</span></span></label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; opacity: .55">
-            <div class="fld"><label class="lbl" for="pdf" style="color: #b7a9cc">Lien PDF</label><input id="pdf" class="inp" placeholder="https://…" disabled></div>
-            <div class="fld"><label class="lbl" for="epub" style="color: #b7a9cc">Lien EPUB</label><input id="epub" class="inp" placeholder="https://…" disabled></div>
+          <div class="lbl">Liens de téléchargement et fin du tome</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px">
+            <div class="fld"><label class="lbl" for="pdf" style="color: #b7a9cc">Lien de téléchargement · PDF</label><input id="pdf" class="inp" value="https://www.clictune.com/sukamoka2pdf"></div>
+            <div class="fld"><label class="lbl" for="epub" style="color: #b7a9cc">Lien de téléchargement · EPUB</label><input id="epub" class="inp" value="https://www.clictune.com/sukamoka2epub"></div>
           </div>
+          <p class="muted" style="margin: 0; font-size: 13px">Affichés aux lecteurs seulement quand le tome passe « Publié ».</p>
+          <label style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid #f3a6c8; background: #33245a; border-radius: 6px"><input type="checkbox" checked style="margin-top: 4px"><span><strong style="color: #fff8fb">Publier les liens avec le dernier chapitre</strong><br><span class="muted" style="font-size: 13px">Les chapitres sortent au rythme ; le tome passe « Publié » (liens PDF et EPUB affichés, planning à 100 %, annonce « Le tome 2 de SukaMoka est complet ») à la sortie de son dernier chapitre programmé.</span></span></label>
+          <label style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid #4a3b6e; border-radius: 6px"><input type="checkbox" style="margin-top: 4px"><span><strong style="color: #fff8fb">Le tome est complet : tout publier maintenant</strong><br><span class="muted" style="font-size: 13px">Tous les chapitres sortent maintenant, y compris ceux déjà programmés, et le tome passe « Publié » tout de suite. Les choix de sortie sont grisés.</span></span></label>
         </section>
       </div>
 
@@ -125,6 +133,7 @@ h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
           <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Chapitre 3</strong> programmé le sam. 11 oct. 18 h, sous le Tome 2</span></div>
           <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Chapitre 4</strong> programmé le sam. 18 oct. 18 h</span></div>
           <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Annonce</strong> à chaque sortie : « SukaMoka, Tome 2 : chapitre 3 disponible ! »</span></div>
+          <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Liens PDF et EPUB</strong> affichés le sam. 18 oct. 18 h, avec le dernier chapitre programmé : le tome passe « Publié »</span></div>
           <div style="display: flex; gap: 10px"><span class="tick">✓</span><span><strong style="color: #fff8fb">Planning</strong> : en cours, 5 sur 12 au 18 oct.</span></div>
           <div style="display: flex; gap: 10px"><span class="tick" style="border-color: #7f6aa8; color: #b7a9cc">–</span><span class="muted">Prologue et chapitres 1 et 2 inchangés : mêmes adresses, commentaires conservés</span></div>
         </section>

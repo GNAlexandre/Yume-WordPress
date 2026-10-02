@@ -1128,6 +1128,26 @@
 	font-size: 14px;
 }
 
+/* Chapitres prévus, modifiables depuis la fiche du tome (relevés si le fichier en apporte plus). */
+.yn-publish__prevus {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	flex-basis: 100%;
+	padding-top: 6px;
+	border-top: 1px dashed var(--wp--preset--color--filet);
+}
+
+.yn-publish__prevus input {
+	width: 6em;
+}
+
+.yn-publish__prevus .yn-publish__aide {
+	flex: 1 1 16em;
+	min-width: 0;
+}
+
 .yn-publish__fiche-tome[hidden],
 .yn-publish__creation[hidden],
 .yn-publish__comparaison[hidden],

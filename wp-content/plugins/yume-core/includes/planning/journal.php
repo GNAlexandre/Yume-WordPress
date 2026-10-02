@@ -33,7 +33,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution', 'chapitres_prevus' );
 }
 
 /**
@@ -442,6 +442,19 @@ function texte_changement( $ligne, bool $equipe ): string {
 			$manquant = array_filter( array_map( __NAMESPACE__ . '\\libelle_role_manquant', (array) ( $infos['manquants'] ?? array() ) ) );
 			/* translators: %s : rôles manquants */
 			return sprintf( __( 'signalé aux gérants : %s', 'yume-core' ), $manquant ? implode( ', ', $manquant ) : __( 'tome bloqué', 'yume-core' ) );
+
+		case 'chapitres_prevus':
+			// Chapitres prévus relevés ou saisis à l'ajout de chapitres : équipe seulement.
+			if ( ! $equipe ) {
+				return '';
+			}
+			$de = (int) ( is_scalar( $ancien ) ? $ancien : 0 );
+			$a  = (int) ( is_scalar( $nouveau ) ? $nouveau : 0 );
+			return 0 === $de
+				/* translators: %d : nombre de chapitres */
+				? sprintf( __( 'chapitres prévus : %d', 'yume-core' ), $a )
+				/* translators: 1: avant, 2: après */
+				: sprintf( __( 'chapitres prévus : %1$d → %2$d', 'yume-core' ), $de, $a );
 
 		case 'etat_oeuvre':
 			// Changement d'état d'une œuvre (oeuvres-etat.php) : équipe seulement.

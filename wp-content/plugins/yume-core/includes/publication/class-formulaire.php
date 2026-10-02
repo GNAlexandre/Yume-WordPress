@@ -178,7 +178,7 @@ final class Formulaire {
 	private static function champs_post(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce vérifié dans traiter().
 		$champs = array();
-		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'couverture_id', 'mode', 'sortie', 'intervalle', 'complet', 'annoncer' ) as $cle ) {
+		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'couverture_id', 'mode', 'sortie', 'intervalle', 'complet', 'liens_dernier', 'chapitres_prevus', 'annoncer' ) as $cle ) {
 			if ( isset( $_POST[ $cle ] ) && is_scalar( $_POST[ $cle ] ) ) {
 				$champs[ $cle ] = sanitize_text_field( wp_unslash( (string) $_POST[ $cle ] ) );
 			}
@@ -562,12 +562,18 @@ final class Formulaire {
 			/* translators: %d : nombre de chapitres */
 			$phrases[] = sprintf( _n( '%d chapitre en ligne mis à jour en place, sans annonce.', '%d chapitres en ligne mis à jour en place, sans annonce.', $maj, 'yume-core' ), $maj );
 		}
-		if ( 'fait' === ( $sortie['complet'] ?? '' ) ) {
-			$phrases[] = __( 'Le tome est complet : liens de téléchargement en ligne, planning à 100 %.', 'yume-core' );
+		if ( 'fait' === ( $sortie['complet'] ?? '' ) && 'future' === ( $sortie['statut'] ?? '' ) ) {
+			$phrases[] = sprintf(
+				/* translators: %s : date */
+				__( 'Le tome sortira « Publié », avec tous ses chapitres et ses liens de téléchargement, le %s.', 'yume-core' ),
+				self::date_fr( ( new \DateTimeImmutable( (string) $sortie['date'], wp_timezone() ) )->getTimestamp(), 'long' )
+			);
+		} elseif ( 'fait' === ( $sortie['complet'] ?? '' ) ) {
+			$phrases[] = __( 'Le tome est « Publié » : tous ses chapitres et ses liens de téléchargement sont en ligne, planning à 100 %.', 'yume-core' );
 		} elseif ( 'programme' === ( $sortie['complet'] ?? '' ) && '' !== (string) $sortie['complet_le'] ) {
 			$phrases[] = sprintf(
 				/* translators: %s : date */
-				__( 'Le tome passera complet le %s, avec la sortie de son dernier chapitre.', 'yume-core' ),
+				__( 'Le tome passera « Publié », liens PDF et EPUB affichés, le %s, avec la sortie de son dernier chapitre.', 'yume-core' ),
 				self::date_fr( ( new \DateTimeImmutable( (string) $sortie['complet_le'] ) )->getTimestamp(), 'long' )
 			);
 		}
@@ -615,25 +621,27 @@ final class Formulaire {
 	private static function valeurs( ?array $retour ): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- lecture seule pour préremplir.
 		$v    = array(
-			'tome_id'       => 0,
-			'oeuvre_id'     => isset( $_GET['oeuvre'] ) ? absint( $_GET['oeuvre'] ) : 0,
-			'nature'        => isset( $_GET['nature'] ) ? sanitize_key( wp_unslash( $_GET['nature'] ) ) : 'tome',
-			'numero'        => isset( $_GET['numero'] ) ? sanitize_text_field( wp_unslash( $_GET['numero'] ) ) : '',
-			'titre'         => '',
-			'date_sortie'   => '',
-			'lien_pdf'      => '',
-			'lien_epub'     => '',
-			'credits'       => array(
+			'tome_id'          => 0,
+			'oeuvre_id'        => isset( $_GET['oeuvre'] ) ? absint( $_GET['oeuvre'] ) : 0,
+			'nature'           => isset( $_GET['nature'] ) ? sanitize_key( wp_unslash( $_GET['nature'] ) ) : 'tome',
+			'numero'           => isset( $_GET['numero'] ) ? sanitize_text_field( wp_unslash( $_GET['numero'] ) ) : '',
+			'titre'            => '',
+			'date_sortie'      => '',
+			'lien_pdf'         => '',
+			'lien_epub'        => '',
+			'credits'          => array(
 				'traduction' => '',
 				'relecture'  => '',
 				'edition'    => '',
 			),
-			'couverture_id' => 0,
-			'sans_annonce'  => false,
-			'tome'          => null,
-			'sortie'        => 'maintenant',
-			'intervalle'    => Service::INTERVALLE_DEFAUT,
-			'complet'       => false,
+			'couverture_id'    => 0,
+			'sans_annonce'     => false,
+			'tome'             => null,
+			'sortie'           => 'maintenant',
+			'intervalle'       => Service::INTERVALLE_DEFAUT,
+			'complet'          => false,
+			'liens_dernier'    => false,
+			'chapitres_prevus' => '',
 		);
 		$tome = isset( $_GET['tome'] ) ? get_post( absint( $_GET['tome'] ) ) : null;
 		// phpcs:enable
@@ -645,16 +653,18 @@ final class Formulaire {
 				$v,
 				self::valeurs_tome( $tome ),
 				array(
-					'tome_id'       => (int) $tome->ID,
-					'lien_pdf'      => (string) get_post_meta( $tome->ID, 'yume_lien_pdf', true ),
-					'lien_epub'     => (string) get_post_meta( $tome->ID, 'yume_lien_epub', true ),
-					'credits'       => is_array( $credits ) ? array_merge( $v['credits'], $credits ) : $v['credits'],
-					'couverture_id' => (int) get_post_thumbnail_id( $tome->ID ),
-					'sans_annonce'  => Service::sans_annonce_par_defaut( $tome ),
-					'tome'          => $tome,
-					'meta'          => $meta,
+					'tome_id'          => (int) $tome->ID,
+					'lien_pdf'         => (string) get_post_meta( $tome->ID, 'yume_lien_pdf', true ),
+					'lien_epub'        => (string) get_post_meta( $tome->ID, 'yume_lien_epub', true ),
+					'credits'          => is_array( $credits ) ? array_merge( $v['credits'], $credits ) : $v['credits'],
+					'couverture_id'    => (int) get_post_thumbnail_id( $tome->ID ),
+					'sans_annonce'     => Service::sans_annonce_par_defaut( $tome ),
+					'tome'             => $tome,
+					'meta'             => $meta,
 					// « Le tome est complet » demandé à la dernière préparation (brouillon).
-					'complet'       => ! empty( $meta['complet'] ),
+					'complet'          => ! empty( $meta['complet'] ),
+					'liens_dernier'    => ! empty( $meta['liens_dernier'] ),
+					'chapitres_prevus' => (int) get_post_meta( $tome->ID, 'yume_chapitres_prevus', true ) > 0 ? (string) (int) get_post_meta( $tome->ID, 'yume_chapitres_prevus', true ) : '',
 				)
 			);
 			foreach ( (array) ( $meta['liens'] ?? array() ) as $cle => $lien ) {
@@ -670,8 +680,9 @@ final class Formulaire {
 				}
 			}
 		}
-		$v['sans_annonce'] = (bool) $v['sans_annonce'];
-		$v['complet']      = (bool) $v['complet'];
+		$v['sans_annonce']  = (bool) $v['sans_annonce'];
+		$v['complet']       = (bool) $v['complet'];
+		$v['liens_dernier'] = (bool) $v['liens_dernier'];
 		if ( '' === $v['nature'] || ! isset( yume_natures_tome()[ $v['nature'] ] ) ) {
 			$v['nature'] = 'tome';
 		}

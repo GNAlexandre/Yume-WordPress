@@ -27,6 +27,7 @@ relevé du site). Les décisions encore ouvertes sont listées à la fin. Ce jou
 | 2026-09-30 | Release v2.1.4 (easter egg WordEnd). Le tag a été reposé après quatre runs de release en échec ; le run 11 a réussi sur `77f6533`. | Releases GitHub, historique Actions |
 | 2026-09-30 | Premier envoi de la newsletter Jetpack réussi (5 destinataires). | Relevé du site du 1er octobre 2026 |
 | 2026-10-01 | Relevé de l'état du site après la bascule, consigné dans `docs/mise-en-production.md` (section « État au 1er octobre 2026 »). | Connecteur WordPress.com, GitHub |
+| 2026-10-02 | **Fin d'un tome** : « Le tome est complet » publie tout maintenant (chapitres programmés compris) ; nouvelle option « Publier les liens avec le dernier chapitre » pour un tome donné en entier et programmé au rythme ; « Chapitres prévus » relevé d'office quand le fichier apporte plus de chapitres, et modifiable dans le formulaire de publication et dans « Modifier le tome » quel que soit l'état. | Demande de l'équipe, `CHANGELOG.md` (2.1.5-dev.9), `docs/06-contrat-technique.md` §8 |
 
 ## 2. Règle de livraison depuis le lancement
 

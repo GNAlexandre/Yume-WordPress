@@ -138,7 +138,7 @@ cours » et « Publié ».
 | --- | --- | --- |
 | **Planifié** | Dès la création, tant qu'aucun chapitre n'est en ligne (un tome programmé reste « Planifié » jusqu'à sa sortie). | Le planning, pas de lecture. |
 | **En cours de publication** | Au premier chapitre publié (aussi pour un tome « Planifié » choisi à la main). | La lecture chapitre par chapitre, pas de PDF ni d'EPUB. |
-| **Publié** | Quand l'équipe coche **Tome complet** en ajoutant les derniers chapitres, ou choisit « Publié ». | Tous les chapitres, les liens PDF et EPUB. |
+| **Publié** | Quand l'équipe coche **Le tome est complet : tout publier maintenant**, à la sortie du dernier chapitre avec **Publier les liens avec le dernier chapitre**, ou quand elle choisit « Publié ». | Tous les chapitres, les liens PDF et EPUB. |
 
 **Nouveau tome** (bouton de *Tous les tomes* ; « Ajouter un tome au planning » du tableau de bord,
 du *Planning complet* et de la vue *Œuvres* mènent à la même page) : œuvre, nature, numéro, titre
@@ -433,10 +433,21 @@ Puis :
 - **Annoncer les nouveaux chapitres** (coché par défaut) : Discord #sorties et e-mail aux lecteurs
   qui suivent l'œuvre, plus l'article d'annonce à la première sortie du tome (« SukaMoka, Tome 2 :
   Prologue disponible ! »). Un chapitre mis à jour n'est jamais annoncé ;
-- **Le tome est complet avec ces chapitres** : à cocher au dernier envoi (ou pour un tome publié d'un
-  coup) avec les **liens PDF et EPUB**. Le tome passe « Publié », le planning à **Publié, 100 %**,
-  et l'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ». **Les fichiers
-  PDF et EPUB ne sont jamais envoyés sur le site** : ce ne sont que des liens.
+- **Liens PDF et EPUB** : toujours modifiables ; ils ne s'affichent que lorsque le tome passe
+  « Publié ». **Les fichiers PDF et EPUB ne sont jamais envoyés sur le site** : ce ne sont que des
+  liens ;
+- **Publier les liens avec le dernier chapitre** : les chapitres sortent selon le choix ci-dessus
+  (par exemple un par un, au rythme) et le tome passe « Publié », liens affichés, à la sortie de
+  son **dernier chapitre programmé**, avec l'annonce « Le tome 2 de SukaMoka est complet : PDF et
+  EPUB disponibles ». Rien n'est programmé ? Le tome passe « Publié » tout de suite ;
+- **Le tome est complet : tout publier maintenant** : tous les chapitres du tome sortent
+  **maintenant**, y compris ceux déjà programmés (leurs programmations sont annulées) ; le tome
+  passe « Publié », le planning à **Publié, 100 %**. Les choix de sortie sont alors grisés.
+
+Le champ **Chapitres prévus** (fiche du tome, en haut du formulaire) se corrige ici : si le
+fichier apporte plus de chapitres que prévu (6 prévus, DOCX découpé en 15), il est **relevé
+d'office** à 15 à l'enregistrement (noté au journal du planning) ; une valeur saisie plus grande
+est gardée.
 
 Le bouton **Publier les nouveaux chapitres** (ou **Programmer**) applique ces choix ; **Enregistrer
 en brouillon** ne montre rien aux lecteurs. Un tome **sans chapitre ni lien PDF / EPUB** n'est publié
@@ -445,7 +456,9 @@ qu'après confirmation.
 Tant que le tome n'est pas complet, il reste **en cours** : sur le site, « Tome 2 · En cours · 3
 chapitres sur 12 · prochain chapitre samedi » ; au planning, l'étape suit les chapitres en ligne au
 lieu de passer à « Publié ». Un tome complet publié d'un coup se comporte comme avant : une annonce
-« Le tome N de … est disponible ! » et le planning à **Publié, 100 %**.
+« Le tome N de … est disponible ! » et le planning à **Publié, 100 %**. Pour programmer la sortie
+d'un tome entier, choisissez **À une date** et cochez **Publier les liens avec le dernier
+chapitre** : tout sort ensemble à cette date, comme un tome complet.
 
 Le DOCX n'est **pas conservé** sur le serveur : seuls les chapitres et les illustrations restent.
 La publication est réversible : dépublier un tome le retire du site, remet son annonce en brouillon
@@ -614,10 +627,23 @@ lecteurs qui suivent l'œuvre) ; décochez-la pour un ajout silencieux. Un chapi
 n'est jamais annoncé. Pour un tome **déjà paru et complet** (lecture en ligne d'un tome migré),
 c'est la case **« Ajout au catalogue »** qui apparaît, cochée d'office, comme en 5.4.
 
-**« Le tome est complet avec ces chapitres »** : cochez-la au dernier envoi (les champs des liens
-PDF et EPUB s'activent alors). Le tome passe « Publié », les liens s'affichent, le planning passe
-à « Publié », 100 %, et l'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB
-disponibles ». Si les derniers chapitres sont programmés, tout cela se fait à la sortie du dernier.
+**Les liens PDF et EPUB** se saisissent à tout moment ; ils restent masqués aux lecteurs tant que
+le tome n'est pas « Publié ». Deux cases décident du moment :
+
+- **« Publier les liens avec le dernier chapitre »** : pour un tome donné en entier mais
+  programmé chapitre par chapitre. Les chapitres sortent au rythme, et le tome passe « Publié »
+  (liens affichés, planning à 100 %, annonce « Le tome 2 de SukaMoka est complet : PDF et EPUB
+  disponibles ») à la sortie de son dernier chapitre programmé — nouveau ou déjà programmé avant.
+  Si rien n'est programmé, c'est tout de suite ;
+- **« Le tome est complet : tout publier maintenant »** : tous les chapitres du tome sortent
+  maintenant, y compris ceux déjà programmés (programmations annulées), et le tome passe
+  « Publié » aussitôt. Les choix de sortie sont grisés.
+
+**Chapitres prévus** : le champ est dans la fiche du tome, en haut du formulaire. Quand le fichier
+apporte plus de chapitres que prévu (un tome planifié à 6 chapitres, un DOCX découpé en 15), le
+nombre est **relevé d'office** à 15 (journal du planning) ; « Ce qui va se passer » l'annonce. Il
+se corrige aussi dans **Modifier le tome**, section « Le tome », quel que soit l'état du tome.
+
 L'état se change aussi à la main dans la fiche du tome (**Modifier**, voir 3) : « Publié » sans
 annonce par défaut, retour à « En cours de publication », ou retour à « Planifié » qui retire la
 lecture après une publication faite par erreur.
@@ -633,14 +659,15 @@ Ce qui se passe, en résumé :
 | --- | --- | --- |
 | Première sortie d'un tome (le prologue seul, par exemple) | Article et Discord « SukaMoka, Tome 2 : Prologue disponible ! », e-mail aux abonnés | En cours : l'étape reste, l'avancement suit les chapitres en ligne (sur les chapitres prévus) |
 | Nouveaux chapitres d'un tome en cours | « Nouveau chapitre » (Discord, e-mail) à chaque sortie, ou une annonce groupée | Avancement mis à jour |
-| « Le tome est complet » | Article et Discord « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles » | « Publié », 100 % |
+| « Le tome est complet : tout publier maintenant », ou « Publier les liens avec le dernier chapitre » (à la sortie du dernier) | Article et Discord « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles » | « Publié », 100 % |
 | Tome complet publié d'un coup (DOCX entier, case cochée) | Comme avant : « Le tome 2 de SukaMoka est disponible ! » | « Publié », 100 % |
 | Tome migré déjà complet, lecture en ligne ajoutée | Aucune (ajout au catalogue) | Inchangé |
 
 Sans JavaScript, le formulaire fonctionne aussi : la comparaison n'est pas affichée avant
 l'envoi et les chapitres en ligne modifiés sont gardés (pour les mettre à jour, utilisez le
 remplacement de 5.4 bis). En ligne de commande : `docx2chapters.php publish … --tome ID
---chapitres [--sortie rythme] [--complet --pdf URL --epub URL] --publier maintenant` (voir
+--chapitres [--sortie rythme] [--complet | --liens-dernier] [--pdf URL --epub URL]
+[--chapitres-prevus N] --publier maintenant` (voir
 `tools/docx2chapters/README.md`).
 
 ## 6. Corriger un chapitre
@@ -843,7 +870,7 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | Le tome publié n'apparaît pas | Il est en brouillon ou programmé : vérifiez son statut dans *Planning complet* (filtre *Statut*) ou dans *Yume → Tomes*. |
 | Un tome est arrêté mais reste « en retard » et déclenche des rappels | *Planning complet* → dépliez sa ligne → **Mettre en pause** ; **Reprendre** le jour où il repart. |
 | J'ai ajouté un tome au planning par erreur | *Planning complet* → dépliez sa ligne → **Retirer du planning** (brouillon sans chapitre publié). |
-| Un lien PDF ou EPUB est mort | *Tous les tomes* → **Modifier** le tome → encadré **Tome complet** : remplacez le lien, puis **Enregistrer**. |
+| Un lien PDF ou EPUB est mort | *Tous les tomes* → **Modifier** le tome → encadré **État du tome**, sous **Publié** : remplacez le lien, puis **Enregistrer**. |
 | Les chapitres sont mal découpés | Vérifiez les styles *Titre 1* / *Titre 2* dans Word et redéposez le DOCX avant de publier. Si le document ne peut pas être corrigé, délimitez les chapitres vous-même dans l'aperçu (§5.2 bis). |
 | Un lecteur ne veut plus d'e-mails | Chaque e-mail d'alerte a un lien de désabonnement (une œuvre, les réponses aux commentaires ou tout) : il confirme sans se connecter. Il peut aussi tout régler dans *Mon compte*. |
 | Un lecteur ne reçoit pas les alertes | Il doit avoir l'œuvre en favori avec une alerte active (page *Mon compte*) ; les e-mails aux lecteurs doivent être activés dans *Yume → Réglages*. |

@@ -254,7 +254,7 @@ L'état d'un tome suit ses chapitres : le site le met à jour tout seul.
 | --- | --- | --- |
 | **Planifié** | À paraître | Dès la création, tant qu'aucun chapitre n'est en ligne. Le tome figure au planning, sans bouton « Lire ». |
 | **En cours de publication** | En cours | Au premier chapitre publié. Le tome se lit en ligne, ses chapitres sortent au fil de l'eau. |
-| **Publié** | Publié | Quand l'équipe coche « Tome complet » ou choisit « Publié ». Tous les chapitres sont en ligne, les liens PDF et EPUB s'ajoutent. |
+| **Publié** | Publié | Quand l'équipe coche « Le tome est complet : tout publier maintenant », à la sortie du dernier chapitre avec « Publier les liens avec le dernier chapitre », ou quand elle choisit « Publié ». Tous les chapitres sont en ligne, les liens PDF et EPUB s'affichent. |
 
 > **Nouveau** : version 2.1.5. L'équipe peut aussi changer l'état du tome à la main : **Planifié**, **En cours de publication** ou **Publié**. Voir le chapitre « Nouveau (version 2.1.5) : l'état des tomes et des œuvres ».
 
@@ -364,7 +364,7 @@ Exemple : SukaMoka, Tome 2. Le tome a été créé avec « Nouveau tome ». On p
 4. Vérifiez le tableau : le prologue est **Nouveau**.
 5. La première fois, ajoutez la **Couverture** du tome (zone « Glissez l'image ici ») et remplissez les **Crédits du tome** à droite : **Traduction**, **Relecture**, **Édition / couverture**.
 6. Dans **3 · La sortie des nouveaux chapitres**, choisissez **Maintenant**.
-7. Laissez cochée **Annoncer les nouveaux chapitres**. Ne cochez pas **Le tome est complet avec ces chapitres**.
+7. Laissez cochée **Annoncer les nouveaux chapitres**. Ne cochez ni **Publier les liens avec le dernier chapitre** ni **Le tome est complet : tout publier maintenant**.
 8. Relisez **Ce qui va se passer**, puis cliquez sur **Publier 1 chapitre**.
 9. Une fenêtre demande confirmation : cliquez sur **OK**.
 
@@ -385,6 +385,8 @@ Exemple : les chapitres 3 et 4 doivent sortir les deux samedis suivants, à 18 h
 
 Chaque chapitre sort à sa date, avec sa propre annonce : « SukaMoka, Tome 2 : chapitre 3 disponible ! ».
 
+> **À savoir** : le fichier contient plus de chapitres que prévu (tome planifié à 6 chapitres, DOCX découpé en 15) ? Le champ **Chapitres prévus** de la fiche du tome, en haut du formulaire, est relevé d'office à 15 à l'enregistrement. Vous pouvez aussi y saisir le bon nombre vous-même.
+
 > **À savoir** : le tome n'a pas de rythme ? Indiquez la **Date** de départ et le nombre de jours dans **Un chapitre tous les (jours)** (7 par défaut). Pour donner un rythme au tome, voir « Modifier les informations d'un tome ».
 
 ## Publier un tome entier d'un coup
@@ -393,12 +395,28 @@ Pour un tome traduit en entier, publié en une fois avec ses liens de téléchar
 
 1. Créez le tome avec **Nouveau tome**, puis cliquez sur **Créer le tome et ajouter un chapitre**.
 2. Déposez le DOCX complet. Tous les chapitres sont **Nouveau**.
-3. Choisissez **Maintenant** (ou **À une date** pour une sortie programmée).
-4. Cochez **Le tome est complet avec ces chapitres**.
-5. Collez le **Lien de téléchargement · PDF** et le **Lien de téléchargement · EPUB**.
-6. Relisez **Ce qui va se passer**, puis cliquez sur **Publier** (le bouton donne le nombre de chapitres) et confirmez.
+3. Cochez **Le tome est complet : tout publier maintenant**. Les choix de sortie se grisent : tout part maintenant.
+4. Collez le **Lien de téléchargement · PDF** et le **Lien de téléchargement · EPUB**.
+5. Relisez **Ce qui va se passer**, puis cliquez sur **Publier** (le bouton donne le nombre de chapitres) et confirmez.
 
 Résultat : tous les chapitres sont en ligne, le tome est « Publié », les liens s'affichent et le planning passe à « Publié », 100 %. L'annonce dit « Le tome 2 de SukaMoka est disponible ! ».
+
+> **À savoir** : pour programmer la sortie du tome entier à une date, ne cochez pas « tout publier maintenant » : choisissez **À une date**, cochez **Publier les liens avec le dernier chapitre** et collez les liens. Tout sort ensemble à cette date, comme un tome complet.
+
+## Donner tout le tome, chapitre par chapitre, avec les liens à la fin
+
+Exemple : le tome 2 est traduit en entier. Vous voulez sortir un chapitre chaque samedi, et que les liens PDF et EPUB apparaissent avec le dernier chapitre.
+
+1. Ouvrez **Ajouter des chapitres** et choisissez le tome.
+2. Déposez le DOCX complet. Vérifiez **Chapitres prévus** dans la fiche du tome : il est relevé d'office si le fichier contient plus de chapitres.
+3. Choisissez **Un par un, au rythme**.
+4. Collez le **Lien de téléchargement · PDF** et le **Lien de téléchargement · EPUB**.
+5. Cochez **Publier les liens avec le dernier chapitre**.
+6. Relisez **Ce qui va se passer** : il donne la date à laquelle le tome passera « Publié ». Cliquez sur **Programmer…**, puis confirmez.
+
+Chaque chapitre sort à sa date, avec son annonce. À la sortie du dernier, le tome passe « Publié » : les liens s'affichent, le planning passe à 100 % et l'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ». D'ici là, les liens restent masqués aux lecteurs.
+
+> **À savoir** : vous changez d'avis ? Un nouvel envoi avec **Le tome est complet : tout publier maintenant** sort tout de suite les chapitres encore programmés et affiche les liens.
 
 > **À savoir** : les fichiers PDF et EPUB ne sont jamais envoyés sur le site. Ce sont seulement des liens vers leur hébergement (ClicTune, Mega…).
 
@@ -464,7 +482,7 @@ Chaque chapitre est remplacé à sa place : mêmes adresses, commentaires gardé
 | --- | --- | --- |
 | Première sortie d'un tome (le prologue seul, par exemple) | Article, Discord et e-mail : « SukaMoka, Tome 2 : Prologue disponible ! » | En cours : l'avancement suit les chapitres en ligne |
 | Nouveaux chapitres d'un tome en cours | Discord et e-mail à chaque sortie, ou une annonce groupée | Avancement mis à jour |
-| Dernier envoi avec « Le tome est complet » | Article et Discord : « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles » | « Publié », 100 % |
+| « Le tome est complet : tout publier maintenant », ou sortie du dernier chapitre avec « Publier les liens avec le dernier chapitre » | Article et Discord : « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles » | « Publié », 100 % |
 | Tome entier publié d'un coup | « Le tome 2 de SukaMoka est disponible ! » | « Publié », 100 % |
 | Chapitre corrigé (« Mettre à jour ») | Aucune | Inchangé |
 | Ajout au catalogue (tome déjà paru) | Aucune | Inchangé |
@@ -477,16 +495,17 @@ Décochez **Annoncer les nouveaux chapitres** pour un ajout silencieux.
 
 C'est la façon normale de terminer un tome en cours : l'annonce « tome complet » part avec les derniers chapitres.
 
-![La case « Le tome est complet avec ces chapitres » et les liens de téléchargement.](images/Chapitre-complet.png){largeur=80%}
+![Les liens de téléchargement et les deux cases qui terminent le tome.](images/Chapitre-complet.png){largeur=80%}
 
 1. Ouvrez **Ajouter des chapitres** et choisissez le tome.
 2. Déposez le fichier avec les derniers chapitres (ou le tome entier).
-3. Choisissez la sortie : **Maintenant**, **Un par un, au rythme** ou **À une date**.
-4. Cochez **Le tome est complet avec ces chapitres**.
-5. Collez le **Lien de téléchargement · PDF** et le **Lien de téléchargement · EPUB**.
-6. Cliquez sur le bouton d'envoi, puis confirmez.
+3. Collez le **Lien de téléchargement · PDF** et le **Lien de téléchargement · EPUB**.
+4. Choisissez le moment :
+   - **Publier les liens avec le dernier chapitre** : les chapitres sortent selon la sortie choisie (**Maintenant**, **Un par un, au rythme** ou **À une date**). Le tome passe « Publié » à la sortie du dernier chapitre programmé, ou tout de suite si rien n'est programmé ;
+   - **Le tome est complet : tout publier maintenant** : tous les chapitres sortent maintenant, même ceux déjà programmés, et le tome passe « Publié » aussitôt.
+5. Cliquez sur le bouton d'envoi, puis confirmez.
 
-Le tome passe « Publié », les liens s'affichent, le planning passe à « Publié », 100 %. L'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ». Si les derniers chapitres sont programmés, tout cela se fait à la sortie du dernier.
+Le tome passe « Publié », les liens s'affichent, le planning passe à « Publié », 100 %. L'annonce dit « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles ».
 
 ## Passer un tome à « Publié » depuis sa fiche
 
@@ -528,7 +547,7 @@ Réservé aux éditeurs et aux gérants. La fiche d'un tome s'ouvre dans l'espac
 ![La fiche « Modifier le tome » : informations, chapitres, couverture, tome complet et planning.](images/TomeEnCours-contenu.png)
 
 1. Ouvrez la fiche du tome (**Modifier**).
-2. Changez ce qu'il faut : œuvre, nature, numéro, titre, responsables, date cible, **Chapitres prévus**, **Rythme**.
+2. Changez ce qu'il faut : œuvre, nature, numéro, titre, responsables, date cible, **Chapitres prévus**, **Rythme**. Ces deux derniers champs sont dans la section **Le tome** : ils se corrigent quel que soit l'état du tome (par exemple 6 prévus, mais le DOCX donne 15 chapitres).
 3. Les **Crédits affichés sur la page du tome** : **Crédit traduction**, **Crédit relecture**, **Crédit édition / couverture**.
 4. Pour la couverture : **Changer la couverture (facultatif)**. JPG, PNG ou WebP, au format portrait de préférence. Sans couverture propre, celle de l'œuvre est affichée.
 5. Cliquez sur **Enregistrer**.
@@ -564,7 +583,7 @@ Côté équipe, un tome a trois états. Le site propose l'état tout seul, d'apr
 | **En cours de publication** | En cours | Des chapitres sont en ligne, d'autres arrivent. Lecture chapitre par chapitre, pas encore de PDF ni d'EPUB. |
 | **Publié** | Publié | Tous les chapitres sont en ligne. Liens PDF et EPUB affichés, planning à 100 %, plus aucun rappel. |
 
-Un tome publié d'un coup (fichier entier, case « Tome complet ») passe directement de **Planifié** à **Publié**, comme avant.
+Un tome publié d'un coup (fichier entier, case « Le tome est complet : tout publier maintenant ») passe directement de **Planifié** à **Publié**, comme avant.
 
 ## Changer l'état d'un tome
 
@@ -574,7 +593,7 @@ Un tome publié d'un coup (fichier entier, case « Tome complet ») passe direct
 2. Dans l'encadré **État du tome**, cliquez sur **Planifié**, **En cours de publication** ou **Publié**.
 3. Complétez les réglages qui s'affichent pour cet état :
    - **Planifié** : l'étape et la date cible du planning ;
-   - **En cours de publication** : les **Chapitres prévus** et le **Rythme** ;
+   - **En cours de publication** : les chapitres en ligne et le prochain chapitre programmé (les **Chapitres prévus** et le **Rythme** se changent dans la section **Le tome**) ;
    - **Publié** : le **Lien PDF**, le **Lien EPUB** et, si vous le souhaitez, l'annonce « Le tome est complet ».
 4. Cliquez sur **Enregistrer**.
 5. Si le changement touche les lecteurs, une question demande confirmation. Lisez-la, puis confirmez ou annulez.

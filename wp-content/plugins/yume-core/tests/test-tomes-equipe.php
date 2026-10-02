@@ -1562,6 +1562,8 @@ yume_tte_test(
 		yume_assert_contains( 'enctype="multipart/form-data"', $html );
 		yume_assert_contains( 'name="tome_id" value="' . $tome . '"', $html );
 		yume_assert_contains( 'name="chapitres_prevus" value="12"', $html );
+		yume_assert_true( strpos( $html, 'name="chapitres_prevus"' ) > (int) strpos( $html, 'id="yn-tome-identite"' ), 'chapitres prévus dans la section « Le tome », hors de l’encadré grisé de l’état' );
+		yume_assert_same( 1, substr_count( $html, 'name="chapitres_prevus"' ), 'un seul champ' );
 		yume_assert_contains( '<option value="samedi" selected=\'selected\'>Chaque samedi</option>', $html );
 		yume_assert_contains( 'name="credits[traduction]"', $html );
 		yume_assert_contains( 'name="lien_pdf" value="https://www.clictune.com/pdf2"', $html );

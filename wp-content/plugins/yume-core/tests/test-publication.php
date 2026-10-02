@@ -1260,6 +1260,10 @@ yume_test(
 				'name="intervalle"',
 				'name="annoncer"',
 				'name="complet"',
+				'name="liens_dernier"',
+				'Publier les liens avec le dernier chapitre',
+				'Le tome est complet : tout publier maintenant',
+				'name="chapitres_prevus"',
 				'data-yn-comparaison',
 				'data-yn-recap',
 			) as $attendu ) {

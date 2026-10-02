@@ -670,7 +670,7 @@ yume_test(
 			yume_assert_contains( 'https://www.clictune.com/sukamoka2pdf', get_post_field( 'post_content', $fin ) );
 			yume_assert_same( 1, count( $n->discord_tome ) );
 			yume_assert_contains( 'est complet : PDF et EPUB disponibles', $n->discord_tome[0] );
-			yume_assert_contains( 'Le tome est complet', Formulaire::message_chapitres( $sortie ) );
+			yume_assert_contains( 'Le tome est « Publié »', Formulaire::message_chapitres( $sortie ) );
 			yume_assert_false( (bool) ( get_post_meta( $tome, Service::META, true )['complet'] ?? false ), 'case consommée' );
 
 			// Marquer complet une seconde fois : rien de plus (ni article, ni événement).
@@ -685,7 +685,7 @@ yume_test(
 );
 
 yume_test(
-	'chapitres : « Le tome est complet » avec une sortie au rythme → passage complet programmé à la sortie du dernier chapitre',
+	'chapitres : « Publier les liens avec le dernier chapitre » avec une sortie au rythme → passage « Publié » (liens PDF/EPUB) programmé à la sortie du dernier chapitre',
 	yume_tpub(
 		function ( $ctx ) {
 			global $wpdb;
@@ -706,9 +706,9 @@ yume_test(
 			$sortie = yume_tpc_publier(
 				$tome,
 				array(
-					'sortie'  => 'rythme',
-					'complet' => true,
-					'liens'   => array( 'lien_pdf' => 'https://www.clictune.com/t2' ),
+					'sortie'        => 'rythme',
+					'liens_dernier' => true,
+					'liens'         => array( 'lien_pdf' => 'https://www.clictune.com/t2' ),
 				)
 			);
 			$ch2    = yume_tpc_id( $tome, 'Chapitre 2' );
@@ -718,7 +718,15 @@ yume_test(
 			yume_assert_same( $ts, (int) wp_next_scheduled( Service::HOOK_COMPLET, array( $tome ) ) );
 			yume_assert_same( 'en_cours', yume_parution_tome( $tome ), 'pas encore complet' );
 			yume_assert_same( '', (string) get_post_meta( $tome, 'yume_lien_pdf', true ) );
-			yume_assert_contains( 'Le tome passera complet le', Formulaire::message_chapitres( $sortie ) );
+			yume_assert_contains( 'Le tome passera « Publié », liens PDF et EPUB affichés, le', Formulaire::message_chapitres( $sortie ) );
+			yume_assert_same(
+				array(
+					'pdf'  => '',
+					'epub' => '',
+				),
+				yume_liens_telechargement( $tome ),
+				'liens masqués avant le dernier chapitre'
+			);
 
 			// Les dates passent : la tâche publie les chapitres échus puis marque le tome complet.
 			$passe = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
@@ -746,6 +754,235 @@ yume_test(
 			yume_assert_same( '', (string) get_post_meta( $tome, Service::META_COMPLET, true ) );
 			yume_assert_false( wp_next_scheduled( Service::HOOK_COMPLET, array( $tome ) ) );
 			yume_assert_same( 'Le tome 2 de SukaMoka est complet : PDF disponible', get_post_field( 'post_title', Annonce::existant( $tome, Annonce::META_COMPLET ) ) );
+		}
+	)
+);
+
+yume_test(
+	'chapitres : « Le tome est complet : tout publier maintenant » → chapitres déjà programmés publiés aussi, programmations annulées, tome « Publié » tout de suite',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre = yume_tpub_oeuvre( 'SukaMoka' );
+			$tome   = yume_tpc_tome_en_cours(
+				$ctx,
+				$oeuvre,
+				array( 'prologue' ),
+				array(
+					'yume_rythme' => array(
+						'jour'  => 'samedi',
+						'heure' => '18:00',
+					),
+				)
+			);
+			yume_tpc_preparer( $ctx, $oeuvre, $tome, array( 'prologue', 'ch1', 'ch2' ) );
+			yume_tpc_publier( $tome, array( 'sortie' => 'rythme' ) );
+			yume_tpc_requete();
+			$ch1 = yume_tpc_id( $tome, 'Chapitre 1' );
+			$ch2 = yume_tpc_id( $tome, 'Chapitre 2' );
+			yume_assert_same( 'future', get_post_status( $ch1 ) );
+			yume_assert_same( 'future', get_post_status( $ch2 ) );
+
+			yume_tpc_preparer(
+				$ctx,
+				$oeuvre,
+				$tome,
+				array( 'prologue', 'ch1', 'ch2', 'ch3' ),
+				array(
+					'complet'   => '1',
+					'lien_pdf'  => 'https://www.clictune.com/t2pdf',
+					'lien_epub' => 'https://www.clictune.com/t2epub',
+				)
+			);
+			$sortie = null;
+			$n      = yume_tpc_compter(
+				function () use ( $tome, &$sortie ) {
+					// Même avec « au rythme » demandé : la case l'emporte, tout sort maintenant.
+					$sortie = yume_tpc_publier( $tome, array( 'sortie' => 'rythme' ) );
+				}
+			);
+			$ch3    = yume_tpc_id( $tome, 'Chapitre 3' );
+			foreach ( array( $ch1, $ch2, $ch3 ) as $id ) {
+				yume_assert_same( 'publish', get_post_status( $id ), yume_libelle_chapitre( $id ) . ' en ligne' );
+			}
+			yume_assert_same( 'fait', $sortie['complet'] );
+			yume_assert_same( 'complet', yume_parution_tome( $tome ) );
+			yume_assert_same(
+				array(
+					'pdf'  => 'https://www.clictune.com/t2pdf',
+					'epub' => 'https://www.clictune.com/t2epub',
+				),
+				yume_liens_telechargement( $tome )
+			);
+			yume_assert_same( '', (string) get_post_meta( $tome, Service::META_COMPLET, true ), 'aucun passage programmé' );
+			yume_assert_false( wp_next_scheduled( Service::HOOK_COMPLET, array( $tome ) ) );
+			yume_assert_same( array(), yume_get_chapitres( $tome, array( 'status' => 'future' ) ), 'plus rien de programmé' );
+			yume_assert_same( array( array( $tome, true ) ), $n->complet );
+			yume_assert_same( 100, (int) \Yume\Core\Planning\donnees_tome( $tome )['avancement']['edition'] );
+		}
+	)
+);
+
+yume_test(
+	'chapitres : « Publier les liens avec le dernier chapitre » — chapitre déjà programmé plus tard : passage « Publié » calé sur lui ; rien de programmé : « Publié » tout de suite ; tome entier à une date : sortie complète à cette date',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre = yume_tpub_oeuvre( 'SukaMoka' );
+			$tome   = yume_tpc_tome_en_cours(
+				$ctx,
+				$oeuvre,
+				array( 'prologue' ),
+				array(
+					'yume_rythme' => array(
+						'jour'  => 'samedi',
+						'heure' => '18:00',
+					),
+				)
+			);
+			yume_tpc_preparer( $ctx, $oeuvre, $tome, array( 'prologue', 'ch1' ) );
+			yume_tpc_publier( $tome, array( 'sortie' => 'rythme' ) );
+			yume_tpc_requete();
+			$ch1 = yume_tpc_id( $tome, 'Chapitre 1' );
+			$ts  = (int) strtotime( get_post_field( 'post_date_gmt', $ch1 ) . ' UTC' );
+			yume_assert_true( $ts > time(), 'chapitre 1 programmé' );
+
+			// Le chapitre 2 sort maintenant, les liens attendent le chapitre 1 programmé.
+			yume_tpc_preparer(
+				$ctx,
+				$oeuvre,
+				$tome,
+				array( 'prologue', 'ch1', 'ch2' ),
+				array(
+					'liens_dernier' => '1',
+					'lien_epub'     => 'https://www.clictune.com/t2epub',
+				)
+			);
+			$meta = get_post_meta( $tome, Service::META, true );
+			yume_assert_true( ! empty( $meta['liens_dernier'] ), 'option gardée jusqu’à la sortie' );
+			yume_assert_false( ! empty( $meta['complet'] ) );
+			yume_assert_same( 'https://www.clictune.com/t2epub', $meta['liens']['lien_epub'] ?? '' );
+			$sortie = yume_tpc_publier( $tome );
+			yume_assert_same( 'publish', get_post_status( yume_tpc_id( $tome, 'Chapitre 2' ) ) );
+			yume_assert_same( 'future', get_post_status( $ch1 ), 'le chapitre programmé n’est pas avancé' );
+			yume_assert_same( 'programme', $sortie['complet'] );
+			yume_assert_same( $ts, (int) get_post_meta( $tome, Service::META_COMPLET, true )['ts'] );
+			yume_assert_same( 'en_cours', yume_parution_tome( $tome ) );
+			yume_assert_same( '', (string) get_post_meta( $tome, 'yume_lien_epub', true ) );
+			yume_assert_false( ! empty( get_post_meta( $tome, Service::META, true )['liens_dernier'] ), 'option consommée' );
+
+			// Autre tome, rien de programmé : les liens sortent avec ce dernier chapitre, tout de suite.
+			yume_tpc_requete();
+			$t3 = yume_tpc_tome_en_cours( $ctx, $oeuvre, array( 'prologue' ), array( 'yume_numero' => 3 ) );
+			yume_tpc_preparer(
+				$ctx,
+				$oeuvre,
+				$t3,
+				array( 'prologue', 'ch1' ),
+				array(
+					'liens_dernier' => '1',
+					'lien_pdf'      => 'https://www.clictune.com/t3pdf',
+				)
+			);
+			$sortie = yume_tpc_publier( $t3 );
+			yume_assert_same( 'fait', $sortie['complet'] );
+			yume_assert_same( 'complet', yume_parution_tome( $t3 ) );
+			yume_assert_same( 'https://www.clictune.com/t3pdf', yume_liens_telechargement( $t3 )['pdf'] );
+
+			// Tome entier programmé à une date, liens avec le dernier chapitre : une sortie de tome
+			// complète à cette date (une seule annonce, « tome disponible »).
+			yume_tpc_requete();
+			$t4     = yume_tpc_tome( $oeuvre, array(), 4 );
+			$depart = ( new DateTimeImmutable( 'now', wp_timezone() ) )->modify( '+5 days' )->setTime( 18, 0 );
+			yume_tpc_preparer(
+				$ctx,
+				$oeuvre,
+				$t4,
+				array( 'prologue', 'ch1', 'ch2' ),
+				array(
+					'liens_dernier' => '1',
+					'lien_pdf'      => 'https://www.clictune.com/t4pdf',
+				)
+			);
+			$sortie = yume_tpc_publier( $t4, array( 'sortie' => 'date' ), $depart->format( 'Y-m-d\TH:i' ) );
+			yume_assert_same( 'future', get_post_status( $t4 ) );
+			yume_assert_same( 'fait', $sortie['complet'] );
+			yume_assert_same( 'complet', (string) get_post_meta( $t4, 'yume_parution', true ) );
+			yume_assert_same( '', (string) get_post_meta( $t4, Service::META_COMPLET, true ), 'pas de second passage programmé' );
+			yume_assert_same( 'https://www.clictune.com/t4pdf', (string) get_post_meta( $t4, 'yume_lien_pdf', true ), 'liens prêts, visibles à la sortie du tome (programmé, hors ligne d’ici là)' );
+			yume_assert_contains( 'Le tome sortira « Publié »', Formulaire::message_chapitres( $sortie ) );
+		}
+	)
+);
+
+yume_test(
+	'chapitres : chapitres prévus relevés quand le fichier en apporte plus (2 prévus, 4 chapitres → 4, journal), valeur saisie gardée si plus grande, relevée sinon, refus d’une valeur invalide, 0 inchangé',
+	yume_tpub(
+		function ( $ctx ) {
+			global $wpdb;
+			$editeur = yume_factory_user( 'yume_editeur' );
+			wp_set_current_user( $editeur );
+			$oeuvre = yume_tpub_oeuvre( 'SukaMoka' );
+			$tome   = yume_tpc_tome( $oeuvre, array( 'yume_chapitres_prevus' => 2 ) );
+
+			$r = yume_tpc_preparer( $ctx, $oeuvre, $tome, array( 'prologue', 'ch1', 'ch2', 'ch3' ) );
+			yume_assert_same(
+				array(
+					'avant' => 2,
+					'apres' => 4,
+					'auto'  => true,
+				),
+				$r['chapitres_prevus']
+			);
+			yume_assert_same( 4, (int) get_post_meta( $tome, 'yume_chapitres_prevus', true ) );
+			$table = \Yume\Core\Planning\table_journal();
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$ligne = $wpdb->get_row( $wpdb->prepare( "SELECT ancien, nouveau FROM {$table} WHERE tome_id = %d AND champ = 'chapitres_prevus' ORDER BY id DESC LIMIT 1", $tome ) );
+			yume_assert_same( array( '2', '4' ), array( (string) $ligne->ancien, (string) $ligne->nouveau ), 'journal du planning' );
+
+			// Valeur saisie plus grande : gardée telle quelle.
+			$r = yume_tpc_preparer( $ctx, $oeuvre, $tome, array( 'prologue', 'ch1', 'ch2', 'ch3' ), array( 'chapitres_prevus' => '15' ) );
+			yume_assert_same( 15, $r['chapitres_prevus']['apres'] );
+			yume_assert_false( $r['chapitres_prevus']['auto'] );
+			yume_assert_same( 15, (int) get_post_meta( $tome, 'yume_chapitres_prevus', true ) );
+
+			// Valeur saisie plus petite que les chapitres du tome : relevée.
+			$r = yume_tpc_preparer( $ctx, $oeuvre, $tome, array( 'prologue', 'ch1', 'ch2', 'ch3' ), array( 'chapitres_prevus' => '3' ) );
+			yume_assert_same( 4, $r['chapitres_prevus']['apres'] );
+			yume_assert_true( $r['chapitres_prevus']['auto'] );
+
+			// Valeur invalide : refusée, rien ne change.
+			$err = Service::preparer(
+				array(
+					'oeuvre_id'        => $oeuvre,
+					'tome_id'          => $tome,
+					'mode'             => Service::MODE_CHAPITRES,
+					'chapitres_prevus' => 'douze',
+				),
+				array( 'source' => yume_tpc_docx( $ctx, array( 'prologue' ) ) )
+			);
+			yume_assert_same( 'yume_chapitres_prevus_invalide', is_wp_error( $err ) ? $err->get_error_code() : '' );
+			yume_assert_same( 4, (int) get_post_meta( $tome, 'yume_chapitres_prevus', true ) );
+			$res = yume_rest(
+				'POST',
+				'/yume/v1/publications',
+				array(
+					'oeuvre_id'        => $oeuvre,
+					'tome_id'          => $tome,
+					'mode'             => 'chapitres',
+					'chapitres_prevus' => 1000,
+				),
+				$editeur,
+				array( 'source' => yume_tpc_docx( $ctx, array( 'prologue' ) ) )
+			);
+			yume_assert_same( 400, $res->get_status(), 'REST : 0 à 999' );
+			wp_set_current_user( $editeur );
+
+			// Tome sans chapitres prévus : rien n'est inventé.
+			$t3 = yume_tpc_tome( $oeuvre, array(), 3 );
+			$r  = yume_tpc_preparer( $ctx, $oeuvre, $t3, array( 'prologue', 'ch1' ) );
+			yume_assert_same( 0, $r['chapitres_prevus']['apres'] );
+			yume_assert_false( metadata_exists( 'post', $t3, 'yume_chapitres_prevus' ) );
 		}
 	)
 );

@@ -669,14 +669,17 @@ chapitres à un tome », champ caché `mode=chapitres`, `Service::MODE_CHAPITRES
   préparation du même membre sans mise à jour annule sa précédente préparation en mode chapitres. Un remplacement complet en
   attente n'est jamais appliqué par une sortie en mode chapitres.
 - **Sortie** (`publier()` avec `mode=chapitres`, options `sortie`, `intervalle`, `complet`,
-  `liens`) : les brouillons du tome (hors chapitres retirés) sortent `maintenant` (ensemble, une
+  `liens_dernier`, `liens`) : les brouillons du tome (hors chapitres retirés) sortent `maintenant` (ensemble, une
   seule annonce : `yume_tome_publie` à la première sortie, sinon `annoncer_groupe()`), `rythme`
   (un par un : dates successives de `yume_prochaine_sortie_rythme()` après le dernier chapitre
   déjà programmé et après maintenant ; sans rythme, `quand` (ou maintenant) puis tous les
   `intervalle` jours, défaut 7 ; annoncés par core à leur sortie, `yume_chapitre_publie`) ou
   `date` (ensemble à `quand`, sortie groupée programmée s'ils sont plusieurs, 400
   `yume_date_manquante` sans date) ; les chapitres déjà programmés gardent leur date (calendrier :
-  `Service::calendrier()`). Réponse : `calendrier[{id, libelle, titre, statut, date,
+  `Service::calendrier()`). Avec `complet`, `sortie` est forcée à `maintenant` : tous les
+  chapitres en attente du tome sortent, **programmés compris** (`future`), et
+  `annuler_programmations()` annule d'abord la sortie groupée et le passage « complet »
+  programmés. Réponse : `calendrier[{id, libelle, titre, statut, date,
   date_libelle, lien}]`, `mode`, `sortie`, `parution`, `complet` (`fait` | `programme` | vide),
   `complet_le`, `article_complet`, `remplacement_applique`, `en_ligne`, et en REST `message`
   (`Formulaire::message_chapitres()`).
@@ -689,7 +692,21 @@ chapitres à un tome », champ caché `mode=chapitres`, `Service::MODE_CHAPITRES
   Tome complet publié d'un coup (« Tome complet » et une seule date de sortie) :
   `yume_parution = complet`, liens posés, sortie de tome habituelle (modèle `modele_annonce`,
   planning « publié » 100 %), sans annonce « complet » en plus.
-- **Tome complet** d'un tome en cours (case « Le tome est complet avec ces chapitres »,
+- **Liens avec le dernier chapitre** (`liens_dernier`, case « Publier les liens avec le dernier
+  chapitre », ignoré avec `complet`, gardé dans `_yume_publication.liens_dernier` / `.liens` entre
+  la préparation et la sortie, remis à faux après) : le passage « complet » est programmé à la
+  date du dernier chapitre programmé du tome (nouveaux ou déjà programmés,
+  `Service::dernier_programme()`), comme ci-dessous ; rien de programmé → `marquer_complet()`
+  tout de suite ; première sortie d'un tome dont tous les chapitres sortent ensemble (une seule
+  date, rien d'autre de programmé) → tome complet publié d'un coup (paragraphe précédent), à
+  cette date. Les liens restent masqués (`yume_liens_tome_masques()`) jusqu'au passage.
+- **Chapitres prévus** (`chapitres_prevus`, entier 0 à 999, 400 `yume_chapitres_prevus_invalide`)
+  : `Service::ajuster_chapitres_prevus( int $tome_id, ?int $saisi, bool $relever )` à la
+  préparation (hors remplacement en deux temps) : valeur saisie, sinon la méta actuelle ; si elle
+  est > 0, relevée au nombre de chapitres du tome (tous statuts actifs, hors retirés) quand il est
+  plus grand ; changement journalisé (`chapitres_prevus`, privé à l'équipe). Réponse de la
+  préparation : `chapitres_prevus {avant, apres, auto}`.
+- **Tome complet** d'un tome en cours (case « Le tome est complet : tout publier maintenant »,
   `Service::marquer_complet( int $tome_id, array $liens, bool $annoncer )`, réutilisable) : liens
   `lien_pdf` / `lien_epub` posés (en mode chapitres, les liens ne sont posés qu'à ce moment ; gardés
   dans `_yume_publication.complet` / `.liens` entre la préparation et la sortie),
@@ -890,8 +907,8 @@ sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sa
 | `DELETE /tomes/(?P<id>\d+)/planning` | planning | `yume_maj_planning_tous` — retire le tome du planning (`retirer_tome()`, §7) |
 | `GET /planning/journal` | planning | public (sans notes d'équipe) |
 | `POST /publications/analyse` | publication | `yume_publier` — multipart `source` (DOCX/EPUB) → rapport sans rien créer, avec `candidats` et `decoupages` (§9) ; `plan` (JSON ou objet, §9) : découpage manuel essayé sur ce fichier ; 400 `rest_invalid_param` si le découpage est invalide ; `tome_id` (tome choisi, sinon œuvre + nature + numéro), `choix` → `comparaison` (état de chaque chapitre par rapport au tome) et `tome` (parution, rythme, dates au rythme), voir l'ajout de chapitres (§8) |
-| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) ; `plan` (JSON ou objet, §9) : découpage manuel appliqué au fichier `source` de la même requête (ignoré et signalé sans fichier) ; `sans_annonce` (booléen) : aucun article d'annonce préparé ; réponse `sans_annonce` (valeur retenue) ; tome paru avec lecture en ligne : versions en attente, rien ne change en ligne, réponse `remplacement` (§8), 409 `yume_remplacement_en_attente` si un autre membre en a déjà un ; `tome_id` : tome choisi, prioritaire, jamais renommé ; `mode` (`chapitres` : ajout de chapitres sans remplacement en deux temps, `remplacement` : explicite, absent : comportement historique), `choix`, `complet` (+ `lien_pdf`, `lien_epub` gardés pour la sortie), `annoncer` (inverse de `sans_annonce`) ; réponse `mode`, `comparaison`, `parution` et, en mode chapitres, `message` (§8) |
-| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` ; `sans_annonce` (booléen) : ajout au catalogue sans annonce (§8) ; **absent : vrai si le tome est déjà publié (`publish`) et complet, faux sinon (tome en cours de parution compris)** (même règle pour `POST /publications`) ; réponse `sans_annonce` ; en mode catalogue sur un tome qui avait déjà des chapitres en ligne : `remplacement` (true) et `en_ligne` (chapitres publiés) ; applique d'abord un remplacement de lecture en ligne en attente (§8), réponse `remplacement_applique` ; `mode=chapitres` : `sortie` (`maintenant` | `rythme` | `date`), `intervalle` (1 à 60 jours), `complet` (absent : repris de la préparation), `lien_pdf`, `lien_epub`, `annoncer` → réponse `calendrier`, `sortie`, `parution`, `complet`, `complet_le`, `article_complet`, `message` ; seules les mises à jour choisies en mode chapitres sont appliquées (§8) |
+| `POST /publications` | publication | `yume_publier` — crée le tome (brouillon) + chapitres (brouillons) ; `plan` (JSON ou objet, §9) : découpage manuel appliqué au fichier `source` de la même requête (ignoré et signalé sans fichier) ; `sans_annonce` (booléen) : aucun article d'annonce préparé ; réponse `sans_annonce` (valeur retenue) ; tome paru avec lecture en ligne : versions en attente, rien ne change en ligne, réponse `remplacement` (§8), 409 `yume_remplacement_en_attente` si un autre membre en a déjà un ; `tome_id` : tome choisi, prioritaire, jamais renommé ; `mode` (`chapitres` : ajout de chapitres sans remplacement en deux temps, `remplacement` : explicite, absent : comportement historique), `choix`, `complet` ou `liens_dernier` (+ `lien_pdf`, `lien_epub` gardés pour la sortie), `chapitres_prevus` (0 à 999, relevé d'office, §8), `annoncer` (inverse de `sans_annonce`) ; réponse `mode`, `comparaison`, `parution`, `chapitres_prevus` et, en mode chapitres, `message` (§8) |
+| `POST /publications/(?P<id>\d+)/publier` | publication | `yume_publier` — `quand` = `maintenant` ou date ISO → publie/programme tome + chapitres ; tome sans chapitre ni lien PDF/EPUB : 409 `yume_tome_vide` sauf `confirmer_vide=true` ; `sans_annonce` (booléen) : ajout au catalogue sans annonce (§8) ; **absent : vrai si le tome est déjà publié (`publish`) et complet, faux sinon (tome en cours de parution compris)** (même règle pour `POST /publications`) ; réponse `sans_annonce` ; en mode catalogue sur un tome qui avait déjà des chapitres en ligne : `remplacement` (true) et `en_ligne` (chapitres publiés) ; applique d'abord un remplacement de lecture en ligne en attente (§8), réponse `remplacement_applique` ; `mode=chapitres` : `sortie` (`maintenant` | `rythme` | `date`), `intervalle` (1 à 60 jours), `complet` (absent : repris de la préparation ; vrai : tout sort maintenant, programmés compris), `liens_dernier` (absent : repris de la préparation), `lien_pdf`, `lien_epub`, `annoncer` → réponse `calendrier`, `sortie`, `parution`, `complet`, `complet_le`, `article_complet`, `message` ; seules les mises à jour choisies en mode chapitres sont appliquées (§8) |
 | `DELETE /publications/(?P<id>\d+)/remplacement` | publication | `yume_publier` + droit de modifier le tome — annule le remplacement de lecture en ligne en attente (versions et images supprimées, rien ne change en ligne) → `{annule, message}` ; 404 `yume_remplacement_absent` s'il n'y en a pas |
 | `GET /moi` | lecteurs | connecté |
 | `GET, PUT /moi/reglages` | lecture | connecté |
