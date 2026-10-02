@@ -1297,10 +1297,6 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 	margin-block-start: 0;
 }
 
-.yn-accueil__duo {
-	gap: 24px;
-}
-
 .yn-carte-accueil {
 	gap: 12px;
 	padding: 20px 24px;
@@ -1381,6 +1377,27 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 
 .yn-actus-mini__titre a:hover {
 	color: var(--wp--preset--color--accent);
+}
+
+/* Actualités en pleine largeur (sous la section Planning) : trois colonnes, date au-dessus du
+   titre, à partir de 900 px. */
+@media (min-width: 900px) {
+	.yn-actus-mini--colonnes .wp-block-post-template {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 24px;
+	}
+
+	.yn-actus-mini--colonnes .wp-block-post {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.yn-actus-mini--colonnes .wp-block-post + .wp-block-post {
+		padding-left: 24px;
+		border-left: 1px solid var(--wp--preset--color--filet);
+	}
 }
 
 /* Bandeau « Reprendre la lecture » / communauté. */

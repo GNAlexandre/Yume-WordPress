@@ -64,6 +64,20 @@
       "w": 1440,
       "x": 0,
       "y": 6340
+    },
+    "Accueil.dc.html": {
+      "h": 2400,
+      "title": "10 · Accueil, vue lecteur : Dernières sorties puis section Planning",
+      "w": 1440,
+      "x": 0,
+      "y": 7900
+    },
+    "PagePlanning.dc.html": {
+      "h": 2600,
+      "title": "11 · Page Planning, vue lecteur : prochain tome à la une, vue Chapitres",
+      "w": 1440,
+      "x": 1520,
+      "y": 7900
     }
   },
   "createdOnFiles": {
@@ -155,6 +169,14 @@
       "w": 420,
       "x": 3040,
       "y": 5980
+    },
+    "r5": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "Côté lecteurs — planning de l’accueil et page Planning",
+      "w": 240,
+      "x": 0,
+      "y": 7600
     }
   },
   "order": [
@@ -166,7 +188,9 @@
     "PublicTome.dc.html",
     "CycleTome.dc.html",
     "EtatTome.dc.html",
-    "EtatOeuvre.dc.html"
+    "EtatOeuvre.dc.html",
+    "Accueil.dc.html",
+    "PagePlanning.dc.html"
   ],
   "pages": [],
   "title": "Publication par chapitre"

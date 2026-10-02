@@ -21,23 +21,10 @@
 <!-- wp:yume/latest-releases {"count":6} /--></section>
 <!-- /wp:group -->
 
-<!-- wp:group {"tagName":"section","align":"wide","className":"yn-accueil__duo","layout":{"type":"grid","columnCount":2,"minimumColumnWidth":"320px"}} -->
-<section class="wp-block-group alignwide yn-accueil__duo"><!-- wp:group {"className":"yn-card yn-carte-accueil","layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} -->
-<div class="wp-block-group yn-card yn-carte-accueil"><!-- wp:group {"className":"yn-section__tete","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between"}} -->
-<div class="wp-block-group yn-section__tete"><!-- wp:heading {"className":"yn-carte-accueil__titre"} -->
-<h2 class="wp-block-heading yn-carte-accueil__titre">Prochaines sorties</h2>
-<!-- /wp:heading -->
+<!-- wp:yume/planning-accueil {"align":"wide"} /-->
 
-<!-- wp:paragraph {"className":"yn-section__lien yn-lien-planning"} -->
-<p class="yn-section__lien yn-lien-planning"><a href="/planning/">Planning complet <span aria-hidden="true">→</span></a></p>
-<!-- /wp:paragraph --></div>
-<!-- /wp:group -->
-
-<!-- wp:yume/upcoming {"count":3} /--></div>
-<!-- /wp:group -->
-
-<!-- wp:group {"className":"yn-card yn-carte-accueil","layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} -->
-<div class="wp-block-group yn-card yn-carte-accueil"><!-- wp:group {"className":"yn-section__tete","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between"}} -->
+<!-- wp:group {"tagName":"section","align":"wide","className":"yn-card yn-carte-accueil yn-carte-accueil--actus","layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} -->
+<section class="wp-block-group alignwide yn-card yn-carte-accueil yn-carte-accueil--actus"><!-- wp:group {"className":"yn-section__tete","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between"}} -->
 <div class="wp-block-group yn-section__tete"><!-- wp:heading {"className":"yn-carte-accueil__titre"} -->
 <h2 class="wp-block-heading yn-carte-accueil__titre">Actualités</h2>
 <!-- /wp:heading -->
@@ -47,8 +34,8 @@
 <!-- /wp:paragraph --></div>
 <!-- /wp:group -->
 
-<!-- wp:query {"queryId":1,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false},"className":"yn-actus-mini"} -->
-<div class="wp-block-query yn-actus-mini"><!-- wp:post-template -->
+<!-- wp:query {"queryId":1,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false},"className":"yn-actus-mini yn-actus-mini--colonnes"} -->
+<div class="wp-block-query yn-actus-mini yn-actus-mini--colonnes"><!-- wp:post-template -->
 <!-- wp:post-date {"format":"j M","className":"yn-label"} /-->
 
 <!-- wp:post-title {"level":3,"isLink":true,"className":"yn-actus-mini__titre"} /-->
@@ -59,8 +46,7 @@
 <p class="yn-muted">Aucune actualité pour le moment.</p>
 <!-- /wp:paragraph -->
 <!-- /wp:query-no-results --></div>
-<!-- /wp:query --></div>
-<!-- /wp:group --></section>
+<!-- /wp:query --></section>
 <!-- /wp:group -->
 
 <!-- wp:group {"tagName":"section","align":"wide","className":"yn-card yn-bandeau-reprise","layout":{"type":"flex","flexWrap":"wrap","verticalAlignment":"center"}} -->

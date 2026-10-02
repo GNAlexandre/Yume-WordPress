@@ -1,8 +1,9 @@
 <?php
 /**
  * Blocs du planning (§10) : enregistrement, composants partagés (pastilles d'état, barres,
- * journal) et rendu des blocs publics yume/upcoming, yume/planning (onglets Tableau et
- * Calendrier : ?vue=calendrier), yume/calendrier et yume/oeuvre-planning.
+ * journal) et rendu des blocs publics yume/upcoming, yume/planning (onglets Tableau, Chapitres :
+ * ?vue=chapitres, et Calendrier : ?vue=calendrier), yume/calendrier et yume/oeuvre-planning.
+ * Le bloc yume/planning-accueil et la vitrine (à la une, chapitres) sont rendus par vitrine.php.
  * Le bloc yume/team-dashboard est rendu par equipe.php, yume/team-members par membres.php.
  *
  * Couleurs : uniquement les variables et classes du thème (§15).
@@ -21,7 +22,7 @@ function enregistrer_blocs(): void {
 	if ( ! function_exists( 'yume_register_dynamic_block' ) ) {
 		return;
 	}
-	foreach ( array( 'upcoming', 'planning', 'calendrier', 'oeuvre-planning', 'team-dashboard', 'team-members' ) as $bloc ) {
+	foreach ( array( 'upcoming', 'planning-accueil', 'planning', 'calendrier', 'oeuvre-planning', 'team-dashboard', 'team-members' ) as $bloc ) {
 		yume_register_dynamic_block( __DIR__ . '/blocks/' . $bloc );
 	}
 }
@@ -193,15 +194,17 @@ function variante_barre( array $ligne, string $etape ): string {
 /**
  * Complément du nom d'un tome : sous-titre et chapitres (« Tournoi d'échecs · chapitre 9 / 15 »).
  *
- * @param array $ligne Ligne.
+ * @param array $ligne     Ligne.
+ * @param bool  $chapitres Ajouter le prochain chapitre (faux quand la ligne « En cours · N
+ *                         chapitres sur M » le dit déjà, voir chapitres_en_cours()).
  */
-function complement_tome( array $ligne ): string {
+function complement_tome( array $ligne, bool $chapitres = true ): string {
 	$parties = array( $ligne['tome'] );
 	if ( '' !== $ligne['titre'] ) {
 		$parties[] = $ligne['titre'];
 	}
 	$chap = $ligne['chapitres'];
-	if ( 'publish' === $ligne['statut'] && $chap['total'] > $chap['publies'] && 'publie' !== $ligne['etat'] ) {
+	if ( $chapitres && 'publish' === $ligne['statut'] && $chap['total'] > $chap['publies'] && 'publie' !== $ligne['etat'] ) {
 		/* translators: 1: prochain chapitre, 2: total */
 		$parties[] = sprintf( __( 'chapitre %1$d / %2$d', 'yume-core' ), $chap['publies'] + 1, $chap['total'] );
 	}
@@ -452,11 +455,13 @@ function url_filtre( array $filtres, array $changer ): string {
 }
 
 /**
- * Vue du planning public : 'calendrier' (?vue=calendrier) ou '' (tableau).
+ * Vue du planning public : 'calendrier' (?vue=calendrier), 'chapitres' (?vue=chapitres) ou ''
+ * (tableau).
  */
 function vue_planning(): string {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- affichage en lecture seule.
-	return isset( $_GET['vue'] ) && 'calendrier' === $_GET['vue'] ? 'calendrier' : '';
+	$vue = isset( $_GET['vue'] ) && is_string( $_GET['vue'] ) ? sanitize_key( wp_unslash( $_GET['vue'] ) ) : '';
+	return in_array( $vue, array( 'calendrier', 'chapitres' ), true ) ? $vue : '';
 }
 
 /**
@@ -507,20 +512,22 @@ function chiffre( string $label, string $valeur, string $detail, string $variant
 }
 
 /**
- * Cellule d'une étape du tableau.
+ * Cellule d'une étape du tableau : pourcentage (et responsable), puis une petite barre
+ * d'avancement lisible par les lecteurs d'écran (role="progressbar" nommé par l'étape : la
+ * colonne reste compréhensible quand le tableau se présente en cartes).
  *
  * @param array  $ligne Ligne.
  * @param string $etape Étape.
  */
 function cellule_etape( array $ligne, string $etape ): string {
-	$pct = (int) $ligne['avancement'][ $etape ];
-	$nom = (string) $ligne['responsables'][ $etape ]['nom'];
-	if ( $pct > 0 || 'publie' === $ligne['etat'] ) {
-		$texte = '<span>' . esc_html( pct( 'publie' === $ligne['etat'] ? 100 : $pct ) . ( '' !== $nom ? ' · ' . $nom : '' ) ) . '</span>';
-	} else {
-		$texte = '<span class="yn-muted">' . esc_html( ( '' !== $nom ? $nom . ' · ' : '' ) . __( 'à faire', 'yume-core' ) ) . '</span>';
-	}
-	return '<div class="yn-planning__etape">' . barre( 'publie' === $ligne['etat'] ? 100 : $pct, variante_barre( $ligne, $etape ) ) . $texte . '</div>';
+	$pct    = 'publie' === $ligne['etat'] ? 100 : max( 0, min( 100, (int) $ligne['avancement'][ $etape ] ) );
+	$nom    = (string) $ligne['responsables'][ $etape ]['nom'];
+	$etapes = yume_etapes();
+	$texte  = '<span class="yn-planning__pct' . ( 0 === $pct ? ' yn-muted' : '' ) . '">' . esc_html( pct( $pct ) . ( '' !== $nom ? ' · ' . $nom : '' ) ) . '</span>';
+	$barre  = '<span class="yn-planning__progression" role="progressbar" aria-label="' . esc_attr( (string) ( $etapes[ $etape ] ?? $etape ) ) . '"'
+		. ' aria-valuemin="0" aria-valuemax="100" aria-valuenow="' . $pct . '" aria-valuetext="' . esc_attr( pct( $pct ) ) . '">'
+		. barre( $pct, variante_barre( $ligne, $etape ) ) . '</span>';
+	return '<div class="yn-planning__etape">' . $texte . $barre . '</div>';
 }
 
 /**
@@ -617,6 +624,9 @@ function rendu_planning( array $attributs ): string {
 		) . ' <a href="' . esc_url( url_filtre( $filtres, array( 'oeuvre' => '' ) ) ) . '">' . esc_html__( 'Voir toutes les œuvres', 'yume-core' ) . '</a></p>';
 	}
 
+	// Prochain tome à la une (vitrine.php).
+	$html .= rendu_a_la_une( prochain_tome() ?? array(), 'planning' );
+
 	// Chiffres clés.
 	$html  .= '<section class="yn-planning__chiffres" aria-labelledby="yn-planning-chiffres">';
 	$html  .= '<h2 id="yn-planning-chiffres" class="yn-visually-hidden">' . esc_html__( 'En bref', 'yume-core' ) . '</h2>';
@@ -651,14 +661,27 @@ function rendu_planning( array $attributs ): string {
 	$html .= chiffre( __( 'Retards', 'yume-core' ), (string) $stats['retards'], $detail, $stats['retards'] ? 'warn' : '' );
 	$html .= '</section>';
 
-	// Onglets : tableau ou calendrier mensuel (liens simples, sans JavaScript).
-	$calendrier = 'calendrier' === vue_planning();
-	$html      .= '<nav class="yn-planning__vues" aria-label="' . esc_attr__( 'Affichage du planning', 'yume-core' ) . '"><ul class="yn-planning__groupe">';
-	$html      .= lien_filtre( esc_html__( 'Tableau', 'yume-core' ), url_filtre( $filtres, array( 'vue' => '' ) ), ! $calendrier );
-	$html      .= lien_filtre( esc_html__( 'Calendrier', 'yume-core' ), url_filtre( $filtres, array( 'vue' => 'calendrier' ) ), $calendrier );
-	$html      .= '</ul></nav>';
+	// Onglets : tableau, chapitres ou calendrier mensuel (liens simples, sans JavaScript).
+	$vue   = vue_planning();
+	$html .= '<nav class="yn-planning__vues" aria-label="' . esc_attr__( 'Affichage du planning', 'yume-core' ) . '"><ul class="yn-planning__groupe">';
+	$html .= lien_filtre( esc_html__( 'Tableau', 'yume-core' ), url_filtre( $filtres, array( 'vue' => '' ) ), '' === $vue );
+	$html .= lien_filtre( esc_html__( 'Chapitres', 'yume-core' ), url_filtre( $filtres, array( 'vue' => 'chapitres' ) ), 'chapitres' === $vue );
+	$html .= lien_filtre( esc_html__( 'Calendrier', 'yume-core' ), url_filtre( $filtres, array( 'vue' => 'calendrier' ) ), 'calendrier' === $vue );
+	$html .= '</ul></nav>';
 
-	if ( $calendrier ) {
+	if ( 'chapitres' === $vue ) {
+		$html .= rendu_file_chapitres(
+			file_chapitres(
+				array(
+					'prochains'     => 10,
+					'publies'       => 10,
+					'jours_publies' => 21,
+					'oeuvre_id'     => $filtres['oeuvre'],
+				)
+			),
+			'planning'
+		);
+	} elseif ( 'calendrier' === $vue ) {
 		// Rendu par le bloc : sa feuille de style est ainsi chargée.
 		$html .= render_block(
 			array(
@@ -695,6 +718,8 @@ function rendu_planning( array $attributs ): string {
 	$html      .= '</li>';
 	$html      .= '<li><span class="yn-chip yn-chip--new yn-chip--programme"><span aria-hidden="true">◷</span> ' . esc_html__( 'Programmé', 'yume-core' ) . '</span> ' . esc_html__( 'la sortie est programmée : le tome paraîtra tout seul à cette date.', 'yume-core' ) . '</li>';
 	$html      .= '<li>' . pastille( 'publie' ) . ' ' . esc_html__( 'le tome est sorti : bonne lecture !', 'yume-core' ) . '</li>';
+	$html      .= '<li>' . pastille_en_cours() . ' ' . esc_html__( 'le tome sort chapitre par chapitre, lisible en ligne au fil des sorties.', 'yume-core' ) . '</li>';
+	$html      .= '<li>' . pastille_chapitre_programme( esc_html__( 'Chapitre programmé', 'yume-core' ) ) . ' ' . esc_html__( 'la date et l’heure de sortie du prochain chapitre.', 'yume-core' ) . '</li>';
 	$html      .= '</ul></section></div>';
 
 	return $html . '</div>';
@@ -729,15 +754,27 @@ function tableau_planning( array $lignes, array $filtres, bool $equipe ): string
 			$html .= '<th scope="col" role="columnheader">' . esc_html( $nom ) . '</th>';
 		}
 		$html .= '<th scope="col" role="columnheader">' . esc_html__( 'Sortie prévue', 'yume-core' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'État', 'yume-core' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Dernière maj', 'yume-core' ) . '</th></tr></thead><tbody role="rowgroup">';
+		// Tomes publiés chapitre par chapitre : leurs prochains chapitres programmés, en une requête.
+		$en_cours = array();
 		foreach ( $lignes as $l ) {
+			if ( est_en_cours_de_publication( $l ) ) {
+				$en_cours[ (int) $l['tome_id'] ] = true;
+			}
+		}
+		$programmes = chapitres_programmes( array_keys( $en_cours ) );
+		foreach ( $lignes as $l ) {
+			$tid    = (int) $l['tome_id'];
+			$cours  = isset( $en_cours[ $tid ] );
 			$oeuvre = esc_html( $l['oeuvre'] );
 			if ( '' !== $l['url_oeuvre'] ) {
 				$oeuvre = '<a href="' . esc_url( $l['url_oeuvre'] ) . '">' . $oeuvre . '</a>';
 			}
-			$html .= '<tr class="yn-planning__ligne yn-planning__ligne--' . esc_attr( $l['etat'] ) . '" role="row">';
-			$html .= '<th scope="row" role="rowheader"><span class="yn-planning__oeuvre">' . $oeuvre . '</span><span class="yn-muted yn-planning__tome">' . esc_html( complement_tome( $l ) ) . '</span>';
+			$html .= '<tr class="yn-planning__ligne yn-planning__ligne--' . esc_attr( $l['etat'] ) . ( $cours ? ' yn-planning__ligne--en-cours' : '' ) . '" role="row">';
+			$html .= '<th scope="row" role="rowheader"><span class="yn-planning__oeuvre">' . $oeuvre . '</span><span class="yn-muted yn-planning__tome">' . esc_html( complement_tome( $l, ! $cours ) ) . '</span>';
+			if ( $cours ) {
+				$html .= chapitres_en_cours( $l, $programmes[ $tid ] ?? null );
+			}
 			if ( $equipe ) {
-				$tid   = (int) $l['tome_id'];
 				$html .= '<a class="yn-planning__modifier" href="' . esc_url( url_vue_equipe( 'planning', array( 'tome' => $tid ) ) . '#yn-tome-' . $tid ) . '">' . esc_html__( 'Modifier dans l’espace équipe', 'yume-core' ) . '<span class="yn-visually-hidden"> : ' . esc_html( $l['oeuvre'] . ' · ' . $l['tome'] ) . '</span></a>';
 			}
 			$html .= '</th>';
@@ -753,13 +790,154 @@ function tableau_planning( array $lignes, array $filtres, bool $equipe ): string
 				$sortie = esc_html( date_cible_lisible( $l['date_cible'], 'en_retard' === $l['etat'] ) );
 			}
 			$html .= '<td role="cell" data-label="' . esc_attr__( 'Sortie prévue', 'yume-core' ) . '">' . $sortie . '</td>';
-			$html .= '<td role="cell" data-label="' . esc_attr__( 'État', 'yume-core' ) . '">' . cellule_etat( $l ) . '</td>';
+			$etat  = $cours ? '<div class="yn-planning__etats">' . pastille_en_cours() . ( 'publie' !== $l['etat'] ? cellule_etat( $l ) : '' ) . '</div>' : cellule_etat( $l );
+			$html .= '<td role="cell" data-label="' . esc_attr__( 'État', 'yume-core' ) . '">' . $etat . '</td>';
 			$html .= '<td role="cell" data-label="' . esc_attr__( 'Dernière maj', 'yume-core' ) . '"><span class="yn-muted">' . esc_html( il_y_a( (int) $l['ts_activite'] ) ) . '</span></td>';
 			$html .= '</tr>';
 		}
 		$html .= '</tbody></table>';
 	}
 	return $html . '</section>';
+}
+
+/** Au-delà de ce nombre de chapitres, la mini-barre des chapitres est continue (plus de segments). */
+const SEGMENTS_CHAPITRES_MAX = 40;
+
+/**
+ * Le tome de cette ligne est-il publié chapitre par chapitre (parution « en cours ») ?
+ *
+ * @param array $ligne Ligne (tome_id, statut).
+ */
+function est_en_cours_de_publication( array $ligne ): bool {
+	return 'publish' === ( $ligne['statut'] ?? '' ) && function_exists( 'yume_parution_tome' ) && 'en_cours' === yume_parution_tome( (int) $ligne['tome_id'] );
+}
+
+/**
+ * Pastille « En cours de publication » : le tome sort chapitre par chapitre.
+ */
+function pastille_en_cours(): string {
+	return '<span class="yn-chip yn-chip--en-cours"><span aria-hidden="true">◐</span> ' . esc_html__( 'En cours de publication', 'yume-core' ) . '</span>';
+}
+
+/**
+ * Pastille d'un chapitre programmé (« Prochain : Chapitre 3 · sam. 3 oct. 18:00 »).
+ *
+ * @param string $contenu Contenu HTML, déjà échappé.
+ */
+function pastille_chapitre_programme( string $contenu ): string {
+	return '<span class="yn-chip yn-chip--chapitre-programme"><span aria-hidden="true">◷</span> ' . $contenu . '</span>';
+}
+
+/**
+ * Chapitres programmés (statut future) d'un lot de tomes, en une requête : le prochain de chaque
+ * tome (le plus tôt) et leur nombre. Les chapitres retenus sont mis en cache (titre, méta).
+ *
+ * @param int[] $tome_ids Tomes.
+ * @return array<int,array{id:int,ts:int,nombre:int}> Par tome.
+ */
+function chapitres_programmes( array $tome_ids ): array {
+	global $wpdb;
+	$tome_ids = array_values( array_unique( array_filter( array_map( 'intval', $tome_ids ) ) ) );
+	if ( ! $tome_ids ) {
+		return array();
+	}
+	$marques = implode( ', ', array_fill( 0, count( $tome_ids ), '%s' ) );
+	$sql     = 'SELECT p.ID AS id, m.meta_value AS tome, p.post_date_gmt AS date_gmt'
+		. " FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'yume_tome_id'"
+		. " WHERE p.post_type = 'yume_chapitre' AND p.post_status = 'future' AND m.meta_value IN ($marques)"
+		. ' ORDER BY p.post_date_gmt ASC, p.ID ASC';
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	$resultats = $wpdb->get_results( $wpdb->prepare( $sql, array_map( 'strval', $tome_ids ) ) );
+	$lot       = array();
+	foreach ( (array) $resultats as $r ) {
+		$tome = (int) $r->tome;
+		if ( ! in_array( $tome, $tome_ids, true ) ) {
+			continue;
+		}
+		if ( ! isset( $lot[ $tome ] ) ) {
+			$lot[ $tome ] = array(
+				'id'     => (int) $r->id,
+				'ts'     => ts_gmt( (string) $r->date_gmt ),
+				'nombre' => 0,
+			);
+		}
+		++$lot[ $tome ]['nombre'];
+	}
+	if ( $lot ) {
+		_prime_post_caches( array_column( $lot, 'id' ), false, true );
+	}
+	return $lot;
+}
+
+/**
+ * Date courte et heure d'une sortie, fuseau du site (« sam. 3 oct. 18:00 »).
+ *
+ * @param int $ts Horodatage.
+ */
+function date_heure_chapitre( int $ts ): string {
+	if ( class_exists( '\Yume\Core\Publication\Formulaire' ) ) {
+		return \Yume\Core\Publication\Formulaire::date_fr( $ts, 'court' );
+	}
+	return (string) wp_date( 'j/m H:i', $ts, wp_timezone() );
+}
+
+/**
+ * Mini-barre des chapitres d'un tome en cours de publication (décorative : le texte voisin dit
+ * « N chapitres sur M ») : un segment par chapitre prévu, plein s'il est en ligne, cerné s'il
+ * est programmé ; continue au-delà de SEGMENTS_CHAPITRES_MAX chapitres.
+ *
+ * @param int $en_ligne   Chapitres en ligne.
+ * @param int $programmes Chapitres programmés.
+ * @param int $prevus     Chapitres prévus.
+ */
+function segments_chapitres( int $en_ligne, int $programmes, int $prevus ): string {
+	if ( $prevus > SEGMENTS_CHAPITRES_MAX ) {
+		return '<span class="yn-planning__segments yn-planning__segments--continu" aria-hidden="true">' . barre( (int) round( 100 * $en_ligne / $prevus ) ) . '</span>';
+	}
+	$html = '<span class="yn-planning__segments" aria-hidden="true">';
+	for ( $i = 0; $i < $prevus; $i++ ) {
+		if ( $i < $en_ligne ) {
+			$html .= '<span class="est-en-ligne"></span>';
+		} elseif ( $i < $en_ligne + $programmes ) {
+			$html .= '<span class="est-programme"></span>';
+		} else {
+			$html .= '<span></span>';
+		}
+	}
+	return $html . '</span>';
+}
+
+/**
+ * Ligne « chapitres » sous le titre d'un tome publié chapitre par chapitre : « En cours ·
+ * 3 chapitres sur 12 » et sa mini-barre (« 3 chapitres en ligne » sans nombre prévu), puis
+ * « Prochain : Chapitre 4 · sam. 3 oct. 18:00 » si un chapitre est programmé.
+ *
+ * @param array      $ligne     Ligne.
+ * @param array|null $programme Chapitres programmés du tome (voir chapitres_programmes()).
+ */
+function chapitres_en_cours( array $ligne, ?array $programme ): string {
+	$en_ligne = (int) ( $ligne['chapitres']['publies'] ?? 0 );
+	$prevus   = max( 0, (int) get_post_meta( (int) $ligne['tome_id'], 'yume_chapitres_prevus', true ) );
+	if ( $prevus > 0 ) {
+		$prevus = max( $prevus, $en_ligne );
+		/* translators: 1: chapitres en ligne, 2: chapitres prévus */
+		$texte = sprintf( _n( '%1$d chapitre sur %2$d', '%1$d chapitres sur %2$d', $en_ligne, 'yume-core' ), $en_ligne, $prevus );
+	} else {
+		/* translators: %d : chapitres en ligne */
+		$texte = sprintf( _n( '%d chapitre en ligne', '%d chapitres en ligne', $en_ligne, 'yume-core' ), $en_ligne );
+	}
+	$html  = '<span class="yn-planning__chapitres">';
+	$html .= '<span class="yn-planning__decompte"><b>' . esc_html__( 'En cours', 'yume-core' ) . '</b> · ' . esc_html( $texte ) . '</span>';
+	if ( $prevus > 0 ) {
+		$html .= segments_chapitres( $en_ligne, $programme ? (int) $programme['nombre'] : 0, $prevus );
+	}
+	$html .= '</span>';
+	if ( $programme && $programme['ts'] > 0 ) {
+		$libelle = function_exists( 'yume_libelle_chapitre' ) ? yume_libelle_chapitre( (int) $programme['id'] ) : '';
+		$quand   = '<time datetime="' . esc_attr( gmdate( 'c', $programme['ts'] ) ) . '">' . esc_html( date_heure_chapitre( $programme['ts'] ) ) . '</time>';
+		$html   .= pastille_chapitre_programme( esc_html__( 'Prochain :', 'yume-core' ) . ' ' . ( '' !== $libelle ? esc_html( $libelle ) . ' · ' : '' ) . $quand );
+	}
+	return $html;
 }
 
 /*

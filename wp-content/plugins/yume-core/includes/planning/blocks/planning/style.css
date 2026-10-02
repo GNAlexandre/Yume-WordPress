@@ -412,3 +412,161 @@ a.yn-planning__filtre[aria-current="true"] {
 .yn-planning .yn-planning__modifier:focus-visible {
 	text-decoration: underline;
 }
+
+/*
+ * Tableau enrichi : pourcentage au-dessus de la barre de chaque étape ; tomes publiés chapitre
+ * par chapitre (« En cours · N chapitres sur M », mini-barre des chapitres, prochain chapitre
+ * programmé) ; pastilles « En cours de publication » et « Chapitre programmé ».
+ */
+.yn-planning__pct {
+	color: var(--wp--preset--color--texte);
+	font-family: var(--wp--preset--font-family--mono);
+	font-size: 12px;
+}
+
+.yn-planning__progression {
+	display: block;
+}
+
+.yn-planning__chapitres {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	margin-top: 6px;
+	color: var(--wp--preset--color--texte);
+	font-size: 13px;
+	line-height: 1.3;
+}
+
+.yn-planning__decompte b {
+	color: var(--wp--preset--color--accent-2);
+	font-weight: 700;
+}
+
+.yn-planning__segments {
+	display: flex;
+	flex: 1 1 80px;
+	gap: 3px;
+	min-width: 60px;
+	max-width: 220px;
+}
+
+.yn-planning__segments > span {
+	flex: 1 1 0;
+	box-sizing: border-box;
+	min-width: 2px;
+	height: 6px;
+	border-radius: 2px;
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-planning__segments > .est-en-ligne {
+	background: var(--wp--preset--color--accent);
+}
+
+.yn-planning__segments > .est-programme {
+	border: 1px solid var(--wp--preset--color--accent);
+	background: transparent;
+}
+
+.yn-planning__segments--continu {
+	display: block;
+}
+
+.yn-planning__segments--continu > .yn-bar {
+	height: 6px;
+}
+
+.yn-planning .yn-chip--en-cours {
+	border-color: var(--wp--preset--color--accent-2);
+	color: var(--wp--preset--color--accent-2);
+}
+
+.yn-planning .yn-chip--chapitre-programme {
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--fond);
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-planning__table th .yn-chip--chapitre-programme {
+	margin-top: 6px;
+}
+
+.yn-planning__etats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+/*
+ * Sous 700 px : une carte par tome, sur le même balisage (titre et ligne des chapitres,
+ * pastilles d'état, trois mini-barres, puis sortie prévue et dernière mise à jour).
+ */
+@media (max-width: 699.98px) {
+	.yn-planning .yn-planning__tableau {
+		overflow: visible;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+	}
+
+	.yn-planning .yn-planning__table tbody {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.yn-planning .yn-planning__table tbody tr.yn-planning__ligne {
+		gap: 10px;
+		padding: 12px 14px;
+		border: 1px solid var(--wp--preset--color--filet);
+		border-radius: var(--yn-radius-card);
+		background: var(--wp--preset--color--carte);
+	}
+
+	.yn-planning .yn-planning__table tbody tr.yn-planning__ligne--en-cours {
+		border-left: 4px solid var(--wp--preset--color--accent-2);
+	}
+
+	.yn-planning__table tbody tr > :nth-child(6) {
+		grid-column: 1 / -1;
+		order: 1;
+	}
+
+	.yn-planning__table tbody tr > :nth-child(2),
+	.yn-planning__table tbody tr > :nth-child(3),
+	.yn-planning__table tbody tr > :nth-child(4) {
+		order: 2;
+	}
+
+	.yn-planning__table tbody tr > :nth-child(5) {
+		grid-column: span 2;
+		order: 3;
+	}
+
+	.yn-planning__table tbody tr > :nth-child(7) {
+		order: 3;
+	}
+
+	/* Les pastilles se lisent seules : pas de libellé « État » au-dessus. */
+	.yn-planning__table tbody tr > :nth-child(6)::before {
+		display: none;
+	}
+
+	.yn-planning__chapitres {
+		padding: 8px 10px;
+		border-radius: 8px;
+		background: var(--wp--preset--color--bande);
+	}
+
+	.yn-planning__segments {
+		max-width: none;
+	}
+
+	/* Sur le fond « bande » du cadre des chapitres, les cases vides prennent le filet. */
+	.yn-planning__segments > span,
+	.yn-planning__segments--continu > .yn-bar {
+		background: var(--wp--preset--color--filet);
+	}
+}
