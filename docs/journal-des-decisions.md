@@ -47,6 +47,8 @@ Détail : `docs/06-contrat-technique.md` §0 bis.
 | (v2.1.2) | 2026-09-29 | Planning à jour pour les visiteurs, commentaires pleine largeur, reprise de migration | Tag sans release |
 | v2.1.3 | 2026-09-29 | Contenu de la 2.1.2 et relance manuelle de la release | |
 | v2.1.4 | 2026-09-30 | Easter egg WordEnd (« Chtholly – Bats-toi contre ton destin ») | Tag reposé après quatre runs en échec ; run 11 réussi sur `77f6533` |
+| (v2.1.5-dev.9) | 2026-10-02 | Contenu de la PR #16 (publication chapitre par chapitre, états des tomes et des œuvres, guide Word) | Préversion (ignorée par les sites). Un premier tag v2.1.5 posé sur `0057124` (code en 2.1.5-dev.9) a échoué au contrôle des versions (run 12) |
+| v2.1.5 | 2026-10-02 | Publication chapitre par chapitre, états des tomes et des œuvres, guide Word de l'équipe | Commit de version 2.1.5 ; tag v2.1.5 reposé sur sa fusion dans `main` |
 
 ## 4. Décisions en attente
 

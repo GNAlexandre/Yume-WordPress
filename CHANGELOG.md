@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.5 — 2026-10-02
+
+- Yume Novel 2.1.5 : publication chapitre par chapitre (Nouveau tome, Ajouter des chapitres avec sortie maintenant, au rythme ou à une date, liens PDF/EPUB avec le dernier chapitre ou tout publier maintenant), Modifier le tome et Tous les tomes dans l'espace équipe, état des tomes (Planifié, En cours de publication, Publié) et des œuvres (Licenciée réversible, En pause sans rappels), affichage « En cours · 3 sur 12 » pour les lecteurs, descriptions d'image Word ignorées à l'import, guide Word de l'équipe.
+
 ## 2.1.5-dev.9 — 2026-10-02
 
 - Fin d'un tome : « Le tome est complet » publie tout maintenant (chapitres programmés compris) ; option « Publier les liens avec le dernier chapitre » (tome « Publié » à la sortie du dernier chapitre programmé) ; « Chapitres prévus » relevé d'office quand le fichier apporte plus de chapitres et modifiable dans le formulaire de publication et dans « Modifier le tome » ; docx2chapters --liens-dernier, --chapitres-prevus ; guide Word mis à jour.
