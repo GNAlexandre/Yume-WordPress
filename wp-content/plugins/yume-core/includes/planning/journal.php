@@ -3,13 +3,14 @@
  * Journal du planning (table planning_journal) : écriture, lecture, mise en forme en français
  * et regroupement des lignes d'une même mise à jour.
  *
- * Champs journalisés : etape, avancement, responsables, date_cible, bloque, bloque_raison,
+ * Champs journalisés : etape, avancement, responsables, date_cible, heure_cible, bloque, bloque_raison,
  * note_equipe (jamais publique), et les événements creation, publie (sortie complète, partielle,
  * retour en ligne, dernier chapitre), depublie, chapitre_publie, retire (tome retiré du planning), etape_forcee (équipe seulement), rappel, signalement
  * (gérants, non public), digest (non public), lecture_ajoutee (lecture en ligne d'un tome
  * déjà paru ajoutée sans annonce : équipe seulement), pause (tome mis en pause ou repris :
- * équipe seulement) et parution (état du tome choisi dans « Modifier le tome », ou changé par
- * une publication : équipe seulement).
+ * équipe seulement), parution (état du tome choisi dans « Modifier le tome », ou changé par
+ * une publication : équipe seulement) et serie_a_venir (titre d'une œuvre caché au public ou
+ * révélé, tome_id 0 : équipe seulement).
  *
  * @package Yume\Core
  */
@@ -33,7 +34,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution', 'chapitres_prevus' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution', 'chapitres_prevus', 'serie_a_venir' );
 }
 
 /**
@@ -126,7 +127,8 @@ function journaliser( int $tome_id, int $user_id, string $champ, $ancien, $nouve
 
 /**
  * Tomes dont l'historique ne doit pas apparaître publiquement : tomes privés ou à la corbeille,
- * et tomes d'une œuvre non publiée (projet pas encore annoncé).
+ * et tomes d'une œuvre non publiée (projet pas encore annoncé), sauf ceux d'une série à venir
+ * (yume_oeuvre_a_venir() : journal public sous le nom public de l'œuvre, cible_journal()).
  *
  * @return int[]
  */
@@ -156,6 +158,17 @@ function tomes_non_publics(): array {
 				'no_found_rows'    => true,
 				'suppress_filters' => true,
 			)
+		)
+	);
+	if ( $oeuvres ) {
+		update_meta_cache( 'post', $oeuvres );
+	}
+	$oeuvres = array_values(
+		array_filter(
+			$oeuvres,
+			static function ( int $id ): bool {
+				return ! yume_oeuvre_a_venir( $id );
+			}
 		)
 	);
 	if ( $oeuvres ) {
@@ -258,11 +271,13 @@ function compter_journal( array $champs, string $depuis ): int {
 
 /**
  * Cible lisible d'une ligne : « Grimgar of Fantasy and Ash T.10 » (tome supprimé : libellé
- * générique).
+ * générique). Lecture publique : nom public d'une série à venir (« Nouvelle série à venir
+ * T.1 », yume_titre_public_oeuvre()).
  *
- * @param int $tome_id Tome.
+ * @param int  $tome_id  Tome.
+ * @param bool $publique Lecture publique.
  */
-function cible_journal( int $tome_id ): string {
+function cible_journal( int $tome_id, bool $publique = false ): string {
 	if ( ! $tome_id ) {
 		return '';
 	}
@@ -270,7 +285,11 @@ function cible_journal( int $tome_id ): string {
 		return __( 'Tome supprimé', 'yume-core' );
 	}
 	$oeuvre_id = yume_get_oeuvre_id( $tome_id );
-	$oeuvre    = $oeuvre_id ? titre_brut( $oeuvre_id ) : '';
+	if ( ! $oeuvre_id ) {
+		$oeuvre = '';
+	} else {
+		$oeuvre = $publique ? yume_titre_public_oeuvre( $oeuvre_id ) : titre_brut( $oeuvre_id );
+	}
 	return trim( $oeuvre . ' ' . yume_libelle_tome( $tome_id, true ) );
 }
 
@@ -325,6 +344,11 @@ function texte_changement( $ligne, bool $equipe ): string {
 			}
 			/* translators: %s : date */
 			return sprintf( __( 'date cible : %s', 'yume-core' ), format_fr( ts_date( $date ), 'j M' ) );
+
+		case 'heure_cible':
+			$heure = is_string( $nouveau ) ? $nouveau : '';
+			/* translators: %s : heure (« 20 h ») */
+			return valider_heure( $heure ) ? sprintf( __( 'heure de sortie : %s', 'yume-core' ), heure_lisible( $heure ) ) : __( 'heure de sortie retirée', 'yume-core' );
 
 		case 'bloque':
 			return '1' === (string) $ligne->nouveau ? __( 'bloqué', 'yume-core' ) : __( 'débloqué', 'yume-core' );
@@ -460,6 +484,10 @@ function texte_changement( $ligne, bool $equipe ): string {
 			// Changement d'état d'une œuvre (oeuvres-etat.php) : équipe seulement.
 			return $equipe ? texte_etat_oeuvre_journal( is_array( $nouveau ) ? $nouveau : array() ) : '';
 
+		case 'serie_a_venir':
+			// Série à venir annoncée ou révélée (serie-a-venir.php) : équipe seulement.
+			return $equipe ? texte_serie_a_venir_journal( is_array( $nouveau ) ? $nouveau : array() ) : '';
+
 		case 'glossaire':
 			// Module glossaire (import d'un glossaire d'œuvre) : équipe seulement.
 			$infos = is_array( $nouveau ) ? $nouveau : array();
@@ -555,7 +583,7 @@ function grouper_journal( array $lignes, bool $equipe, int $max = 0 ): array {
 				'user_id' => (int) $ligne->user_id,
 				'auteur'  => nom_utilisateur( (int) $ligne->user_id ),
 				'tome_id' => (int) $ligne->tome_id,
-				'cible'   => cible_journal( (int) $ligne->tome_id ),
+				'cible'   => cible_journal( (int) $ligne->tome_id, ! $equipe ),
 				'parties' => array(),
 				'publie'  => false,
 				'type'    => $seul ? $champ : 'maj',

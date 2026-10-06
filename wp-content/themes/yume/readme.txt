@@ -3,7 +3,7 @@ Contributors: yumenovel
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 2.1.6
+Stable tag: 2.1.7
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,5 +40,5 @@ Fichiers issus des paquets @fontsource (version 5.3.0).
 
 == Changelog ==
 
-= 2.1.6 =
+= 2.1.7 =
 * Première version du thème bloc Yume v2.

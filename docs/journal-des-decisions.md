@@ -29,6 +29,7 @@ relevé du site). Les décisions encore ouvertes sont listées à la fin. Ce jou
 | 2026-10-01 | Relevé de l'état du site après la bascule, consigné dans `docs/mise-en-production.md` (section « État au 1er octobre 2026 »). | Connecteur WordPress.com, GitHub |
 | 2026-10-02 | **Fin d'un tome** : « Le tome est complet » publie tout maintenant (chapitres programmés compris) ; nouvelle option « Publier les liens avec le dernier chapitre » pour un tome donné en entier et programmé au rythme ; « Chapitres prévus » relevé d'office quand le fichier apporte plus de chapitres, et modifiable dans le formulaire de publication et dans « Modifier le tome » quel que soit l'état. | Demande de l'équipe, `CHANGELOG.md` (2.1.5-dev.9), `docs/06-contrat-technique.md` §8 |
 | 2026-10-02 | **Planning de l'accueil et page Planning** : proposition B retenue (prochain tome à la une, file des chapitres, tomes en préparation), dernières sorties gardées en tête ; livré en 2.1.6. | Maquettes validées (`docs/guide-equipe/maquettes/Accueil.dc.html`, `PagePlanning.dc.html`), `docs/06-contrat-technique.md` §7 et §10 |
+| 2026-10-06 | Recette planning : heure de sortie enregistrée avec la date cible (le rythme la reprend) ; option « Série à venir » (titre caché au public jusqu'à la première publication). | Recette de l'équipe, `docs/06-contrat-technique.md` §4 et §7, `docs/guide-equipe/procedures.md` |
 
 ## 2. Règle de livraison depuis le lancement
 

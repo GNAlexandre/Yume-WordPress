@@ -136,7 +136,7 @@ Une tâche **En attente** attend l'étape précédente : par exemple, la relectu
 | **En cours de publication** | Le tome sort chapitre par chapitre, lisible en ligne au fil des sorties. |
 | **Chapitre programmé** | La date et l'heure de sortie du prochain chapitre. |
 
-Les lecteurs voient l'étape, les pourcentages, le pseudo des responsables et la date cible. Ils ne voient jamais la note pour l'équipe. Le planning nourrit aussi la section **Planning** de l'accueil : voir « Ce que voient les lecteurs ».
+Les lecteurs voient l'étape, les pourcentages, le pseudo des responsables et la date cible, avec l'heure de sortie quand elle est connue. Ils ne voient jamais la note pour l'équipe. Le tome d'une **série à venir** y figure sous le nom affiché au public, sans le titre de l'œuvre (voir « Annoncer une nouvelle série sans dévoiler son titre »). Le planning nourrit aussi la section **Planning** de l'accueil : voir « Ce que voient les lecteurs ».
 
 ## Recevoir (ou ne plus recevoir) les rappels
 
@@ -196,7 +196,8 @@ Réservé aux éditeurs et aux gérants. Menu **Catalogue**, puis **Œuvres**.
 4. Écrivez le **Synopsis**. Une ligne vide sépare deux paragraphes.
 5. Ajoutez la couverture : JPG, PNG ou WebP, au format portrait de préférence.
 6. Si besoin, dépliez **Fiche détaillée : VO, jours de sortie, équipe, liens**.
-7. Cliquez sur **Créer en brouillon** (invisible du public) ou sur **Créer et publier** (visible tout de suite dans la bibliothèque).
+7. Pour annoncer la série sans dévoiler son titre, utilisez la section **Annonce au planning** (voir « Annoncer une nouvelle série sans dévoiler son titre »).
+8. Cliquez sur **Créer en brouillon** (invisible du public) ou sur **Créer et publier** (visible tout de suite dans la bibliothèque).
 
 > **À savoir** : publier une œuvre n'envoie aucune annonce. Seuls les tomes et les chapitres sont annoncés.
 
@@ -212,6 +213,33 @@ Réservé aux éditeurs et aux gérants. Menu **Catalogue**, puis **Œuvres**.
 4. Cliquez sur **Enregistrer**.
 
 Sur chaque ligne de la liste, vous trouvez aussi **Ajouter un tome au planning** (ouvre « Nouveau tome » avec l'œuvre déjà choisie) et **Ajouter des chapitres**.
+
+## Annoncer une nouvelle série sans dévoiler son titre
+
+Pour mettre au planning le Tome 1 d'une série dont le titre doit rester secret. Les lecteurs voient « Nouvelle série à venir » (ou le nom de votre choix) et la date, sans le titre.
+
+1. Ouvrez **Catalogue**, puis **Œuvres**, et cliquez sur **Nouvelle œuvre**. Remplissez la fiche comme d'habitude (voir « Créer une œuvre »).
+2. Dans la section **Annonce au planning**, cochez **Série à venir : cacher le titre au public**.
+3. Si vous le souhaitez, remplissez **Nom affiché au public** (par exemple « Nouvelle romance à venir »). Vide, les lecteurs voient « Nouvelle série à venir ».
+4. Cliquez sur **Créer en brouillon**. L'œuvre peut rester en brouillon jusqu'à la révélation.
+5. Sur la ligne de l'œuvre, cliquez sur **Ajouter un tome au planning**, puis créez le **Tome 1** avec sa **Date cible du tome** et son **Heure de sortie** (voir « Créer le tome »).
+
+![La section « Annonce au planning » de « Nouvelle œuvre », et la pastille « Titre caché au public » dans la liste.](images/SerieAVenirFormulaire-page.png)
+
+Ce que voient les lecteurs, partout (accueil, page Planning, calendrier ICS, flux RSS et JSON, journal public) : le nom affiché à la place du titre, sans sous-titre de tome, sans lien, sans couverture et sans bouton **Suivre l'œuvre**. La date, l'heure, l'étape et l'avancement restent visibles.
+
+![Côté lecteurs : « Nouvelle série à venir · Tome 1 » dans le planning de l'accueil et sur la page Planning.](images/SerieAVenirPublic-page.png)
+
+Dans l'espace équipe, rien n'est caché : le vrai titre s'affiche partout, avec la pastille **Titre caché au public**.
+
+Pour révéler le titre :
+
+- à la main : **Modifier** l'œuvre, décochez **Série à venir : cacher le titre au public**, puis **Enregistrer** ;
+- ou sans rien faire : le titre est révélé tout seul à la première publication de l'œuvre, ou d'un de ses tomes ou chapitres. Le journal de l'équipe le note.
+
+> **À savoir** : la case existe aussi dans **Modifier** l'œuvre, pour une œuvre déjà créée.
+
+> **Attention** : seule une série à venir apparaît au planning public en brouillon. Les autres œuvres en brouillon restent invisibles des lecteurs, leurs tomes compris.
 
 ## Gérer les genres
 
@@ -239,14 +267,21 @@ Plusieurs boutons ouvrent la même page :
 3. Si le tome a un titre, remplissez **Titre (facultatif)**.
 4. Choisissez l'**Étape de départ** du planning.
 5. Dans **Équipe et calendrier**, choisissez les responsables (traduction, relecture, édition) et la **Date cible du tome**.
-6. Indiquez les **Chapitres prévus (facultatif)** : le site affichera alors « 3 chapitres sur 12 en ligne ».
-7. Choisissez le **Rythme (facultatif)** : un jour de la semaine et une **Heure de sortie** (18 h par défaut). Le site proposera alors la date du chapitre suivant. « Libre » : aucune date proposée.
-8. Relisez **Ce qui sera créé**, à droite.
-9. Cliquez sur **Créer le tome** (ouvre la fiche du tome) ou sur **Créer le tome et ajouter un chapitre** (ouvre « Ajouter des chapitres » avec ce tome).
+6. À côté, vérifiez l'**Heure de sortie**. 18:00 est proposé : changez-la si le tome sort à une autre heure. Si l'heure n'est pas encore connue, videz le champ.
+7. Indiquez les **Chapitres prévus (facultatif)** : le site affichera alors « 3 chapitres sur 12 en ligne ».
+8. Choisissez le **Rythme (facultatif)** : un jour de la semaine, ou « Libre ». Avec un jour, le site proposera la date du chapitre suivant. « Libre » : aucune date proposée.
+9. Relisez **Ce qui sera créé**, à droite.
+10. Cliquez sur **Créer le tome** (ouvre la fiche du tome) ou sur **Créer le tome et ajouter un chapitre** (ouvre « Ajouter des chapitres » avec ce tome).
 
 > **À savoir** : rien n'est encore lisible. Aucune annonce, aucun e-mail. Le tome apparaît au planning et sur la fiche de l'œuvre comme « à paraître ».
 
 > **Astuce** : si l'œuvre a déjà un tome de même nature et de même numéro, sa fiche s'ouvre au lieu d'en créer un second. Pas de doublon possible.
+
+> **À savoir** : le **Rythme** n'a plus son propre champ d'heure : il reprend l'**Heure de sortie** du tome. L'heure est toujours enregistrée, même avec le rythme « Libre ».
+
+![« Date cible du tome » et « Heure de sortie » côte à côte : l'heure est gardée, même avec le rythme « Libre ».](images/HeureSortie-page.png)
+
+> **Nouveau** : quand l'heure est connue, les lecteurs la voient avec la date, par exemple « sam. 10 oct. · 20 h » : page Planning, bandeau **À la une : prochain tome** de l'accueil (« Aujourd'hui à 20 h » le jour même) et calendrier ICS. Sans heure, seule la date s'affiche.
 
 ## Comprendre la parution d'un tome
 
@@ -549,10 +584,15 @@ Réservé aux éditeurs et aux gérants. La fiche d'un tome s'ouvre dans l'espac
 ![La fiche « Modifier le tome » : informations, chapitres, couverture, tome complet et planning.](images/TomeEnCours-contenu.png)
 
 1. Ouvrez la fiche du tome (**Modifier**).
-2. Changez ce qu'il faut : œuvre, nature, numéro, titre, responsables, date cible, **Chapitres prévus**, **Rythme**. Ces deux derniers champs sont dans la section **Le tome** : ils se corrigent quel que soit l'état du tome (par exemple 6 prévus, mais le DOCX donne 15 chapitres).
-3. Les **Crédits affichés sur la page du tome** : **Crédit traduction**, **Crédit relecture**, **Crédit édition / couverture**.
-4. Pour la couverture : **Changer la couverture (facultatif)**. JPG, PNG ou WebP, au format portrait de préférence. Sans couverture propre, celle de l'œuvre est affichée.
-5. Cliquez sur **Enregistrer**.
+2. Changez ce qu'il faut : œuvre, nature, numéro, titre, responsables, **Chapitres prévus**, **Rythme**. Ces deux derniers champs sont dans la section **Le tome** : ils se corrigent quel que soit l'état du tome (par exemple 6 prévus, mais le DOCX donne 15 chapitres).
+3. Pour la sortie : **Date cible du tome** et, à côté, **Heure de sortie**. Laissez l'heure vide si elle n'est pas encore connue.
+4. Les **Crédits affichés sur la page du tome** : **Crédit traduction**, **Crédit relecture**, **Crédit édition / couverture**.
+5. Pour la couverture : **Changer la couverture (facultatif)**. JPG, PNG ou WebP, au format portrait de préférence. Sans couverture propre, celle de l'œuvre est affichée.
+6. Cliquez sur **Enregistrer**.
+
+> **À savoir** : le **Rythme** (un jour ou « Libre ») reprend l'**Heure de sortie** : changer l'heure change aussi l'heure des chapitres proposés au rythme. Un tome déjà programmé garde sa date et son heure de publication.
+
+![« Modifier le tome » : la couverture changée et l'heure de sortie gardée.](images/HeureModifier-page.png)
 
 Le résumé **Planning** (étape, avancement) a un lien **Ouvrir dans le planning**. Tout en bas, **Édition avancée (administration WordPress)** ouvre l'ancien écran (rarement utile).
 
@@ -665,7 +705,7 @@ En haut, **Dernières sorties** ne change pas : les derniers tomes et chapitres 
 
 ![La section « Planning » de l'accueil : le prochain tome à la une, puis les chapitres et les tomes en préparation.](images/Accueil-planning.png)
 
-- **À la une : prochain tome** : la couverture, l'œuvre, le tome, la date de sortie et un compte à rebours (« J-2 »). À droite, les barres **Traduction**, **Relecture** et **Édition**. Les boutons **Suivre l'œuvre** et **Voir la fiche**.
+- **À la une : prochain tome** : la couverture, l'œuvre, le tome, la date de sortie avec son heure quand elle est connue, et un compte à rebours (« J-2 », ou « Aujourd'hui à 20 h » le jour même). À droite, les barres **Traduction**, **Relecture** et **Édition**. Les boutons **Suivre l'œuvre** et **Voir la fiche**.
 - **Chapitres en lecture**, à gauche :
   - les tomes publiés chapitre par chapitre, avec leur progression (« 3 / 12 ») et leur rythme (« Chaque samedi à 18 h ») ;
   - **Prochains · programmés** : les prochains chapitres programmés, avec leur date et le bouton **Me prévenir** ;
@@ -677,6 +717,8 @@ En haut, **Dernières sorties** ne change pas : les derniers tomes et chapitres 
 Les deux colonnes ont la même hauteur. Sur téléphone, elles deviennent deux onglets : **Chapitres** et **Tomes**. Viennent ensuite, sans changement, les **Actualités**, le Discord et **Nos partenaires**.
 
 > **À savoir** : seules les œuvres publiques apparaissent. Un chapitre retiré (licence, retour d'un tome à « Planifié ») n'apparaît jamais.
+
+> **À savoir** : une **série à venir** apparaît aussi, même en brouillon, mais sous son nom affiché (« Nouvelle série à venir » par défaut) : sans titre, sans couverture, sans lien et sans bouton **Suivre l'œuvre**. Voir « Annoncer une nouvelle série sans dévoiler son titre ».
 
 ## La page Planning
 
@@ -693,6 +735,8 @@ La page **yumenovel.fr/planning/** garde tout ce qu'elle montrait : l'introducti
 ![Les trois vues et le tableau : barres d'avancement, tomes en cours de publication et prochain chapitre.](images/PagePlanning-vues.png)
 
 La vue **Chapitres** remplace le tableau par la file des chapitres, groupée par jour : les prochains chapitres programmés, le repère « Aujourd'hui », puis les chapitres publiés. Un encadré rappelle que **les sorties de tomes sont aussi dans le calendrier ICS** (les chapitres n'y sont pas).
+
+Les dates de sortie des tomes portent leur heure quand l'équipe l'a saisie (« sam. 10 oct. · 20 h ») : dans le tableau, dans le bandeau à la une et dans le calendrier ICS, où la sortie devient un événement à l'heure dite (sans heure : un événement sur la journée entière).
 
 ![La vue « Chapitres » de la page Planning.](images/PagePlanning-chapitres.png)
 
@@ -717,14 +761,14 @@ L'accueil montre les 3 prochains chapitres programmés. À sa sortie, le chapitr
 
 Le site choisit tout seul le tome à la une : le tome à venir dont la date de sortie est la plus proche. Pour qu'un tome y figure :
 
-1. Donnez-lui une **Date cible** au planning (dans **Mes tâches** ou dans **Modifier le tome**), ou programmez sa sortie avec **Ajouter des chapitres** (**À une date**).
+1. Donnez-lui une **Date cible** au planning (dans **Mes tâches** ou dans **Modifier le tome**, avec son **Heure de sortie**), ou programmez sa sortie avec **Ajouter des chapitres** (**À une date**).
 2. Vérifiez qu'aucun autre tome à venir n'a une date plus proche.
 
 La date programmée compte en priorité ; sinon, c'est la date cible.
 
 > **Attention** : un tome **bloqué** n'est jamais à la une. Le tome suivant prend sa place jusqu'à ce que **Tome bloqué** soit décoché.
 
-> **À savoir** : un tome déjà en cours de publication chapitre par chapitre n'est pas à la une : il apparaît dans **Chapitres en lecture**. Un tome publié, ou d'une œuvre qui n'est pas publique, n'y est jamais non plus.
+> **À savoir** : un tome déjà en cours de publication chapitre par chapitre n'est pas à la une : il apparaît dans **Chapitres en lecture**. Un tome publié, ou d'une œuvre qui n'est pas publique, n'y est jamais non plus. Exception : le tome d'une **série à venir** peut être à la une, sous le nom affiché au public.
 
 ## La fiche d'une œuvre
 

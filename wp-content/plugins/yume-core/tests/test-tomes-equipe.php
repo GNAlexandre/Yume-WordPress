@@ -1284,7 +1284,8 @@ yume_tte_test(
 		foreach ( array( 'name="nature"', 'name="numero"', 'name="titre"', 'name="date_cible"', 'name="etape"', 'name="responsables[traduction]"', 'name="responsables[relecture]"', 'name="responsables[edition]"', 'name="chapitres_prevus"', 'name="rythme_jour"' ) as $champ ) {
 			yume_assert_contains( $champ, $html, $champ );
 		}
-		yume_assert_contains( 'type="time" id="yn-nt-heure" name="rythme_heure" value="18:00"', $html, 'heure par défaut' );
+		yume_assert_contains( 'type="time" id="yn-nt-heure" name="heure_cible" value="18:00"', $html, 'heure de sortie : 18:00 proposé' );
+		yume_assert_not_contains( 'name="rythme_heure"', $html, 'le rythme n’a plus son propre champ d’heure' );
 		yume_assert_contains( '<option value="" selected=\'selected\'>Libre</option>', $html, 'rythme libre par défaut' );
 		yume_assert_contains( '<option value="samedi">Chaque samedi</option>', $html );
 		yume_assert_contains( 'name="suite" value="chapitre">Créer le tome et ajouter un chapitre</button>', $html );

@@ -120,8 +120,8 @@ function erreur( string $code, string $message, int $statut, array $donnees = ar
 /**
  * Valide et assainit une saisie de planning. Seules les clés présentes sont renvoyées.
  *
- * @param array $saisie  etape, avancement (partiel), date_cible, bloque, bloque_raison,
- *                       responsables (partiel), note_equipe.
+ * @param array $saisie  etape, avancement (partiel), date_cible, heure_cible (HH:MM, vide :
+ *                       non précisée), bloque, bloque_raison, responsables (partiel), note_equipe.
  * @param int   $user_id Auteur (droits sur responsables et note).
  * @param bool  $forcer  Écriture système (aucun contrôle de droits).
  * @return array<string,mixed>|\WP_Error
@@ -160,6 +160,15 @@ function valider_saisie( array $saisie, int $user_id, bool $forcer = false ) {
 			return erreur( 'yume_date_invalide', __( 'Date cible invalide (format attendu : AAAA-MM-JJ).', 'yume-core' ), 400 );
 		}
 		$propre['date_cible'] = $date;
+	}
+
+	if ( array_key_exists( 'heure_cible', $saisie ) ) {
+		$brute = is_scalar( $saisie['heure_cible'] ) ? trim( (string) $saisie['heure_cible'] ) : null;
+		$heure = null === $brute ? '' : \Yume\Core\Core\san_heure( $brute );
+		if ( null === $brute || ( '' === $heure && '' !== $brute ) ) {
+			return erreur( 'yume_heure_invalide', __( 'Heure de sortie : format attendu HH:MM.', 'yume-core' ), 400 );
+		}
+		$propre['heure_cible'] = $heure;
 	}
 
 	if ( array_key_exists( 'bloque', $saisie ) ) {
@@ -381,7 +390,8 @@ function etapes_proposees( int $tome_id, string $courante, int $user_id ): array
  * Met à jour le planning d'un tome.
  *
  * Écrit les champs modifiés, puis yume_derniere_maj et yume_maj_par, journalise chaque champ
- * modifié (note d'équipe non publique) et émet yume_planning_mis_a_jour.
+ * modifié (note d'équipe non publique) et émet yume_planning_mis_a_jour. Une nouvelle heure de
+ * sortie (heure_cible) devient aussi l'heure du rythme des chapitres, s'il y en a un.
  *
  * @param int   $tome_id Tome.
  * @param array $saisie  Voir valider_saisie().
@@ -444,7 +454,7 @@ function mettre_a_jour( int $tome_id, array $saisie, int $user_id, array $option
 		}
 	}
 	$apres  = array();
-	$champs = array( 'etape', 'avancement', 'responsables', 'date_cible', 'bloque', 'bloque_raison', 'note_equipe' );
+	$champs = array( 'etape', 'avancement', 'responsables', 'date_cible', 'heure_cible', 'bloque', 'bloque_raison', 'note_equipe' );
 	foreach ( $champs as $champ ) {
 		if ( ! array_key_exists( $champ, $propre ) ) {
 			continue;
@@ -471,6 +481,9 @@ function mettre_a_jour( int $tome_id, array $saisie, int $user_id, array $option
 			'ancien'  => $avant[ $champ ],
 			'nouveau' => $valeur,
 		);
+	}
+	if ( isset( $changements['heure_cible'] ) ) {
+		caler_heure_rythme( $tome_id, (string) $changements['heure_cible']['nouveau'] );
 	}
 
 	if ( $changements || $evenements || $options['toujours_dater'] ) {
@@ -617,13 +630,74 @@ function valider_rythme( $valeur ) {
 }
 
 /**
+ * Heure de sortie saisie (non validée) : champ « heure_cible », sinon, pour les formulaires et
+ * appels anciens, l'heure du rythme (« rythme[heure] » ; formulaires : « rythme_heure »), même
+ * avec un rythme « Libre » ; null si aucune heure n'est saisie.
+ *
+ * @param array $saisie heure_cible, rythme (array{jour?, heure?} ou objet).
+ * @return mixed|null
+ */
+function heure_cible_saisie( array $saisie ) {
+	if ( array_key_exists( 'heure_cible', $saisie ) && null !== $saisie['heure_cible'] ) {
+		return $saisie['heure_cible'];
+	}
+	$rythme = $saisie['rythme'] ?? null;
+	$rythme = is_object( $rythme ) ? (array) $rythme : $rythme;
+	if ( is_array( $rythme ) && is_scalar( $rythme['heure'] ?? null ) && '' !== trim( (string) $rythme['heure'] ) ) {
+		return trim( (string) $rythme['heure'] );
+	}
+	return null;
+}
+
+/**
+ * Rythme de sortie saisi, à l'heure de sortie du tome : le jour vient du rythme (vide :
+ * libre), l'heure est l'heure de sortie (18:00 si elle n'est pas précisée).
+ *
+ * @param mixed  $valeur Rythme saisi (array{jour?, heure?}, objet ou vide ; heure ignorée).
+ * @param string $heure  Heure de sortie validée (HH:MM ou vide).
+ * @return array{jour:string,heure:string}|string|\WP_Error
+ */
+function rythme_saisi( $valeur, string $heure ) {
+	$valeur = is_object( $valeur ) ? (array) $valeur : $valeur;
+	if ( is_array( $valeur ) ) {
+		unset( $valeur['heure'] );
+	}
+	$rythme = valider_rythme( $valeur );
+	if ( is_array( $rythme ) && valider_heure( $heure ) ) {
+		$rythme['heure'] = $heure;
+	}
+	return $rythme;
+}
+
+/**
+ * L'heure du rythme des chapitres suit l'heure de sortie du tome (18:00 si elle est retirée) ;
+ * rien pour un tome sans rythme (sortie libre).
+ *
+ * @param int    $tome_id Tome.
+ * @param string $heure   Heure de sortie (HH:MM ou vide).
+ */
+function caler_heure_rythme( int $tome_id, string $heure ): void {
+	$rythme = get_post_meta( $tome_id, 'yume_rythme', true );
+	if ( ! is_array( $rythme ) || empty( $rythme['jour'] ) ) {
+		return;
+	}
+	$heure = valider_heure( $heure ) ? $heure : '18:00';
+	if ( ( $rythme['heure'] ?? '' ) !== $heure ) {
+		$rythme['heure'] = $heure;
+		update_post_meta( $tome_id, 'yume_rythme', $rythme );
+	}
+}
+
+/**
  * Ajoute un tome au planning (brouillon) : œuvre, nature, numéro, titre facultatif,
  * responsables, date cible, étape de départ, chapitres prévus et rythme de sortie
  * (facultatifs). Parution « à paraître » : aucun chapitre n'est encore lisible.
  *
- * @param array $saisie  oeuvre_id, nature, numero, titre, responsables, date_cible, etape,
- *                       chapitres_prevus (entier, 0 : inconnu), rythme (array{jour, heure} ;
- *                       jour vide : libre).
+ * @param array $saisie  oeuvre_id, nature, numero, titre, responsables, date_cible,
+ *                       heure_cible (HH:MM, vide : non précisée ; à défaut, l'heure du rythme
+ *                       envoyée par un appel ancien), etape, chapitres_prevus (entier, 0 :
+ *                       inconnu), rythme (array{jour} ; jour vide : libre ; son heure est
+ *                       l'heure de sortie, 18:00 par défaut).
  * @param int   $user_id Auteur (capacité yume_maj_planning_tous).
  * @return int|\WP_Error ID du tome créé ; erreur yume_tome_existe (409, données tome_id) si
  *                       l'œuvre a déjà un tome de même nature et de même numéro.
@@ -642,6 +716,10 @@ function ajouter_tome( array $saisie, int $user_id ) {
 	$titre     = $identite['titre'];
 
 	$planning = array_intersect_key( $saisie, array_flip( array( 'responsables', 'date_cible', 'etape' ) ) );
+	$heure    = heure_cible_saisie( $saisie );
+	if ( null !== $heure ) {
+		$planning['heure_cible'] = $heure;
+	}
 	if ( isset( $planning['etape'] ) && 'publie' === $planning['etape'] ) {
 		return erreur( 'yume_etape_invalide', __( 'Un tome ajouté au planning n’est pas encore publié.', 'yume-core' ), 400 );
 	}
@@ -653,7 +731,7 @@ function ajouter_tome( array $saisie, int $user_id ) {
 	if ( is_wp_error( $prevus ) ) {
 		return $prevus;
 	}
-	$rythme = valider_rythme( $saisie['rythme'] ?? '' );
+	$rythme = rythme_saisi( $saisie['rythme'] ?? '', (string) ( $propre['heure_cible'] ?? '' ) );
 	if ( is_wp_error( $rythme ) ) {
 		return $rythme;
 	}
@@ -690,6 +768,9 @@ function ajouter_tome( array $saisie, int $user_id ) {
 	}
 	if ( ! empty( $propre['date_cible'] ) ) {
 		$meta['yume_date_cible'] = $propre['date_cible'];
+	}
+	if ( ! empty( $propre['heure_cible'] ) ) {
+		$meta['yume_heure_cible'] = $propre['heure_cible'];
 	}
 	if ( $prevus > 0 ) {
 		$meta['yume_chapitres_prevus'] = $prevus;

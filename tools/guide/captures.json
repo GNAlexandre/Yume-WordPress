@@ -114,5 +114,25 @@
 		"zones": {
 			"page": [ "body > div > *" ]
 		}
+	},
+	"HeureSortie": {
+		"zones": {
+			"page": [ "x-dc > div > *" ]
+		}
+	},
+	"HeureModifier": {
+		"zones": {
+			"page": [ "x-dc > div > *" ]
+		}
+	},
+	"SerieAVenirFormulaire": {
+		"zones": {
+			"page": [ "x-dc > div > *" ]
+		}
+	},
+	"SerieAVenirPublic": {
+		"zones": {
+			"page": [ "x-dc > div > *" ]
+		}
 	}
 }

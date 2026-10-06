@@ -78,6 +78,34 @@
       "w": 1440,
       "x": 1520,
       "y": 7900
+    },
+    "HeureSortie.dc.html": {
+      "x": 0,
+      "y": 10540,
+      "w": 1440,
+      "h": 1100,
+      "title": "Heure de sortie : Nouveau tome"
+    },
+    "HeureModifier.dc.html": {
+      "x": 1520,
+      "y": 10540,
+      "w": 1440,
+      "h": 1100,
+      "title": "Heure de sortie : Modifier le tome"
+    },
+    "SerieAVenirFormulaire.dc.html": {
+      "x": 0,
+      "y": 11760,
+      "w": 1440,
+      "h": 1300,
+      "title": "Série à venir : Nouvelle œuvre"
+    },
+    "SerieAVenirPublic.dc.html": {
+      "x": 1520,
+      "y": 11760,
+      "w": 1440,
+      "h": 1500,
+      "title": "Série à venir : côté lecteurs"
     }
   },
   "createdOnFiles": {
@@ -190,7 +218,11 @@
     "EtatTome.dc.html",
     "EtatOeuvre.dc.html",
     "Accueil.dc.html",
-    "PagePlanning.dc.html"
+    "PagePlanning.dc.html",
+    "HeureSortie.dc.html",
+    "HeureModifier.dc.html",
+    "SerieAVenirFormulaire.dc.html",
+    "SerieAVenirPublic.dc.html"
   ],
   "pages": [],
   "title": "Publication par chapitre"

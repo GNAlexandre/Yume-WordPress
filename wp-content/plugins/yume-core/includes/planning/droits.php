@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string[]
  */
 function metas_planning_protegees(): array {
-	return array( 'yume_etape', 'yume_avancement', 'yume_responsables', 'yume_date_cible', 'yume_bloque', 'yume_bloque_raison', 'yume_derniere_maj', 'yume_maj_par' );
+	return array( 'yume_etape', 'yume_avancement', 'yume_responsables', 'yume_date_cible', 'yume_heure_cible', 'yume_bloque', 'yume_bloque_raison', 'yume_derniere_maj', 'yume_maj_par' );
 }
 
 /**

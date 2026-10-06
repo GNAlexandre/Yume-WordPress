@@ -543,6 +543,7 @@ function boite_planning( \WP_Post $post ): void {
 
 	echo '<div class="yume-colonnes">';
 	champ( 'yume-date-cible', 'yume[date_cible]', __( 'Date de sortie visée', 'yume-core' ), get_post_meta( $id, 'yume_date_cible', true ), 'date', $lecture ? array( 'disabled' => true ) : array() );
+	champ( 'yume-heure-cible', 'yume[heure_cible]', __( 'Heure de sortie', 'yume-core' ), get_post_meta( $id, 'yume_heure_cible', true ), 'time', $lecture ? array( 'disabled' => true ) : array( 'step' => 60 ) );
 	echo '<p class="yume-champ yume-champ--case"><label for="yume-bloque"><input type="checkbox" id="yume-bloque" name="yume[bloque]" value="1"' . checked( $bloque, true, false ) . ( $lecture ? ' disabled' : '' ) . ' /> ' . esc_html__( 'Tome bloqué', 'yume-core' ) . '</label></p>';
 	champ( 'yume-bloque-raison', 'yume[bloque_raison]', __( 'Raison du blocage', 'yume-core' ), get_post_meta( $id, 'yume_bloque_raison', true ), 'text', $lecture ? array( 'disabled' => true ) : array() );
 	echo '</div>';
@@ -637,6 +638,8 @@ function normaliser_planning( string $cle, $valeur ) {
 			return san_enum( $valeur, array_keys( yume_etapes() ), 'a_faire' );
 		case 'yume_date_cible':
 			return san_date( $valeur );
+		case 'yume_heure_cible':
+			return san_heure( $valeur );
 		case 'yume_note_equipe':
 			return san_texte_long( $valeur );
 		default:
@@ -652,7 +655,7 @@ function normaliser_planning( string $cle, $valeur ) {
  */
 function valeurs_planning( int $post_id ): array {
 	$valeurs = array();
-	foreach ( array( 'yume_etape', 'yume_avancement', 'yume_responsables', 'yume_date_cible', 'yume_bloque', 'yume_bloque_raison', 'yume_note_equipe' ) as $cle ) {
+	foreach ( array( 'yume_etape', 'yume_avancement', 'yume_responsables', 'yume_date_cible', 'yume_heure_cible', 'yume_bloque', 'yume_bloque_raison', 'yume_note_equipe' ) as $cle ) {
 		$valeurs[ $cle ] = normaliser_planning( $cle, get_post_meta( $post_id, $cle, true ) );
 	}
 	return $valeurs;
@@ -674,6 +677,10 @@ function enregistrer_planning( int $post_id ): void {
 		'yume_bloque'        => san_booleen( saisie( 'bloque' ) ),
 		'yume_bloque_raison' => san_texte( saisie( 'bloque_raison' ) ),
 	);
+	// Heure de sortie : seulement si le champ est envoyé (formulaire antérieur : heure gardée).
+	if ( null !== saisie( 'heure_cible' ) ) {
+		$nouveau['yume_heure_cible'] = san_heure( saisie( 'heure_cible' ) );
+	}
 	if ( current_user_can( 'yume_maj_planning' ) && null !== saisie( 'note_equipe' ) ) {
 		$nouveau['yume_note_equipe'] = san_texte_long( saisie( 'note_equipe' ) );
 	}
@@ -749,6 +756,10 @@ function enregistrer_planning( int $post_id ): void {
 	}
 	if ( ! $changements ) {
 		return;
+	}
+	// L'heure du rythme des chapitres suit l'heure de sortie (module planning).
+	if ( isset( $changements['heure_cible'] ) && function_exists( '\\Yume\\Core\\Planning\\caler_heure_rythme' ) ) {
+		\Yume\Core\Planning\caler_heure_rythme( $post_id, (string) $changements['heure_cible']['nouveau'] );
 	}
 	update_post_meta( $post_id, 'yume_derniere_maj', current_time( 'mysql', true ) );
 	update_post_meta( $post_id, 'yume_maj_par', $user_id );

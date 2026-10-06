@@ -44,8 +44,12 @@ function yume_planning_etat( int $tome_id ): string {
  * 'statut' (statut WordPress), 'url' (tome publié), 'bloque', 'bloque_raison', 'motif_retard'
  * ('date'|'inactivite'|''), 'jours_retard', 'chapitres' (['publies','total']), 'date_sortie'
  * (GMT, tome publié), 'maj_par' (['id','nom']), 'ts_activite', 'programme' (bool : tome
- * programmé, statut future) et 'date_programmee' (Y-m-d, heure de Paris, ou '') ; pour un tome
- * programmé, 'date_cible' est le jour de sortie programmé.
+ * programmé, statut future), 'date_programmee' (Y-m-d, heure de Paris, ou ''), 'heure_cible'
+ * (heure de sortie HH:MM, heure du site, ou '' si elle n'est pas précisée) et 'titre_cache'
+ * (bool : œuvre « série à venir », yume_oeuvre_a_venir()) ; pour un tome programmé,
+ * 'date_cible' et 'heure_cible' sont le jour et l'heure de sortie programmés. Vue publique : une
+ * ligne au titre caché a pour 'oeuvre' le nom public (yume_titre_public_oeuvre()), 'titre',
+ * 'url' et 'url_oeuvre' vides.
  *
  * Tri : tomes en cours par date cible (sans date en dernier), puis tomes publiés du plus récent
  * au plus ancien.
@@ -54,7 +58,8 @@ function yume_planning_etat( int $tome_id ): string {
  *                    les tomes publiés), 'limit' (0 = tout), 'inclure_publies_depuis' (jours,
  *                    défaut 14 ; 0 = aucun tome publié) ; extensions : 'responsable' (ID : tomes
  *                    dont il est responsable), 'public' (bool, défaut vrai : exclut les tomes
- *                    privés et ceux d'une œuvre non publiée) ; 'gestion' (bool) : vue de gestion
+ *                    privés et ceux d'une œuvre non publiée, sauf une série à venir) ;
+ *                    'gestion' (bool) : vue de gestion
  *                    de l'équipe, TOUS les tomes vivants (draft, future, pending, publish,
  *                    private) de toutes les œuvres quels que soient leur étape et leur âge
  *                    (a_venir, inclure_publies_depuis et public ignorés), filtrables par
@@ -76,8 +81,8 @@ function yume_get_planning( array $args = array() ): array {
  *
  * @param int    $tome_id ID du tome.
  * @param int    $user_id Auteur (0 = système).
- * @param string $champ   Champ modifié (etape, avancement, responsables, date_cible, bloque,
- *                        bloque_raison, note_equipe…).
+ * @param string $champ   Champ modifié (etape, avancement, responsables, date_cible,
+ *                        heure_cible, bloque, bloque_raison, note_equipe…).
  * @param mixed  $ancien  Ancienne valeur.
  * @param mixed  $nouveau Nouvelle valeur.
  */

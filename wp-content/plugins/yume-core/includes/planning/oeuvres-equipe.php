@@ -261,6 +261,7 @@ function saisie_oeuvre( array $post ): array {
 	$liens    = champ_post( $post, 'liens' );
 	$nb_tomes = \Yume\Core\Core\san_entier( champ_post( $post, 'nb_tomes_vo' ) );
 	$publier  = champ_post( $post, 'publier' );
+	$a_venir  = champ_post( $post, 'serie_a_venir' );
 	return array(
 		'titre'             => $texte( 'titre' ),
 		'titres_alt'        => \Yume\Core\Core\san_liste_textes( is_scalar( $alt ) ? (string) $alt : '' ),
@@ -281,6 +282,8 @@ function saisie_oeuvre( array $post ): array {
 		'liens'             => \Yume\Core\Core\san_liens( is_array( $liens ) ? array_values( $liens ) : array() ),
 		'publier'           => '1' === ( is_scalar( $publier ) ? (string) $publier : '' ),
 		'cadrage'           => cadrage_saisi( $post ),
+		'serie_a_venir'     => '1' === ( is_scalar( $a_venir ) ? (string) $a_venir : '' ),
+		'libelle_a_venir'   => \Yume\Core\Core\san_libelle_a_venir( champ_post( $post, 'libelle_a_venir' ) ),
 	);
 }
 
@@ -341,6 +344,8 @@ function valeurs_oeuvre( int $id ): array {
 		'liens'             => \Yume\Core\Core\san_liens( (array) $meta( 'yume_liens' ) ),
 		'publier'           => false,
 		'cadrage'           => yume_cadrage_couverture( yume_get_cover_id( $id ) ),
+		'serie_a_venir'     => yume_oeuvre_a_venir( $id ),
+		'libelle_a_venir'   => (string) $meta( META_LIBELLE_A_VENIR ),
 	);
 }
 
@@ -450,6 +455,8 @@ function enregistrer_champs_oeuvre( int $id, array $saisie, ?array $fichier, int
 	if ( null !== $saisie['cadrage'] ) {
 		yume_enregistrer_cadrage( yume_get_cover_id( $id ), $saisie['cadrage'] );
 	}
+	// Annonce au planning : série à venir, titre caché au public (serie-a-venir.php).
+	enregistrer_serie_a_venir( $id, (bool) $saisie['serie_a_venir'], (string) $saisie['libelle_a_venir'], $user_id );
 	return $avert;
 }
 
@@ -690,6 +697,9 @@ function traiter_formulaire_oeuvre( array $post, array $files, int $user_id ): a
 	} elseif ( 'publish' === get_post_status( $id ) ) {
 		/* translators: %s : titre */
 		$message = sprintf( __( '« %s » est créée et publiée. Ajoutez maintenant ses tomes.', 'yume-core' ), titre_brut( $id ) );
+	} elseif ( yume_oeuvre_a_venir( $id ) ) {
+		/* translators: 1: titre, 2: nom affiché au public */
+		$message = sprintf( __( '« %1$s » est créée en brouillon : ses tomes ajoutés au planning y paraîtront sous le nom « %2$s », sans son titre. Ajoutez son premier tome.', 'yume-core' ), titre_brut( $id ), yume_titre_public_oeuvre( $id ) );
 	} else {
 		/* translators: %s : titre */
 		$message = sprintf( __( '« %s » est créée en brouillon (invisible du public). Ajoutez ses tomes, puis publiez-la.', 'yume-core' ), titre_brut( $id ) );
@@ -988,6 +998,7 @@ function formulaire_oeuvre( ?array $retour, int $oeuvre_id = 0 ): string {
 	$html .= '<span class="yn-muted" id="yn-oeuvre-couverture-aide">' . esc_html( sprintf( __( 'JPG, PNG ou WebP, %s maximum. Portrait (2:3) de préférence.', 'yume-core' ), Fichiers::taille_lisible( $max ) ) ) . '</span></p>';
 	$html .= champ_cadrage( $couverture, is_array( $s['cadrage'] ) ? $s['cadrage'] : null );
 
+	$html .= formulaire_oeuvre_annonce( $s, $oeuvre_id );
 	$html .= formulaire_oeuvre_details( $s );
 
 	$html .= '<p class="yn-team__action">';
@@ -1040,6 +1051,35 @@ function champ_cadrage( int $couverture, ?array $cadrage ): string {
 	if ( '' === $url ) {
 		$html .= '<p class="yn-muted yn-cadrage__sans-image">' . esc_html__( 'Choisissez une couverture pour voir l’aperçu.', 'yume-core' ) . '</p>';
 	}
+	return $html . '</fieldset>';
+}
+
+/**
+ * Section « Annonce au planning » du formulaire d'œuvre : case « Série à venir : cacher le titre
+ * au public » et « Nom affiché au public ». Absente pour une œuvre publiée ou privée (son titre
+ * est déjà public).
+ *
+ * @param array $s         Valeurs (format de saisie_oeuvre()).
+ * @param int   $oeuvre_id Œuvre modifiée (0 : nouvelle œuvre).
+ */
+function formulaire_oeuvre_annonce( array $s, int $oeuvre_id ): string {
+	if ( $oeuvre_id && in_array( get_post_status( $oeuvre_id ), array( 'publish', 'private' ), true ) ) {
+		return '';
+	}
+	$html  = '<fieldset class="yn-team__genres" aria-describedby="yn-oeuvre-a-venir-aide"><legend class="yn-label">' . esc_html__( 'Annonce au planning', 'yume-core' ) . '</legend>';
+	$html .= '<p class="yn-muted" id="yn-oeuvre-a-venir-aide">' . esc_html__( 'Une œuvre en brouillon reste invisible du public. Pour annoncer la série sans la dévoiler, cochez la case : ses tomes ajoutés au planning (« Tome 1 ») y paraissent sous le nom ci-dessous, sans titre, lien ni couverture. Le titre est révélé quand vous décochez la case, ou tout seul à la première publication de l’œuvre, d’un de ses tomes ou d’un chapitre.', 'yume-core' ) . '</p>';
+	$html .= '<div class="yn-team__cases"><label class="yn-team__case" for="yn-oeuvre-a-venir"><input type="checkbox" id="yn-oeuvre-a-venir" name="serie_a_venir" value="1"' . checked( ! empty( $s['serie_a_venir'] ), true, false ) . '> ' . esc_html__( 'Série à venir : cacher le titre au public', 'yume-core' ) . '</label></div>';
+	$html .= champ_saisie(
+		'yn-oeuvre-libelle-a-venir',
+		'libelle_a_venir',
+		__( 'Nom affiché au public', 'yume-core' ),
+		(string) $s['libelle_a_venir'],
+		'text',
+		array(
+			'maxlength'   => \Yume\Core\Core\LIBELLE_A_VENIR_MAX,
+			'placeholder' => __( 'Nouvelle série à venir', 'yume-core' ),
+		)
+	);
 	return $html . '</fieldset>';
 }
 
@@ -1220,7 +1260,7 @@ function ligne_oeuvre_equipe( array $oeuvre, ?array $retour ): string {
 	$html      .= '</span><div class="yn-lecture__infos"><p class="yn-lecture__libelle">' . esc_html( $titre ) . '</p><p class="yn-lecture__puces">';
 	$html      .= $publiee
 		? '<span class="yn-chip yn-chip--ok">' . esc_html__( 'Publiée', 'yume-core' ) . '</span>'
-		: '<span class="yn-chip">' . esc_html__( 'Brouillon', 'yume-core' ) . '</span>';
+		: '<span class="yn-chip">' . esc_html__( 'Brouillon', 'yume-core' ) . '</span>' . pastille_titre_cache( $id );
 	if ( '' !== $oeuvre['type'] ) {
 		$html .= '<span class="yn-chip">' . esc_html( (string) $oeuvre['type'] ) . '</span>';
 	}

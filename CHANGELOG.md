@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.7 — 2026-10-06
+
+- Yume Novel 2.1.7 : recette du planning. Heure de sortie enregistrée avec la date cible du tome (elle n'était gardée qu'avec un rythme et revenait à 18:00), reprise par le rythme des chapitres et affichée partout (« sam. 10 oct. · 20 h », compte à rebours, ICS horodaté). Option « Série à venir » des œuvres : le Tome 1 paraît au planning public sous « Nouvelle série à venir » (nom modifiable), sans titre, couverture ni lien, jusqu'à la première publication ; pastille « Titre caché au public » pour l'équipe. Guide de l'équipe mis à jour.
+
 ## 2.1.6 — 2026-10-02
 
 - Yume Novel 2.1.6 : section Planning de l'accueil sous « Dernières sorties » (prochain tome à la une avec compte à rebours et avancement, chapitres en lecture programmés et publiés récemment, tomes en préparation), page Planning enrichie (bandeau du prochain tome, vue « Chapitres », barres d'avancement, tomes publiés chapitre par chapitre « En cours · N chapitres sur M » avec prochain chapitre, cartes sur mobile, légende complétée), guide de l'équipe mis à jour.

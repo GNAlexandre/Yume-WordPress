@@ -164,6 +164,10 @@ function routes(): void {
 					'description' => __( 'Date de sortie visée (AAAA-MM-JJ).', 'yume-core' ),
 					'type'        => 'string',
 				),
+				'heure_cible'      => array(
+					'description' => __( 'Heure de sortie (HH:MM, heure du site ; vide : non précisée). Reprise par le rythme des chapitres.', 'yume-core' ),
+					'type'        => 'string',
+				),
 				'etape'            => array(
 					'type' => 'string',
 					'enum' => array( 'a_faire', 'traduction', 'relecture', 'edition' ),
@@ -175,7 +179,7 @@ function routes(): void {
 					'maximum'     => 999,
 				),
 				'rythme'           => array(
-					'description'          => __( 'Rythme de sortie des chapitres : jour (lundi…dimanche, vide : libre) et heure (HH:MM, 18:00 par défaut).', 'yume-core' ),
+					'description'          => __( 'Rythme de sortie des chapitres : jour (lundi…dimanche, vide : libre). Son heure est l’heure de sortie (heure_cible, 18:00 par défaut) ; « heure » reste acceptée et sert d’heure de sortie si heure_cible manque.', 'yume-core' ),
 					'type'                 => 'object',
 					'properties'           => array(
 						'jour'  => array(
@@ -224,6 +228,10 @@ function routes(): void {
 					'avancement'    => schema_trio_entiers( __( 'Avancement de chaque étape (0 à 100 ; valeurs hors bornes ramenées).', 'yume-core' ) ),
 					'date_cible'    => array(
 						'description' => __( 'Date de sortie visée (AAAA-MM-JJ, vide pour retirer).', 'yume-core' ),
+						'type'        => 'string',
+					),
+					'heure_cible'   => array(
+						'description' => __( 'Heure de sortie (HH:MM, heure du site ; vide pour retirer).', 'yume-core' ),
 						'type'        => 'string',
 					),
 					'bloque'        => array( 'type' => 'boolean' ),
@@ -323,7 +331,7 @@ function rest_maj_planning( \WP_REST_Request $requete ) {
 	$id     = (int) $requete['id'];
 	$params = $requete->get_params();
 	$saisie = array();
-	foreach ( array( 'etape', 'avancement', 'date_cible', 'bloque', 'bloque_raison', 'responsables', 'note_equipe' ) as $cle ) {
+	foreach ( array( 'etape', 'avancement', 'date_cible', 'heure_cible', 'bloque', 'bloque_raison', 'responsables', 'note_equipe' ) as $cle ) {
 		if ( array_key_exists( $cle, $params ) ) {
 			$saisie[ $cle ] = $requete->get_param( $cle );
 		}
@@ -405,7 +413,7 @@ function permission_ajout() {
 function rest_ajouter_tome( \WP_REST_Request $requete ) {
 	$params = $requete->get_params();
 	$saisie = array();
-	foreach ( array( 'oeuvre_id', 'nature', 'numero', 'titre', 'responsables', 'date_cible', 'etape', 'chapitres_prevus', 'rythme' ) as $cle ) {
+	foreach ( array( 'oeuvre_id', 'nature', 'numero', 'titre', 'responsables', 'date_cible', 'heure_cible', 'etape', 'chapitres_prevus', 'rythme' ) as $cle ) {
 		if ( array_key_exists( $cle, $params ) ) {
 			$saisie[ $cle ] = $requete->get_param( $cle );
 		}
@@ -483,17 +491,22 @@ function rest_journal( \WP_REST_Request $requete ) {
 		if ( in_array( $ligne->champ, array( 'publie', 'chapitre_publie' ), true ) ) {
 			$texte = trim( __( 'Publié', 'yume-core' ) . ( '' !== $texte ? ' · ' . $texte : '' ) );
 		}
+		$nouveau = valeur_publique( (string) $ligne->champ, $ligne->nouveau );
+		if ( 'retire' === $ligne->champ && $oeuvre_id && yume_oeuvre_a_venir( $oeuvre_id ) ) {
+			// Le retrait note le titre du tome : celui d'une série à venir reste caché.
+			$nouveau = cible_journal( $tome_id, true );
+		}
 		$sortie[] = array(
 			'id'        => (int) $ligne->id,
 			'date'      => iso( (string) $ligne->created_at ),
 			'tome_id'   => $tome_id,
 			'oeuvre_id' => $oeuvre_id,
-			'oeuvre'    => $oeuvre_id ? titre_brut( $oeuvre_id ) : '',
+			'oeuvre'    => $oeuvre_id ? yume_titre_public_oeuvre( $oeuvre_id ) : '',
 			'tome'      => $tome_id && 'yume_tome' === get_post_type( $tome_id ) ? yume_libelle_tome( $tome_id ) : '',
 			'auteur'    => nom_utilisateur( (int) $ligne->user_id ),
 			'champ'     => (string) $ligne->champ,
 			'ancien'    => valeur_publique( (string) $ligne->champ, $ligne->ancien ),
-			'nouveau'   => valeur_publique( (string) $ligne->champ, $ligne->nouveau ),
+			'nouveau'   => $nouveau,
 			'texte'     => $texte,
 		);
 	}
@@ -717,7 +730,9 @@ add_action( 'deleted_post', __NAMESPACE__ . '\\invalider_ics_contenu' );
 /**
  * Construit le calendrier ICS (RFC 5545) : un VEVENT par tome daté du planning public.
  *
- * - prévu (date cible indicative) : DTSTART;VALUE=DATE, STATUS:TENTATIVE, « (prévision) » ;
+ * - prévu (date cible indicative) : DTSTART;VALUE=DATE (journée entière), ou DTSTART en UTC
+ *   à l'heure de sortie du tome quand elle est connue (une heure), STATUS:TENTATIVE,
+ *   « (prévision) » ;
  * - programmé (statut future) : DTSTART en UTC à l'heure programmée, STATUS:CONFIRMED ;
  * - sorti : DTSTART en UTC à la date de sortie, STATUS:CONFIRMED.
  *
@@ -747,7 +762,15 @@ function construire_ics( int $oeuvre_id = 0 ): string {
 		$l[] = 'BEGIN:VEVENT';
 		$l[] = 'UID:tome-' . (int) $e['tome_id'] . '@' . $hote;
 		$l[] = 'DTSTAMP:' . ( $e['maj'] > 0 ? gmdate( 'Ymd\THis\Z', $e['maj'] ) : $maint );
-		if ( 'prevu' === $e['nature'] ) {
+		if ( 'prevu' === $e['nature'] && $e['ts'] > 0 ) {
+			// Prévision à l'heure de sortie du tome : événement horodaté d'une heure.
+			$l[] = 'DTSTART:' . gmdate( 'Ymd\THis\Z', $e['ts'] );
+			$l[] = 'DTEND:' . gmdate( 'Ymd\THis\Z', $e['ts'] + HOUR_IN_SECONDS );
+			$l[] = 'STATUS:TENTATIVE';
+			$l[] = 'TRANSP:TRANSPARENT';
+			/* translators: %s : « Œuvre T.2 » */
+			$resume = sprintf( __( '%s (prévision)', 'yume-core' ), $e['titre'] );
+		} elseif ( 'prevu' === $e['nature'] ) {
 			$jour = str_replace( '-', '', $e['jour'] );
 			$l[]  = 'DTSTART;VALUE=DATE:' . $jour;
 			$l[]  = 'DTEND;VALUE=DATE:' . gmdate( 'Ymd', (int) strtotime( $e['jour'] . ' 00:00:00 UTC' ) + DAY_IN_SECONDS );
