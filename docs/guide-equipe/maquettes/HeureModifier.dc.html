@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Modifier le tome corrigé</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#fff8fb}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1100px; box-sizing: border-box; background: #1b1231; color: #ebe3f2; font-family: 'Nunito Sans', 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.5; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; padding: 36px 48px; overflow: hidden">
+
+  <!-- Menu latéral de l'espace équipe -->
+  <nav aria-label="Espace équipe" style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; align-self: start">
+    <a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 6px; color: #ebe3f2; font-size: 15px; border-left: 3px solid transparent">Tableau de bord</a>
+    <a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 6px; color: #ebe3f2; font-size: 15px; border-left: 3px solid transparent">Mes tâches</a>
+    <div style="padding: 8px 14px; font-weight: 600; color: #fff8fb; font-size: 15px">▾ Catalogue</div>
+    <a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 14px 0 28px; border-radius: 6px; color: #ebe3f2; font-size: 15px; border-left: 3px solid transparent">Œuvres</a>
+    <a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 14px 0 28px; border-radius: 6px; color: #fff8fb; font-size: 15px; background: #3a2a63; border-left: 3px solid #f3a6c8">Tous les tomes</a>
+    <a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 14px 0 28px; border-radius: 6px; color: #ebe3f2; font-size: 15px; border-left: 3px solid transparent">Ajouter des chapitres</a>
+    <a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 14px 0 28px; border-radius: 6px; color: #ebe3f2; font-size: 15px; border-left: 3px solid transparent">Lecture à compléter</a>
+    <a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 14px 0 28px; border-radius: 6px; color: #ebe3f2; font-size: 15px; border-left: 3px solid transparent">Glossaires</a>
+    <div style="padding: 8px 14px; font-weight: 600; color: #fff8fb; font-size: 15px">▸ Planning</div>
+    <div style="padding: 8px 14px; font-weight: 600; color: #fff8fb; font-size: 15px">▸ Équipe</div>
+    <div style="padding: 8px 14px; font-weight: 600; color: #fff8fb; font-size: 15px">▸ Site</div>
+  </nav>
+
+  <main style="display: flex; flex-direction: column; gap: 18px; min-width: 0">
+
+    <!-- Bandeau de retour après enregistrement -->
+    <div role="status" style="display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-radius: 10px; background: #241740; border: 1px solid #4a3b6e; border-left: 4px solid #8fd6a3">
+      <span style="width: 26px; height: 26px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid #8fd6a3; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8fd6a3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></span>
+      <span style="flex-grow: 1; color: #fff8fb"><strong>Tome enregistré</strong> : couverture mise à jour, sortie prévue le samedi 10 octobre 2026 à 20 h.</span>
+      <a href="#" style="font-size: 14px; font-weight: 600">Voir au planning</a>
+    </div>
+
+    <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+        <a href="#" style="font-size: 14px">← Tous les tomes</a>
+        <h1 style="margin: 0; font-family: Outfit, sans-serif; font-weight: 800; font-size: 32px; line-height: 1.15; color: #fff8fb">Modifier le tome : Grimgar of Fantasy and Ash — Tome 10</h1>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+          <span style="display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; border: 1px solid #f4c069; color: #f4c069; white-space: nowrap">▲ À paraître</span>
+          <span style="display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; border: 1px solid #7f6aa8; color: #ebe3f2; white-space: nowrap">0 chapitre sur 14</span>
+          <span style="font-size: 13px; color: #b7a9cc">Modifié par Cerale à l’instant</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; flex-shrink: 0">
+        <a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 16px; box-sizing: border-box; border-radius: 6px; border: 1px solid #7f6aa8; color: #fff8fb; font-weight: 600; font-size: 14px; white-space: nowrap">Voir le tome</a>
+        <a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 16px; box-sizing: border-box; border-radius: 6px; border: 1px solid #f3a6c8; background: #f3a6c8; color: #2a1240; font-weight: 700; font-size: 14px; white-space: nowrap">Ajouter des chapitres</a>
+      </div>
+    </header>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start">
+      <div style="display: flex; flex-direction: column; gap: 18px; min-width: 0">
+
+        <!-- Le tome -->
+        <section style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 20px 22px; display: flex; flex-direction: column; gap: 16px">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #f3a6c8; font-weight: 500">Le tome</div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1.4fr) 170px 110px; gap: 16px">
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-oeuvre" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Œuvre</label><select id="m-oeuvre" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%"><option>Grimgar of Fantasy and Ash (LN)</option></select></div>
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-nature" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Nature</label><select id="m-nature" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%"><option>Tome</option></select></div>
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-numero" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Numéro</label><input id="m-numero" type="text" value="10" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%" /></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-titre" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Titre (facultatif)</label><input id="m-titre" type="text" placeholder="Ex. : Un bon jour pour attendre un meilleur jour" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%" /></div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-rt" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Responsable traduction</label><select id="m-rt" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%"><option>Cerale</option></select></div>
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-rr" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Responsable relecture</label><select id="m-rr" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%"><option>Shadowadow</option></select></div>
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-re" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Responsable édition</label><select id="m-re" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%"><option>— Personne —</option></select></div>
+          </div>
+
+          <div aria-hidden="true" style="height: 1px; background: #4a3b6e"></div>
+
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+              <label for="m-cible" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Date cible du tome</label>
+              <div style="display: flex; align-items: center; gap: 10px; height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b7a9cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+                <input id="m-cible" type="text" value="10/10/2026" style="flex-grow: 1; min-width: 0; height: 38px; border: 0; padding: 0; background: transparent; color: #fff8fb; font: inherit; font-size: 15px" />
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+              <label for="m-heure" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Heure de sortie</label>
+              <div style="display: flex; align-items: center; gap: 10px; height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b7a9cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                <input id="m-heure" type="text" value="20:00" style="flex-grow: 1; min-width: 0; height: 38px; border: 0; padding: 0; background: transparent; color: #fff8fb; font: inherit; font-size: 15px" />
+                <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; border: 1px solid #8fd6a3; color: #8fd6a3; font-size: 11px; font-weight: 700; white-space: nowrap">Gardée</span>
+              </div>
+            </div>
+          </div>
+          <p style="margin: -6px 0 0; font-size: 13px; color: #b7a9cc">Enregistrée avec la date cible, même sans rythme.</p>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-prevus" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Chapitres prévus</label><input id="m-prevus" type="text" value="14" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%" /></div>
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0"><label for="m-rythme" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Rythme</label><select id="m-rythme" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7f6aa8; border-radius: 6px; background: #241740; color: #fff8fb; font: inherit; font-size: 15px; width: 100%"><option selected="selected">Libre</option><option>Chaque lundi</option><option>Chaque mardi</option><option>Chaque mercredi</option><option>Chaque jeudi</option><option>Chaque vendredi</option><option>Chaque samedi</option><option>Chaque dimanche</option></select></div>
+          </div>
+          <p style="margin: -6px 0 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #b7a9cc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b7a9cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+            Les chapitres sortent à l’heure de sortie du tome.
+          </p>
+        </section>
+
+        <!-- Chapitres -->
+        <section style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px">
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <h2 style="margin: 0; font-family: Outfit, sans-serif; font-weight: 700; font-size: 18px; line-height: 1.2; color: #fff8fb">Chapitres</h2>
+            <span style="font-size: 14px; color: #b7a9cc">Aucun chapitre déposé. Chaque chapitre programmé partira à 20 h.</span>
+          </div>
+          <a href="#" style="font-size: 14px; font-weight: 600; white-space: nowrap">Ajouter des chapitres</a>
+        </section>
+      </div>
+
+      <aside style="display: flex; flex-direction: column; gap: 18px">
+        <!-- Couverture -->
+        <section style="background: #2d1f4f; border: 1px solid #4a3b6e; border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center">
+          <div style="align-self: stretch; display: flex; justify-content: space-between; align-items: center">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #f3a6c8; font-weight: 500">Couverture</div>
+            <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; border: 1px solid #8fd6a3; color: #8fd6a3; font-size: 11px; font-weight: 700">Mise à jour</span>
+          </div>
+          <div style="width: 150px; height: 214px; box-sizing: border-box; border-radius: 6px; border: 1px solid #4a3b6e; background: linear-gradient(170deg, #f7c59f, #c2437e 42%, #3a2a63 78%, #241740); display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; padding: 10px; text-align: left">
+            <strong style="font-family: Outfit, sans-serif; font-size: 14px; line-height: 1.2; color: #fff8fb">Grimgar · T.10</strong>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button type="button" style="display: inline-flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid #7f6aa8; background: transparent; color: #fff8fb; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap">Changer la couverture</button>
+            <button type="button" style="display: inline-flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid #7f6aa8; background: transparent; color: #fff8fb; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap">Cadrage</button>
+          </div>
+        </section>
+
+        <!-- Planning résumé -->
+        <section style="background: #241740; border: 1px solid #4a3b6e; border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #b7a9cc; font-weight: 500">Planning</div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f3a6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+            <span>Sortie prévue : <strong style="color: #fff8fb">sam. 10 oct. · 20 h</strong></span>
+          </div>
+          <div>Étape <strong style="color: #fff8fb">Traduction</strong> · 10 %</div>
+          <a href="#">Ouvrir dans le planning</a>
+        </section>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <button type="button" style="display: inline-flex; align-items: center; justify-content: center; height: 46px; padding: 0 16px; border-radius: 6px; border: 1px solid #f3a6c8; background: #f3a6c8; color: #2a1240; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Enregistrer</button>
+          <a href="#" style="font-size: 13px; text-align: center; color: #b7a9cc">Édition avancée (administration WordPress)</a>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

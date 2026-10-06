@@ -113,7 +113,7 @@
 	var nonce = racine.getAttribute( 'data-yn-nonce' ) || '';
 	var icones = { a_lheure: '●', en_retard: '▲', bloque: '■', publie: '✓' };
 	var variantes = { a_lheure: 'ok', en_retard: 'warn', bloque: 'err', publie: 'ok' };
-	var champsTexte = [ 'etape', 'date_cible', 'note_equipe', 'bloque_raison' ];
+	var champsTexte = [ 'etape', 'date_cible', 'heure_cible', 'note_equipe', 'bloque_raison' ];
 
 	function message( cle, defaut ) {
 		return racine.getAttribute( 'data-yn-msg-' + cle ) || defaut;

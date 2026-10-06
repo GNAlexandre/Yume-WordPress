@@ -169,6 +169,22 @@ function champ_saisie( string $id, string $nom, string $label, string $valeur, s
 }
 
 /**
+ * Heure de sortie enregistrée d'une ligne du planning, pour le champ « Heure de sortie »
+ * (jamais celle d'une sortie programmée : le champ modifie l'heure de sortie du planning) ;
+ * à défaut, celle du rythme d'un tome antérieur à ce champ.
+ *
+ * @param array $ligne Ligne (tome_id).
+ */
+function heure_saisie_ligne( array $ligne ): string {
+	$heure = donnees_tome( (int) $ligne['tome_id'] )['heure_cible'];
+	if ( '' === $heure ) {
+		$rythme = get_post_meta( (int) $ligne['tome_id'], 'yume_rythme', true );
+		$heure  = is_array( $rythme ) && ! empty( $rythme['jour'] ) && is_string( $rythme['heure'] ?? null ) && valider_heure( $rythme['heure'] ) ? $rythme['heure'] : '';
+	}
+	return $heure;
+}
+
+/**
  * Case « bloqué » et raison.
  *
  * @param string $prefixe Préfixe.
@@ -237,7 +253,7 @@ function sous_titre_tache( array $tache ): string {
 			/* translators: %s : date */
 			? sprintf( __( 'cible %s dépassée', 'yume-core' ), format_fr( ts_date( $l['date_cible'] ), 'j M' ) )
 			/* translators: %s : date */
-			: sprintf( __( 'cible %s', 'yume-core' ), date_cible_lisible( $l['date_cible'], true ) );
+			: sprintf( __( 'cible %s', 'yume-core' ), date_cible_lisible( $l['date_cible'], true, (string) ( $l['heure_cible'] ?? '' ) ) );
 	} else {
 		$parties[] = __( 'pas de date cible', 'yume-core' );
 	}
@@ -281,6 +297,7 @@ function champs_tache( array $tache, string $prefixe, ?array $retour ): string {
 	$options = etapes_proposees( (int) $l['tome_id'], (string) $l['etape'], get_current_user_id() );
 	$html   .= champ_select( $prefixe . '-etape', 'etape', __( 'Étape', 'yume-core' ), $options, $l['etape'] );
 	$html   .= champ_saisie( $prefixe . '-date', 'date_cible', 'date' === $l['motif_retard'] ? __( 'Nouvelle date', 'yume-core' ) : __( 'Date cible', 'yume-core' ), $l['date_cible'], 'date' );
+	$html   .= champ_saisie( $prefixe . '-heure', 'heure_cible', __( 'Heure de sortie', 'yume-core' ), heure_saisie_ligne( $l ), 'time', array( 'step' => 60 ) );
 	$html   .= '<p class="yn-team__action"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Enregistrer', 'yume-core' ) . '</button></p>';
 	$html   .= '</div><div class="yn-team__champs yn-team__champs--bas">';
 	$html   .= champ_saisie(
@@ -344,13 +361,13 @@ function resume_ligne( array $l ): string {
 	$etape  = etape_de_travail( $l['etape'] );
 	$resume = 'publie' === $l['etat']
 		? __( 'publié', 'yume-core' )
-		: libelle_etape_min( $etape ) . ' ' . pct( (int) ( $l['avancement'][ $etape ] ?? 0 ) ) . ' · ' . ( '' !== $l['date_cible'] ? date_cible_lisible( $l['date_cible'], true ) : __( 'pas de date', 'yume-core' ) );
+		: libelle_etape_min( $etape ) . ' ' . pct( (int) ( $l['avancement'][ $etape ] ?? 0 ) ) . ' · ' . ( '' !== $l['date_cible'] ? date_cible_lisible( $l['date_cible'], true, 'en_retard' === $l['etat'] ? '' : (string) ( $l['heure_cible'] ?? '' ) ) : __( 'pas de date', 'yume-core' ) );
 	$statut = (string) ( $l['statut'] ?? '' );
 	$html   = '<span class="yn-team__resume"><b>' . esc_html( $l['oeuvre'] ) . '</b> · ' . esc_html( $l['tome'] . ( '' !== $l['titre'] ? ' : ' . $l['titre'] : '' ) ) . ' <span class="yn-muted">' . esc_html( $resume ) . '</span>';
 	if ( '' !== $statut && 'draft' !== $statut && 'publie' !== $l['etat'] && ! est_programme( $l ) ) {
 		$html .= ' <span class="yn-team__statut yn-muted">(' . esc_html( libelle_statut( $l ) ) . ')</span>';
 	}
-	return $html . badge_pause( $l ) . '</span>';
+	return $html . badge_pause( $l ) . ( ! empty( $l['titre_cache'] ) ? pastille_titre_cache( (int) $l['oeuvre_id'] ) : '' ) . '</span>';
 }
 
 /**
@@ -439,6 +456,7 @@ function ligne_gestion( array $l, array $membres, ?array $retour, bool $ouvert =
 	$html .= '<div class="yn-team__champs">';
 	$html .= champ_select( $prefixe . '-etape', 'etape', __( 'Étape', 'yume-core' ), etapes_proposees( $id, (string) $l['etape'], get_current_user_id() ), $l['etape'] );
 	$html .= champ_saisie( $prefixe . '-date', 'date_cible', __( 'Date cible', 'yume-core' ), $l['date_cible'], 'date' );
+	$html .= champ_saisie( $prefixe . '-heure', 'heure_cible', __( 'Heure de sortie', 'yume-core' ), heure_saisie_ligne( $l ), 'time', array( 'step' => 60 ) );
 	$html .= '</div><div class="yn-team__etapes">';
 	$choix = array( '0' => __( '— Personne —', 'yume-core' ) ) + $membres;
 	foreach ( ETAPES_TRAVAIL as $e ) {
@@ -1661,7 +1679,7 @@ function traiter_formulaire_maj( array $post, int $user_id ): array {
 		);
 	}
 	$saisie = array();
-	foreach ( array( 'etape', 'date_cible', 'note_equipe' ) as $cle ) {
+	foreach ( array( 'etape', 'date_cible', 'heure_cible', 'note_equipe' ) as $cle ) {
 		if ( null !== champ_post( $post, $cle ) ) {
 			$saisie[ $cle ] = champ_post( $post, $cle );
 		}
@@ -1691,8 +1709,10 @@ function traiter_formulaire_maj( array $post, int $user_id ): array {
 
 /**
  * Traite le formulaire « Nouveau tome » (ancien « Ajouter un tome au planning ») : même
- * service que POST /yume/v1/planning/tomes (ajouter_tome()), avec les chapitres prévus, le
- * rythme (rythme_jour, rythme_heure) et le bouton choisi (suite = fiche | chapitre).
+ * service que POST /yume/v1/planning/tomes (ajouter_tome()), avec l'heure de sortie
+ * (heure_cible, gardée quel que soit le rythme), les chapitres prévus, le rythme (rythme_jour ;
+ * rythme_heure d'un formulaire ancien accepté comme heure de sortie) et le bouton choisi
+ * (suite = fiche | chapitre).
  *
  * @param array $post    Données POST.
  * @param int   $user_id Utilisateur.
@@ -1714,12 +1734,16 @@ function traiter_formulaire_ajout( array $post, int $user_id ): array {
 	if ( is_array( $resp ) ) {
 		$saisie['responsables'] = array_map( 'absint', array_intersect_key( array_filter( $resp, 'is_scalar' ), array_flip( ETAPES_TRAVAIL ) ) );
 	}
-	$jour = champ_post( $post, 'rythme_jour' );
-	if ( is_scalar( $jour ) && '' !== (string) $jour ) {
-		$heure            = champ_post( $post, 'rythme_heure' );
+	$heure = champ_post( $post, 'heure_cible' );
+	if ( null !== $heure ) {
+		$saisie['heure_cible'] = is_scalar( $heure ) ? sanitize_text_field( (string) $heure ) : '';
+	}
+	$jour   = champ_post( $post, 'rythme_jour' );
+	$ancien = champ_post( $post, 'rythme_heure' );
+	if ( ( is_scalar( $jour ) && '' !== (string) $jour ) || ( is_scalar( $ancien ) && '' !== (string) $ancien ) ) {
 		$saisie['rythme'] = array(
-			'jour'  => sanitize_key( (string) $jour ),
-			'heure' => is_scalar( $heure ) ? sanitize_text_field( (string) $heure ) : '',
+			'jour'  => is_scalar( $jour ) ? sanitize_key( (string) $jour ) : '',
+			'heure' => is_scalar( $ancien ) ? sanitize_text_field( (string) $ancien ) : '',
 		);
 	}
 	$base = array(

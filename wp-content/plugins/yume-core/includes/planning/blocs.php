@@ -344,7 +344,7 @@ function rendu_upcoming( array $attributs ): string {
 			/* translators: %s : date cible dépassée */
 			$date = sprintf( __( 'prévu %s', 'yume-core' ), date_cible_lisible( $l['date_cible'], true ) );
 		} else {
-			$date = date_cible_lisible( $l['date_cible'] );
+			$date = date_cible_lisible( $l['date_cible'], false, (string) ( $l['heure_cible'] ?? '' ) );
 		}
 		$titre = '<b>' . esc_html( $l['oeuvre'] ) . '</b>';
 		if ( '' !== $l['url_oeuvre'] ) {
@@ -634,7 +634,7 @@ function rendu_planning( array $attributs ): string {
 	for ( $i = 0; $i < 2; $i++ ) {
 		$p     = $stats['prochaines'][ $i ] ?? null;
 		$html .= $p
-			? chiffre( $labels[ $i ], date_cible_lisible( $p['date_cible'], true ), $p['oeuvre'] . ' · ' . libelle_prochaine_sortie( $p ) )
+			? chiffre( $labels[ $i ], date_cible_lisible( $p['date_cible'], true, (string) ( $p['heure_cible'] ?? '' ) ), $p['oeuvre'] . ' · ' . libelle_prochaine_sortie( $p ) )
 			: chiffre( $labels[ $i ], '—', 0 === $i ? __( 'Aucune date annoncée', 'yume-core' ) : __( 'À suivre', 'yume-core' ) );
 	}
 	$html .= chiffre(
@@ -787,7 +787,9 @@ function tableau_planning( array $lignes, array $filtres, bool $equipe ): string
 			} elseif ( '' === $l['date_cible'] ) {
 				$sortie = '<span class="yn-muted">' . esc_html__( 'non planifié', 'yume-core' ) . '</span>';
 			} else {
-				$sortie = esc_html( date_cible_lisible( $l['date_cible'], 'en_retard' === $l['etat'] ) );
+				// Heure de sortie seulement pour une date à venir (une date dépassée n'en a plus besoin).
+				$retard = 'en_retard' === $l['etat'];
+				$sortie = esc_html( date_cible_lisible( $l['date_cible'], $retard, $retard ? '' : (string) ( $l['heure_cible'] ?? '' ) ) );
 			}
 			$html .= '<td role="cell" data-label="' . esc_attr__( 'Sortie prévue', 'yume-core' ) . '">' . $sortie . '</td>';
 			$etat  = $cours ? '<div class="yn-planning__etats">' . pastille_en_cours() . ( 'publie' !== $l['etat'] ? cellule_etat( $l ) : '' ) . '</div>' : cellule_etat( $l );
@@ -955,7 +957,8 @@ const JOURS_SORTIES_CALENDRIER = 365;
  *
  * Chaque événement : 'tome_id', 'oeuvre_id', 'titre' (« Œuvre T.2 »), 'nature' ('prevu' :
  * date cible indicative ; 'programme' : sortie programmée ; 'sorti' : tome paru), 'jour'
- * (Y-m-d, heure de Paris), 'ts' (horodatage UTC ; 0 pour une prévision), 'etat' (texte),
+ * (Y-m-d, heure de Paris), 'ts' (horodatage UTC ; pour une prévision, date cible à l'heure de
+ * sortie du tome, ou 0 si l'heure n'est pas précisée), 'etat' (texte),
  * 'url' (tome paru, sinon œuvre, sinon page du planning), 'maj' (dernière mise à jour).
  *
  * @param int    $oeuvre_id Œuvre (0 : toutes).
@@ -991,6 +994,8 @@ function evenements_calendrier( int $oeuvre_id = 0, string $type = '', string $e
 		} else {
 			$nature = 'prevu';
 			$jour   = (string) $l['date_cible'];
+			// Heure de sortie connue : prévision horodatée (sinon journée entière, ts = 0).
+			$ts = ts_sortie( $jour, (string) ( $l['heure_cible'] ?? '' ) );
 			/* translators: %s : état (« À l’heure », « En retard de 3 j ») */
 			$texte = sprintf( __( 'Prévu (date indicative) · %s', 'yume-core' ), texte_etat( $l ) );
 		}
@@ -1099,7 +1104,7 @@ function liste_evenements( array $evenements ): string {
 		$html .= '<span class="yn-calendrier__icone" aria-hidden="true">' . esc_html( $n['icone'] ) . '</span>';
 		$html .= '<span class="yn-visually-hidden">' . esc_html( $n['libelle'] ) . ' : </span>';
 		$html .= '<a href="' . esc_url( $e['url'] ) . '">' . esc_html( $e['titre'] ) . '</a>';
-		if ( 'prevu' !== $e['nature'] ) {
+		if ( 'prevu' !== $e['nature'] || $e['ts'] > 0 ) {
 			$html .= ' <span class="yn-calendrier__heure">' . esc_html( format_fr( (int) $e['ts'], 'H:i' ) ) . '</span>';
 		}
 		$html .= '</li>';
@@ -1282,7 +1287,7 @@ function rendu_oeuvre_planning( array $attributs, $bloc = null ): string {
 	$html  .= '<h2 class="yn-label" id="' . esc_attr( $titre ) . '">' . esc_html__( 'Planning de l’œuvre', 'yume-core' ) . '</h2>';
 	$sortie = '' !== $l['date_cible']
 		/* translators: %s : date */
-		? sprintf( __( 'sortie prévue %s', 'yume-core' ), date_cible_lisible( $l['date_cible'] ) )
+		? sprintf( __( 'sortie prévue %s', 'yume-core' ), date_cible_lisible( $l['date_cible'], false, (string) ( $l['heure_cible'] ?? '' ) ) )
 		: __( 'sortie non planifiée', 'yume-core' );
 	$html .= '<p class="yn-oeuvre-planning__tome">' . esc_html( libelle_prochaine_sortie( $l ) . ( '' !== $l['titre'] ? ' : ' . $l['titre'] : '' ) . ' · ' . $sortie ) . '</p>';
 	$html .= '<ul class="yn-oeuvre-planning__etapes">';

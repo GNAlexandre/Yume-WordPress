@@ -180,6 +180,7 @@ function tomes_equipe( array $filtres, int $page = 1 ): array {
 			'date'       => ts_contenu( $tome, in_array( $tome->post_status, array( 'publish', 'private', 'future' ), true ) ? 'post_date' : 'post_modified' ),
 			'etape'      => (string) get_post_meta( $tome->ID, 'yume_etape', true ),
 			'date_cible' => (string) get_post_meta( $tome->ID, 'yume_date_cible', true ),
+			'heure'      => (string) get_post_meta( $tome->ID, 'yume_heure_cible', true ),
 			'ex'         => 'ex' === get_post_meta( $tome->ID, 'yume_nature', true ),
 			'numero'     => is_numeric( $numero ) ? (float) $numero : PHP_FLOAT_MAX,
 			'ordre'      => (int) $tome->menu_order,
@@ -249,8 +250,8 @@ function pastille_parution( string $parution ): string {
 
 /**
  * Date d'un tome selon sa parution : « Paru le 12 juin 2026 », « Depuis le 27 sept. 2026 »,
- * « Sortie le 3 oct. 2026 » (tome programmé), « Traduction · date cible 15 janv. 2027 » ou
- * « Modifié le … » (brouillon).
+ * « Sortie le 3 oct. 2026 à 18 h » (tome programmé), « Traduction · date cible 15 janv. 2027 »
+ * (« … à 20 h » quand l'heure de sortie est connue) ou « Modifié le … » (brouillon).
  *
  * @param array<string,mixed> $tome Tome (voir tomes_equipe()).
  */
@@ -265,15 +266,22 @@ function texte_date_tome( array $tome ): string {
 		return '' !== $date ? sprintf( __( 'Depuis le %s', 'yume-core' ), $date ) : '';
 	}
 	if ( 'future' === $tome['statut'] ) {
-		/* translators: %s : date de sortie programmée */
-		return '' !== $date ? sprintf( __( 'Sortie le %s', 'yume-core' ), $date ) : '';
+		// La date et l'heure programmées priment sur la date cible et l'heure de sortie.
+		/* translators: 1: date de sortie programmée, 2: heure (« 18 h ») */
+		return '' !== $date ? sprintf( __( 'Sortie le %1$s à %2$s', 'yume-core' ), $date, heure_lisible( format_fr( (int) $tome['date'], 'H:i' ) ) ) : '';
 	}
 	$etapes = yume_etapes();
 	if ( '' !== $tome['date_cible'] && valider_date( $tome['date_cible'] ) ) {
+		$jour  = format_fr( ts_date( $tome['date_cible'] ), 'j M Y' );
+		$heure = heure_lisible( (string) ( $tome['heure'] ?? '' ) );
+		if ( '' !== $heure ) {
+			/* translators: 1: date (« 15 janv. 2027 »), 2: heure (« 20 h ») */
+			$jour = sprintf( __( '%1$s à %2$s', 'yume-core' ), $jour, $heure );
+		}
 		$cible = sprintf(
-			/* translators: %s : date cible */
+			/* translators: %s : date cible (« 15 janv. 2027 », « 15 janv. 2027 à 20 h ») */
 			__( 'date cible %s', 'yume-core' ),
-			format_fr( ts_date( $tome['date_cible'] ), 'j M Y' )
+			$jour
 		);
 		return isset( $etapes[ $tome['etape'] ] ) ? $etapes[ $tome['etape'] ] . ' · ' . $cible : majuscule( $cible );
 	}
@@ -462,7 +470,7 @@ function rendu_vue_tomes(): string {
 	foreach ( $donnees['oeuvres'] as $id => $groupe ) {
 		$titre_id = 'yn-tomes-oeuvre-' . (int) $id;
 		$html    .= '<section class="yn-card yn-lecture__oeuvre" aria-labelledby="' . esc_attr( $titre_id ) . '"><div class="yn-lecture__oeuvre-tete">';
-		$html    .= '<h3 id="' . esc_attr( $titre_id ) . '">' . esc_html( $groupe['titre'] ) . '</h3>';
+		$html    .= '<h3 id="' . esc_attr( $titre_id ) . '">' . esc_html( $groupe['titre'] ) . '</h3>' . pastille_titre_cache( (int) $id );
 		$html    .= '<span class="yn-muted">' . esc_html(
 			/* translators: %d : nombre de tomes */
 			sprintf( _n( '%d tome', '%d tomes', count( $groupe['tomes'] ), 'yume-core' ), count( $groupe['tomes'] ) )

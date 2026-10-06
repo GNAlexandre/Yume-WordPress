@@ -107,6 +107,8 @@ function ligne_tome( int $tome_id ): array {
 	$numero = get_post_meta( $tome_id, 'yume_numero', true );
 	// Sortie programmée : la date cible affichée est le jour de sortie programmé (SCAN-05).
 	$programmee = 'programme' === $analyse['motif'] ? (string) ( $analyse['date'] ?? '' ) : '';
+	// Heure de sortie : celle de la sortie programmée, sinon celle saisie par l'équipe.
+	$heure = '' !== $programmee && $post ? substr( (string) $post->post_date, 11, 5 ) : $d['heure_cible'];
 
 	return array(
 		'tome_id'         => $tome_id,
@@ -117,6 +119,7 @@ function ligne_tome( int $tome_id ): array {
 		'avancement'      => $d['avancement'],
 		'responsables'    => $responsables,
 		'date_cible'      => '' !== $programmee ? $programmee : $d['date_cible'],
+		'heure_cible'     => valider_heure( $heure ) ? $heure : '',
 		'etat'            => $etat,
 		'derniere_maj'    => $d['derniere_maj'],
 		'url_oeuvre'      => $oeuvre_id && 'publish' === get_post_status( $oeuvre_id ) ? (string) get_permalink( $oeuvre_id ) : '',
@@ -139,6 +142,7 @@ function ligne_tome( int $tome_id ): array {
 		'ts_activite'     => ts_derniere_activite( $tome_id ),
 		'programme'       => '' !== $programmee,
 		'date_programmee' => $programmee,
+		'titre_cache'     => $oeuvre_id && yume_oeuvre_a_venir( $oeuvre_id ),
 	);
 }
 
@@ -355,7 +359,8 @@ function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $et
 		if ( $oeuvre_id && $o !== $oeuvre_id ) {
 			continue;
 		}
-		if ( $vue_publique && ( ! $o || 'publish' !== get_post_status( $o ) ) ) {
+		// Vue publique : œuvres publiées, et séries à venir (titre caché) ; jamais un autre brouillon.
+		if ( $vue_publique && ( ! $o || ( 'publish' !== get_post_status( $o ) && ! yume_oeuvre_a_venir( $o ) ) ) ) {
 			continue;
 		}
 		if ( '' !== $type && type_oeuvre( $o ) !== $type ) {
@@ -379,9 +384,28 @@ function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $et
 		if ( '' !== $etat_voulu && $ligne['etat'] !== $etat_voulu ) {
 			continue;
 		}
-		$lignes[] = $ligne;
+		$lignes[] = $vue_publique ? ligne_titre_public( $ligne ) : $ligne;
 	}
 	return $lignes;
+}
+
+/**
+ * Ligne telle que le public peut la lire : pour une série à venir (titre_cache), l'œuvre prend
+ * son nom public (yume_titre_public_oeuvre()), le tome garde son libellé (« Tome 1 ») mais
+ * perd son sous-titre, et aucune adresse ne mène à l'œuvre ni au tome.
+ *
+ * @param array $ligne Ligne (ligne_tome()).
+ * @return array<string,mixed>
+ */
+function ligne_titre_public( array $ligne ): array {
+	if ( empty( $ligne['titre_cache'] ) ) {
+		return $ligne;
+	}
+	$ligne['oeuvre']     = yume_titre_public_oeuvre( (int) $ligne['oeuvre_id'] );
+	$ligne['titre']      = '';
+	$ligne['url_oeuvre'] = '';
+	$ligne['url']        = '';
+	return $ligne;
 }
 
 /**
@@ -456,6 +480,7 @@ function ligne_publique( array $ligne ): array {
 		'avancement'      => $ligne['avancement'],
 		'responsables'    => $responsables,
 		'date_cible'      => (string) $ligne['date_cible'],
+		'heure_cible'     => (string) ( $ligne['heure_cible'] ?? '' ),
 		'etat'            => (string) $ligne['etat'],
 		'etat_libelle'    => libelle_etat_ligne( $ligne ),
 		'bloque_raison'   => (string) $ligne['bloque_raison'],
@@ -551,6 +576,10 @@ function statistiques( array $lignes ): array {
 		$prochaines,
 		static function ( array $a, array $b ): int {
 			$cmp = strcmp( $a['date_cible'], $b['date_cible'] );
+			if ( 0 === $cmp ) {
+				// Même jour : par heure de sortie (sans heure en dernier).
+				$cmp = strcmp( ( $a['heure_cible'] ?? '' ) . '~', ( $b['heure_cible'] ?? '' ) . '~' );
+			}
 			return 0 !== $cmp ? $cmp : ( $a['tome_id'] <=> $b['tome_id'] );
 		}
 	);

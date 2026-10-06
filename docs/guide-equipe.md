@@ -102,6 +102,8 @@ l'œuvre, auteur, illustrateur, éditeur VO, titres alternatifs (un par ligne), 
 deux paragraphes ; `<strong>gras</strong>` et `<em>italique</em>` sont conservés) et couverture
 (JPG, PNG ou WebP). La partie repliable **Fiche détaillée** contient le statut et le nombre de tomes
 de la VO, la source de la traduction, les jours de sortie, l'équipe affichée et les liens externes.
+La section **Annonce au planning** sert à annoncer une série sans dévoiler son titre (voir
+**Série à venir** ci-dessous).
 
 - **Créer en brouillon** : l'œuvre reste invisible du public ; on peut déjà lui ajouter des tomes au
   planning, puis la publier d'un clic depuis la liste.
@@ -116,6 +118,25 @@ de la VO, la source de la traduction, les jours de sortie, l'équipe affichée e
   garder visible, ou réglez les curseurs horizontal et vertical, puis enregistrez. « Recentrer »
   revient au cadrage centré par défaut. Le réglage s'applique partout où cette couverture
   s'affiche (bibliothèque, fiches, compte, reprise de lecture).
+
+**Série à venir** (titre caché au public). Pour mettre au planning le Tome 1 d'une série dont le
+titre doit rester secret :
+
+1. **Nouvelle œuvre** (ou **Modifier** une œuvre existante), section **Annonce au planning** : cochez
+   **Série à venir : cacher le titre au public** ;
+2. facultatif : **Nom affiché au public** (vide : « Nouvelle série à venir ») ;
+3. **Créer en brouillon** : l'œuvre peut rester en brouillon jusqu'à la révélation ;
+4. **Ajouter un tome au planning** sur sa ligne : créez le Tome 1 avec sa date cible et son heure de
+   sortie.
+
+Le Tome 1 apparaît alors au planning public, même œuvre en brouillon. Partout côté lecteurs (accueil,
+page Planning, calendrier ICS, flux RSS et JSON, journal public), le titre est remplacé par le nom
+affiché, sans sous-titre de tome, sans lien, sans couverture et sans bouton **Suivre l'œuvre**. Dans
+l'espace équipe, le vrai titre reste affiché, avec la pastille **Titre caché au public**.
+
+Révélation : décochez la case dans **Modifier**, ou laissez faire le site : le titre est révélé tout
+seul à la première publication de l'œuvre ou d'un de ses tomes ou chapitres (ligne au journal de
+l'équipe). Les autres œuvres en brouillon restent invisibles du public, leurs tomes compris.
 
 **Genres** (en bas de la vue) : une trentaine de genres courants sont proposés d'office (Action,
 Aventure, Isekai, Romance, Slice of life…). Ajoutez-en (plusieurs à la fois, séparés par des
@@ -142,9 +163,11 @@ cours » et « Publié ».
 
 **Nouveau tome** (bouton de *Tous les tomes* ; « Ajouter un tome au planning » du tableau de bord,
 du *Planning complet* et de la vue *Œuvres* mènent à la même page) : œuvre, nature, numéro, titre
-facultatif, étape de départ, responsables, date cible, et, facultatifs, **Chapitres prévus** et
-**Rythme** (« Libre » ou un jour de la semaine, 18 h par défaut : la date du chapitre suivant est
-alors proposée). Le tome est créé en brouillon, sans fichier ni annonce.
+facultatif, étape de départ, responsables, **Date cible du tome** et, à côté, **Heure de sortie**
+(18:00 proposé, jamais imposé : videz le champ si l'heure n'est pas connue), et, facultatifs,
+**Chapitres prévus** et **Rythme** (« Libre » ou un jour de la semaine : la date du chapitre suivant
+est alors proposée). Le rythme n'a plus son propre champ d'heure : il reprend l'**Heure de sortie**,
+toujours enregistrée, même avec « Libre ». Le tome est créé en brouillon, sans fichier ni annonce.
 **Créer le tome** ouvre sa fiche ; **Créer le tome et ajouter un chapitre** ouvre le formulaire de
 publication. Si l'œuvre a déjà un tome de même nature et de même numéro, sa fiche s'ouvre au lieu
 d'en créer un second.
@@ -169,8 +192,9 @@ d'en créer un second.
   Un état choisi à la main est noté (« Choisi par … le … ») ; seule une publication de l'équipe
   le change ensuite (un chapitre publié dans un tome « Planifié » le passe « En cours de
   publication »), et ce changement figure au journal ;
-- les champs du tome (œuvre, nature, numéro, titre, responsables), les **crédits** affichés sur la
-  page du tome et la **couverture** (avec son cadrage) ;
+- les champs du tome (œuvre, nature, numéro, titre, responsables, **Date cible du tome** et
+  **Heure de sortie**, que le rythme reprend), les **crédits** affichés sur la page du tome et la
+  **couverture** (avec son cadrage). Un tome programmé garde sa date et son heure de publication ;
 - la liste des **chapitres** (en ligne, programmés, brouillons) : **Voir** ou **Aperçu**, **Publier
   maintenant** et **Changer la date** (programmé ou brouillon, tome déjà en ligne ; la date proposée
   suit le rythme), **Retirer** (en ligne ou programmé : un écran demande confirmation, le chapitre
@@ -299,13 +323,16 @@ Un tome programmé s'affiche « Programmé le … » et n'est jamais en retard.
 | **En cours de publication** | Le tome sort chapitre par chapitre, lisible en ligne au fil des sorties |
 | **Chapitre programmé** | Date et heure de sortie du prochain chapitre |
 
-Ce qui est public : l'étape, les pourcentages, le pseudo des responsables, la date cible, l'état et
-l'historique des changements. Ce qui ne l'est pas : la note pour l'équipe.
+Ce qui est public : l'étape, les pourcentages, le pseudo des responsables, la date cible (avec
+l'heure de sortie quand elle est connue : « sam. 10 oct. · 20 h »), l'état et l'historique des
+changements. Ce qui ne l'est pas : la note pour l'équipe. Le tome d'une **série à venir** y figure
+sous le nom affiché au public, sans le titre de l'œuvre (voir **Série à venir**, section 3).
 
 Le planning public a aussi un onglet **Calendrier** (vue par mois des sorties prévues, programmées
 et parues) et un bouton **S'abonner au calendrier (ICS)** : les lecteurs (et vous) peuvent ajouter
 les dates de sortie à Google Agenda, Apple Calendrier ou Outlook, qui se mettent à jour seuls. Une
-date cible y apparaît comme « (prévision) » : seule une sortie programmée y est confirmée. Chaque
+date cible y apparaît comme « (prévision) » : seule une sortie programmée y est confirmée. Avec
+une heure de sortie, l'événement est à l'heure dite ; sans heure, il occupe la journée entière. Chaque
 œuvre a enfin son flux RSS (`/oeuvres/{œuvre}/feed/`) avec ses nouveaux tomes, chapitres et
 actualités.
 
@@ -317,7 +344,8 @@ actualités.
 **Accueil.** « Dernières sorties » reste en haut. La carte « Prochaines sorties » est remplacée par
 une section **Planning** pleine largeur :
 
-- **À la une : prochain tome** : couverture, œuvre, tome, date, compte à rebours (« J-2 »), barres
+- **À la une : prochain tome** : couverture, œuvre, tome, date (et heure si elle est connue), compte
+  à rebours (« J-2 », « Aujourd'hui à 20 h » le jour même), barres
   Traduction / Relecture / Édition, boutons **Suivre l'œuvre** et **Voir la fiche** ;
 - deux colonnes de même hauteur :
   - **Chapitres en lecture** : les tomes publiés chapitre par chapitre (« 3 / 12 » et leur
@@ -342,7 +370,8 @@ bref », tableau, calendrier, journal, légende). En plus :
 - sur mobile, le tableau devient une carte par tome ;
 - deux entrées de légende : **En cours de publication** et **Chapitre programmé**.
 
-Règles (seules les œuvres publiques apparaissent ; un chapitre retiré n'apparaît jamais) :
+Règles (seules les œuvres publiques apparaissent, plus les séries à venir sous leur nom affiché ; un
+chapitre retiré n'apparaît jamais) :
 
 | Pour… | Il faut… |
 | --- | --- |
@@ -350,7 +379,9 @@ Règles (seules les œuvres publiques apparaissent ; un chapitre retiré n'appar
 | Mettre un tome à la une | Lui donner une **Date cible** au planning, ou programmer sa sortie. Le tome à la une est le tome à venir dont la date (programmée, sinon cible) est la plus proche |
 
 Un tome **bloqué** n'est jamais à la une ; un tome déjà en cours de publication chapitre par
-chapitre non plus (il est dans la file des chapitres).
+chapitre non plus (il est dans la file des chapitres). Le Tome 1 d'une **série à venir** y figure,
+même œuvre en brouillon, mais sous son nom affiché : sans titre, couverture, lien ni bouton
+**Suivre l'œuvre**.
 
 ### Rappels automatiques
 

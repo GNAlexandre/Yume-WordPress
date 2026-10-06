@@ -121,14 +121,24 @@ function url_origine_nouveau_tome( string $depuis, int $oeuvre_id = 0 ): string 
  */
 
 /**
- * Chapitres prévus et rythme de sortie (jour, heure).
+ * Champ « Heure de sortie » (heure_cible), à côté de « Date cible du tome » : enregistré quel
+ * que soit le rythme, et repris par le rythme des chapitres quand un jour est choisi.
+ *
+ * @param string $prefixe Préfixe des identifiants.
+ * @param string $heure   Heure (HH:MM, '' : non précisée).
+ */
+function champ_heure_sortie( string $prefixe, string $heure ): string {
+	return champ_saisie( $prefixe . '-heure', 'heure_cible', __( 'Heure de sortie', 'yume-core' ), $heure, 'time', array( 'step' => 60 ) );
+}
+
+/**
+ * Chapitres prévus et rythme de sortie (jour seulement : l'heure est l'« Heure de sortie »).
  *
  * @param string $prefixe Préfixe des identifiants.
  * @param string $prevus  Chapitres prévus ('' : inconnu).
  * @param string $jour    Jour du rythme ('' : libre).
- * @param string $heure   Heure du rythme (HH:MM).
  */
-function champs_rythme( string $prefixe, string $prevus, string $jour, string $heure ): string {
+function champs_rythme( string $prefixe, string $prevus, string $jour ): string {
 	$jours = array( '' => __( 'Libre', 'yume-core' ) );
 	foreach ( yume_jours_semaine() as $cle => $libelle ) {
 		/* translators: %s : jour de la semaine (lundi…) */
@@ -147,8 +157,22 @@ function champs_rythme( string $prefixe, string $prevus, string $jour, string $h
 		)
 	);
 	$html .= champ_select( $prefixe . '-rythme', 'rythme_jour', __( 'Rythme (facultatif)', 'yume-core' ), $jours, $jour );
-	$html .= champ_saisie( $prefixe . '-heure', 'rythme_heure', __( 'Heure de sortie', 'yume-core' ), '' !== $heure ? $heure : '18:00', 'time', array( 'step' => 60 ) );
 	return $html;
+}
+
+/**
+ * Heure de sortie à proposer dans un formulaire : la saisie à reprendre, sinon l'heure
+ * enregistrée (« heure_cible »), sinon celle du rythme d'un tome antérieur à ce champ.
+ *
+ * @param array  $s      Valeurs du formulaire (heure_cible, rythme).
+ * @param string $defaut Heure proposée à défaut ('' : aucune).
+ */
+function heure_sortie_proposee( array $s, string $defaut = '' ): string {
+	if ( is_scalar( $s['heure_cible'] ?? null ) ) {
+		return (string) $s['heure_cible'];
+	}
+	$rythme = is_array( $s['rythme'] ?? null ) ? $s['rythme'] : array();
+	return is_string( $rythme['heure'] ?? null ) && valider_heure( $rythme['heure'] ) ? $rythme['heure'] : $defaut;
 }
 
 /**
@@ -247,8 +271,10 @@ function formulaire_nouveau_tome( array $membres, ?array $retour, int $oeuvre_id
 	$html .= '<section class="yn-card yn-team__ajout" aria-labelledby="yn-nt-equipe"><h3 class="yn-label" id="yn-nt-equipe">' . esc_html__( 'Équipe et calendrier', 'yume-core' ) . '</h3><div class="yn-team__grille">';
 	$html .= champs_responsables( 'yn-nt', $membres, is_array( $s['responsables'] ?? null ) ? $s['responsables'] : array() );
 	$html .= champ_saisie( 'yn-nt-date', 'date_cible', __( 'Date cible du tome', 'yume-core' ), $val( 'date_cible' ), 'date' );
-	$html .= champs_rythme( 'yn-nt', $val( 'chapitres_prevus' ), (string) ( $rythme['jour'] ?? '' ), (string) ( $rythme['heure'] ?? '' ) );
-	$html .= '</div><p class="yn-muted">' . esc_html__( 'Facultatifs : le nombre de chapitres prévus (pour « 3 chapitres sur 12 en ligne ») et le rythme (pour proposer la date du chapitre suivant). « Libre » : aucune date proposée.', 'yume-core' ) . '</p></section>';
+	// Nouveau tome : 18:00 proposé, jamais imposé (une heure saisie est gardée telle quelle).
+	$html .= champ_heure_sortie( 'yn-nt', heure_sortie_proposee( $s, '18:00' ) );
+	$html .= champs_rythme( 'yn-nt', $val( 'chapitres_prevus' ), (string) ( $rythme['jour'] ?? '' ) );
+	$html .= '</div><p class="yn-muted">' . esc_html__( 'Facultatifs : le nombre de chapitres prévus (pour « 3 chapitres sur 12 en ligne ») et le rythme (pour proposer la date du chapitre suivant, à l’heure de sortie). « Libre » : aucune date proposée.', 'yume-core' ) . '</p></section>';
 
 	$html .= encadre_parutions() . '</div>';
 
@@ -365,6 +391,11 @@ function valeurs_tome( int $id ): array {
 	$rythme  = $meta( 'yume_rythme' );
 	$credits = $meta( 'yume_credits' );
 	$prevus  = (int) $meta( 'yume_chapitres_prevus' );
+	$heure   = (string) $meta( 'yume_heure_cible' );
+	if ( ! valider_heure( $heure ) ) {
+		// Tome antérieur à l'heure de sortie : l'heure de son rythme, s'il en a un.
+		$heure = is_array( $rythme ) && ! empty( $rythme['jour'] ) && is_string( $rythme['heure'] ?? null ) && valider_heure( $rythme['heure'] ) ? $rythme['heure'] : '';
+	}
 	return array(
 		'oeuvre_id'        => (string) (int) $meta( 'yume_oeuvre_id' ),
 		'nature'           => '' !== (string) $meta( 'yume_nature' ) ? (string) $meta( 'yume_nature' ) : 'tome',
@@ -372,6 +403,7 @@ function valeurs_tome( int $id ): array {
 		'titre'            => sous_titre_tome( $id ),
 		'responsables'     => norm_responsables( $meta( 'yume_responsables' ) ),
 		'date_cible'       => (string) $meta( 'yume_date_cible' ),
+		'heure_cible'      => $heure,
 		'chapitres_prevus' => $prevus > 0 ? (string) $prevus : '',
 		'rythme'           => is_array( $rythme ) ? $rythme : array(),
 		'credits'          => \Yume\Core\Core\san_trio_textes( is_array( $credits ) ? $credits : array() ),
@@ -398,6 +430,7 @@ function saisie_tome( array $post ): array {
 	};
 	$resp    = champ_post( $post, 'responsables' );
 	$avance  = champ_post( $post, 'avancement' );
+	$heure   = champ_post( $post, 'heure_cible' );
 	$propres = array();
 	if ( is_array( $resp ) ) {
 		foreach ( ETAPES_TRAVAIL as $e ) {
@@ -413,6 +446,8 @@ function saisie_tome( array $post ): array {
 		'titre'            => $texte( 'titre', 150 ),
 		'responsables'     => is_array( $resp ) ? $propres : null,
 		'date_cible'       => $texte( 'date_cible', 10 ),
+		// Heure de sortie : null si le champ manque (formulaire ancien : l'heure du rythme sert).
+		'heure_cible'      => null === $heure ? null : $texte( 'heure_cible', 8 ),
 		'chapitres_prevus' => $texte( 'chapitres_prevus', 10 ),
 		'rythme'           => array(
 			'jour'  => sanitize_key( $texte( 'rythme_jour', 20 ) ),
@@ -452,8 +487,9 @@ function lien_tome_saisi( string $saisi, string $libelle ) {
  * Modifie un tome depuis l'espace équipe (statut de publication et adresse inchangés).
  *
  * Champs du tome (œuvre, nature, numéro, titre : titre du contenu reconstruit s'ils changent),
- * planning (responsables, étape, avancement, date cible : mettre_a_jour(), journalisé),
- * chapitres prévus, rythme, crédits, liens PDF et EPUB (affichés aux lecteurs seulement pour un
+ * planning (responsables, étape, avancement, date cible et heure de sortie : mettre_a_jour(),
+ * journalisé), chapitres prévus, rythme (à l'heure de sortie, 18:00 si elle n'est pas
+ * précisée), crédits, liens PDF et EPUB (affichés aux lecteurs seulement pour un
  * tome « Publié »), couverture et cadrage. N'annonce rien ; l'état du tome (champ « etat ») est
  * changé ensuite par changer_etat_tome() (traiter_formulaire_tome()).
  *
@@ -480,7 +516,16 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 	if ( is_wp_error( $prevus ) ) {
 		return $prevus;
 	}
-	$rythme = valider_rythme( $saisie['rythme'] );
+	// Heure de sortie : champ « heure_cible », sinon l'heure du rythme (formulaire ancien).
+	$heure = heure_cible_saisie( $saisie );
+	if ( null !== $heure ) {
+		$heure = valider_saisie( array( 'heure_cible' => $heure ), $user_id );
+		if ( is_wp_error( $heure ) ) {
+			return $heure;
+		}
+		$heure = (string) $heure['heure_cible'];
+	}
+	$rythme = rythme_saisi( $saisie['rythme'], $heure ?? donnees_tome( $id )['heure_cible'] );
 	if ( is_wp_error( $rythme ) ) {
 		return $rythme;
 	}
@@ -511,6 +556,9 @@ function modifier_tome( int $id, array $saisie, ?array $couverture, int $user_id
 
 	// Planning d'abord : il valide tout avant d'écrire (droits, date, responsables).
 	$planning = array( 'date_cible' => $saisie['date_cible'] );
+	if ( null !== $heure ) {
+		$planning['heure_cible'] = $heure;
+	}
 	if ( '' !== $saisie['etape'] ) {
 		$planning['etape'] = $saisie['etape'];
 	}
@@ -1793,6 +1841,7 @@ function encadre_etat_planifie( int $id, array $s, string $classe ): string {
 	$html      .= '<p class="yn-etat__intro">' . esc_html__( 'Le planning du tome, modifiable ici :', 'yume-core' ) . '</p><div class="yn-etat__grille">';
 	$html      .= champ_select( 'yn-tome-etape', 'etape', __( 'Étape', 'yume-core' ), etapes_proposees( $id, $d['etape'], get_current_user_id() ), $etape );
 	$html      .= champ_saisie( 'yn-tome-date', 'date_cible', __( 'Date cible du tome', 'yume-core' ), is_scalar( $s['date_cible'] ?? null ) ? (string) $s['date_cible'] : '', 'date' );
+	$html      .= champ_heure_sortie( 'yn-tome', heure_sortie_proposee( $s ) );
 	$html      .= '</div><div class="yn-etat__curseurs">';
 	foreach ( ETAPES_TRAVAIL as $e ) {
 		$html .= champ_curseur( 'yn-tome', $e, (int) ( $avancement[ $e ] ?? 0 ) );
@@ -2065,7 +2114,7 @@ function formulaire_tome( int $id, ?array $retour, ?array $etat = null ): string
 	$html .= champ_saisie( 'yn-tome-titre', 'titre', __( 'Titre (facultatif)', 'yume-core' ), $val( 'titre' ), 'text', array( 'maxlength' => 150 ) );
 	// Chapitres prévus et rythme : valables quel que soit l'état du tome (relevés aussi à l'ajout de chapitres).
 	$rythme_tome = is_array( $s['rythme'] ?? null ) ? $s['rythme'] : array();
-	$html       .= champs_rythme( 'yn-tome', is_scalar( $s['chapitres_prevus'] ?? null ) ? (string) $s['chapitres_prevus'] : '', (string) ( $rythme_tome['jour'] ?? '' ), (string) ( $rythme_tome['heure'] ?? '' ) );
+	$html       .= champs_rythme( 'yn-tome', is_scalar( $s['chapitres_prevus'] ?? null ) ? (string) $s['chapitres_prevus'] : '', (string) ( $rythme_tome['jour'] ?? '' ) );
 	$html       .= '</div></section>';
 
 	// Équipe (les dates et le rythme sont dans l'état du tome).
@@ -2149,6 +2198,7 @@ function rendu_modifier_tome( int $id ): string {
 		'date'       => ts_contenu( $post, in_array( $post->post_status, array( 'publish', 'private', 'future' ), true ) ? 'post_date' : 'post_modified' ),
 		'etape'      => (string) get_post_meta( $id, 'yume_etape', true ),
 		'date_cible' => (string) get_post_meta( $id, 'yume_date_cible', true ),
+		'heure'      => (string) get_post_meta( $id, 'yume_heure_cible', true ),
 		'publies'    => (int) $nb['publies'],
 		'attente'    => (int) $nb['attente'],
 		'programmes' => (int) $nb['programmes'],
@@ -2168,7 +2218,7 @@ function rendu_modifier_tome( int $id ): string {
 	/* translators: %s : tome (« Œuvre — Tome 2 ») */
 	$html .= tete_vue( sprintf( __( 'Modifier le tome : %s', 'yume-core' ), titre_brut( $id ) ), $boutons );
 	$date  = texte_date_tome( $tome );
-	$html .= '<p class="yn-lecture__puces yn-fiche__puces">' . pastille_parution( $tome['parution'] ) . pastilles_chapitres_tome( $tome ) . ( '' !== $date ? '<span class="yn-muted">' . esc_html( $date ) . '</span>' : '' ) . '</p>';
+	$html .= '<p class="yn-lecture__puces yn-fiche__puces">' . pastille_parution( $tome['parution'] ) . pastilles_chapitres_tome( $tome ) . pastille_titre_cache( yume_get_oeuvre_id( $id ) ) . ( '' !== $date ? '<span class="yn-muted">' . esc_html( $date ) . '</span>' : '' ) . '</p>';
 	$html .= '<div id="yn-tome-fiche">' . zone_retour( $pour( 'yn-tome-fiche' ) ) . '</div>';
 
 	// Écran de confirmation d'un changement d'état ; sans objet, son retour va à l'état du tome.

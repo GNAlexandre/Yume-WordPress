@@ -795,6 +795,39 @@ function yume_oeuvre_sans_rappels( int $oeuvre_id ): bool {
 }
 
 /**
+ * L'œuvre est-elle une « série à venir » (méta yume_serie_a_venir) ? Vrai seulement pour une
+ * œuvre pas encore publiée (brouillon, en attente, programmée) : ses tomes paraissent alors au
+ * planning public sous le nom de yume_titre_public_oeuvre(), sans titre, lien ni couverture.
+ * Une œuvre publiée, privée ou à la corbeille n'est jamais « à venir ».
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function yume_oeuvre_a_venir( int $oeuvre_id ): bool {
+	if ( $oeuvre_id <= 0 || 'yume_oeuvre' !== get_post_type( $oeuvre_id ) ) {
+		return false;
+	}
+	if ( ! in_array( get_post_status( $oeuvre_id ), array( 'draft', 'pending', 'future' ), true ) ) {
+		return false;
+	}
+	return '1' === (string) get_post_meta( $oeuvre_id, 'yume_serie_a_venir', true );
+}
+
+/**
+ * Titre d'une œuvre tel que le public peut le lire : le nom choisi (méta yume_libelle_a_venir,
+ * « Nouvelle série à venir » par défaut) pour une série à venir (yume_oeuvre_a_venir()), sinon
+ * son titre (sans balises ni entités).
+ *
+ * @param int $oeuvre_id Œuvre.
+ */
+function yume_titre_public_oeuvre( int $oeuvre_id ): string {
+	if ( yume_oeuvre_a_venir( $oeuvre_id ) ) {
+		$libelle = trim( (string) get_post_meta( $oeuvre_id, 'yume_libelle_a_venir', true ) );
+		return '' !== $libelle ? $libelle : __( 'Nouvelle série à venir', 'yume-core' );
+	}
+	return $oeuvre_id > 0 ? trim( wp_strip_all_tags( html_entity_decode( (string) get_the_title( $oeuvre_id ), ENT_QUOTES, 'UTF-8' ) ) ) : '';
+}
+
+/**
  * Prochaine date de sortie selon le rythme du tome (méta yume_rythme), strictement après
  * $apres (défaut : maintenant), dans le fuseau du site ; null si le tome n'a pas de rythme.
  *

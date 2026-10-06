@@ -194,6 +194,30 @@ function valider_date( $v ): bool {
 	return checkdate( (int) $m[2], (int) $m[3], (int) $m[1] );
 }
 
+/**
+ * Heure « HH:MM » valide ?
+ *
+ * @param mixed $v Valeur.
+ */
+function valider_heure( $v ): bool {
+	return is_string( $v ) && (bool) preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', $v );
+}
+
+/**
+ * Horodatage d'une sortie datée et horodatée : date « Y-m-d » et heure « HH:MM » dans le
+ * fuseau du site (wp_timezone()) ; 0 si l'une ou l'autre est invalide.
+ *
+ * @param string $date  Date.
+ * @param string $heure Heure.
+ */
+function ts_sortie( string $date, string $heure ): int {
+	if ( ! valider_date( $date ) || ! valider_heure( $heure ) ) {
+		return 0;
+	}
+	$d = \DateTimeImmutable::createFromFormat( '!Y-m-d H:i', $date . ' ' . $heure, wp_timezone() );
+	return $d ? $d->getTimestamp() : 0;
+}
+
 /*
  * -----------------------------------------------------------------------------
  * Dates en français (indépendantes de la langue installée)
@@ -327,13 +351,29 @@ function majuscule( string $texte ): string {
 }
 
 /**
- * Date cible lisible : précise (« sam. 26 sept. ») à moins de trois semaines, sinon
- * indicative (« mi-octobre », « début novembre 2027 ») comme sur le planning public.
+ * Heure de sortie en français : « 20 h », « 20 h 30 » (espaces insécables) ; vide si l'heure
+ * « HH:MM » est invalide ou vide.
+ *
+ * @param string $heure Heure « HH:MM ».
+ */
+function heure_lisible( string $heure ): string {
+	if ( ! valider_heure( $heure ) ) {
+		return '';
+	}
+	$minutes = substr( $heure, 3, 2 );
+	return (int) substr( $heure, 0, 2 ) . "\u{00A0}h" . ( '00' !== $minutes ? "\u{00A0}" . $minutes : '' );
+}
+
+/**
+ * Date cible lisible : précise (« sam. 26 sept. », « sam. 26 sept. à 20 h » quand l'heure de
+ * sortie est connue) à moins de trois semaines, sinon indicative (« mi-octobre », « début
+ * novembre 2027 », sans heure) comme sur le planning public.
  *
  * @param string $date    Date « Y-m-d » (vide : non planifié).
  * @param bool   $precise Toujours afficher le jour exact.
+ * @param string $heure   Heure de sortie « HH:MM » (vide : non précisée).
  */
-function date_cible_lisible( string $date, bool $precise = false ): string {
+function date_cible_lisible( string $date, bool $precise = false, string $heure = '' ): string {
 	$ts = ts_date( $date );
 	if ( ! $ts ) {
 		return __( 'non planifié', 'yume-core' );
@@ -342,7 +382,9 @@ function date_cible_lisible( string $date, bool $precise = false ): string {
 	$annee   = (int) substr( $date, 0, 4 );
 	$courant = (int) substr( date_locale(), 0, 4 );
 	if ( $precise || $ecart <= 21 ) {
-		return format_fr( $ts, $annee !== $courant ? 'D j M Y' : 'D j M' );
+		$texte = format_fr( $ts, $annee !== $courant ? 'D j M Y' : 'D j M' );
+		/* translators: 1: date (« sam. 26 sept. »), 2: heure (« 20 h ») */
+		return valider_heure( $heure ) ? sprintf( __( '%1$s à %2$s', 'yume-core' ), $texte, heure_lisible( $heure ) ) : $texte;
 	}
 	$jour = (int) substr( $date, 8, 2 );
 	$mois = noms_mois()[ (int) substr( $date, 5, 2 ) ];
@@ -442,19 +484,21 @@ function norm_responsables( $v ): array {
  * Données brutes du planning d'un tome.
  *
  * @param int $tome_id Tome.
- * @return array{etape:string,avancement:array,responsables:array,date_cible:string,bloque:bool,bloque_raison:string,derniere_maj:string,maj_par:int,note_equipe:string}
+ * @return array{etape:string,avancement:array,responsables:array,date_cible:string,heure_cible:string,bloque:bool,bloque_raison:string,derniere_maj:string,maj_par:int,note_equipe:string}
  */
 function donnees_tome( int $tome_id ): array {
 	$etape = (string) get_post_meta( $tome_id, 'yume_etape', true );
 	if ( ! array_key_exists( $etape, yume_etapes() ) ) {
 		$etape = 'a_faire';
 	}
-	$date = (string) get_post_meta( $tome_id, 'yume_date_cible', true );
+	$date  = (string) get_post_meta( $tome_id, 'yume_date_cible', true );
+	$heure = (string) get_post_meta( $tome_id, 'yume_heure_cible', true );
 	return array(
 		'etape'         => $etape,
 		'avancement'    => norm_avancement( get_post_meta( $tome_id, 'yume_avancement', true ) ),
 		'responsables'  => norm_responsables( get_post_meta( $tome_id, 'yume_responsables', true ) ),
 		'date_cible'    => valider_date( $date ) ? $date : '',
+		'heure_cible'   => valider_heure( $heure ) ? $heure : '',
 		'bloque'        => (bool) get_post_meta( $tome_id, 'yume_bloque', true ),
 		'bloque_raison' => (string) get_post_meta( $tome_id, 'yume_bloque_raison', true ),
 		'derniere_maj'  => (string) get_post_meta( $tome_id, 'yume_derniere_maj', true ),

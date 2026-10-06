@@ -33,6 +33,7 @@ require_once __DIR__ . '/tome-fiche-equipe.php';
 require_once __DIR__ . '/mes-taches.php';
 require_once __DIR__ . '/oeuvres-equipe.php';
 require_once __DIR__ . '/oeuvres-etat.php';
+require_once __DIR__ . '/serie-a-venir.php';
 require_once __DIR__ . '/kpi.php';
 require_once __DIR__ . '/sante-equipe.php';
 require_once __DIR__ . '/membres.php';

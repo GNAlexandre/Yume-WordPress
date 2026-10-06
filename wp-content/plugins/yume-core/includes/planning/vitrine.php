@@ -10,8 +10,9 @@
  * - rendus HTML échappés à la construction : rendu_a_la_une(), rendu_file_chapitres(),
  *   rendu_tomes_preparation(), rendu_planning_accueil().
  *
- * Mêmes règles de visibilité que le planning public : œuvres publiées seulement, jamais un
- * chapitre retiré (Publication\Service::META_RETIRE) ni une version en attente de remplacement.
+ * Mêmes règles de visibilité que le planning public : œuvres publiées seulement (plus les tomes
+ * d'une série à venir, sous leur nom public, sans lien ni couverture), jamais un chapitre retiré
+ * (Publication\Service::META_RETIRE) ni une version en attente de remplacement.
  * Couleurs : uniquement les variables et classes du thème (§15) ; feuille assets/vitrine.css et
  * script assets/vitrine.js (poignée yume-vitrine : onglets Chapitres / Tomes sous 900 px, en
  * amélioration progressive, les deux listes restent visibles sans JavaScript).
@@ -98,7 +99,8 @@ function prochain_tome(): ?array {
 		if ( ! valider_date( $date ) || $date < $aujourdhui ) {
 			continue;
 		}
-		$couverture             = function_exists( 'yume_get_cover_id' ) ? yume_get_cover_id( (int) $ligne['tome_id'] ) : 0;
+		// Série à venir : jamais de couverture (elle pourrait trahir le titre).
+		$couverture             = empty( $ligne['titre_cache'] ) && function_exists( 'yume_get_cover_id' ) ? yume_get_cover_id( (int) $ligne['tome_id'] ) : 0;
 		$ligne['jours']         = max( 0, ecart_jours( $aujourdhui, $date ) );
 		$ligne['couverture_id'] = $couverture;
 		$ligne['couverture']    = $couverture ? (string) wp_get_attachment_image_url( $couverture, 'yume-couverture' ) : '';
@@ -508,8 +510,9 @@ function lien_tous_chapitres(): string {
 
 /**
  * Bandeau « À la une » du prochain tome (voir prochain_tome()) : couverture, œuvre, tome, date
- * longue, compte à rebours, avancement des trois étapes, « Suivre l'œuvre » et « Voir la
- * fiche ». Rien pour un tableau vide.
+ * longue (avec l'heure de sortie quand elle est connue : « samedi 10 octobre 2026 à 20 h »),
+ * compte à rebours (« J-2 », « Aujourd’hui », « Aujourd’hui à 20 h »), avancement des trois
+ * étapes, « Suivre l'œuvre » et « Voir la fiche ». Rien pour un tableau vide.
  *
  * @param array  $tome     Ligne de prochain_tome().
  * @param string $contexte 'accueil' (titre h3) ou 'planning' (titre h2).
@@ -522,6 +525,8 @@ function rendu_a_la_une( array $tome, string $contexte = 'accueil' ): string {
 	$planning = 'planning' === $contexte;
 	$niveau   = $planning ? 'h2' : 'h3';
 	$ts       = ts_date( (string) $tome['date_cible'] );
+	$heure    = heure_lisible( (string) ( $tome['heure_cible'] ?? '' ) );
+	$ts_heure = '' !== $heure ? ts_sortie( (string) $tome['date_cible'], (string) $tome['heure_cible'] ) : 0;
 	$jours    = (int) ( $tome['jours'] ?? max( 0, ecart_jours( date_locale(), (string) $tome['date_cible'] ) ) );
 	$oeuvre   = (string) $tome['oeuvre'];
 	$fiche    = '' !== (string) ( $tome['url_tome'] ?? '' ) ? (string) $tome['url_tome'] : (string) $tome['url_oeuvre'];
@@ -540,6 +545,9 @@ function rendu_a_la_une( array $tome, string $contexte = 'accueil' ): string {
 				'loading' => 'lazy',
 			)
 		);
+	} elseif ( ! empty( $tome['titre_cache'] ) ) {
+		// Série à venir : visuel neutre (dégradé de .yn-cover).
+		$html .= '<span>?</span>';
 	} else {
 		$html .= '<span>' . esc_html( $oeuvre . ' · ' . yume_libelle_tome( (int) $tome['tome_id'], true ) ) . '</span>';
 	}
@@ -550,7 +558,11 @@ function rendu_a_la_une( array $tome, string $contexte = 'accueil' ): string {
 	$html .= '<p class="yn-label yn-vitrine-une__surtitre">' . esc_html( $planning ? __( 'À la une · prochain tome', 'yume-core' ) : __( 'Prochain tome', 'yume-core' ) ) . '</p>';
 	$html .= '<' . $niveau . ' class="yn-vitrine-une__oeuvre" id="' . esc_attr( $titre_id ) . '">' . esc_html( $oeuvre ) . '<span class="yn-visually-hidden"> · ' . esc_html( (string) $tome['tome'] ) . '</span></' . $niveau . '>';
 	$html .= '<p class="yn-vitrine-une__tome"><span class="yn-vitrine-une__numero" aria-hidden="true">' . esc_html( (string) $tome['tome'] ) . '</span>';
-	$html .= '<span class="yn-label yn-vitrine-une__date">' . icone_vitrine( 'calendrier' ) . '<time datetime="' . esc_attr( (string) $tome['date_cible'] ) . '">' . esc_html( vitrine_date_longue( $ts ) ) . '</time></span></p>';
+	$quand = '' !== $heure
+		/* translators: 1: date longue (« samedi 10 octobre 2026 »), 2: heure (« 20 h ») */
+		? sprintf( __( '%1$s à %2$s', 'yume-core' ), vitrine_date_longue( $ts ), $heure )
+		: vitrine_date_longue( $ts );
+	$html .= '<span class="yn-label yn-vitrine-une__date">' . icone_vitrine( 'calendrier' ) . '<time datetime="' . esc_attr( $ts_heure ? gmdate( 'Y-m-d\TH:i\Z', $ts_heure ) : (string) $tome['date_cible'] ) . '">' . esc_html( $quand ) . '</time></span></p>';
 	if ( '' !== (string) ( $tome['titre'] ?? '' ) ) {
 		$html .= '<p class="yn-muted yn-vitrine-une__sous-titre">' . esc_html( (string) $tome['titre'] ) . '</p>';
 	}
@@ -563,7 +575,12 @@ function rendu_a_la_une( array $tome, string $contexte = 'accueil' ): string {
 
 	// Compte à rebours et avancement.
 	$html .= '<div class="yn-vitrine-une__suivi">';
-	if ( 0 === $jours ) {
+	if ( 0 === $jours && '' !== $heure ) {
+		/* translators: %s : heure de sortie (« 20 h ») */
+		$rebours = sprintf( __( 'Aujourd’hui à %s', 'yume-core' ), $heure );
+		/* translators: %s : heure de sortie (« 20 h ») */
+		$detail = sprintf( __( 'Sortie aujourd’hui à %s', 'yume-core' ), $heure );
+	} elseif ( 0 === $jours ) {
 		$rebours = __( 'Aujourd’hui', 'yume-core' );
 		$detail  = __( 'Sortie aujourd’hui', 'yume-core' );
 	} else {
@@ -804,7 +821,7 @@ function rendu_tomes_preparation( array $lignes ): string {
 			}
 			if ( est_programme( $l ) && 'bloque' !== $l['etat'] ) {
 				/* translators: %s : date de sortie programmée */
-				$date = sprintf( __( 'Sortie : %s', 'yume-core' ), date_cible_lisible( (string) $l['date_cible'], true ) );
+				$date = sprintf( __( 'Sortie : %s', 'yume-core' ), date_cible_lisible( (string) $l['date_cible'], true, (string) ( $l['heure_cible'] ?? '' ) ) );
 			} elseif ( '' === (string) $l['date_cible'] ) {
 				$date = __( 'Date : à venir', 'yume-core' );
 			} elseif ( $l['date_cible'] < date_locale() ) {
@@ -812,7 +829,7 @@ function rendu_tomes_preparation( array $lignes ): string {
 				$date = sprintf( __( 'Prévu %s', 'yume-core' ), date_cible_lisible( (string) $l['date_cible'], true ) );
 			} else {
 				/* translators: %s : date cible */
-				$date = sprintf( __( 'Cible : %s', 'yume-core' ), date_cible_lisible( (string) $l['date_cible'] ) );
+				$date = sprintf( __( 'Cible : %s', 'yume-core' ), date_cible_lisible( (string) $l['date_cible'], false, (string) ( $l['heure_cible'] ?? '' ) ) );
 			}
 			if ( 'en_retard' === $l['etat'] ) {
 				// Le retard se lit en toutes lettres, pas seulement à la couleur et à l'icône.

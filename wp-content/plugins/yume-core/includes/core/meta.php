@@ -76,6 +76,19 @@ function san_booleen( $v ): bool {
 	return (bool) rest_sanitize_boolean( is_scalar( $v ) ? $v : false );
 }
 
+/** Longueur maximale du nom public d'une série à venir (yume_libelle_a_venir). */
+const LIBELLE_A_VENIR_MAX = 80;
+
+/**
+ * Nom public d'une série à venir : texte court sur une ligne, LIBELLE_A_VENIR_MAX caractères
+ * au plus.
+ *
+ * @param mixed $v Valeur.
+ */
+function san_libelle_a_venir( $v ): string {
+	return trim( mb_substr( san_texte( $v ), 0, LIBELLE_A_VENIR_MAX ) );
+}
+
 /**
  * Date « Y-m-d » valide ou chaîne vide.
  *
@@ -105,6 +118,22 @@ function san_datetime( $v ): string {
 		return '';
 	}
 	return sprintf( '%s-%s-%s %s:%s:%02d', $m[1], $m[2], $m[3], $m[4], $m[5], isset( $m[6] ) ? (int) $m[6] : 0 );
+}
+
+/**
+ * Heure « HH:MM » valide (« 9:05 » et « 20:30:00 » ramenées à « 09:05 » et « 20:30 ») ou
+ * chaîne vide.
+ *
+ * @param mixed $v Valeur.
+ */
+function san_heure( $v ): string {
+	if ( ! is_scalar( $v ) || ! preg_match( '/^(\d{1,2}):(\d{2})(?::\d{2})?$/', trim( (string) $v ), $m ) ) {
+		return '';
+	}
+	if ( (int) $m[1] > 23 || (int) $m[2] > 59 ) {
+		return '';
+	}
+	return sprintf( '%02d:%02d', (int) $m[1], (int) $m[2] );
 }
 
 /**
@@ -456,6 +485,17 @@ function definitions_meta(): array {
 				'sanitize'      => __NAMESPACE__ . '\\san_datetime',
 				'lecture_seule' => true,
 			),
+			'yume_serie_a_venir'     => array(
+				'type'        => 'boolean',
+				'description' => __( 'Série à venir : tant que l’œuvre n’est pas publiée, ses tomes paraissent au planning public sous le nom yume_libelle_a_venir, sans titre, lien ni couverture (lire avec yume_oeuvre_a_venir()). Retirée à la première publication de l’œuvre ou d’un de ses tomes ou chapitres.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_booleen',
+				'default'     => false,
+			),
+			'yume_libelle_a_venir'   => array(
+				'type'        => 'string',
+				'description' => __( 'Nom affiché au public d’une série à venir (80 caractères au plus ; vide : « Nouvelle série à venir »). Lire avec yume_titre_public_oeuvre().', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_libelle_a_venir',
+			),
 		),
 		CPT_TOME     => array(
 			'yume_oeuvre_id'        => array(
@@ -501,7 +541,7 @@ function definitions_meta(): array {
 			),
 			'yume_rythme'           => array(
 				'type'        => 'object',
-				'description' => __( 'Rythme de sortie des chapitres : jour (lundi…dimanche) et heure (HH:MM, heure du site) ; vide : libre.', 'yume-core' ),
+				'description' => __( 'Rythme de sortie des chapitres : jour (lundi…dimanche) et heure (HH:MM, heure du site : l’heure de sortie du tome, yume_heure_cible, 18:00 à défaut) ; vide : libre.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_rythme',
 				'schema'      => array(
 					'type'                 => 'object',
@@ -598,6 +638,11 @@ function definitions_meta(): array {
 				'type'        => 'string',
 				'description' => __( 'Date de sortie visée (Y-m-d).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_date',
+			),
+			'yume_heure_cible'      => array(
+				'type'        => 'string',
+				'description' => __( 'Heure de sortie visée (HH:MM, heure du site) ; vide : non précisée. Reprise par le rythme des chapitres.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_heure',
 			),
 			'yume_bloque'           => array(
 				'type'        => 'boolean',
