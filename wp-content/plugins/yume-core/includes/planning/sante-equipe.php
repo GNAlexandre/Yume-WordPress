@@ -195,9 +195,18 @@ function carte_emails_sante( ?array $emails ): string {
 function carte_webhooks_sante( array $webhooks ): string {
 	$lignes = array();
 	foreach ( $webhooks as $canal => $webhook ) {
+		if ( ! empty( $webhook['desactive'] ) ) {
+			$etat     = pastille_sante( 'neutre', __( 'Désactivé (aucune annonce de chapitre)', 'yume-core' ) );
+			$action   = '<a href="' . esc_url( url_vue_equipe( 'reglages' ) . '#yn-reglages-notifications' ) . '">' . esc_html__( 'Régler dans les Réglages', 'yume-core' ) . '</a>';
+			$lignes[] = array( esc_html( $webhook['libelle'] ), $etat, $action );
+			continue;
+		}
 		if ( $webhook['configure'] ) {
-			/* translators: %s : hôte du webhook */
-			$etat   = pastille_sante( 'ok', sprintf( __( 'Configuré (%s)', 'yume-core' ), $webhook['hote'] ) );
+			$etat = ! empty( $webhook['partage'] )
+				/* translators: %s : hôte du webhook */
+				? pastille_sante( 'ok', sprintf( __( 'Salon des sorties (%s)', 'yume-core' ), $webhook['hote'] ) )
+				/* translators: %s : hôte du webhook */
+				: pastille_sante( 'ok', sprintf( __( 'Configuré (%s)', 'yume-core' ), $webhook['hote'] ) );
 			$action = '<form class="yn-sante__test" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 				. '<input type="hidden" name="action" value="' . esc_attr( ACTION_TEST_WEBHOOK ) . '"><input type="hidden" name="canal" value="' . esc_attr( (string) $canal ) . '">'
 				. wp_nonce_field( ACTION_TEST_WEBHOOK, '_wpnonce', false, false )

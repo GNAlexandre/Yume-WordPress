@@ -1655,7 +1655,8 @@ yume_tp_test(
 				yume_assert_contains( 'aria-current="true">Tout</a>', $html );
 				yume_assert_contains( 'Les jours de sortie habituels sont le mercredi, le samedi et le dimanche.', $html );
 				yume_assert_contains( '<table class="yn-planning__table" role="table">', $html );
-				yume_assert_same( 6, substr_count( $html, 'yn-planning__ligne ' ) );
+				// Grimgar T.9, paru il y a 3 jours, n'est plus listé (seuls les tomes parus aujourd'hui restent).
+				yume_assert_same( 5, substr_count( $html, 'yn-planning__ligne ' ) );
 				yume_assert_contains( 'Bloqué · relecteur manquant', $html );
 				yume_assert_contains( 'Prochaine sortie', $html );
 				yume_assert_contains( '<p class="yn-planning__valeur">dim. 27 sept.</p>', $html, 'prochaine sortie datée' );
@@ -1684,7 +1685,7 @@ yume_tp_test(
 					unset( $_GET['etat'] );
 				}
 				yume_assert_not_contains( 'yn-planning__filtres', $html );
-				yume_assert_same( 6, substr_count( $html, 'yn-planning__ligne ' ), 'filtres désactivés : GET ignoré' );
+				yume_assert_same( 5, substr_count( $html, 'yn-planning__ligne ' ), 'filtres désactivés : GET ignoré' );
 			}
 		);
 	}

@@ -518,13 +518,33 @@ Chaque chapitre est remplacé à sa place : mêmes adresses, commentaires gardé
 | Situation | Annonce | Planning |
 | --- | --- | --- |
 | Première sortie d'un tome (le prologue seul, par exemple) | Article, Discord et e-mail : « SukaMoka, Tome 2 : Prologue disponible ! » | En cours : l'avancement suit les chapitres en ligne |
-| Nouveaux chapitres d'un tome en cours | Discord et e-mail à chaque sortie, ou une annonce groupée | Avancement mis à jour |
+| Nouveaux chapitres d'un tome en cours | Discord (salon choisi pour les chapitres) et e-mail à chaque sortie, ou une annonce groupée | Avancement mis à jour |
 | « Le tome est complet : tout publier maintenant », ou sortie du dernier chapitre avec « Publier les liens avec le dernier chapitre » | Article et Discord : « Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles » | « Publié », 100 % |
 | Tome entier publié d'un coup | « Le tome 2 de SukaMoka est disponible ! » | « Publié », 100 % |
 | Chapitre corrigé (« Mettre à jour ») | Aucune | Inchangé |
 | Ajout au catalogue (tome déjà paru) | Aucune | Inchangé |
 
 Décochez **Annoncer les nouveaux chapitres** pour un ajout silencieux.
+
+## Choisir le salon Discord des chapitres
+
+Réservé aux gérants. Les sorties de tomes sont annoncées sur le webhook des sorties. Les chapitres ont leur propre réglage : le même salon, un salon dédié, ou pas d'annonce.
+
+1. Dans le menu **Site**, ouvrez **Réglages**, section **Annonces et notifications**.
+2. Dans **Annonces Discord des chapitres**, choisissez :
+   - **Dans le salon des sorties (même webhook que les tomes)** : le choix par défaut ;
+   - **Dans un salon dédié (webhook des chapitres ci-dessous)** : collez alors l'adresse du webhook du salon dans **Webhook Discord des chapitres** (sur Discord : paramètres du salon, **Intégrations**, **Webhooks**, **Copier l'URL du webhook**) ;
+   - **Pas d'annonce Discord des chapitres**.
+3. Cliquez sur **Enregistrer**.
+4. Dans **Site**, puis **Santé du site**, la ligne **Annonces des chapitres** de la carte **Webhooks Discord** dit où partent les annonces. Cliquez sur **Envoyer un test** pour vérifier que le message arrive.
+
+> **À savoir** : salon dédié choisi mais webhook vide ? Les chapitres partent dans le salon des sorties : aucune annonce n'est perdue.
+
+> **À savoir** : un chapitre n'est pas annoncé sur Discord quand :
+> - il sort avec son tome (première sortie) : c'est l'annonce du tome qui part ;
+> - il sort moins de 15 minutes après son tome (sortie groupée) ;
+> - **Annoncer les nouveaux chapitres** était décochée, ou **Ajout au catalogue** était cochée (cas d'office pour un tome complet déjà paru) ;
+> - sa date de publication a plus de 2 jours (chapitre antidaté).
 
 # Terminer un tome
 
@@ -731,6 +751,7 @@ La page **yumenovel.fr/planning/** garde tout ce qu'elle montrait : l'introducti
 - Dans le tableau, chaque étape a sa barre d'avancement avec son pourcentage.
 - Un tome publié chapitre par chapitre affiche « En cours · 3 chapitres sur 12 », une petite barre, « Prochain : ch. 3 · sam. 3 oct. 18 h » et la pastille **En cours de publication**.
 - Sur téléphone, le tableau devient une carte par tome.
+- Parmi les tomes déjà sortis, la liste ne garde que ceux **parus aujourd'hui** (depuis minuit, heure de Paris) et ceux **en cours de publication** chapitre par chapitre. Un tome paru la veille ou avant quitte la liste : il reste dans la bibliothèque et dans la vue **Calendrier**.
 
 ![Les trois vues et le tableau : barres d'avancement, tomes en cours de publication et prochain chapitre.](images/PagePlanning-vues.png)
 

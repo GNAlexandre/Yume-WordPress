@@ -175,9 +175,11 @@ function etat_emails(): ?array {
  */
 function etat_webhooks(): array {
 	$canaux = array(
-		'sorties' => __( 'Annonces des sorties', 'yume-core' ),
-		'equipe'  => __( 'Canal de l’équipe (rappels)', 'yume-core' ),
+		'sorties'   => __( 'Annonces des sorties (tomes)', 'yume-core' ),
+		'chapitres' => __( 'Annonces des chapitres', 'yume-core' ),
+		'equipe'    => __( 'Canal de l’équipe (rappels)', 'yume-core' ),
 	);
+	$mode   = function_exists( 'yume_setting' ) ? (string) yume_setting( 'discord_chapitres', 'sorties' ) : 'sorties';
 	$etat   = array();
 	foreach ( $canaux as $canal => $libelle ) {
 		$url            = function_exists( '\\Yume\\Core\\Planning\\webhook' ) ? \Yume\Core\Planning\webhook( $canal ) : '';
@@ -185,6 +187,9 @@ function etat_webhooks(): array {
 			'libelle'   => $libelle,
 			'configure' => '' !== $url,
 			'hote'      => '' !== $url ? (string) wp_parse_url( $url, PHP_URL_HOST ) : '',
+			// Chapitres : désactivés au choix de l'équipe (pas un oubli), ou salon des sorties réutilisé.
+			'desactive' => 'chapitres' === $canal && 'aucun' === $mode,
+			'partage'   => 'chapitres' === $canal && '' !== $url && ( 'sorties' === $mode || \Yume\Core\Planning\webhook( 'sorties' ) === $url ),
 		);
 	}
 	return $etat;
@@ -321,7 +326,7 @@ function test_sante_emails(): array {
 function test_sante_webhooks(): array {
 	$absents = array();
 	foreach ( etat_webhooks() as $webhook ) {
-		if ( ! $webhook['configure'] ) {
+		if ( ! $webhook['configure'] && empty( $webhook['desactive'] ) ) {
 			$absents[] = $webhook['libelle'];
 		}
 	}
@@ -334,7 +339,7 @@ function test_sante_webhooks(): array {
 			'<p>' . esc_html( sprintf( __( 'Sans webhook, rien n’est publié sur Discord pour : %s. Renseignez-les dans les Réglages de l’espace équipe (Annonces et notifications).', 'yume-core' ), implode( ', ', $absents ) ) ) . '</p>'
 		);
 	}
-	return resultat_sante( 'yume_webhooks', 'good', __( 'Webhooks Discord de Yume configurés', 'yume-core' ), '<p>' . esc_html__( 'Les deux canaux Discord sont réglés ; le bouton « Envoyer un test » de la page « Santé du site » de l’espace équipe vérifie qu’ils répondent.', 'yume-core' ) . '</p>' );
+	return resultat_sante( 'yume_webhooks', 'good', __( 'Webhooks Discord de Yume configurés', 'yume-core' ), '<p>' . esc_html__( 'Les canaux Discord sont réglés ; le bouton « Envoyer un test » de la page « Santé du site » de l’espace équipe vérifie qu’ils répondent.', 'yume-core' ) . '</p>' );
 }
 
 /**
