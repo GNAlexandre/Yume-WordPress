@@ -543,13 +543,16 @@ function rendu_planning( array $attributs ): string {
 		'etat'   => '',
 		'oeuvre' => 0,
 	);
-	$base         = yume_get_planning(
+	// Tomes à venir, parus aujourd'hui ou encore en cours de publication : un tome paru la
+	// veille ou avant quitte la page (il reste dans la bibliothèque et le calendrier).
+	$base    = yume_get_planning(
 		array(
-			'type'      => $filtres['type'],
-			'oeuvre_id' => $filtres['oeuvre'],
+			'type'            => $filtres['type'],
+			'oeuvre_id'       => $filtres['oeuvre'],
+			'publies_du_jour' => true,
 		)
 	);
-	$lignes       = '' === $filtres['etat'] ? $base : array_values(
+	$lignes  = '' === $filtres['etat'] ? $base : array_values(
 		array_filter(
 			$base,
 			static function ( array $l ) use ( $filtres ): bool {
@@ -557,8 +560,8 @@ function rendu_planning( array $attributs ): string {
 			}
 		)
 	);
-	$stats        = statistiques( $base );
-	$journal      = grouper_journal(
+	$stats   = statistiques( $base );
+	$journal = grouper_journal(
 		lire_journal(
 			array(
 				'public'    => true,

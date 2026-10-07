@@ -441,7 +441,8 @@ function sur_chapitre_publie( $chapitre_id ): void {
 	 */
 	$texte = (string) apply_filters( 'yume_planning_annonce_chapitre', $texte, $chapitre_id );
 	if ( '' !== $texte ) {
-		yume_discord( 'sorties', $texte );
+		// Canal des chapitres : salon des sorties, salon dédié ou aucun (réglage discord_chapitres).
+		yume_discord( 'chapitres', $texte );
 	}
 }
 add_action( 'yume_chapitre_publie', __NAMESPACE__ . '\\sur_chapitre_publie', 10 );

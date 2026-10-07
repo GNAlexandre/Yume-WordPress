@@ -161,7 +161,7 @@ function libelle_etat_ligne( array $ligne ): string {
 
 /**
  * IDs des tomes candidats au planning : tous les tomes vivants dont l'étape n'est pas
- * « publié », plus les tomes publiés récemment.
+ * « publié », plus les tomes publiés récemment et ceux encore en cours de publication.
  *
  * @param string   $depuis  Date GMT : tomes publiés mis à jour (ou datés) après cette date.
  * @param string[] $statuts Statuts WordPress.
@@ -173,8 +173,9 @@ function ids_candidats( string $depuis, array $statuts ): array {
 	$sql     = "SELECT DISTINCT p.ID FROM {$wpdb->posts} p"
 		. " LEFT JOIN {$wpdb->postmeta} e ON ( e.post_id = p.ID AND e.meta_key = 'yume_etape' )"
 		. " LEFT JOIN {$wpdb->postmeta} d ON ( d.post_id = p.ID AND d.meta_key = 'yume_derniere_maj' )"
+		. " LEFT JOIN {$wpdb->postmeta} r ON ( r.post_id = p.ID AND r.meta_key = 'yume_parution' )"
 		. " WHERE p.post_type = 'yume_tome' AND p.post_status IN ($marques)"
-		. " AND ( e.meta_value IS NULL OR e.meta_value <> 'publie' OR d.meta_value >= %s OR p.post_date_gmt >= %s )"
+		. " AND ( e.meta_value IS NULL OR e.meta_value <> 'publie' OR d.meta_value >= %s OR p.post_date_gmt >= %s OR r.meta_value = 'en_cours' )"
 		. ' ORDER BY p.ID ASC';
 	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
 	$ids = $wpdb->get_col( $wpdb->prepare( $sql, array_merge( $statuts, array( $depuis, $depuis ) ) ) );
@@ -197,6 +198,7 @@ function lignes_planning( array $args = array() ): array {
 			'a_venir'                => false,
 			'limit'                  => 0,
 			'inclure_publies_depuis' => 14,
+			'publies_du_jour'        => false,
 			'responsable'            => 0,
 			'public'                 => true,
 			'gestion'                => false,
@@ -215,10 +217,16 @@ function lignes_planning( array $args = array() ): array {
 	$jours_pub   = max( 0, (int) $args['inclure_publies_depuis'] );
 	$responsable = max( 0, (int) $args['responsable'] );
 	$public      = (bool) $args['public'];
+	$du_jour     = (bool) $args['publies_du_jour'];
 
-	$seuil_pub = $jours_pub > 0 && ! $a_venir ? maintenant() - $jours_pub * DAY_IN_SECONDS : 0;
-	$depuis    = $seuil_pub ? gmt( $seuil_pub ) : '9999-12-31 23:59:59';
-	$statuts   = $public ? array( 'publish', 'future', 'draft', 'pending' ) : array( 'publish', 'future', 'draft', 'pending', 'private' );
+	// Publiés du jour : depuis minuit (fuseau du planning), quel que soit inclure_publies_depuis.
+	if ( $du_jour && ! $a_venir ) {
+		$seuil_pub = ts_date( date_locale() );
+	} else {
+		$seuil_pub = $jours_pub > 0 && ! $a_venir ? maintenant() - $jours_pub * DAY_IN_SECONDS : 0;
+	}
+	$depuis  = $seuil_pub ? gmt( $seuil_pub ) : '9999-12-31 23:59:59';
+	$statuts = $public ? array( 'publish', 'future', 'draft', 'pending' ) : array( 'publish', 'future', 'draft', 'pending', 'private' );
 
 	$ids = ids_candidats( $depuis, $statuts );
 	if ( ! $ids ) {
@@ -226,7 +234,7 @@ function lignes_planning( array $args = array() ): array {
 	}
 	amorcer_caches_planning( $ids );
 	try {
-		$lignes = lignes_depuis_ids( $ids, $oeuvre_id, $type, $etat_voulu, $a_venir, $seuil_pub, $responsable, $public );
+		$lignes = lignes_depuis_ids( $ids, $oeuvre_id, $type, $etat_voulu, $a_venir, $seuil_pub, $responsable, $public, $du_jour );
 	} finally {
 		oublier_comptes_chapitres();
 	}
@@ -347,12 +355,14 @@ function amorcer_caches_planning( array $ids ): void {
  * @param string $type        Type d'œuvre ('' : tous).
  * @param string $etat_voulu  État ('' : tous).
  * @param bool   $a_venir     Seulement les tomes à paraître.
- * @param int    $seuil_pub   Horodatage : publiés récents depuis (0 : aucun).
- * @param int    $responsable Membre responsable (0 : tous).
- * @param bool   $vue_publique      Vue publique.
+ * @param int    $seuil_pub    Horodatage : publiés récents depuis (0 : aucun).
+ * @param int    $responsable  Membre responsable (0 : tous).
+ * @param bool   $vue_publique Vue publique.
+ * @param bool   $du_jour      Publiés du jour seulement ($seuil_pub = minuit) ; un tome publié
+ *                             mais encore en cours de publication (chapitre par chapitre) reste.
  * @return array<int,array<string,mixed>>
  */
-function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $etat_voulu, bool $a_venir, int $seuil_pub, int $responsable, bool $vue_publique ): array {
+function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $etat_voulu, bool $a_venir, int $seuil_pub, int $responsable, bool $vue_publique, bool $du_jour = false ): array {
 	$lignes = array();
 	foreach ( $ids as $id ) {
 		$o = yume_get_oeuvre_id( $id );
@@ -376,7 +386,7 @@ function lignes_depuis_ids( array $ids, int $oeuvre_id, string $type, string $et
 		if ( $vue_publique && 'publie' !== $ligne['etat'] && oeuvre_arretee( $o ) ) {
 			continue;
 		}
-		if ( 'publie' === $ligne['etat'] ) {
+		if ( 'publie' === $ligne['etat'] && ! ( $du_jour && ! $a_venir && 'en_cours' === yume_parution_tome( $id ) ) ) {
 			if ( $a_venir || ! $seuil_pub || ts_gmt( $ligne['date_sortie'] ) < $seuil_pub ) {
 				continue;
 			}

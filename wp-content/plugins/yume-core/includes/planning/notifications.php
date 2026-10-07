@@ -72,17 +72,38 @@ function echecs_recents( int $jours = 7 ): array {
 /**
  * URL du webhook d'un canal ('' si non réglé ou invalide).
  *
- * @param string $canal 'sorties' ou 'equipe'.
+ * Canal 'chapitres' (annonce d'un chapitre publié seul), selon le réglage discord_chapitres :
+ * 'sorties' (défaut) le webhook des sorties ; 'dedie' le webhook des chapitres, ou celui des
+ * sorties s'il est vide ; 'aucun' : pas d'annonce.
+ *
+ * @param string $canal 'sorties', 'chapitres' ou 'equipe'.
  */
 function webhook( string $canal ): string {
+	if ( ! function_exists( 'yume_setting' ) ) {
+		return '';
+	}
+	if ( 'chapitres' === $canal ) {
+		$mode = (string) yume_setting( 'discord_chapitres', 'sorties' );
+		if ( 'aucun' === $mode ) {
+			return '';
+		}
+		$dedie = 'dedie' === $mode ? url_webhook_reglage( 'discord_webhook_chapitres' ) : '';
+		return '' !== $dedie ? $dedie : webhook( 'sorties' );
+	}
 	$cles = array(
 		'sorties' => 'discord_webhook_sorties',
 		'equipe'  => 'discord_webhook_equipe',
 	);
-	if ( ! isset( $cles[ $canal ] ) || ! function_exists( 'yume_setting' ) ) {
-		return '';
-	}
-	$url = yume_setting( $cles[ $canal ], '' );
+	return isset( $cles[ $canal ] ) ? url_webhook_reglage( $cles[ $canal ] ) : '';
+}
+
+/**
+ * Adresse https d'un réglage de webhook ('' si vide ou invalide).
+ *
+ * @param string $cle Clé du réglage.
+ */
+function url_webhook_reglage( string $cle ): string {
+	$url = yume_setting( $cle, '' );
 	$url = is_string( $url ) ? trim( $url ) : '';
 	if ( '' === $url || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) ) {
 		return '';
@@ -163,7 +184,7 @@ function assainir_embed( $embed ): array {
 /**
  * Publie sur un webhook Discord (voir yume_discord()).
  *
- * @param string $canal  'sorties' ou 'equipe'.
+ * @param string $canal  'sorties', 'chapitres' ou 'equipe'.
  * @param string $texte  Message.
  * @param array  $embeds Embeds.
  */
@@ -188,7 +209,7 @@ function envoyer_discord( string $canal, string $texte, array $embeds = array() 
 	 * Filtre le message Discord avant envoi (tableau vide : pas d'envoi).
 	 *
 	 * @param array  $charge Corps JSON (content, embeds, allowed_mentions).
-	 * @param string $canal  'sorties' ou 'equipe'.
+	 * @param string $canal  'sorties', 'chapitres' ou 'equipe'.
 	 */
 	$charge = (array) apply_filters( 'yume_planning_discord', $charge, $canal );
 	if ( ! $charge ) {
@@ -255,7 +276,7 @@ function discord_en_lignes( string $canal, string $titre, array $lignes ): bool 
  * site ») : passe par envoyer_discord(), donc par le filtre yume_planning_discord et le journal
  * des échecs. La vérification des droits et du nonce revient à l'appelant.
  *
- * @param string $canal   'sorties' ou 'equipe'.
+ * @param string $canal   'sorties', 'chapitres' ou 'equipe'.
  * @param int    $user_id Auteur du test (nommé dans le message).
  * @return bool Vrai si Discord a accepté le message.
  */

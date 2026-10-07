@@ -65,21 +65,23 @@ function champ_visible( array $champ ): bool {
  */
 function defauts_reglages(): array {
 	$defauts = array(
-		'discord_webhook_sorties' => '',
-		'discord_webhook_equipe'  => '',
-		'rappel_jours_sans_maj'   => 14,
-		'rappel_heure'            => 9,
-		'digest_jour'             => 1,
-		'emails_lecteurs'         => true,
-		'banniere_id'             => 0,
-		'kofi_url'                => 'https://ko-fi.com/ynovel',
-		'discord_invite'          => 'https://discord.gg/SMBZqhgUv8',
-		'twitter_url'             => 'https://x.com/YumeNovel',
-		'jours_sortie'            => array( 'mercredi', 'samedi', 'dimanche' ),
-		'modele_annonce'          => 'Le {nature} {numero} de {oeuvre} est disponible !',
-		'github_repo'             => 'GNAlexandre/Yume-WordPress',
-		'maj_auto'                => true,
-		'partenaires'             => partenaires_par_defaut(),
+		'discord_webhook_sorties'   => '',
+		'discord_chapitres'         => 'sorties',
+		'discord_webhook_chapitres' => '',
+		'discord_webhook_equipe'    => '',
+		'rappel_jours_sans_maj'     => 14,
+		'rappel_heure'              => 9,
+		'digest_jour'               => 1,
+		'emails_lecteurs'           => true,
+		'banniere_id'               => 0,
+		'kofi_url'                  => 'https://ko-fi.com/ynovel',
+		'discord_invite'            => 'https://discord.gg/SMBZqhgUv8',
+		'twitter_url'               => 'https://x.com/YumeNovel',
+		'jours_sortie'              => array( 'mercredi', 'samedi', 'dimanche' ),
+		'modele_annonce'            => 'Le {nature} {numero} de {oeuvre} est disponible !',
+		'github_repo'               => 'GNAlexandre/Yume-WordPress',
+		'maj_auto'                  => true,
+		'partenaires'               => partenaires_par_defaut(),
 	);
 	if ( did_action( 'init' ) ) {
 		foreach ( champs_reglages() as $champ ) {
@@ -205,7 +207,27 @@ function champs_reglages(): array {
 			'type'        => 'url',
 			'section'     => 'notifications',
 			'placeholder' => 'https://discord.com/api/webhooks/…',
-			'description' => __( 'Annonce publique de chaque sortie. Laisser vide pour désactiver.', 'yume-core' ),
+			'description' => __( 'Annonce publique de chaque sortie de tome. Laisser vide pour désactiver.', 'yume-core' ),
+		),
+		array(
+			'key'         => 'discord_chapitres',
+			'label'       => __( 'Annonces Discord des chapitres', 'yume-core' ),
+			'type'        => 'select',
+			'section'     => 'notifications',
+			'options'     => array(
+				'sorties' => __( 'Dans le salon des sorties (même webhook que les tomes)', 'yume-core' ),
+				'dedie'   => __( 'Dans un salon dédié (webhook des chapitres ci-dessous)', 'yume-core' ),
+				'aucun'   => __( 'Pas d’annonce Discord des chapitres', 'yume-core' ),
+			),
+			'description' => __( 'Chaque chapitre publié seul (son tome était déjà en ligne) est annoncé ici.', 'yume-core' ),
+		),
+		array(
+			'key'         => 'discord_webhook_chapitres',
+			'label'       => __( 'Webhook Discord des chapitres', 'yume-core' ),
+			'type'        => 'url',
+			'section'     => 'notifications',
+			'placeholder' => 'https://discord.com/api/webhooks/…',
+			'description' => __( 'Utilisé avec « Dans un salon dédié ». Laissé vide, les chapitres partent dans le salon des sorties.', 'yume-core' ),
 		),
 		array(
 			'key'         => 'discord_webhook_equipe',
@@ -387,7 +409,7 @@ function assainir_reglages( $entree ): array {
 	}
 
 	// Webhooks Discord : seules des URL de webhook Discord sont acceptées.
-	foreach ( array( 'discord_webhook_sorties', 'discord_webhook_equipe' ) as $cle ) {
+	foreach ( array( 'discord_webhook_sorties', 'discord_webhook_chapitres', 'discord_webhook_equipe' ) as $cle ) {
 		if ( ! empty( $sortie[ $cle ] ) && ! url_webhook_discord_valide( (string) $sortie[ $cle ] ) ) {
 			add_settings_error(
 				OPTION_REGLAGES,

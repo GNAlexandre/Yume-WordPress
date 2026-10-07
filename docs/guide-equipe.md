@@ -368,6 +368,9 @@ bref », tableau, calendrier, journal, légende). En plus :
   chapitre : « En cours · 3 chapitres sur 12 », une mini-barre, « Prochain : ch. 3 · sam. 3 oct.
   18 h » et la pastille **En cours de publication** ;
 - sur mobile, le tableau devient une carte par tome ;
+- parmi les tomes publiés, le tableau ne garde que ceux parus **aujourd'hui** (depuis minuit, heure
+  de Paris) et ceux **en cours de publication** ; un tome paru la veille ou avant quitte la liste
+  (il reste dans la bibliothèque, la vue Calendrier, l'ICS et le JSON) ;
 - deux entrées de légende : **En cours de publication** et **Chapitre programmé**.
 
 Règles (seules les œuvres publiques apparaissent, plus les séries à venir sous leur nom affiché ; un
@@ -821,7 +824,9 @@ signalé, jusqu'à votre décision. Vos réponses portent un badge **Équipe** �
     chapitres, lecture hors ligne ;
   - *Planning et rappels* : jours de sortie habituels, délai avant rappel (14 jours par défaut),
     heure des rappels, jour du récapitulatif ;
-  - *Annonces et notifications* : webhooks Discord (sorties, équipe), e-mails aux lecteurs, modèle
+  - *Annonces et notifications* : webhooks Discord (sorties des tomes, équipe), **annonces Discord
+    des chapitres** (dans le salon des sorties — défaut —, dans un salon dédié avec le **Webhook
+    Discord des chapitres**, ou aucune ; dédié sans webhook : salon des sorties), e-mails aux lecteurs, modèle
     du texte d'annonce, **notifications navigateur** (case à décocher pour couper les notifications
     push de tout le site, voir « Listes de lecture, cloche et notifications des lecteurs ») ;
   - *Partenaires* : la section « Nos partenaires » de l'accueil (voir ci-dessous) ;

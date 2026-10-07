@@ -56,7 +56,9 @@ function yume_planning_etat( int $tome_id ): string {
  *
  * @param array $args 'oeuvre_id' (int), 'type' (slug yume_type), 'etat', 'a_venir' (bool, exclut
  *                    les tomes publiés), 'limit' (0 = tout), 'inclure_publies_depuis' (jours,
- *                    défaut 14 ; 0 = aucun tome publié) ; extensions : 'responsable' (ID : tomes
+ *                    défaut 14 ; 0 = aucun tome publié), 'publies_du_jour' (bool, défaut faux :
+ *                    seuls les tomes publiés aujourd'hui, depuis minuit heure de Paris, plus les
+ *                    tomes publiés encore en cours de publication ; page Planning) ; extensions : 'responsable' (ID : tomes
  *                    dont il est responsable), 'public' (bool, défaut vrai : exclut les tomes
  *                    privés et ceux d'une œuvre non publiée, sauf une série à venir) ;
  *                    'gestion' (bool) : vue de gestion
@@ -107,11 +109,12 @@ function yume_queue_email( $destinataire, string $sujet, string $html, string $c
 }
 
 /**
- * Publie un message sur un salon Discord par webhook (réglages discord_webhook_sorties et
- * discord_webhook_equipe). Aucune requête si le webhook n'est pas réglé ; un échec est
+ * Publie un message sur un salon Discord par webhook (réglages discord_webhook_sorties,
+ * discord_webhook_equipe et, pour le canal 'chapitres', discord_chapitres /
+ * discord_webhook_chapitres). Aucune requête si le webhook n'est pas réglé ; un échec est
  * journalisé (option yume_planning_echecs) sans erreur fatale.
  *
- * @param string $canal  'sorties' ou 'equipe'.
+ * @param string $canal  'sorties', 'chapitres' ou 'equipe'.
  * @param string $texte  Message (tronqué à 2 000 caractères).
  * @param array  $embeds Embeds Discord (10 au plus).
  * @return bool Vrai si Discord a accepté le message.
