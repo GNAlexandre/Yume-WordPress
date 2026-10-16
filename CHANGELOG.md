@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.2.2 — 2026-10-16
+
+- Yume Novel 2.2.2 : intégration du jeu WordEnd au site annulée avant sa mise en ligne. La page /jeu/, le bloc « Jeu WordEnd » et le lien du menu sont retirés ; l'easter egg (code Konami, papillon de SukaSuka) reste inchangé.
+
 ## 2.2.1 — 2026-10-16
 
 - Yume Novel 2.2.1 : prototype jetable de lecture des mangas hébergés sur MangaDex (tools/mangadex-prototype, non livré avec Yume Core) : plugin de test (images relayées par WordPress, seuls les chapitres des séries de la liste blanche, lecteur, mesures), protocole d’essai sur un PC puis, au besoin, essai bref et réversible en production.
