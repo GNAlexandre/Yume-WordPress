@@ -854,3 +854,22 @@ function yume_prochaine_sortie_rythme( int $tome_id, ?\DateTimeImmutable $apres 
 	}
 	return $date;
 }
+
+/**
+ * Argument REST facultatif dont la valeur vide vaut « absent » : un champ de formulaire laissé
+ * vide (FormData envoie '') n'est plus refusé par le contrôle du type (« Paramètre(s)
+ * invalide(s) »), il est lu comme non fourni (get_param() : null). Toute autre valeur est
+ * contrôlée et nettoyée selon le schéma, comme sans ce réglage.
+ *
+ * @param array<string,mixed> $schema Schéma de l'argument (type, minimum…).
+ * @return array<string,mixed>
+ */
+function yume_rest_arg_vide_absent( array $schema ): array {
+	$schema['sanitize_callback'] = static function ( $valeur, $requete, $cle ) {
+		if ( is_string( $valeur ) && '' === trim( $valeur ) ) {
+			return null;
+		}
+		return rest_parse_request_arg( $valeur, $requete, $cle );
+	};
+	return $schema;
+}

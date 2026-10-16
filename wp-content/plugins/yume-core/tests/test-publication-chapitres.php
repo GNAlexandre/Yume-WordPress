@@ -1253,3 +1253,102 @@ yume_test(
 		}
 	)
 );
+
+yume_test(
+	'chapitres : champs numériques laissés vides dans le formulaire (chapitres prévus, intervalle, couverture, tome) lus comme absents par l’API, plus de « Paramètre(s) invalide(s) » ; valeur invalide toujours refusée ; idem POST /planning/tomes',
+	yume_tpub(
+		function ( $ctx ) {
+			$editeur = yume_factory_user( 'yume_editeur' );
+			wp_set_current_user( $editeur );
+			$oeuvre = yume_tpub_oeuvre( 'SukaMoka' );
+			$tome   = yume_tpc_tome_en_cours( $ctx, $oeuvre, array( 'prologue', 'ch1' ), array( 'yume_chapitres_prevus' => 5 ) );
+
+			// Envoi du formulaire tel quel (FormData) : champs vides compris.
+			$res = yume_rest(
+				'POST',
+				'/yume/v1/publications',
+				array(
+					'oeuvre_id'        => (string) $oeuvre,
+					'tome_id'          => (string) $tome,
+					'mode'             => 'chapitres',
+					'chapitres_prevus' => '',
+					'intervalle'       => '',
+					'couverture_id'    => '',
+				),
+				$editeur,
+				array( 'source' => yume_tpc_docx( $ctx, array( 'prologue', 'ch1', 'ch2' ) ) )
+			);
+			yume_assert_same( 200, $res->get_status(), wp_json_encode( $res->get_data() ) );
+			yume_assert_same( 5, (int) get_post_meta( $tome, 'yume_chapitres_prevus', true ), 'chapitres prévus vides : inchangés' );
+
+			$res = yume_rest(
+				'POST',
+				'/yume/v1/publications/' . $tome . '/publier',
+				array(
+					'quand'      => 'maintenant',
+					'mode'       => 'chapitres',
+					'sortie'     => 'maintenant',
+					'intervalle' => ' ',
+				),
+				$editeur
+			);
+			yume_assert_same( 200, $res->get_status(), wp_json_encode( $res->get_data() ) );
+			yume_assert_same( 3, count( yume_get_chapitres( $tome ) ) );
+
+			// Valeur saisie invalide : toujours refusée par le schéma.
+			foreach ( array( 'douze', '1000', '-1' ) as $invalide ) {
+				$res = yume_rest(
+					'POST',
+					'/yume/v1/publications',
+					array(
+						'oeuvre_id'        => (string) $oeuvre,
+						'tome_id'          => (string) $tome,
+						'mode'             => 'chapitres',
+						'chapitres_prevus' => $invalide,
+					),
+					$editeur
+				);
+				yume_assert_same( 400, $res->get_status(), $invalide );
+				yume_assert_same( 'rest_invalid_param', $res->get_data()['code'], $invalide );
+			}
+			$res = yume_rest(
+				'POST',
+				'/yume/v1/publications',
+				array(
+					'oeuvre_id'  => (string) $oeuvre,
+					'tome_id'    => (string) $tome,
+					'mode'       => 'chapitres',
+					'intervalle' => '0',
+				),
+				$editeur
+			);
+			yume_assert_same( 400, $res->get_status(), 'intervalle 0' );
+
+			// Planning : « Chapitres prévus » vide à la création d'un tome.
+			$rep = yume_rest(
+				'POST',
+				'/yume/v1/planning/tomes',
+				array(
+					'oeuvre_id'        => (string) $oeuvre,
+					'numero'           => '7',
+					'chapitres_prevus' => '',
+				),
+				$editeur
+			);
+			yume_assert_same( 201, $rep->get_status(), wp_json_encode( $rep->get_data() ) );
+			yume_assert_same( 0, (int) get_post_meta( (int) $rep->get_data()['tome_id'], 'yume_chapitres_prevus', true ), 'aucun chapitre prévu' );
+			$rep = yume_rest(
+				'POST',
+				'/yume/v1/planning/tomes',
+				array(
+					'oeuvre_id'        => (string) $oeuvre,
+					'numero'           => '8',
+					'chapitres_prevus' => '12',
+				),
+				$editeur
+			);
+			yume_assert_same( 201, $rep->get_status(), wp_json_encode( $rep->get_data() ) );
+			yume_assert_same( 12, (int) get_post_meta( (int) $rep->get_data()['tome_id'], 'yume_chapitres_prevus', true ) );
+		}
+	)
+);

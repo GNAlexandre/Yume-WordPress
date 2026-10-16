@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.1.9 — 2026-10-16
+
+- Yume Novel 2.1.9 : correctif de la publication. « Paramètre(s) invalide(s) : chapitres_prevus » ne bloque plus l'envoi quand « Chapitres prévus » est laissé vide (formulaire de publication et ajout d'un tome au planning par l'API) ; même correction pour l'intervalle entre deux chapitres, la couverture et le tome laissés vides. Une valeur saisie invalide reste refusée.
+
 ## 2.1.8 — 2026-10-07
 
 - Yume Novel 2.1.8 : recette planning et Discord. Page Planning : parmi les tomes publiés, seuls ceux parus aujourd'hui (depuis minuit, heure de Paris) et ceux en cours de publication restent affichés. Discord : les annonces de chapitres ont leur propre canal, réglable (salon des sorties par défaut, salon dédié avec son webhook, ou aucune), visible et testable dans « Santé du site ».
