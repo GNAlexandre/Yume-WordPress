@@ -552,7 +552,7 @@ function yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool {
 
 /**
  * URL d'une page Yume ('bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte',
- * 'connexion', 'actualites', 'mentions-legales', 'jeu', 'accueil').
+ * 'connexion', 'actualites', 'mentions-legales', 'accueil').
  * Page enregistrée dans l'option yume_pages (clé => ID, créée par la migration) si elle est
  * publiée ainsi que ses parents ; sinon (absente, à la corbeille, en brouillon, privée ou sous
  * un parent dépublié) repli sur home_url( '/<chemin>/' ), le chemin du contrat §11.
@@ -570,7 +570,6 @@ function yume_url_page( string $cle ): string {
 		'connexion'        => 'connexion',
 		'actualites'       => 'actualites',
 		'mentions-legales' => 'mentions-legales',
-		'jeu'              => 'jeu',
 		'accueil'          => '',
 	);
 	$url   = '';

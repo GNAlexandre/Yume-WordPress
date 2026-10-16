@@ -19,4 +19,3 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/fonctions.php';
 require_once __DIR__ . '/facade.php';
-require_once __DIR__ . '/page.php';
