@@ -38,6 +38,39 @@ function extraire_uuid( $valeur ): string {
 }
 
 /**
+ * Premier contenu d'un type (hors corbeille et brouillon automatique) dont la méta vaut $uuid.
+ *
+ * @param string $post_type Type de contenu.
+ * @param string $meta_key  Méta.
+ * @param string $uuid      Identifiant MangaDex.
+ */
+function contenu_par_uuid( string $post_type, string $meta_key, string $uuid ): int {
+	$uuid = extraire_uuid( $uuid );
+	if ( '' === $uuid ) {
+		return 0;
+	}
+	$ids = get_posts(
+		array(
+			'post_type'      => $post_type,
+			'post_status'    => 'any',
+			'posts_per_page' => 1,
+			'orderby'        => 'ID',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- recherche ponctuelle (synchronisation, administration).
+			'meta_query'     => array(
+				array(
+					'key'   => $meta_key,
+					'value' => $uuid,
+				),
+			),
+		)
+	);
+	return $ids ? (int) $ids[0] : 0;
+}
+
+/**
  * User-Agent réel du site : MangaDex refuse les User-Agent usurpés.
  */
 function agent(): string {

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.2 — 2026-10-16
+
+- Mangas MangaDex, étape 2 : modèle de données. Une œuvre peut être liée à une série MangaDex (boîte « MangaDex » de l'œuvre, adresse ou identifiant) ; un chapitre peut être hébergé sur MangaDex (identifiant, pages, version, groupes ; informations en lecture seule dans l'administration). Un volume MangaDex devient un tome, les chapitres sans volume vont dans un tome « Chapitres ». Rien de visible pour les lecteurs.
+
 ## 2.3.0-dev.1 — 2026-10-16
 
 - Mangas MangaDex, étape 1 : module mangadex, client de l'API MangaDex (chapitres en français du groupe, paginés ; serveur d'images d'un chapitre gardé 10 min ; User-Agent réel, jamais de nouvel essai après une limite) et réglage « Groupe MangaDex » (Yume Novel par défaut). Rien de visible pour les lecteurs.

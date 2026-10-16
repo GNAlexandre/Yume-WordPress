@@ -421,3 +421,148 @@ yume_test(
 		}
 	}
 );
+
+yume_test(
+	'mangadex : modèle de données — métas déclarées (types, REST), assainissement (adresse → identifiant, saisie invalide → vide, version sur 8 caractères, groupes)',
+	function () {
+		$oeuvre_metas   = get_registered_meta_keys( 'post', 'yume_oeuvre' );
+		$chapitre_metas = get_registered_meta_keys( 'post', 'yume_chapitre' );
+		yume_assert_same( 'string', $oeuvre_metas['yume_mdx_serie']['type'] ?? null );
+		yume_assert_same( 'string', $chapitre_metas['yume_mdx_chapitre']['type'] ?? null );
+		yume_assert_same( 'integer', $chapitre_metas['yume_mdx_pages']['type'] ?? null );
+		yume_assert_same( 'string', $chapitre_metas['yume_mdx_version']['type'] ?? null );
+		yume_assert_same( 'array', $chapitre_metas['yume_mdx_groupes']['type'] ?? null );
+		foreach ( array( $oeuvre_metas['yume_mdx_serie'], $chapitre_metas['yume_mdx_chapitre'], $chapitre_metas['yume_mdx_groupes'] ) as $def ) {
+			yume_assert_true( ! empty( $def['single'] ) && ! empty( $def['show_in_rest'] ) );
+		}
+
+		$oeuvre   = yume_factory_post(
+			array(
+				'post_type'  => 'yume_oeuvre',
+				'post_title' => 'Mikadono',
+			)
+		);
+		$chapitre = yume_factory_post(
+			array(
+				'post_type'  => 'yume_chapitre',
+				'post_title' => 'Chapitre 1',
+			)
+		);
+		update_post_meta( $oeuvre, 'yume_mdx_serie', 'https://mangadex.org/title/' . strtoupper( YUME_TMDX_SERIE ) . '/mikadono-sanshimai' );
+		yume_assert_same( YUME_TMDX_SERIE, get_post_meta( $oeuvre, 'yume_mdx_serie', true ), 'adresse → identifiant en minuscules' );
+		update_post_meta( $oeuvre, 'yume_mdx_serie', '<script>pas un uuid</script>' );
+		yume_assert_same( '', get_post_meta( $oeuvre, 'yume_mdx_serie', true ) );
+
+		update_post_meta( $chapitre, 'yume_mdx_chapitre', yume_tmdx_uuid( 5 ) );
+		update_post_meta( $chapitre, 'yume_mdx_pages', '59' );
+		update_post_meta( $chapitre, 'yume_mdx_version', 'zzzzzzzz' );
+		yume_assert_same( '', get_post_meta( $chapitre, 'yume_mdx_version', true ), 'version invalide refusée' );
+		update_post_meta( $chapitre, 'yume_mdx_version', 'a1b2c3d4' );
+		update_post_meta( $chapitre, 'yume_mdx_groupes', "Yume Novel\nYume Novel\n<b>Autre</b>" );
+		yume_assert_same( 59, (int) get_post_meta( $chapitre, 'yume_mdx_pages', true ) );
+		yume_assert_same( 'a1b2c3d4', get_post_meta( $chapitre, 'yume_mdx_version', true ) );
+		yume_assert_same( array( 'Yume Novel', 'Autre' ), get_post_meta( $chapitre, 'yume_mdx_groupes', true ), 'sans doublon ni balise' );
+	}
+);
+
+yume_test(
+	'mangadex : API — yume_mangadex_chapitre (null pour un chapitre importé), yume_mangadex_serie, œuvre par série et chapitre par identifiant (corbeille exclue)',
+	function () {
+		$oeuvre   = yume_factory_post( array( 'post_type' => 'yume_oeuvre' ) );
+		$importe  = yume_factory_post( array( 'post_type' => 'yume_chapitre' ) );
+		$mdx      = yume_factory_post( array( 'post_type' => 'yume_chapitre' ) );
+		$jete     = yume_factory_post( array( 'post_type' => 'yume_chapitre' ) );
+		$serie    = yume_tmdx_uuid( 41 );
+		$uuid     = yume_tmdx_uuid( 42 );
+		$uuid_bis = yume_tmdx_uuid( 43 );
+		update_post_meta( $oeuvre, 'yume_mdx_serie', $serie );
+		update_post_meta( $mdx, 'yume_mdx_chapitre', $uuid );
+		update_post_meta( $mdx, 'yume_mdx_pages', 21 );
+		update_post_meta( $mdx, 'yume_mdx_version', '0badc0de' );
+		update_post_meta( $mdx, 'yume_mdx_groupes', array( 'Yume Novel' ) );
+		update_post_meta( $jete, 'yume_mdx_chapitre', $uuid_bis );
+		wp_trash_post( $jete );
+
+		yume_assert_same( null, yume_mangadex_chapitre( $importe ), 'chapitre importé' );
+		yume_assert_same( null, yume_mangadex_chapitre( $oeuvre ), 'pas un chapitre' );
+		yume_assert_same(
+			array(
+				'uuid'    => $uuid,
+				'pages'   => 21,
+				'version' => '0badc0de',
+				'groupes' => array( 'Yume Novel' ),
+				'url'     => 'https://mangadex.org/chapter/' . $uuid,
+			),
+			yume_mangadex_chapitre( $mdx )
+		);
+		yume_assert_same( $serie, yume_mangadex_serie( $oeuvre ) );
+		yume_assert_same( '', yume_mangadex_serie( $mdx ), 'pas une œuvre' );
+		yume_assert_same( $oeuvre, yume_mangadex_oeuvre_par_serie( strtoupper( $serie ) ) );
+		yume_assert_same( 0, yume_mangadex_oeuvre_par_serie( yume_tmdx_uuid( 999 ) ) );
+		yume_assert_same( 0, yume_mangadex_oeuvre_par_serie( 'nimporte' ) );
+		yume_assert_same( $mdx, yume_mangadex_chapitre_par_uuid( $uuid ) );
+		yume_assert_same( 0, yume_mangadex_chapitre_par_uuid( $uuid_bis ), 'corbeille exclue' );
+	}
+);
+
+yume_test(
+	'mangadex : boîte « MangaDex » de l’œuvre — enregistrement (jeton et droits), effacement, adresse acceptée, refus sans jeton ou sans droit, avertissement si la série est déjà liée',
+	function () {
+		$admin   = yume_factory_user( 'administrator' );
+		$abonne  = yume_factory_user( 'subscriber' );
+		$premier = yume_factory_post( array( 'post_type' => 'yume_oeuvre' ) );
+		$oeuvre  = yume_factory_post( array( 'post_type' => 'yume_oeuvre' ) );
+		update_post_meta( $premier, 'yume_mdx_serie', YUME_TMDX_SERIE );
+		$poster = static function ( array $champs ) use ( $oeuvre ) {
+			$_POST = $champs;
+			\Yume\Core\MangaDex\enregistrer_oeuvre( $oeuvre );
+			$_POST = array();
+		};
+		try {
+			wp_set_current_user( $admin );
+			$poster(
+				array(
+					'_yume_mdx_nonce' => wp_create_nonce( \Yume\Core\MangaDex\NONCE_OEUVRE ),
+					'yume_mdx'        => array( 'serie' => 'https://mangadex.org/title/' . YUME_TMDX_SERIE ),
+				)
+			);
+			yume_assert_same( YUME_TMDX_SERIE, yume_mangadex_serie( $oeuvre ), 'adresse enregistrée en identifiant' );
+
+			ob_start();
+			\Yume\Core\MangaDex\boite_oeuvre( get_post( $oeuvre ) );
+			$html = (string) ob_get_clean();
+			yume_assert_contains( 'value="' . YUME_TMDX_SERIE . '"', $html );
+			yume_assert_contains( 'https://mangadex.org/title/' . YUME_TMDX_SERIE, $html );
+			yume_assert_contains( 'déjà liée', $html, 'série partagée signalée' );
+
+			$poster(
+				array(
+					'yume_mdx' => array( 'serie' => '' ),
+				)
+			);
+			yume_assert_same( YUME_TMDX_SERIE, yume_mangadex_serie( $oeuvre ), 'sans jeton : rien ne change' );
+
+			wp_set_current_user( $abonne );
+			$poster(
+				array(
+					'_yume_mdx_nonce' => wp_create_nonce( \Yume\Core\MangaDex\NONCE_OEUVRE ),
+					'yume_mdx'        => array( 'serie' => '' ),
+				)
+			);
+			yume_assert_same( YUME_TMDX_SERIE, yume_mangadex_serie( $oeuvre ), 'sans droit : rien ne change' );
+
+			wp_set_current_user( $admin );
+			$poster(
+				array(
+					'_yume_mdx_nonce' => wp_create_nonce( \Yume\Core\MangaDex\NONCE_OEUVRE ),
+					'yume_mdx'        => array( 'serie' => '' ),
+				)
+			);
+			yume_assert_same( '', yume_mangadex_serie( $oeuvre ), 'champ vidé : lien retiré' );
+			yume_assert_false( metadata_exists( 'post', $oeuvre, 'yume_mdx_serie' ) );
+		} finally {
+			$_POST = array();
+			wp_set_current_user( 0 );
+		}
+	}
+);

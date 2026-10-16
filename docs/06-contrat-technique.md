@@ -216,7 +216,10 @@ un `schema` REST complet.
 des formulaires « Nouvelle œuvre » et « Modifier l'œuvre » ; lues par `yume_oeuvre_a_venir()` et
 `yume_titre_public_oeuvre()`, règle de masquage et de révélation au §7 ·
 caches en lecture seule pour l'API : `yume_note_moyenne` (number) · `yume_nb_notes` (integer) ·
-`yume_nb_favoris` (integer) · `yume_derniere_sortie` (string, date `Y-m-d H:i:s` GMT du dernier tome/chapitre publié).
+`yume_nb_favoris` (integer) · `yume_derniere_sortie` (string, date `Y-m-d H:i:s` GMT du dernier tome/chapitre publié) ·
+**MangaDex** (module mangadex, depuis 2.3.0) : `yume_mdx_serie` (string, identifiant de la série MangaDex ;
+assaini par `san_uuid()`, qui garde le premier UUID d'une saisie ou d'une adresse mangadex.org, en
+minuscules ; boîte « MangaDex » de l'écran de l'œuvre).
 
 **`yume_tome`** : `yume_oeuvre_id` (integer, obligatoire) · `yume_numero` (number, ex. 9, 26.5) ·
 `yume_nature` (string enum `tome`,`arc`,`ex`,`bonus`,`chapitres`) · `yume_lien_pdf` (string url) ·
@@ -257,7 +260,13 @@ sur le calcul quand la méta est absente, tome migré).
 `yume_numero` (number ; 0 pour prologue) · `yume_sous_titre` (string) · `yume_nature` (string enum
 `chapitre`,`prologue`,`interlude`,`epilogue`,`postface`,`bonus`,`illustrations`) ·
 `yume_credits` (object{traduction,relecture,edition}) · `yume_nb_mots` (integer) ·
-`yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}) — `format` ∈ `docx`, `epub`, `migration`.
+`yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}) — `format` ∈ `docx`, `epub`, `migration` ·
+**chapitre hébergé sur MangaDex** (module mangadex, depuis 2.3.0 ; aucun contenu importé, aucune image
+gardée) : `yume_mdx_chapitre` (string, identifiant du chapitre MangaDex, `san_uuid()` ; vide pour un
+chapitre importé) · `yume_mdx_pages` (integer) · `yume_mdx_version` (string, 8 caractères hexadécimaux,
+change quand MangaDex met le chapitre à jour ; entre dans l'adresse des pages relayées) ·
+`yume_mdx_groupes` (array<string>, groupes crédités). Un volume MangaDex est un tome de l'œuvre
+(`yume_numero` = volume, nature `tome`) ; les chapitres sans volume vont dans un tome de nature `chapitres`.
 
 Statut de chapitre interne `yume_remplacement` (module publication, `Remplacement::STATUT`, libellé
 « Version en attente ») : version en attente d'un remplacement de lecture en ligne (§8). Non public,
@@ -514,6 +523,15 @@ yume_est_page_illustrations(): bool;                                  // requêt
 yume_url_illustrations_avant( int $chapitre_id ): string;             // page Illustrations qui précède ce chapitre (premier publié du tome) ou ''
 yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion','actualites','mentions-legales','rejoindre','accueil' → URL de la page (option yume_pages) ; filtre yume_url_page
 yume_rest_arg_vide_absent( array $schema ): array;                    // argument REST facultatif : '' (champ de formulaire vide) lu comme absent (null), sinon contrôlé selon le schéma
+```
+
+**mangadex** (`includes/mangadex/api.php`, depuis 2.3.0) :
+
+```php
+yume_mangadex_chapitre( int $chapitre_id ): ?array;          // {uuid, pages, version, groupes: string[], url} ; null pour un chapitre importé ou un autre contenu
+yume_mangadex_serie( int $oeuvre_id ): string;               // série MangaDex de l'œuvre ou ''
+yume_mangadex_oeuvre_par_serie( string $serie ): int;        // première œuvre liée (hors corbeille), 0 sinon ; accepte une adresse mangadex.org
+yume_mangadex_chapitre_par_uuid( string $uuid ): int;        // chapitre du site lié à ce chapitre MangaDex (hors corbeille), 0 sinon
 ```
 
 **planning** (`includes/planning/api.php`) :
