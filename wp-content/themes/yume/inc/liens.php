@@ -58,6 +58,10 @@ function yume_theme_definitions_liens(): array {
 		'faq'           => array(
 			'chemin' => 'yume-faq',
 		),
+		'jeu'           => array(
+			'page'   => 'jeu',
+			'chemin' => 'jeu',
+		),
 		'reseaux'       => array(
 			'chemin' => 'a-propos',
 		),

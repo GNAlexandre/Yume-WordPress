@@ -31,6 +31,7 @@ relevé du site). Les décisions encore ouvertes sont listées à la fin. Ce jou
 | 2026-10-02 | **Planning de l'accueil et page Planning** : proposition B retenue (prochain tome à la une, file des chapitres, tomes en préparation), dernières sorties gardées en tête ; livré en 2.1.6. | Maquettes validées (`docs/guide-equipe/maquettes/Accueil.dc.html`, `PagePlanning.dc.html`), `docs/06-contrat-technique.md` §7 et §10 |
 | 2026-10-06 | Recette planning : heure de sortie enregistrée avec la date cible (le rythme la reprend) ; option « Série à venir » (titre caché au public jusqu'à la première publication). | Recette de l'équipe, `docs/06-contrat-technique.md` §4 et §7, `docs/guide-equipe/procedures.md` |
 | 2026-10-07 | Recette planning et Discord : la page Planning ne garde, parmi les tomes publiés, que ceux parus le jour même et ceux en cours de publication ; annonces Discord des chapitres sur un canal réglable (salon des sorties par défaut, salon dédié avec son webhook, ou aucune). | Demande de l'équipe, `CHANGELOG.md` (2.1.8), `docs/06-contrat-technique.md` §6 |
+| 2026-10-16 | **Page officielle du jeu WordEnd** (`/jeu/`) : elle affiche le jeu Yume-WordEnd (Godot, servi par GitHub Pages sur `jeu.yumenovel.fr`) dans une iframe créée au clic ; bloc dynamique et page Yume au lieu du modèle `page-jeu.php` prévu par Yume-WordEnd ; l'easter egg 2D reste. Livré en 2.2.0. | Demande d'Alexandre, Yume-WordEnd `PLAN.md` §10 et `docs/web.md`, `docs/wordend.md`, `docs/06-contrat-technique.md` §10 et §11 |
 
 ## 2. Règle de livraison depuis le lancement
 

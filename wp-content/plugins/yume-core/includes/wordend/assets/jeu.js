@@ -297,7 +297,7 @@
 			height: String( HAUTEUR * DENSITE ),
 			tabindex: '0',
 			role: 'img',
-			'aria-label': 'Zone de jeu : Chtholly et son épée Seniolis face aux Timeres',
+			'aria-label': 'Zone de jeu : Chtholly et son épée Seniorious face aux Timeres',
 		} );
 		ecran.textContent = 'Votre navigateur ne peut pas afficher le jeu.';
 		cadre.appendChild( ecran );

@@ -735,8 +735,8 @@ yume_test(
 		yume_assert_same( 'arc', $remplacer[2173] );
 		yume_assert_same( 'chapitre', $remplacer[1548] );
 		$creer = array_column( $plan['pages']['creer'], null, 'post_name' );
-		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'rejoindre-l-equipe', 'accueil' ), array_keys( $creer ) );
-		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'rejoindre', 'accueil' ), array_column( $plan['pages']['creer'], 'cle' ) );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'rejoindre-l-equipe', 'jeu', 'accueil' ), array_keys( $creer ) );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'rejoindre', 'jeu', 'accueil' ), array_column( $plan['pages']['creer'], 'cle' ) );
 		yume_assert_contains( '<!-- wp:yume/publish-form /-->', $creer['publier']['post_content'] );
 		yume_assert_same( 'equipe', $creer['publier']['parent'] );
 		yume_assert_contains( '<!-- wp:yume/team-members /-->', $creer['membres']['post_content'] );
@@ -1096,7 +1096,7 @@ yume_test(
 		yume_assert_same( 3402, (int) get_option( 'default_category' ) );
 
 		$pages = get_option( 'yume_pages' );
-		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'rejoindre', 'accueil' ), array_keys( $pages ) );
+		yume_assert_same( array( 'bibliotheque', 'planning', 'equipe', 'publier', 'membres', 'compte', 'connexion', 'actualites', 'mentions-legales', 'rejoindre', 'jeu', 'accueil' ), array_keys( $pages ) );
 		yume_assert_same( (int) $pages['equipe'], (int) get_post( $pages['publier'] )->post_parent );
 		yume_assert_same( home_url( '/equipe/publier/' ), get_permalink( $pages['publier'] ) );
 		yume_assert_same( home_url( '/equipe/publier/' ), yume_url_page( 'publier' ) );

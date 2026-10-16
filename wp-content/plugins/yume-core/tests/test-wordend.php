@@ -2,7 +2,9 @@
 /**
  * Tests du module wordend (easter egg WordEnd) : fichiers livrés et planche de Chtholly,
  * configuration du jeu (URLs versionnées, filtres), script déclencheur en façade (defer,
- * configuration posée avant), coupure par filtre, papillon de la fiche d'œuvre.
+ * configuration posée avant), coupure par filtre, papillon de la fiche d'œuvre, page WordEnd
+ * du jeu (bloc yume/wordend : iframe de Yume-WordEnd lancée au clic, page Yume « jeu », lien du
+ * menu).
  *
  * Commande : tools/localenv/test.sh wordend
  *
@@ -16,6 +18,9 @@ use function Yume\Core\WordEnd\configuration;
 use function Yume\Core\WordEnd\enfiler_declencheur;
 use function Yume\Core\WordEnd\fichiers_requis;
 use function Yume\Core\WordEnd\oeuvres_declencheuses;
+use function Yume\Core\WordEnd\rendu_page;
+use function Yume\Core\WordEnd\url_jeu;
+use Yume\Core\Migration\Migration_Planner;
 use const Yume\Core\WordEnd\POIGNEE;
 use const Yume\Core\WordEnd\POIGNEE_SECRET;
 
@@ -218,6 +223,84 @@ yume_test(
 			remove_filter( 'yume_wordend_actif', '__return_false' );
 			remove_filter( 'yume_wordend_oeuvres', $slugs );
 			yume_twe_vider_files();
+		}
+	}
+);
+
+yume_test(
+	'wordend : page du jeu — bloc yume/wordend (affiche, iframe de jeu.yumenovel.fr créée au clic seulement, plein écran, nouvel onglet, version Windows, commandes, sauvegarde, crédits)',
+	function () {
+		yume_assert_true( WP_Block_Type_Registry::get_instance()->is_registered( 'yume/wordend' ), 'bloc enregistré' );
+		$html = do_blocks( '<!-- wp:yume/wordend /-->' );
+		yume_assert_contains( 'class="yn-wordend-page', $html );
+		yume_assert_contains( 'data-yn-jeu', $html );
+		yume_assert_contains( 'data-yn-jeu-cadre data-src="https://jeu.yumenovel.fr/"', $html );
+		yume_assert_not_contains( '<iframe', $html, 'aucune iframe avant le clic : rien du jeu n’est téléchargé à l’affichage' );
+		yume_assert_contains( 'data-yn-jeu-lancer>Lancer le jeu</button>', $html );
+		yume_assert_contains( 'data-yn-jeu-plein-ecran hidden', $html, 'plein écran masqué tant que le script ne l’a pas vérifié' );
+		yume_assert_contains( 'href="https://jeu.yumenovel.fr/" target="_blank" rel="noopener">Ouvrir dans un nouvel onglet', $html );
+		yume_assert_contains( 'href="https://github.com/GNAlexandre/Yume-WordEnd/releases/latest"', $html );
+		yume_assert_contains( 'WebGL 2', $html );
+		yume_assert_contains( 'Seniorious', $html );
+		yume_assert_not_contains( 'Seniolis', $html );
+		yume_assert_same( 3, substr_count( $html, '<h2' ), 'Commandes, Sauvegarde, Crédits' );
+		yume_assert_contains( '<th scope="col">Manette</th>', $html );
+		yume_assert_true( wp_script_is( 'yume-wordend-view-script', 'registered' ) || wp_script_is( 'yume-wordend-view-script', 'enqueued' ), 'script de la page' );
+
+		$jeu = (string) file_get_contents( YUME_CORE_DIR . 'includes/wordend/blocks/wordend/view.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		yume_assert_contains( "setAttribute( 'allow', 'fullscreen; gamepad; autoplay' )", $jeu, 'attributs du snippet de Yume-WordEnd' );
+		yume_assert_contains( "cadre.title = 'WordEnd'", $jeu );
+	}
+);
+
+yume_test(
+	'wordend : adresse du jeu (filtre yume_wordend_url, https seulement)',
+	function () {
+		yume_assert_same( 'https://jeu.yumenovel.fr/', url_jeu() );
+		$autre = static fn() => 'https://gnalexandre.github.io/Yume-WordEnd/';
+		$http  = static fn() => 'http://exemple.test/jeu/';
+		add_filter( 'yume_wordend_url', $autre );
+		try {
+			yume_assert_same( 'https://gnalexandre.github.io/Yume-WordEnd/', url_jeu() );
+			yume_assert_contains( 'data-src="https://gnalexandre.github.io/Yume-WordEnd/"', rendu_page() );
+		} finally {
+			remove_filter( 'yume_wordend_url', $autre );
+		}
+		add_filter( 'yume_wordend_url', $http );
+		try {
+			yume_assert_same( 'https://jeu.yumenovel.fr/', url_jeu(), 'adresse http refusée' );
+		} finally {
+			remove_filter( 'yume_wordend_url', $http );
+		}
+	}
+);
+
+yume_test(
+	'wordend : page Yume « jeu » (recréée comme les autres pages, adresse /jeu/) et lien « Jeu WordEnd » du sous-menu Yume Novel',
+	function () {
+		yume_assert_same( array( 'jeu', '', 'WordEnd', 'yume/wordend', '' ), Migration_Planner::PAGES_A_CREER['jeu'] ?? null );
+		$pages = get_option( 'yume_pages', array() );
+		$pages = is_array( $pages ) ? $pages : array();
+		unset( $pages['jeu'] );
+		update_option( 'yume_pages', $pages );
+		foreach ( get_posts( array( 'post_type' => 'page', 'post_status' => 'any', 'name' => 'jeu', 'fields' => 'ids' ) ) as $id ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing
+			wp_delete_post( $id, true );
+		}
+		yume_assert_same( home_url( '/jeu/' ), yume_url_page( 'jeu' ), 'repli sans page enregistrée' );
+		$traites = \Yume\Core\Core\recreer_pages_yume();
+		yume_assert_true( isset( $traites['jeu'] ), 'page créée' );
+		$page = get_post( (int) get_option( 'yume_pages' )['jeu'] );
+		yume_assert_same( 'publish', $page->post_status );
+		yume_assert_same( 'jeu', $page->post_name );
+		yume_assert_same( 'WordEnd', $page->post_title );
+		yume_assert_contains( '<!-- wp:yume/wordend /-->', $page->post_content );
+		yume_assert_same( get_permalink( $page ), yume_url_page( 'jeu' ) );
+
+		$entete = (string) file_get_contents( get_theme_file_path( 'parts/header.html' ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		yume_assert_contains( '"label":"Jeu WordEnd","url":"/jeu/"', $entete );
+		yume_assert_true( strpos( $entete, 'yn-lien-faq' ) < strpos( $entete, 'yn-lien-jeu' ) && strpos( $entete, 'yn-lien-jeu' ) < strpos( $entete, '/wp:navigation-submenu' ), 'dans le sous-menu Yume Novel' );
+		if ( function_exists( 'yume_theme_cle_lien_depuis_classes' ) ) {
+			yume_assert_same( 'jeu', yume_theme_cle_lien_depuis_classes( 'yn-lien-jeu' ) );
 		}
 	}
 );

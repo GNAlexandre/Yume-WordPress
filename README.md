@@ -34,7 +34,7 @@ sans ce Go. Décisions et jalons : [docs/journal-des-decisions.md](docs/journal-
 | [docs/guide-developpeur.md](docs/guide-developpeur.md) | Guide développeur : modules, tests, CI, release |
 | [docs/journal-des-decisions.md](docs/journal-des-decisions.md) | Journal daté des décisions et des jalons (plan, Go, releases) et décisions en attente |
 | [docs/glossaire.md](docs/glossaire.md) | Glossaire des œuvres : format YAML de Yume-Trad, page publique, espace équipe, envoi direct par l'application (API) |
-| [docs/wordend.md](docs/wordend.md) | Easter egg WordEnd : mini-jeu caché (« Chtholly – Bats-toi contre ton destin »), commandes, planche de sprites |
+| [docs/wordend.md](docs/wordend.md) | WordEnd : page du jeu officiel `/jeu/` (iframe de [Yume-WordEnd](https://github.com/GNAlexandre/Yume-WordEnd), servi sur jeu.yumenovel.fr) et easter egg 2D (« Chtholly – Bats-toi contre ton destin »), commandes, planche de sprites |
 | [design/README.md](design/README.md) | Direction visuelle, tokens, liste des maquettes |
 | `tools/*/README.md` | Outils : [localenv](tools/localenv/README.md) (WordPress local SQLite + WP-CLI), [playground](tools/playground/README.md) (démo dans le navigateur), [preprod](tools/preprod/README.md) (copie locale du site migré), [migrate](tools/migrate/README.md) (export, plan et exécution de la migration), [docx2chapters](tools/docx2chapters/README.md) (DOCX → chapitres en ligne de commande), [wordend](tools/wordend/README.md) (planches de sprites de l'easter egg) |
 | [docs/plan-refonte.html](docs/plan-refonte.html) | Version présentable du plan (page HTML autonome) |

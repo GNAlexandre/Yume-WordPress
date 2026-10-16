@@ -1,0 +1,19 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/wordend",
+	"title": "Jeu WordEnd",
+	"category": "yume",
+	"icon": "games",
+	"description": "Page du jeu WordEnd (projet Yume-WordEnd, Godot) : le jeu servi par https://jeu.yumenovel.fr/ dans une iframe, lancé au clic, plein écran, version Windows, commandes et crédits.",
+	"keywords": [ "wordend", "jeu", "sukasuka", "chtholly" ],
+	"textdomain": "yume-core",
+	"supports": {
+		"html": false,
+		"reusable": false,
+		"multiple": false
+	},
+	"render": "file:./render.php",
+	"style": "file:./style.css",
+	"viewScript": "file:./view.js"
+}

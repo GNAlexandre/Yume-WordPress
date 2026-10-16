@@ -1,10 +1,39 @@
 # Easter egg WordEnd — Chtholly – Bats-toi contre ton destin
 
 Mini-jeu 2D caché sur le site, clin d'œil à *SukaSuka* (« WordEnd ») : Chtholly et son épée
-Seniolis repoussent des vagues de Timeres. Module `wordend` de l'extension Yume Core
+Seniorious repoussent des vagues de Timeres. Module `wordend` de l'extension Yume Core
 (`wp-content/plugins/yume-core/includes/wordend/`).
 
-## Ouvrir le jeu
+## Page du jeu officiel (depuis 2.2.0)
+
+Le jeu officiel est le projet **[Yume-WordEnd](https://github.com/GNAlexandre/Yume-WordEnd)**
+(action-aventure HD-2D, Godot 4) ; l'easter egg ci-dessous reste en place. Son export Web est un
+dossier statique servi par GitHub Pages sur `https://jeu.yumenovel.fr/`, et la page **WordEnd** du
+site (`/jeu/`, clé `jeu` de `yume_pages`) l'affiche dans une iframe : WordPress n'exécute rien du jeu
+(Yume-WordEnd, `PLAN.md` section 10 et `docs/web.md`).
+
+- Contenu : bloc dynamique `yume/wordend` (`includes/wordend/page.php`, `blocks/wordend/`), modèle
+  pleine largeur. Zone 16:9 de 1280 px au plus, avec une **affiche** (décor, « Lancer le jeu ») :
+  l'iframe n'est créée qu'au clic (`view.js`), car le jeu pèse plusieurs dizaines de Mo ; elle
+  reprend les attributs du snippet de Yume-WordEnd (`title="WordEnd"`,
+  `allow="fullscreen; gamepad; autoplay"`) et reçoit le focus pour le clavier.
+- Boutons « Plein écran » (sur l'iframe ; masqué quand le navigateur ne le permet pas, iPhone),
+  « Ouvrir dans un nouvel onglet » et « Version Windows » (dernière Release de Yume-WordEnd) ; note
+  WebGL 2 ; sections Commandes, Sauvegarde (IndexedDB de `jeu.yumenovel.fr`), Crédits.
+- Adresse du jeu : filtre `yume_wordend_url` (https seulement ; défaut `https://jeu.yumenovel.fr/`).
+- **Écart avec Yume-WordEnd** : son `PLAN.md` (section 10) et `docs/web.md` prévoient un modèle de
+  thème `page-jeu.php`. Le site utilise à la place un bloc dynamique et une page Yume, comme ses
+  autres pages : même iframe, recréée par « Recréer les pages manquantes », testée
+  (`tests/test-wordend.php`), adresse résolue par le thème.
+- **Mise en ligne sur yumenovel.fr** : après la mise à jour, l'avis « Pages Yume manquantes » de
+  l'administration liste « jeu » ; « Recréer les pages manquantes » la crée, publiée, à `/jeu/`. Le
+  lien « Jeu WordEnd » est ajouté au sous-menu « Yume Novel » de `parts/header.html` ; si l'en-tête a
+  été modifié dans l'éditeur de site, la copie enregistrée prime : ajouter le lien à la main.
+- En-têtes du site : rien à changer (`Permissions-Policy` ne restreint que caméra, micro et
+  géolocalisation) ; ne pas y ajouter `fullscreen=()` ni `gamepad=()`, et si une CSP `frame-src`
+  apparaît, y mettre `https://jeu.yumenovel.fr`.
+
+## Ouvrir le jeu (easter egg)
 
 | Moyen | Où |
 | --- | --- |
