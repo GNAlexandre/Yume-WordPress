@@ -604,7 +604,23 @@ function yume_tmdx_norm( int $n, array $attributs = array(), string $serie = YUM
  * @param int $secondes Secondes.
  */
 function yume_tmdx_il_y_a( int $secondes ): string {
-	return gmdate( 'Y-m-d\TH:i:s+00:00', time() - $secondes );
+	return gmdate( 'Y-m-d\TH:i:s+00:00', yume_tmdx_maintenant() - $secondes );
+}
+
+/**
+ * Heure de référence des flux simulés, figée pour tout un test : un flux reconstruit une
+ * seconde plus tard garde les mêmes dates, donc les mêmes versions (sinon la relance voit des
+ * chapitres « modifiés »). Remise à l'heure au début de chaque test (yume_tmdx_test_synchro()),
+ * pour rester proche de time() que core utilise (annonces : 15 min, 2 jours).
+ *
+ * @param bool $remettre Reprendre l'heure courante.
+ */
+function yume_tmdx_maintenant( bool $remettre = false ): int {
+	static $maintenant = null;
+	if ( $remettre || null === $maintenant ) {
+		$maintenant = time();
+	}
+	return $maintenant;
 }
 
 /**
@@ -667,6 +683,7 @@ function yume_tmdx_test_synchro( string $nom, callable $corps ): void {
 		$nom,
 		static function () use ( $corps ) {
 			global $wpdb;
+			yume_tmdx_maintenant( true );
 			// phpcs:disable WordPress.DB.DirectDatabaseQuery
 			$wpdb->query( "DELETE FROM {$wpdb->posts} WHERE post_type IN ( 'yume_oeuvre', 'yume_tome', 'yume_chapitre' )" );
 			// phpcs:enable WordPress.DB.DirectDatabaseQuery
