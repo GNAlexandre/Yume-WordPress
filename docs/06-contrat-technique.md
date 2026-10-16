@@ -533,6 +533,7 @@ yume_mangadex_chapitre( int $chapitre_id ): ?array;          // {uuid, pages, ve
 yume_mangadex_serie( int $oeuvre_id ): string;               // série MangaDex de l'œuvre ou ''
 yume_mangadex_oeuvre_par_serie( string $serie ): int;        // première œuvre liée (hors corbeille), 0 sinon ; accepte une adresse mangadex.org
 yume_mangadex_chapitre_par_uuid( string $uuid ): int;        // chapitre du site lié à ce chapitre MangaDex (hors corbeille), 0 sinon
+yume_mangadex_url_page( int $chapitre_id, int $page, string $qualite = 'data-saver' ): string; // adresse relayée d'une page (§8 bis), '' hors du chapitre ; qualité data-saver | data
 ```
 
 **planning** (`includes/planning/api.php`) :
@@ -830,7 +831,7 @@ chapitres à un tome », champ caché `mode=chapitres`, `Service::MODE_CHAPITRES
 `yume_glossaire_importe( int $oeuvre_id, int $version_id )` (module glossaire) : un glossaire vient
 d'être importé (nouvelle version en ligne) ; pas émis pour une simulation ni un envoi « inchangé ».
 
-## 8 bis. Synchronisation MangaDex (module mangadex, depuis 2.3.0)
+## 8 bis. MangaDex : synchronisation et proxy des pages (module mangadex, depuis 2.3.0)
 
 `Yume\Core\MangaDex\Synchro` (`includes/mangadex/class-synchro.php`) ; planification et page
 d'administration dans `includes/mangadex/synchro.php`.
@@ -873,6 +874,36 @@ d'administration dans `includes/mangadex/synchro.php`.
   dernier rapport, « Simuler (sans rien changer) » (résultat en transient
   `yume_mdx_simulation_{utilisateur}`) et « Synchroniser maintenant » (si active) ;
   `admin-post.php?action=yume_mangadex_synchro`, jeton requis.
+
+### Proxy des pages (`includes/mangadex/class-proxy.php`, `Yume\Core\MangaDex\Proxy`)
+
+- **Adresse** : `/?yume_mdx_image={chapitre}/{version}/{qualite}/{page}` (servie sur `init`
+  priorité 20, avant le thème ; `Proxy::url()` / `yume_mangadex_url_page()`). `version` =
+  `yume_mdx_version` (8 caractères) : un chapitre mis à jour change d'adresse. Qualité
+  `data-saver` (économie de données, défaut) ou `data` (originale).
+- **Refus sans appel à MangaDex** : adresse mal formée → 400 ; lecteur non livré
+  (`lecteur_pret()`), chapitre absent de la base, chapitre / tome / œuvre non publiés (une œuvre
+  « Licenciée » a ses chapitres en brouillon), mot de passe → 404 ; version périmée → 404
+  « rechargez la page » ; page au-delà de `yume_mdx_pages` → 404 ; pause en cours → 503.
+- **Téléchargement** : serveur MD@Home du chapitre (`Client::at_home()`, transient 10 min),
+  `wp_remote_get` en mémoire (20 s, 15 Mo au plus, jamais `stream` ni fichier) ; échec du nœud →
+  un seul autre nœud (`at_home( …, true )`) puis 502 ; type lu dans les premiers octets (JPEG,
+  PNG, GIF, WebP ; tout le reste → 502). 429/403 de MangaDex → transient `yume_mdx_pause`
+  (60 s) : plus aucun appel, 503 `Retry-After: 60`.
+- **Réponse 200** : `Content-Type` détecté, `Cache-Control: public, max-age=31536000, immutable`,
+  `X-Content-Type-Options: nosniff`, `Cross-Origin-Resource-Policy: same-site`,
+  `Content-Security-Policy: default-src 'none'`, `X-Robots-Tag: noindex`, sans cookie. Erreurs :
+  texte brut, `Cache-Control: no-store`.
+- **Rien n'est gardé** : ni fichier, ni média, ni écriture en base par image (seuls les transients
+  ci-dessus, par chapitre ou en cas d'incident).
+- **Signalement** (`https://api.mangadex.network/report`, exigé pour les nœuds hors
+  `mangadex.org`) : `{url, success, cached, bytes, duration}` en JSON, mis en file pendant la
+  requête, envoyé **après** la réponse au lecteur (`fastcgi_finish_request()`), délai 3 s.
+  Coupe-circuit : un échec (réseau, délai, 5xx) pose le transient `yume_mdx_signalement_coupe`
+  (15 min), pendant lequel rien n'est envoyé ; un succès n'écrit rien. Le point de signalement
+  ne répondait pas le 16/10/2026 (522, puis délai dépassé).
+- **Non mesuré** : la mise en cache de ces réponses par WordPress.com (Batcache, cache de bord)
+  n'a pas été vérifiée ; sans elle, chaque page lue passe par PHP.
 
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 

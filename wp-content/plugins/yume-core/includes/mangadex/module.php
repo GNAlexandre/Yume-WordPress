@@ -15,6 +15,9 @@
  * - Synchronisation horaire (class-synchro.php, synchro.php) : chapitres du groupe → chapitres du
  *   site ; import initial d'une œuvre sans annonce ; page Yume → Mangas (MangaDex) avec
  *   simulation. Coupée tant que le lecteur n'est pas livré (lecteur_pret()).
+ * - Proxy des pages (class-proxy.php) : /?yume_mdx_image=chapitre/version/qualite/page, chapitres
+ *   publiés de la base seulement, image relayée sans rien garder, signalement à MangaDex après
+ *   la réponse (coupe-circuit).
  *
  * Voir tools/mangadex-prototype/README.md (essai, règles de MangaDex) et
  * docs/06-contrat-technique.md. Au chargement, les fichiers ne font qu'accrocher des hooks (§0).
@@ -32,3 +35,4 @@ require_once __DIR__ . '/api.php';
 require_once __DIR__ . '/admin.php';
 require_once __DIR__ . '/class-synchro.php';
 require_once __DIR__ . '/synchro.php';
+require_once __DIR__ . '/class-proxy.php';

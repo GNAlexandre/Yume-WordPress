@@ -62,3 +62,15 @@ function yume_mangadex_oeuvre_par_serie( string $serie ): int {
 function yume_mangadex_chapitre_par_uuid( string $uuid ): int {
 	return contenu_par_uuid( 'yume_chapitre', 'yume_mdx_chapitre', $uuid );
 }
+
+/**
+ * Adresse relayée par le site d'une page d'un chapitre MangaDex (le navigateur ne contacte
+ * jamais MangaDex), '' pour un autre contenu ou une page hors du chapitre.
+ *
+ * @param int    $chapitre_id Chapitre (yume_chapitre).
+ * @param int    $page        Page (1…).
+ * @param string $qualite     « data-saver » (économie de données, défaut) ou « data » (originale).
+ */
+function yume_mangadex_url_page( int $chapitre_id, int $page, string $qualite = 'data-saver' ): string {
+	return \Yume\Core\MangaDex\Proxy::url( $chapitre_id, $page, $qualite );
+}

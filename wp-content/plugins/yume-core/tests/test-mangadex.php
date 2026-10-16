@@ -14,6 +14,7 @@
 defined( 'ABSPATH' ) || exit;
 
 use Yume\Core\MangaDex\Client;
+use Yume\Core\MangaDex\Proxy;
 use const Yume\Core\MangaDex\GROUPE_YUME;
 use function Yume\Core\MangaDex\extraire_uuid;
 use function Yume\Core\MangaDex\groupe;
@@ -995,5 +996,432 @@ yume_tmdx_test_synchro(
 		yume_assert_contains( 'Simuler (sans rien changer)', $page );
 		yume_assert_contains( 'pas encore livré', $page );
 		yume_assert_not_contains( 'Synchroniser maintenant', $page, 'synchronisation réelle indisponible' );
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Proxy des pages (étape 4)
+ * -----------------------------------------------------------------------------
+ */
+
+/** Version d'essai d'un chapitre du site. */
+const YUME_TMDX_VERSION = 'abcdef01';
+
+/** Empreinte MD@Home d'essai. */
+const YUME_TMDX_HASH = '0123456789abcdef0123456789abcdef';
+
+/** JPEG minimal (premiers octets d'un JPEG). */
+const YUME_TMDX_JPEG = "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01page";
+
+/**
+ * Œuvre, tome et chapitre MangaDex publiés (3 pages).
+ *
+ * @param string $statut Statut du chapitre.
+ * @return array{oeuvre:int,tome:int,chapitre:int}
+ */
+function yume_tmdx_chapitre_site( string $statut = 'publish' ): array {
+	$oeuvre   = yume_tmdx_oeuvre();
+	$tome     = yume_factory_post(
+		array(
+			'post_type'  => 'yume_tome',
+			'meta_input' => array( 'yume_oeuvre_id' => $oeuvre ),
+		)
+	);
+	$chapitre = yume_factory_post(
+		array(
+			'post_type'   => 'yume_chapitre',
+			'post_status' => $statut,
+			'meta_input'  => array(
+				'yume_tome_id'      => $tome,
+				'yume_oeuvre_id'    => $oeuvre,
+				'yume_mdx_chapitre' => yume_tmdx_uuid( 1 ),
+				'yume_mdx_pages'    => 3,
+				'yume_mdx_version'  => YUME_TMDX_VERSION,
+			),
+		)
+	);
+	return array(
+		'oeuvre'   => $oeuvre,
+		'tome'     => $tome,
+		'chapitre' => $chapitre,
+	);
+}
+
+/**
+ * Chemin relayé d'une page du chapitre d'essai.
+ *
+ * @param int    $page    Page.
+ * @param string $qualite Qualité.
+ * @param string $version Version.
+ */
+function yume_tmdx_chemin( int $page, string $qualite = 'data-saver', string $version = YUME_TMDX_VERSION ): string {
+	return yume_tmdx_uuid( 1 ) . '/' . $version . '/' . $qualite . '/' . $page;
+}
+
+/**
+ * Réponse d'image simulée.
+ *
+ * @param string $corps Contenu.
+ * @param string $type  Content-Type annoncé par le nœud.
+ * @param int    $code  Statut.
+ */
+function yume_tmdx_image( string $corps = YUME_TMDX_JPEG, string $type = 'image/jpeg', int $code = 200 ): array {
+	$reponse            = yume_tmdx_reponse( $code, $corps );
+	$reponse['headers'] = array(
+		'content-type' => $type,
+		'x-cache'      => 'HIT from noeud',
+	);
+	return $reponse;
+}
+
+/**
+ * Routeur MangaDex simulé : /at-home/server (nœud $noeuds[ appel ]), images des nœuds
+ * ($images : callable( url ) → réponse), signalement ($signalement : code ou WP_Error).
+ *
+ * @param string[]      $noeuds      Adresses de nœud servies à chaque appel at-home (la dernière se répète).
+ * @param callable|null $images      Réponse à une image.
+ * @param mixed         $signalement Code HTTP du signalement, ou WP_Error.
+ */
+function yume_tmdx_routeur_proxy( array $noeuds = array( 'https://noeud.mangadex.network:443/jeton' ), ?callable $images = null, $signalement = 200 ): callable {
+	$appel = 0;
+	return static function ( string $url ) use ( $noeuds, $images, $signalement, &$appel ) {
+		if ( Client::API . '/at-home/server/' . yume_tmdx_uuid( 1 ) === $url ) {
+			$noeud = $noeuds[ min( $appel, count( $noeuds ) - 1 ) ];
+			++$appel;
+			return yume_tmdx_reponse(
+				200,
+				array(
+					'result'  => 'ok',
+					'baseUrl' => $noeud,
+					'chapter' => array(
+						'hash'      => YUME_TMDX_HASH,
+						'data'      => array( '1-a.png', '2-b.png', '3-c.png' ),
+						'dataSaver' => array( '1-a.jpg', '2-b.jpg', '3-c.jpg' ),
+					),
+				)
+			);
+		}
+		if ( Proxy::SIGNALEMENT === $url ) {
+			return is_wp_error( $signalement ) ? $signalement : yume_tmdx_reponse( (int) $signalement, '' );
+		}
+		foreach ( $noeuds as $noeud ) {
+			if ( 0 === strpos( $url, $noeud . '/' ) ) {
+				return $images ? $images( $url ) : yume_tmdx_image();
+			}
+		}
+		return null;
+	};
+}
+
+/**
+ * Exécute un test du proxy : lecteur livré (sauf $pret faux), caches et file de signalements
+ * vidés avant et après, aucune requête réelle.
+ *
+ * @param string   $nom   Nom.
+ * @param callable $corps Corps.
+ * @param bool     $pret  Lecteur livré.
+ */
+function yume_tmdx_test_proxy( string $nom, callable $corps, bool $pret = true ): void {
+	yume_test(
+		$nom,
+		static function () use ( $corps, $pret ) {
+			$vider  = static function () {
+				delete_transient( 'yume_mdx_ah_' . yume_tmdx_uuid( 1 ) );
+				delete_transient( Proxy::PAUSE );
+				set_transient( Proxy::COUPURE, 1, 60 );
+				Proxy::envoyer_signalements(); // Coupe-circuit ouvert : vide la file sans requête.
+				delete_transient( Proxy::COUPURE );
+			};
+			$filtre = $pret ? '__return_true' : '__return_false';
+			add_filter( 'yume_mangadex_lecteur_pret', $filtre );
+			$vider();
+			try {
+				$corps();
+			} finally {
+				remove_filter( 'yume_mangadex_lecteur_pret', $filtre );
+				$vider();
+			}
+		}
+	);
+}
+
+yume_tmdx_test_proxy(
+	'mangadex : proxy — adresse d’une page (version dans l’adresse, qualité par défaut économie de données, page hors du chapitre ou autre contenu : vide)',
+	function () {
+		$site = yume_tmdx_chapitre_site();
+		$url  = yume_mangadex_url_page( $site['chapitre'], 2 );
+		yume_assert_same( add_query_arg( Proxy::PARAMETRE, yume_tmdx_chemin( 2 ), home_url( '/' ) ), $url );
+		yume_assert_contains( '/data/3', yume_mangadex_url_page( $site['chapitre'], 3, 'data' ) );
+		yume_assert_contains( '/data-saver/1', yume_mangadex_url_page( $site['chapitre'], 1, 'autre' ) );
+		yume_assert_same( '', yume_mangadex_url_page( $site['chapitre'], 0 ) );
+		yume_assert_same( '', yume_mangadex_url_page( $site['chapitre'], 4 ) );
+		yume_assert_same( '', yume_mangadex_url_page( yume_factory_post( array( 'post_type' => 'yume_chapitre' ) ), 1 ) );
+	}
+);
+
+yume_tmdx_test_proxy(
+	'mangadex : proxy — image relayée (type lu dans les octets, cache d’un an, aucun cookie), adresse MD@Home gardée, signalement après la réponse, aucune écriture en base par image, aucun fichier gardé',
+	function () {
+		$site      = yume_tmdx_chapitre_site();
+		$api       = yume_tmdx_api( yume_tmdx_routeur_proxy() );
+		$ecritures = 0;
+		$compter   = static function () use ( &$ecritures ) {
+			++$ecritures;
+		};
+		$medias    = count( get_posts( array( 'post_type' => 'attachment', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids' ) ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing
+		$dossier   = wp_upload_dir()['basedir'];
+		$lister    = static function () use ( $dossier ): array {
+			if ( ! is_dir( $dossier ) ) {
+				return array();
+			}
+			$fichiers = array();
+			foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dossier, FilesystemIterator::SKIP_DOTS ) ) as $fichier ) {
+				$fichiers[] = $fichier->getPathname();
+			}
+			sort( $fichiers );
+			return $fichiers;
+		};
+		$avant     = $lister();
+		try {
+			$premiere = Proxy::reponse( yume_tmdx_chemin( 1 ) );
+			foreach ( array( 'added_option', 'updated_option', 'deleted_option' ) as $action ) {
+				add_action( $action, $compter );
+			}
+			$deuxieme = Proxy::reponse( yume_tmdx_chemin( 2, 'data' ) );
+			foreach ( array( 'added_option', 'updated_option', 'deleted_option' ) as $action ) {
+				remove_action( $action, $compter );
+			}
+		} finally {
+			yume_tmdx_fin( $api );
+		}
+		yume_assert_same( 200, $premiere['statut'] );
+		yume_assert_same( YUME_TMDX_JPEG, $premiere['corps'] );
+		yume_assert_same( 'image/jpeg', $premiere['entetes']['Content-Type'] );
+		yume_assert_same( 'public, max-age=31536000, immutable', $premiere['entetes']['Cache-Control'] );
+		yume_assert_same( 'nosniff', $premiere['entetes']['X-Content-Type-Options'] );
+		yume_assert_same( 'same-site', $premiere['entetes']['Cross-Origin-Resource-Policy'] );
+		yume_assert_false( isset( $premiere['entetes']['Set-Cookie'] ) );
+		yume_assert_same( 200, $deuxieme['statut'] );
+		yume_assert_same( 0, $ecritures, 'aucune écriture en base pour une image (serveur MD@Home en cache)' );
+
+		$urls = array_column( $api->requetes, 'url' );
+		yume_assert_same(
+			array(
+				Client::API . '/at-home/server/' . yume_tmdx_uuid( 1 ),
+				'https://noeud.mangadex.network:443/jeton/data-saver/' . YUME_TMDX_HASH . '/1-a.jpg',
+				'https://noeud.mangadex.network:443/jeton/data/' . YUME_TMDX_HASH . '/2-b.png',
+			),
+			$urls,
+			'un seul appel at-home, qualité choisie, aucun signalement avant la fin de la réponse'
+		);
+		foreach ( $api->requetes as $requete ) {
+			yume_assert_contains( 'YumeNovel/', (string) $requete['args']['user-agent'] );
+			yume_assert_true( empty( $requete['args']['stream'] ) && empty( $requete['args']['filename'] ), 'jamais écrit sur le disque' );
+		}
+		$file = Proxy::signalements_en_attente();
+		yume_assert_same( 2, count( $file ) );
+		yume_assert_same( $urls[1], $file[0]['url'] );
+		yume_assert_true( $file[0]['success'] && $file[0]['cached'] );
+		yume_assert_same( strlen( YUME_TMDX_JPEG ), $file[0]['bytes'] );
+		yume_assert_same( $medias, count( get_posts( array( 'post_type' => 'attachment', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids' ) ) ), 'aucun média créé' ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing
+		yume_assert_same( $avant, $lister(), 'aucun fichier dans uploads' );
+	}
+);
+
+yume_tmdx_test_proxy(
+	'mangadex : proxy — signalements envoyés après coup (JSON, délai court) ; échec (522, réseau) : coupe-circuit, plus aucun envoi pendant la coupure ; succès sans écriture en base',
+	function () {
+		yume_tmdx_chapitre_site();
+		$api = yume_tmdx_api( yume_tmdx_routeur_proxy() );
+		try {
+			Proxy::reponse( yume_tmdx_chemin( 1 ) );
+			$ecritures = 0;
+			$compter   = static function () use ( &$ecritures ) {
+				++$ecritures;
+			};
+			add_action( 'added_option', $compter );
+			add_action( 'updated_option', $compter );
+			Proxy::envoyer_signalements();
+			remove_action( 'added_option', $compter );
+			remove_action( 'updated_option', $compter );
+		} finally {
+			yume_tmdx_fin( $api );
+		}
+		$envoi = end( $api->requetes );
+		yume_assert_same( Proxy::SIGNALEMENT, $envoi['url'] );
+		yume_assert_same( 'POST', $envoi['args']['method'] );
+		yume_assert_true( $envoi['args']['timeout'] <= 3, 'délai court' );
+		$corps = json_decode( (string) $envoi['args']['body'], true );
+		yume_assert_same( array( 'url', 'success', 'cached', 'bytes', 'duration' ), array_keys( $corps ) );
+		yume_assert_same( 0, $ecritures, 'succès : rien en base' );
+		yume_assert_same( array(), Proxy::signalements_en_attente() );
+		yume_assert_false( (bool) get_transient( Proxy::COUPURE ) );
+
+		foreach ( array( 522, new WP_Error( 'http_request_failed', 'Délai dépassé' ) ) as $panne ) {
+			delete_transient( Proxy::COUPURE );
+			$api = yume_tmdx_api( yume_tmdx_routeur_proxy( array( 'https://noeud.mangadex.network:443/jeton' ), null, $panne ) );
+			try {
+				Proxy::reponse( yume_tmdx_chemin( 1 ) );
+				Proxy::reponse( yume_tmdx_chemin( 2 ) );
+				Proxy::envoyer_signalements();
+				$apres_panne = count( $api->requetes );
+				Proxy::reponse( yume_tmdx_chemin( 3 ) );
+				Proxy::envoyer_signalements();
+			} finally {
+				yume_tmdx_fin( $api );
+			}
+			yume_assert_true( (bool) get_transient( Proxy::COUPURE ), 'coupe-circuit ouvert' );
+			$signalements = array_filter(
+				array_column( $api->requetes, 'url' ),
+				static function ( $url ) {
+					return Proxy::SIGNALEMENT === $url;
+				}
+			);
+			yume_assert_same( 1, count( $signalements ), 'un seul essai, puis plus rien pendant la coupure' );
+			yume_assert_same( $apres_panne + 1, count( $api->requetes ), 'la 3e page est servie, sans signalement' );
+			yume_assert_same( array(), Proxy::signalements_en_attente() );
+		}
+	}
+);
+
+yume_tmdx_test_proxy(
+	'mangadex : proxy — nœud mangadex.org non signalé ; nœud en échec : un seul autre nœud demandé (le premier échec est signalé) ; réponse non image refusée (502)',
+	function () {
+		yume_tmdx_chapitre_site();
+		$api = yume_tmdx_api( yume_tmdx_routeur_proxy( array( 'https://uploads.mangadex.org' ) ) );
+		try {
+			yume_assert_same( 200, Proxy::reponse( yume_tmdx_chemin( 1 ) )['statut'] );
+		} finally {
+			yume_tmdx_fin( $api );
+		}
+		yume_assert_same( array(), Proxy::signalements_en_attente(), 'repli de MangaDex : pas de signalement' );
+
+		delete_transient( 'yume_mdx_ah_' . yume_tmdx_uuid( 1 ) );
+		$api = yume_tmdx_api(
+			yume_tmdx_routeur_proxy(
+				array( 'https://panne.mangadex.network/a', 'https://bon.mangadex.network/b' ),
+				static function ( string $url ) {
+					return 0 === strpos( $url, 'https://panne.' ) ? yume_tmdx_image( 'erreur', 'text/html', 502 ) : yume_tmdx_image();
+				}
+			)
+		);
+		try {
+			$reponse = Proxy::reponse( yume_tmdx_chemin( 2 ) );
+		} finally {
+			yume_tmdx_fin( $api );
+		}
+		yume_assert_same( 200, $reponse['statut'] );
+		yume_assert_same( 2, count( array_filter( array_column( $api->requetes, 'url' ), static fn( $u ) => false !== strpos( $u, '/at-home/' ) ) ), 'deux appels at-home, pas plus' );
+		$file = Proxy::signalements_en_attente();
+		yume_assert_same( array( false, true ), array_column( $file, 'success' ) );
+
+		// Le nœud renvoie du HTML annoncé comme une image : refusé, jamais relayé.
+		delete_transient( 'yume_mdx_ah_' . yume_tmdx_uuid( 1 ) );
+		$api = yume_tmdx_api(
+			yume_tmdx_routeur_proxy(
+				array( 'https://noeud.mangadex.network/a' ),
+				static function () {
+					return yume_tmdx_image( '<html><script>alert(1)</script></html>', 'image/jpeg' );
+				}
+			)
+		);
+		try {
+			$html = Proxy::reponse( yume_tmdx_chemin( 1 ) );
+		} finally {
+			yume_tmdx_fin( $api );
+		}
+		yume_assert_same( 502, $html['statut'] );
+		yume_assert_same( 'text/plain; charset=utf-8', $html['entetes']['Content-Type'] );
+		yume_assert_same( 'no-store', $html['entetes']['Cache-Control'] );
+		yume_assert_not_contains( 'script', $html['corps'] );
+		yume_assert_same( 2, count( array_filter( array_column( $api->requetes, 'url' ), static fn( $u ) => false !== strpos( $u, '/at-home/' ) ) ), 'un seul autre nœud' );
+	}
+);
+
+yume_tmdx_test_proxy(
+	'mangadex : proxy — refus sans aucun appel à MangaDex : adresse invalide (400), chapitre inconnu, brouillon, tome ou œuvre non publiés, version périmée, page hors du chapitre (404) ; limite 429 : pause de tout le site (503, Retry-After)',
+	function () {
+		$site = yume_tmdx_chapitre_site();
+		$api  = yume_tmdx_api(
+			static function () {
+				return null;
+			}
+		);
+		try {
+			foreach ( array( '', '../etc/passwd', yume_tmdx_uuid( 1 ) . '/abcdef01/data-saver/0', yume_tmdx_uuid( 1 ) . '/abcdef01/autre/1', 'https://exemple.org/x.jpg', yume_tmdx_uuid( 1 ) . '/ABCDEF01/data/1' ) as $chemin ) {
+				yume_assert_same( 400, Proxy::reponse( $chemin )['statut'], $chemin );
+			}
+			yume_assert_same( 404, Proxy::reponse( yume_tmdx_uuid( 9 ) . '/abcdef01/data-saver/1' )['statut'], 'chapitre inconnu' );
+			yume_assert_same( 404, Proxy::reponse( yume_tmdx_chemin( 1, 'data-saver', '00000000' ) )['statut'], 'version périmée' );
+			yume_assert_contains( 'rechargez', Proxy::reponse( yume_tmdx_chemin( 1, 'data-saver', '00000000' ) )['corps'] );
+			yume_assert_same( 404, Proxy::reponse( yume_tmdx_chemin( 4 ) )['statut'], 'page hors du chapitre' );
+			foreach ( array( 'chapitre', 'tome', 'oeuvre' ) as $cle ) {
+				wp_update_post(
+					array(
+						'ID'          => $site[ $cle ],
+						'post_status' => 'draft',
+					)
+				);
+				yume_assert_same( 404, Proxy::reponse( yume_tmdx_chemin( 1 ) )['statut'], $cle . ' en brouillon' );
+				wp_update_post(
+					array(
+						'ID'          => $site[ $cle ],
+						'post_status' => 'publish',
+					)
+				);
+			}
+		} finally {
+			yume_tmdx_fin( $api );
+		}
+		yume_assert_same( array(), $api->requetes, 'aucun appel à MangaDex' );
+
+		$api = yume_tmdx_api(
+			static function ( string $url ) {
+				return false !== strpos( $url, '/at-home/' ) ? yume_tmdx_reponse( 429, '' ) : null;
+			}
+		);
+		try {
+			$limite = Proxy::reponse( yume_tmdx_chemin( 1 ) );
+			$pause  = Proxy::reponse( yume_tmdx_chemin( 2 ) );
+		} finally {
+			yume_tmdx_fin( $api );
+		}
+		yume_assert_same( 503, $limite['statut'] );
+		yume_assert_same( '60', $limite['entetes']['Retry-After'] );
+		yume_assert_same( 503, $pause['statut'] );
+		yume_assert_same( 1, count( $api->requetes ), 'aucun nouvel essai après 429, ni pendant la pause' );
+	}
+);
+
+yume_tmdx_test_proxy(
+	'mangadex : proxy — fermé tant que le lecteur n’est pas livré (404, aucun appel)',
+	function () {
+		yume_tmdx_chapitre_site();
+		$api = yume_tmdx_api(
+			static function () {
+				return null;
+			}
+		);
+		try {
+			yume_assert_same( 404, Proxy::reponse( yume_tmdx_chemin( 1 ) )['statut'] );
+		} finally {
+			yume_tmdx_fin( $api );
+		}
+		yume_assert_same( array(), $api->requetes );
+	},
+	false
+);
+
+yume_test(
+	'mangadex : proxy — type d’image lu dans les octets (JPEG, PNG, GIF, WebP ; HTML, SVG, vide refusés)',
+	function () {
+		yume_assert_same( 'image/jpeg', Proxy::type_image( YUME_TMDX_JPEG ) );
+		yume_assert_same( 'image/png', Proxy::type_image( "\x89PNG\r\n\x1A\n...." ) );
+		yume_assert_same( 'image/gif', Proxy::type_image( 'GIF89a....' ) );
+		yume_assert_same( 'image/webp', Proxy::type_image( 'RIFF....WEBPVP8 ' ) );
+		foreach ( array( '', '<html>', '<svg xmlns="http://www.w3.org/2000/svg"/>', 'RIFF....WAVE' ) as $corps ) {
+			yume_assert_same( '', Proxy::type_image( $corps ), $corps );
+		}
 	}
 );

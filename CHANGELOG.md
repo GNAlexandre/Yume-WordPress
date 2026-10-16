@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.4 — 2026-10-16
+
+- MangaDex, étape 4 : proxy des pages (/?yume_mdx_image=…) limité aux chapitres publiés de la base, image relayée sans rien garder, type vérifié, cache d'un an, pause après 429/403, signalement à MangaDex après la réponse avec coupe-circuit ; fermé tant que le lecteur n'est pas livré
+
 ## 2.3.0-dev.3 — 2026-10-16
 
 - MangaDex, étape 3 : synchronisation horaire des chapitres du groupe (tomes par volume, import initial sans annonce, mises à jour et retraits, garde-fous, simulation, page Yume → Mangas (MangaDex)) ; coupée tant que le lecteur n'est pas livré
