@@ -962,15 +962,17 @@ yume_tmdx_test_synchro(
 );
 
 yume_tmdx_test_synchro(
-	'mangadex : synchronisation — coupée par défaut et tant que le lecteur n’est pas livré, tâche horaire planifiée puis retirée, page Yume → Mangas (MangaDex) (simulation, rapport échappé)',
+	'mangadex : synchronisation — coupée par défaut et avec le lecteur (filtre), tâche horaire planifiée puis retirée, page Yume → Mangas (MangaDex) (simulation, rapport échappé)',
 	function () {
 		$reglages = get_option( 'yume_reglages', array() );
-		$pret     = '__return_true';
+		$coupe    = '__return_false';
 		try {
+			yume_assert_true( \Yume\Core\MangaDex\lecteur_pret(), 'lecteur livré' );
 			yume_assert_false( Synchro::active(), 'défaut' );
 			update_option( 'yume_reglages', array_merge( is_array( $reglages ) ? $reglages : array(), array( 'mangadex_synchro' => true ) ) );
-			yume_assert_false( Synchro::active(), 'lecteur pas encore livré' );
-			add_filter( 'yume_mangadex_lecteur_pret', $pret );
+			add_filter( 'yume_mangadex_lecteur_pret', $coupe );
+			yume_assert_false( Synchro::active(), 'lecteur coupé' );
+			remove_filter( 'yume_mangadex_lecteur_pret', $coupe );
 			yume_assert_true( Synchro::active() );
 			wp_clear_scheduled_hook( Synchro::CRON );
 			\Yume\Core\MangaDex\planifier();
@@ -979,7 +981,7 @@ yume_tmdx_test_synchro(
 			\Yume\Core\MangaDex\planifier();
 			yume_assert_false( wp_next_scheduled( Synchro::CRON ), 'tâche retirée' );
 		} finally {
-			remove_filter( 'yume_mangadex_lecteur_pret', $pret );
+			remove_filter( 'yume_mangadex_lecteur_pret', $coupe );
 			update_option( 'yume_reglages', $reglages );
 			wp_clear_scheduled_hook( Synchro::CRON );
 		}
@@ -1003,15 +1005,17 @@ yume_tmdx_test_synchro(
 		yume_assert_not_contains( '<script>', $html );
 
 		wp_set_current_user( yume_factory_user( 'administrator' ) );
+		add_filter( 'yume_mangadex_lecteur_pret', $coupe );
 		try {
 			ob_start();
 			\Yume\Core\MangaDex\page();
 			$page = (string) ob_get_clean();
 		} finally {
+			remove_filter( 'yume_mangadex_lecteur_pret', $coupe );
 			wp_set_current_user( 0 );
 		}
 		yume_assert_contains( 'Simuler (sans rien changer)', $page );
-		yume_assert_contains( 'pas encore livré', $page );
+		yume_assert_contains( 'Le lecteur de mangas est coupé', $page );
 		yume_assert_not_contains( 'Synchroniser maintenant', $page, 'synchronisation réelle indisponible' );
 	}
 );
@@ -1440,5 +1444,182 @@ yume_test(
 		foreach ( array( '', '<html>', '<svg xmlns="http://www.w3.org/2000/svg"/>', 'RIFF....WAVE' ) as $corps ) {
 			yume_assert_same( '', Proxy::type_image( $corps ), $corps );
 		}
+	}
+);
+
+/*
+ * -----------------------------------------------------------------------------
+ * Lecteur (étape 5)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Exécute $rappel comme sur la page du contenu $post_id (requête principale et $post).
+ *
+ * @param int      $post_id Contenu affiché.
+ * @param callable $rappel  Rappel.
+ * @return mixed
+ */
+function yume_tmdx_sur( int $post_id, callable $rappel ) {
+	global $wp_query, $wp_the_query, $post;
+	$avant = array( $wp_query, $wp_the_query, $post );
+	// phpcs:disable WordPress.WP.GlobalVariablesOverride -- contexte de rendu simulé puis restauré.
+	$wp_query     = new WP_Query(
+		array(
+			'p'           => $post_id,
+			'post_type'   => get_post_type( $post_id ),
+			'post_status' => 'any',
+		)
+	);
+	$wp_the_query = $wp_query;
+	$post         = get_post( $post_id );
+	setup_postdata( $post );
+	try {
+		return $rappel();
+	} finally {
+		list( $wp_query, $wp_the_query, $post ) = $avant;
+		wp_reset_postdata();
+	}
+	// phpcs:enable
+}
+
+/**
+ * Rendu du bloc core/post-content (modèle « Chapitre ») du contenu affiché.
+ *
+ * @param int $post_id Contenu affiché.
+ */
+function yume_tmdx_rendu_contenu( int $post_id ): string {
+	return (string) yume_tmdx_sur(
+		$post_id,
+		static function () use ( $post_id ) {
+			$bloc = new WP_Block(
+				array(
+					'blockName'    => 'core/post-content',
+					'attrs'        => array( 'className' => 'yn-reader__texte' ),
+					'innerBlocks'  => array(),
+					'innerHTML'    => '',
+					'innerContent' => array(),
+				),
+				array(
+					'postId'   => $post_id,
+					'postType' => get_post_type( $post_id ),
+				)
+			);
+			return $bloc->render();
+		}
+	);
+}
+
+yume_test(
+	'mangadex : lecteur — pages relayées à la place du contenu (économie de données dans src, originale à part, 2 pages immédiates, texte alternatif, poids de l’originale), crédits et lien MangaDex, outils masqués sans JavaScript',
+	function () {
+		$site = yume_tmdx_chapitre_site();
+		$html = yume_tmdx_rendu_contenu( $site['chapitre'] );
+		yume_assert_contains( 'wp-block-post-content', $html );
+		yume_assert_contains( 'class="yn-manga" data-yn-manga data-yn-mode="defilement" data-yn-pages="3"', $html );
+		yume_assert_same( 3, substr_count( $html, '<figure class="yn-manga__page"' ) );
+		foreach ( array( 1, 2, 3 ) as $n ) {
+			yume_assert_contains( 'src="' . esc_url( yume_mangadex_url_page( $site['chapitre'], $n ) ) . '"', $html );
+			yume_assert_contains( 'data-yn-originale="' . esc_url( yume_mangadex_url_page( $site['chapitre'], $n, 'data' ) ) . '"', $html );
+			yume_assert_contains( 'alt="Page ' . $n . ' sur 3"', $html );
+		}
+		yume_assert_same( 2, substr_count( $html, 'loading="eager"' ) );
+		yume_assert_same( 1, substr_count( $html, 'loading="lazy"' ) );
+		yume_assert_same( 1, substr_count( $html, 'fetchpriority="high"' ) );
+		yume_assert_contains( 'Originale (≈ 5 Mo)', $html, '3 pages × 1,6 Mo' );
+		yume_assert_contains( '3 pages', $html );
+		yume_assert_contains( '<div class="yn-manga__outils" hidden>', $html );
+		yume_assert_contains( '<div class="yn-manga__navigation" hidden>', $html );
+		yume_assert_contains( 'Images hébergées par <a href="https://mangadex.org/"', $html );
+		yume_assert_contains( 'href="https://mangadex.org/chapter/' . yume_tmdx_uuid( 1 ) . '"', $html );
+		yume_assert_not_contains( 'mangadex.network', $html, 'jamais d’adresse MD@Home dans la page' );
+		yume_assert_not_contains( 'uploads.mangadex.org', $html );
+	}
+);
+
+yume_test(
+	'mangadex : lecteur — HTML identique pour un visiteur et un membre (cache de pages), feuille et script chargés seulement sur un chapitre MangaDex',
+	function () {
+		$site     = yume_tmdx_chapitre_site();
+		$visiteur = yume_tmdx_rendu_contenu( $site['chapitre'] );
+		wp_set_current_user( yume_factory_user( 'administrator' ) );
+		try {
+			$membre = yume_tmdx_rendu_contenu( $site['chapitre'] );
+		} finally {
+			wp_set_current_user( 0 );
+		}
+		yume_assert_same( $visiteur, $membre );
+		yume_assert_not_contains( 'nonce', $visiteur );
+
+		wp_dequeue_script( \Yume\Core\MangaDex\POIGNEE_LECTEUR );
+		wp_dequeue_style( \Yume\Core\MangaDex\POIGNEE_LECTEUR );
+		$texte = yume_factory_post(
+			array(
+				'post_type'    => 'yume_chapitre',
+				'post_content' => '<!-- wp:paragraph --><p>Texte.</p><!-- /wp:paragraph -->',
+				'meta_input'   => array( 'yume_tome_id' => $site['tome'] ),
+			)
+		);
+		yume_tmdx_sur( $texte, '\Yume\Core\MangaDex\charger_assets_lecteur' );
+		yume_assert_false( wp_script_is( \Yume\Core\MangaDex\POIGNEE_LECTEUR, 'enqueued' ), 'chapitre en texte' );
+		yume_tmdx_sur( $site['chapitre'], '\Yume\Core\MangaDex\charger_assets_lecteur' );
+		yume_assert_true( wp_script_is( \Yume\Core\MangaDex\POIGNEE_LECTEUR, 'enqueued' ) );
+		yume_assert_true( wp_style_is( \Yume\Core\MangaDex\POIGNEE_LECTEUR, 'enqueued' ) );
+		wp_dequeue_script( \Yume\Core\MangaDex\POIGNEE_LECTEUR );
+		wp_dequeue_style( \Yume\Core\MangaDex\POIGNEE_LECTEUR );
+	}
+);
+
+yume_test(
+	'mangadex : lecteur — absent d’un chapitre en texte (contenu intact), d’un autre contenu affiché, et quand le lecteur est coupé ; chapitre sans nombre de pages : message et lien MangaDex',
+	function () {
+		$site  = yume_tmdx_chapitre_site();
+		$texte = yume_factory_post(
+			array(
+				'post_type'    => 'yume_chapitre',
+				'post_content' => '<!-- wp:paragraph --><p>Il était une fois.</p><!-- /wp:paragraph -->',
+				'meta_input'   => array( 'yume_tome_id' => $site['tome'] ),
+			)
+		);
+		$html  = yume_tmdx_rendu_contenu( $texte );
+		yume_assert_contains( 'Il était une fois.', $html );
+		yume_assert_not_contains( 'yn-manga', $html );
+
+		// Le chapitre MangaDex cité ailleurs (autre page affichée) : pas de lecteur.
+		$ailleurs = (string) yume_tmdx_sur(
+			$texte,
+			static function () {
+				return \Yume\Core\MangaDex\contenu_chapitre( '' );
+			}
+		);
+		yume_assert_same( '', $ailleurs );
+
+		add_filter( 'yume_mangadex_lecteur_pret', '__return_false' );
+		try {
+			yume_assert_not_contains( 'yn-manga', yume_tmdx_rendu_contenu( $site['chapitre'] ) );
+		} finally {
+			remove_filter( 'yume_mangadex_lecteur_pret', '__return_false' );
+		}
+
+		update_post_meta( $site['chapitre'], 'yume_mdx_pages', 0 );
+		$vide = yume_tmdx_rendu_contenu( $site['chapitre'] );
+		yume_assert_contains( 'yn-manga--vide', $vide );
+		yume_assert_contains( 'pas encore disponibles', $vide );
+		yume_assert_contains( 'Lire ce chapitre sur MangaDex', $vide );
+		yume_assert_not_contains( '<img', $vide );
+	}
+);
+
+yume_test(
+	'mangadex : lecteur — la barre de lecture compte les pages comme des paragraphes (suivi, reprise « à la page N », mode page par page)',
+	function () {
+		$js = (string) file_get_contents( YUME_CORE_DIR . 'includes/reader/blocks/reader-tools/view.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		yume_assert_contains( "querySelectorAll( '.yn-manga__page' )", $js );
+		yume_assert_contains( "'yn:manga-page'", $js );
+		yume_assert_contains( "'yn:manga-aller'", $js );
+		yume_assert_contains( "'à la page '", $js );
+		$manga = (string) file_get_contents( YUME_CORE_DIR . 'includes/mangadex/assets/manga.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		yume_assert_contains( "const CLE = 'yn.manga'", $manga );
+		yume_assert_contains( 'e.clientX >= rect.left + rect.width / 2 ? 1 : -1', $manga, 'moitié droite : page suivante, quel que soit le sens' );
 	}
 );

@@ -16,16 +16,17 @@ const MOTIF_UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 const GROUPE_YUME = '4bbecb8b-41bb-48a8-8ddb-0c9243e4c344';
 
 /**
- * Le lecteur de mangas est-il livré ? Tant qu'il ne l'est pas, la synchronisation reste coupée
- * (elle publierait des chapitres sans lecteur). Passe à vrai avec le lecteur (étape 5).
+ * Le lecteur de mangas est-il disponible ? Livré avec 2.3.0 (vrai) ; le filtre permet de le
+ * couper : lecteur, proxy des pages et synchronisation s'arrêtent alors ensemble (la
+ * synchronisation publierait des chapitres illisibles).
  */
 function lecteur_pret(): bool {
 	/**
 	 * Le lecteur des chapitres MangaDex est-il disponible ?
 	 *
-	 * @param bool $pret Faux tant que le lecteur n'est pas livré.
+	 * @param bool $pret Vrai ; faux coupe lecteur, proxy et synchronisation.
 	 */
-	return (bool) apply_filters( 'yume_mangadex_lecteur_pret', false );
+	return (bool) apply_filters( 'yume_mangadex_lecteur_pret', true );
 }
 
 /**

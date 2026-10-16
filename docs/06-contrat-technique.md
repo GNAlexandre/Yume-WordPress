@@ -382,7 +382,7 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `recrutement_test_url` | `''` | planning : lien du test de traduction (http(s), facultatif) |
 | `recrutement_consigne` | ticket dans le salon « tickets » du Discord | planning : texte au-dessus du bouton « Postuler sur le Discord » (lien : `discord_invite`) |
 | `mangadex_groupe` | `4bbecb8b-41bb-48a8-8ddb-0c9243e4c344` (groupe Yume Novel) | mangadex : groupe dont le site lit les chapitres en français (section « Mangas (MangaDex) » ajoutée par `yume_reglages_sections` ; identifiant ou adresse https://mangadex.org/group/…, une saisie invalide revient au défaut) |
-| `mangadex_synchro` | `false` | mangadex : synchronisation horaire des chapitres du groupe (§8 bis) ; sans effet tant que le lecteur n'est pas livré (`yume_mangadex_lecteur_pret`, faux par défaut) ; filtre final `yume_mangadex_synchro_active` |
+| `mangadex_synchro` | `false` | mangadex : synchronisation horaire des chapitres du groupe (§8 bis) ; coupée aussi quand le lecteur l'est (`yume_mangadex_lecteur_pret`, vrai depuis 2.3.0) ; filtre final `yume_mangadex_synchro_active` |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
@@ -837,7 +837,7 @@ d'être importé (nouvelle version en ligne) ; pas émis pour une simulation ni 
 d'administration dans `includes/mangadex/synchro.php`.
 
 - **Activation** : `Synchro::active()` = réglage `mangadex_synchro` ET `lecteur_pret()` (filtre
-  `yume_mangadex_lecteur_pret`, faux tant que le lecteur n'est pas livré), puis filtre
+  `yume_mangadex_lecteur_pret`, vrai ; faux coupe lecteur, proxy et synchronisation), puis filtre
   `yume_mangadex_synchro_active`. Active : tâche WP-Cron `yume_mangadex_synchro` toutes les heures
   (planifiée sur `init`, retirée quand la synchronisation est coupée et à la désactivation de
   l'extension).
@@ -882,7 +882,7 @@ d'administration dans `includes/mangadex/synchro.php`.
   `yume_mdx_version` (8 caractères) : un chapitre mis à jour change d'adresse. Qualité
   `data-saver` (économie de données, défaut) ou `data` (originale).
 - **Refus sans appel à MangaDex** : adresse mal formée → 400 ; lecteur non livré
-  (`lecteur_pret()`), chapitre absent de la base, chapitre / tome / œuvre non publiés (une œuvre
+  (`lecteur_pret()` faux), chapitre absent de la base, chapitre / tome / œuvre non publiés (une œuvre
   « Licenciée » a ses chapitres en brouillon), mot de passe → 404 ; version périmée → 404
   « rechargez la page » ; page au-delà de `yume_mdx_pages` → 404 ; pause en cours → 503.
 - **Téléchargement** : serveur MD@Home du chapitre (`Client::at_home()`, transient 10 min),
@@ -904,6 +904,33 @@ d'administration dans `includes/mangadex/synchro.php`.
   ne répondait pas le 16/10/2026 (522, puis délai dépassé).
 - **Non mesuré** : la mise en cache de ces réponses par WordPress.com (Batcache, cache de bord)
   n'a pas été vérifiée ; sans elle, chaque page lue passe par PHP.
+
+### Lecteur (`includes/mangadex/lecteur.php`, `assets/manga.js`, `assets/manga.css`)
+
+- **Rendu** : filtre `the_content` (priorité 20) sur la page d'un chapitre MangaDex
+  (`chapitre_affiche()` : requête principale, `lecteur_pret()`) ; le lecteur `.yn-manga` est
+  placé dans `.wp-block-post-content` du modèle « Chapitre » (inchangé). Feuille et script
+  (poignée `yume-manga`) chargés seulement sur ces pages.
+- **HTML identique pour tous les visiteurs** (Batcache) : `figure.yn-manga__page` par page,
+  `img` avec `src` = qualité `data-saver`, `data-yn-originale` = qualité `data`,
+  `alt` « Page N sur M », `loading="eager"` pour les 2 premières (`fetchpriority="high"` sur la
+  1re), `lazy` ensuite. Outils (`.yn-manga__outils`) et navigation page par page
+  (`.yn-manga__navigation`) en `hidden`, affichés par le script : sans JavaScript, défilement.
+- **Outils** : « N pages », mode Défilement / Page par page, qualité « Économie de données » /
+  « Originale (≈ X Mo) » (X = pages × 1,6 Mo, `MO_PAR_PAGE_ORIGINALE`) ; choix dans
+  `localStorage yn.manga` (§14).
+- **Page par page** : moitié droite de la page, → ou Page suivante = page suivante ; moitié
+  gauche, ← ou Page précédente = page précédente, **quel que soit le sens de lecture** (décision
+  de l'équipe, 16/10/2026). Touches captées avant la barre de lecture ; au bout du chapitre,
+  ← / → reviennent à la barre (chapitre voisin) et le bouton devient « Chapitre suivant → ». Page
+  alignée sous la barre, entière à l'écran ; deux pages préchargées.
+- **Suivi de lecture** (`yume/reader-tools`) : chaque `.yn-manga__page` compte comme un
+  paragraphe (marque-page, `#yn-p-N`, « Reprendre à la page N ») ; en mode page, position et
+  pourcentage suivent `data-yn-courante` (événement `yn:manga-page`), la reprise passe par
+  `yn:manga-aller` (`detail.index`).
+- **Crédits et repli** : crédits du chapitre dans l'en-tête (`yume_credits.traduction` = groupes),
+  « Images hébergées par MangaDex · Lire ce chapitre sur MangaDex » sous les pages ; page en
+  échec → « Page N indisponible. Lire sur MangaDex » ; `yume_mdx_pages` = 0 → message et lien.
 
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 
@@ -1237,6 +1264,7 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 | `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
 | `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
 | `yn.a11y` | `{contraste: bool, animations: 'systeme'\|'reduites'}` (appareil seulement, jamais envoyé au compte) | lecture (panneau Paramètres, script d'initialisation) |
+| `yn.manga` | `{mode: 'defilement'\|'page', qualite: 'data-saver'\|'data'}` (appareil seulement ; défaut défilement, économie de données) | lecteur des chapitres MangaDex (`includes/mangadex/assets/manga.js`, §8 bis) |
 | `yn.wordend` | `{meilleur: int, parties: int, maj: 'YYYY-MM-DD', volume: 0…1, muet: bool}` (meilleur score et réglages du son du jeu caché, appareil seulement) | wordend |
 
 Stockage Cache Storage du service worker (lecture hors ligne) : caches `yume-lecture-{version}`,

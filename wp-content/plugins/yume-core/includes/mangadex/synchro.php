@@ -146,7 +146,7 @@ function page(): void {
 	}
 	echo '<div class="wrap"><h1>' . esc_html__( 'Mangas (MangaDex)', 'yume-core' ) . '</h1>';
 	if ( ! lecteur_pret() ) {
-		echo '<div class="notice notice-info inline"><p>' . esc_html__( 'Le lecteur de mangas n’est pas encore livré : la synchronisation reste coupée. La simulation montre déjà ce qu’elle ferait.', 'yume-core' ) . '</p></div>';
+		echo '<div class="notice notice-info inline"><p>' . esc_html__( 'Le lecteur de mangas est coupé (filtre yume_mangadex_lecteur_pret) : la synchronisation l’est aussi. La simulation montre ce qu’elle ferait.', 'yume-core' ) . '</p></div>';
 	} elseif ( ! Synchro::active() ) {
 		echo '<div class="notice notice-info inline"><p>' . esc_html__( 'La synchronisation est coupée : cochez « Synchroniser les chapitres » dans Yume → Réglages → Mangas (MangaDex).', 'yume-core' ) . '</p></div>';
 	} else {

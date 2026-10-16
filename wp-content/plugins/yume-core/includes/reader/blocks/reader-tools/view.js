@@ -17,6 +17,10 @@
  * - Raccourcis : ← / → chapitre précédent / suivant, « s » paramètres (inactifs dans un champ).
  * - Page « Illustrations » d'un tome (config.chapitre = 0) : ni suivi ni marque-page, la
  *   position enregistrée n'est jamais remplacée ; → ouvre le premier chapitre.
+ * - Chapitre MangaDex (.yn-manga, module mangadex) : chaque page (.yn-manga__page) compte
+ *   comme un paragraphe ; en mode page par page, position et pourcentage suivent la page
+ *   affichée (data-yn-courante, événement « yn:manga-page ») et la reprise la demande au
+ *   lecteur de mangas (événement « yn:manga-aller »). Les textes parlent alors de « page ».
  *
  * JavaScript sans étape de build (ES2019), sans dépendance.
  */
@@ -770,14 +774,27 @@
 
 	const article = document.querySelector( '.yn-reader' );
 	const conteneur = article ? article.querySelector( '.wp-block-post-content' ) || article : null;
+	const manga = conteneur ? conteneur.querySelector( '.yn-manga[data-yn-manga]' ) : null;
+	const UNITE = manga ? 'page' : 'paragraphe';
 	let paragraphes = [];
-	if ( conteneur ) {
+	if ( manga ) {
+		paragraphes = Array.prototype.slice.call( manga.querySelectorAll( '.yn-manga__page' ) );
+	} else if ( conteneur ) {
 		paragraphes = Array.prototype.filter.call( conteneur.children, function ( el ) {
 			return ! /^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT)$/.test( el.tagName );
 		} );
 		if ( conteneur === article || paragraphes.length < 2 ) {
 			paragraphes = Array.prototype.slice.call( article.querySelectorAll( 'p' ) );
 		}
+	}
+
+	/** Page affichée par le lecteur de mangas en mode page par page, -1 sinon. */
+	function pageManga() {
+		if ( ! manga || manga.getAttribute( 'data-yn-mode' ) !== 'page' ) {
+			return -1;
+		}
+		const index = parseInt( manga.getAttribute( 'data-yn-courante' ), 10 );
+		return isNaN( index ) ? -1 : index;
 	}
 	paragraphes.forEach( function ( el, i ) {
 		el.setAttribute( 'data-yn-paragraphe', String( i ) );
@@ -803,6 +820,10 @@
 		if ( ! article ) {
 			return 0;
 		}
+		const page = pageManga();
+		if ( page >= 0 && paragraphes.length ) {
+			return Math.round( ( ( page + 1 ) / paragraphes.length ) * 100 );
+		}
 		const zone = article.getBoundingClientRect();
 		const decalage = hauteurCollant();
 		const parcours = zone.height - window.innerHeight + decalage;
@@ -821,6 +842,10 @@
 	 */
 	const SEUIL_VISIBLE = 20;
 	function paragrapheCourant() {
+		const page = pageManga();
+		if ( page >= 0 ) {
+			return page;
+		}
 		if ( visibles.size ) {
 			const tries = Array.from( visibles ).sort( function ( a, b ) {
 				return a - b;
@@ -986,6 +1011,7 @@
 
 	window.addEventListener( 'scroll', surDefilement, { passive: true } );
 	window.addEventListener( 'resize', surDefilement );
+	document.addEventListener( 'yn:manga-page', surDefilement );
 
 	// Départ de la page : dernier envoi avec keepalive (la requête survit à la navigation).
 	function depart() {
@@ -1010,6 +1036,10 @@
 		const cible = paragraphes[ index ];
 		if ( ! cible ) {
 			return false;
+		}
+		if ( pageManga() >= 0 ) {
+			manga.dispatchEvent( new CustomEvent( 'yn:manga-aller', { detail: { index: index } } ) );
+			return true;
 		}
 		const y = cible.getBoundingClientRect().top + window.pageYOffset - hauteurCollant() - 16;
 		window.scrollTo( { top: Math.max( 0, y ), behavior: doux && ! mouvementsReduits() ? 'smooth' : 'auto' } );
@@ -1073,7 +1103,7 @@
 		fort.textContent = memo.pourcentage + ' %';
 		texte.appendChild( fort );
 		texte.appendChild( document.createTextNode( ' lu.' ) );
-		bouton.textContent = 'Reprendre au paragraphe ' + numero;
+		bouton.textContent = 'Reprendre ' + ( UNITE === 'page' ? 'à la page ' : 'au paragraphe ' ) + numero;
 		bandeau.hidden = false;
 		bandeau.addEventListener( 'click', function ( e ) {
 			const action = e.target.closest ? e.target.closest( '[data-yn-action]' ) : null;
@@ -1085,7 +1115,7 @@
 				masquerBandeau();
 				allerAuParagraphe( memo.paragraphe, true );
 				setTimeout( activerSuivi, mouvementsReduits() ? 50 : 900 );
-				annoncer( 'Reprise au paragraphe ' + numero + '.' );
+				annoncer( 'Reprise ' + ( UNITE === 'page' ? 'à la page ' : 'au paragraphe ' ) + numero + '.' );
 			} else if ( nom === 'ignorer-reprise' ) {
 				masquerBandeau();
 				activerSuivi();
@@ -1149,12 +1179,12 @@
 			if ( config.connecte ) {
 				derniereEnvoyee = null;
 				envoyerServeur( false ).then( function ( ok ) {
-					const message = ok ? 'Marque-page enregistré : paragraphe ' + numero + ' (' + position.pourcentage + ' %)' : 'Marque-page enregistré sur cet appareil (compte injoignable)';
+					const message = ok ? 'Marque-page enregistré : ' + UNITE + ' ' + numero + ' (' + position.pourcentage + ' %)' : 'Marque-page enregistré sur cet appareil (compte injoignable)';
 					afficherToast( message );
 					annoncer( message + '.' );
 				} );
 			} else {
-				const message = local ? 'Marque-page enregistré sur cet appareil : paragraphe ' + numero : 'Impossible d’enregistrer le marque-page sur cet appareil';
+				const message = local ? 'Marque-page enregistré sur cet appareil : ' + UNITE + ' ' + numero : 'Impossible d’enregistrer le marque-page sur cet appareil';
 				afficherToast( message );
 				annoncer( message + '.' );
 			}

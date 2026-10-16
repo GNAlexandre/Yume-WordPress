@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.6 — 2026-10-16
+
+- MangaDex, étape 5 : lecteur des chapitres MangaDex dans le modèle « Chapitre » (défilement par défaut ou page par page, moitié droite = page suivante quel que soit le sens, qualité économie de données ou originale avec son poids, choix gardés dans yn.manga, suivi de lecture par page, crédits et repli « Lire sur MangaDex ») ; lecteur, proxy et synchronisation activables (yume_mangadex_lecteur_pret vrai)
+
 ## 2.3.0-dev.5 — 2026-10-16
 
 - Tests mangadex : heure de référence des flux simulés figée par test (relance « sans effet » instable si une seconde passait entre deux reconstructions du flux)

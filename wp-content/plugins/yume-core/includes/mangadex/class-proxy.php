@@ -10,7 +10,7 @@
  *   aucune écriture en base pour une image (seuls l'adresse MD@Home d'un chapitre, 10 min, et les
  *   pauses après une limite ou un signalement en échec sont des transients).
  * - **Pas de relais ouvert** : seulement les chapitres de la base, publiés, d'un tome et d'une
- *   œuvre publiés, et seulement une fois le lecteur livré (lecteur_pret()). L'adresse porte la
+ *   œuvre publiés, et seulement si le lecteur est disponible (lecteur_pret()). L'adresse porte la
  *   version du chapitre : un chapitre mis à jour sur MangaDex change d'adresse, d'où un cache
  *   d'un an (« immutable ») sur l'image.
  * - **Règles de MangaDex** : User-Agent réel, échec d'un nœud → un seul autre nœud demandé, aucun
