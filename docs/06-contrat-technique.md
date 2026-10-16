@@ -923,7 +923,10 @@ d'administration dans `includes/mangadex/synchro.php`.
   gauche, ← ou Page précédente = page précédente, **quel que soit le sens de lecture** (décision
   de l'équipe, 16/10/2026). Touches captées avant la barre de lecture ; au bout du chapitre,
   ← / → reviennent à la barre (chapitre voisin) et le bouton devient « Chapitre suivant → ». Page
-  alignée sous la barre, entière à l'écran ; deux pages préchargées.
+  alignée sous la barre, entière à l'écran (cadre d'une page pas encore chargée au format 7/10,
+  largeur bornée par la hauteur disponible) ; deux pages préchargées. Ouverture d'un chapitre
+  en mode page, en haut de la page sans ancre : la page est alignée sous la barre (en-tête et
+  outils au-dessus) ; une ancre ou une position restaurée par le navigateur est respectée.
 - **Suivi de lecture** (`yume/reader-tools`) : chaque `.yn-manga__page` compte comme un
   paragraphe (marque-page, `#yn-p-N`, « Reprendre à la page N ») ; en mode page, position et
   pourcentage suivent `data-yn-courante` (événement `yn:manga-page`), la reprise passe par
@@ -931,6 +934,9 @@ d'administration dans `includes/mangadex/synchro.php`.
 - **Crédits et repli** : crédits du chapitre dans l'en-tête (`yume_credits.traduction` = groupes),
   « Images hébergées par MangaDex · Lire ce chapitre sur MangaDex » sous les pages ; page en
   échec → « Page N indisponible. Lire sur MangaDex » ; `yume_mdx_pages` = 0 → message et lien.
+  Lecteur coupé (`yume_mangadex_lecteur_pret` faux) : `.yn-manga--coupe`, « La lecture de ce
+  chapitre sur le site est momentanément indisponible » et bouton « Lire ce chapitre sur
+  MangaDex » (ni page, ni adresse du proxy, ni feuille ni script du lecteur).
 
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 

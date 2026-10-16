@@ -31,14 +31,21 @@ const MO_PAR_PAGE_ORIGINALE = 1.6;
 const PAGES_IMMEDIATES = 2;
 
 /**
- * Chapitre MangaDex affiché par la requête principale (lecteur livré), 0 sinon.
+ * Chapitre MangaDex affiché par la requête principale, lecteur disponible ou non ; 0 sinon.
  */
-function chapitre_affiche(): int {
-	if ( ! lecteur_pret() || ! is_singular( 'yume_chapitre' ) ) {
+function chapitre_mangadex_affiche(): int {
+	if ( ! is_singular( 'yume_chapitre' ) ) {
 		return 0;
 	}
 	$id = (int) get_queried_object_id();
 	return null !== yume_mangadex_chapitre( $id ) ? $id : 0;
+}
+
+/**
+ * Chapitre MangaDex affiché par la requête principale, lecteur disponible ; 0 sinon.
+ */
+function chapitre_affiche(): int {
+	return lecteur_pret() ? chapitre_mangadex_affiche() : 0;
 }
 
 /**
@@ -71,16 +78,47 @@ function charger_assets_lecteur(): void {
 add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\\charger_assets_lecteur' );
 
 /**
- * Ajoute les pages au contenu du chapitre affiché (après wpautop et les codes courts).
+ * Ajoute les pages au contenu du chapitre affiché (après wpautop et les codes courts) ; lecteur
+ * coupé (yume_mangadex_lecteur_pret) : message et lien vers le chapitre sur MangaDex.
  *
  * @param string $contenu Contenu filtré.
  */
 function contenu_chapitre( $contenu ) {
-	$chapitre_id = chapitre_affiche();
+	$chapitre_id = chapitre_mangadex_affiche();
 	if ( ! $chapitre_id || (int) get_the_ID() !== $chapitre_id ) {
 		return $contenu;
 	}
-	return html_lecteur( $chapitre_id ) . $contenu;
+	return ( lecteur_pret() ? html_lecteur( $chapitre_id ) : html_lecteur_coupe( $chapitre_id ) ) . $contenu;
+}
+
+/**
+ * Lien « Lire ce chapitre sur MangaDex » et crédit de l'hébergement.
+ *
+ * @param string $url Adresse du chapitre sur MangaDex.
+ */
+function html_source( string $url ): string {
+	return '<p class="yn-label yn-manga__source">'
+		. sprintf(
+			/* translators: %s : lien « MangaDex ». */
+			esc_html__( 'Images hébergées par %s', 'yume-core' ),
+			'<a href="https://mangadex.org/" rel="noopener">MangaDex</a>'
+		)
+		. '<span aria-hidden="true"> · </span><a href="' . esc_url( $url ) . '" rel="noopener" data-yn-manga-mangadex>' . esc_html__( 'Lire ce chapitre sur MangaDex', 'yume-core' ) . '</a></p>';
+}
+
+/**
+ * Message d'un chapitre MangaDex quand le lecteur est coupé : aucune page ni adresse du proxy
+ * (il est coupé aussi), seulement le lien vers MangaDex.
+ *
+ * @param int $chapitre_id Chapitre.
+ */
+function html_lecteur_coupe( int $chapitre_id ): string {
+	$mdx = yume_mangadex_chapitre( $chapitre_id );
+	if ( null === $mdx ) {
+		return '';
+	}
+	return '<div class="yn-manga yn-manga--coupe"><p>' . esc_html__( 'La lecture de ce chapitre sur le site est momentanément indisponible.', 'yume-core' ) . '</p>'
+		. '<p><a class="yn-btn yn-btn--primary" href="' . esc_url( $mdx['url'] ) . '" rel="noopener">' . esc_html__( 'Lire ce chapitre sur MangaDex', 'yume-core' ) . '</a></p></div>';
 }
 add_filter( 'the_content', __NAMESPACE__ . '\\contenu_chapitre', 20 );
 
@@ -104,13 +142,7 @@ function html_lecteur( int $chapitre_id ): string {
 		return '';
 	}
 	$total  = $mdx['pages'];
-	$source = '<p class="yn-label yn-manga__source">'
-		. sprintf(
-			/* translators: %s : lien « MangaDex ». */
-			esc_html__( 'Images hébergées par %s', 'yume-core' ),
-			'<a href="https://mangadex.org/" rel="noopener">MangaDex</a>'
-		)
-		. '<span aria-hidden="true"> · </span><a href="' . esc_url( $mdx['url'] ) . '" rel="noopener" data-yn-manga-mangadex>' . esc_html__( 'Lire ce chapitre sur MangaDex', 'yume-core' ) . '</a></p>';
+	$source = html_source( $mdx['url'] );
 
 	if ( $total < 1 ) {
 		return '<div class="yn-manga yn-manga--vide"><p>' . esc_html__( 'Les pages de ce chapitre ne sont pas encore disponibles sur le site.', 'yume-core' ) . '</p>' . $source . '</div>';

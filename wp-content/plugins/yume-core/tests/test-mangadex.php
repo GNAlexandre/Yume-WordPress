@@ -1571,7 +1571,7 @@ yume_test(
 );
 
 yume_test(
-	'mangadex : lecteur — absent d’un chapitre en texte (contenu intact), d’un autre contenu affiché, et quand le lecteur est coupé ; chapitre sans nombre de pages : message et lien MangaDex',
+	'mangadex : lecteur — absent d’un chapitre en texte (contenu intact) et d’un autre contenu affiché ; lecteur coupé ou chapitre sans nombre de pages : message et lien MangaDex',
 	function () {
 		$site  = yume_tmdx_chapitre_site();
 		$texte = yume_factory_post(
@@ -1594,12 +1594,23 @@ yume_test(
 		);
 		yume_assert_same( '', $ailleurs );
 
+		// Lecteur coupé : message et lien vers MangaDex, ni page ni adresse du proxy (coupé aussi),
+		// ni feuille ni script du lecteur.
 		add_filter( 'yume_mangadex_lecteur_pret', '__return_false' );
 		try {
-			yume_assert_not_contains( 'yn-manga', yume_tmdx_rendu_contenu( $site['chapitre'] ) );
+			$coupe = yume_tmdx_rendu_contenu( $site['chapitre'] );
+			yume_tmdx_sur( $site['chapitre'], '\Yume\Core\MangaDex\charger_assets_lecteur' );
+			yume_assert_false( wp_script_is( \Yume\Core\MangaDex\POIGNEE_LECTEUR, 'enqueued' ), 'script non chargé' );
 		} finally {
 			remove_filter( 'yume_mangadex_lecteur_pret', '__return_false' );
 		}
+		yume_assert_contains( 'yn-manga--coupe', $coupe );
+		yume_assert_contains( 'momentanément indisponible', $coupe );
+		yume_assert_contains( 'href="https://mangadex.org/chapter/' . yume_tmdx_uuid( 1 ) . '"', $coupe );
+		yume_assert_contains( 'Lire ce chapitre sur MangaDex', $coupe );
+		yume_assert_not_contains( '<img', $coupe );
+		yume_assert_not_contains( Proxy::PARAMETRE, $coupe );
+		yume_assert_not_contains( 'data-yn-manga', $coupe, 'pas de lecteur actif' );
 
 		update_post_meta( $site['chapitre'], 'yume_mdx_pages', 0 );
 		$vide = yume_tmdx_rendu_contenu( $site['chapitre'] );

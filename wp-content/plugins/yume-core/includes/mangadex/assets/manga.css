@@ -86,6 +86,13 @@
 	display: block;
 }
 
+/* Cadre d'une page pas encore chargée : format de page (7/10) qui tient aussi à l'écran ; la
+   largeur est bornée par la hauteur disponible pour garder la proportion. */
+.yn-manga[data-yn-mode="page"] .yn-manga__page img:not(.is-chargee) {
+	width: min(100%, calc((100vh - 140px) * 0.7));
+	width: min(100%, calc((100dvh - 140px) * 0.7));
+}
+
 .yn-manga[data-yn-mode="page"] .yn-manga__page img.is-chargee:not(.is-longue) {
 	max-height: calc(100vh - 140px);
 	max-height: calc(100dvh - 140px);
@@ -119,7 +126,8 @@
 	color: var(--wp--preset--color--texte-faible);
 }
 
-.yn-manga--vide p {
+.yn-manga--vide p,
+.yn-manga--coupe p {
 	font-family: var(--wp--preset--font-family--corps);
 }
 

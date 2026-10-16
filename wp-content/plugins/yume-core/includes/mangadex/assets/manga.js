@@ -2,7 +2,8 @@
  * Lecteur des chapitres MangaDex (module mangadex, contrat §8 bis et §14).
  *
  * - Modes : défilement (par défaut, toutes les pages à la suite) ou page par page.
- * - Page par page : clic sur la moitié droite de la page ou → / Page suivante : page
+ * - Page par page : à l'ouverture en haut du chapitre, la page est alignée sous la barre de
+ *   lecture. Clic sur la moitié droite de la page ou → / Page suivante : page
  *   suivante ; moitié gauche ou ← / Page précédente : page précédente (même sens quel que soit
  *   le sens de lecture, choix de l'équipe). Au bout du chapitre, les flèches laissent la
  *   barre de lecture passer au chapitre voisin. Les deux pages suivantes sont préchargées.
@@ -336,7 +337,11 @@
 	}
 	appliquerQualite();
 	if ( etat.mode === 'page' ) {
-		appliquerMode( 'page', 0, false );
+		// Ouverture en haut du chapitre : la page est alignée sous la barre de lecture, entière à
+		// l'écran (en-tête, crédits et outils restent au-dessus, accessibles en remontant). Une
+		// ancre (#yn-p-N, #commentaires) ou une position restaurée par le navigateur est respectée.
+		const enHaut = window.pageYOffset < 10 && ! window.location.hash;
+		appliquerMode( 'page', 0, enHaut );
 	} else {
 		majBoutons();
 	}
