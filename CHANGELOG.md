@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.2.1 — 2026-10-16
+
+- Yume Novel 2.2.1 : prototype jetable de lecture des mangas hébergés sur MangaDex (tools/mangadex-prototype, non livré avec Yume Core) : plugin de test (images relayées par WordPress, seuls les chapitres des séries de la liste blanche, lecteur, mesures), protocole d’essai sur un PC puis, au besoin, essai bref et réversible en production.
+
 ## 2.2.0 — 2026-10-16
 
 - Yume Novel 2.2.0 : page officielle du jeu WordEnd (/jeu/, lien « Jeu WordEnd » du sous-menu Yume Novel). Elle affiche le jeu Yume-WordEnd (Godot, servi sur jeu.yumenovel.fr) dans une iframe créée au clic sur « Lancer le jeu », avec plein écran, ouverture dans un nouvel onglet, version Windows, commandes, sauvegarde et crédits. Après la mise à jour : « Recréer les pages manquantes » crée la page. Easter egg : « Seniorious » (et non « Seniolis »).
