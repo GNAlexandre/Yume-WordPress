@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.2.0 — 2026-10-16
+
+- Yume Novel 2.2.0 : page officielle du jeu WordEnd (/jeu/, lien « Jeu WordEnd » du sous-menu Yume Novel). Elle affiche le jeu Yume-WordEnd (Godot, servi sur jeu.yumenovel.fr) dans une iframe créée au clic sur « Lancer le jeu », avec plein écran, ouverture dans un nouvel onglet, version Windows, commandes, sauvegarde et crédits. Après la mise à jour : « Recréer les pages manquantes » crée la page. Easter egg : « Seniorious » (et non « Seniolis »).
+
 ## 2.1.9 — 2026-10-16
 
 - Yume Novel 2.1.9 : correctif de la publication. « Paramètre(s) invalide(s) : chapitres_prevus » ne bloque plus l'envoi quand « Chapitres prévus » est laissé vide (formulaire de publication et ajout d'un tome au planning par l'API) ; même correction pour l'intervalle entre deux chapitres, la couverture et le tome laissés vides. Une valeur saisie invalide reste refusée.
