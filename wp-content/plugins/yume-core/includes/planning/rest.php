@@ -172,11 +172,13 @@ function routes(): void {
 					'type' => 'string',
 					'enum' => array( 'a_faire', 'traduction', 'relecture', 'edition' ),
 				),
-				'chapitres_prevus' => array(
-					'description' => __( 'Nombre de chapitres prévus (0 : inconnu).', 'yume-core' ),
-					'type'        => 'integer',
-					'minimum'     => 0,
-					'maximum'     => 999,
+				'chapitres_prevus' => yume_rest_arg_vide_absent(
+					array(
+						'description' => __( 'Nombre de chapitres prévus (0 : inconnu).', 'yume-core' ),
+						'type'        => 'integer',
+						'minimum'     => 0,
+						'maximum'     => 999,
+					)
 				),
 				'rythme'           => array(
 					'description'          => __( 'Rythme de sortie des chapitres : jour (lundi…dimanche, vide : libre). Son heure est l’heure de sortie (heure_cible, 18:00 par défaut) ; « heure » reste acceptée et sert d’heure de sortie si heure_cible manque.', 'yume-core' ),

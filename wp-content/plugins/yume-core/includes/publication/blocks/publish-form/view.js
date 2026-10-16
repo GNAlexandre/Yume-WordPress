@@ -1364,6 +1364,12 @@
 			[ 'action', '_yume_nonce', '_wp_http_referer', 'etape' ].forEach( function ( nom ) {
 				donnees.delete( nom );
 			} );
+			// Nombres facultatifs laissés vides : non envoyés (l'API les lit comme absents).
+			[ 'tome_id', 'couverture_id', 'chapitres_prevus', 'intervalle' ].forEach( function ( nom ) {
+				if ( donnees.has( nom ) && String( donnees.get( nom ) ).trim() === '' ) {
+					donnees.delete( nom );
+				}
+			} );
 			if ( chapitresMode && remplacementExplicite ) {
 				donnees.set( 'mode', 'remplacement' );
 			}

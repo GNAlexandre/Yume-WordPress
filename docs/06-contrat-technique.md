@@ -511,6 +511,7 @@ yume_url_illustrations( int $tome_id ): string;                       // /lire/{
 yume_est_page_illustrations(): bool;                                  // requête principale = page Illustrations (objet de la requête : le tome)
 yume_url_illustrations_avant( int $chapitre_id ): string;             // page Illustrations qui précède ce chapitre (premier publié du tome) ou ''
 yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion','actualites','mentions-legales','rejoindre','accueil' → URL de la page (option yume_pages) ; filtre yume_url_page
+yume_rest_arg_vide_absent( array $schema ): array;                    // argument REST facultatif : '' (champ de formulaire vide) lu comme absent (null), sinon contrôlé selon le schéma
 ```
 
 **planning** (`includes/planning/api.php`) :

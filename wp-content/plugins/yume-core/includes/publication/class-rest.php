@@ -158,10 +158,12 @@ final class Rest {
 				'type'        => 'integer',
 				'minimum'     => 1,
 			),
-			'tome_id'          => array(
-				'description' => __( 'Tome déjà préparé (facultatif).', 'yume-core' ),
-				'type'        => 'integer',
-				'minimum'     => 0,
+			'tome_id'          => yume_rest_arg_vide_absent(
+				array(
+					'description' => __( 'Tome déjà préparé (facultatif).', 'yume-core' ),
+					'type'        => 'integer',
+					'minimum'     => 0,
+				)
 			),
 			'nature'           => array(
 				'description' => __( 'Nature du tome.', 'yume-core' ),
@@ -192,10 +194,12 @@ final class Rest {
 					'edition'    => array( 'type' => 'string' ),
 				),
 			),
-			'couverture_id'    => array(
-				'description' => __( 'Image de couverture déjà présente dans la médiathèque.', 'yume-core' ),
-				'type'        => 'integer',
-				'minimum'     => 0,
+			'couverture_id'    => yume_rest_arg_vide_absent(
+				array(
+					'description' => __( 'Image de couverture déjà présente dans la médiathèque.', 'yume-core' ),
+					'type'        => 'integer',
+					'minimum'     => 0,
+				)
 			),
 			'retirer_absents'  => array(
 				'description' => __( 'Mettre en brouillon les chapitres absents du nouveau fichier.', 'yume-core' ),
@@ -230,22 +234,26 @@ final class Rest {
 				'description' => __( 'Mode chapitres : les liens PDF/EPUB s’affichent (tome « Publié ») à la sortie du dernier chapitre programmé du tome. Ignoré avec « complet », qui publie tout maintenant.', 'yume-core' ),
 				'type'        => 'boolean',
 			),
-			'chapitres_prevus' => array(
-				'description' => __( 'Chapitres prévus pour le tome (0 : inconnu). Sans valeur : relevés automatiquement si le tome compte plus de chapitres que prévu.', 'yume-core' ),
-				'type'        => 'integer',
-				'minimum'     => 0,
-				'maximum'     => 999,
+			'chapitres_prevus' => yume_rest_arg_vide_absent(
+				array(
+					'description' => __( 'Chapitres prévus pour le tome (0 : inconnu). Sans valeur : relevés automatiquement si le tome compte plus de chapitres que prévu.', 'yume-core' ),
+					'type'        => 'integer',
+					'minimum'     => 0,
+					'maximum'     => 999,
+				)
 			),
 			'sortie'           => array(
 				'description' => __( 'Sortie des nouveaux chapitres (mode chapitres) : maintenant (ensemble, une annonce), rythme (un par un au rythme du tome, ou tous les « intervalle » jours depuis « quand »), date (ensemble à la date « quand »).', 'yume-core' ),
 				'type'        => 'string',
 				'enum'        => Service::SORTIES,
 			),
-			'intervalle'       => array(
-				'description' => __( 'Jours entre deux chapitres, sortie un par un d’un tome sans rythme (défaut 7).', 'yume-core' ),
-				'type'        => 'integer',
-				'minimum'     => 1,
-				'maximum'     => 60,
+			'intervalle'       => yume_rest_arg_vide_absent(
+				array(
+					'description' => __( 'Jours entre deux chapitres, sortie un par un d’un tome sans rythme (défaut 7).', 'yume-core' ),
+					'type'        => 'integer',
+					'minimum'     => 1,
+					'maximum'     => 60,
+				)
 			),
 			'plan'             => array(
 				'description'       => __( 'Découpage manuel du fichier source (JSON ou objet) : {"debuts": [{"ancre": "e12-3fa9c1", "nature": "chapitre", "titre": "…", "numero": 3 (facultatif)}], "garder_avant": false}. Les repères viennent de l’analyse du même fichier.', 'yume-core' ),
