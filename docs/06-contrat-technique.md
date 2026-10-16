@@ -382,6 +382,7 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `recrutement_test_url` | `''` | planning : lien du test de traduction (http(s), facultatif) |
 | `recrutement_consigne` | ticket dans le salon « tickets » du Discord | planning : texte au-dessus du bouton « Postuler sur le Discord » (lien : `discord_invite`) |
 | `mangadex_groupe` | `4bbecb8b-41bb-48a8-8ddb-0c9243e4c344` (groupe Yume Novel) | mangadex : groupe dont le site lit les chapitres en français (section « Mangas (MangaDex) » ajoutée par `yume_reglages_sections` ; identifiant ou adresse https://mangadex.org/group/…, une saisie invalide revient au défaut) |
+| `mangadex_synchro` | `false` | mangadex : synchronisation horaire des chapitres du groupe (§8 bis) ; sans effet tant que le lecteur n'est pas livré (`yume_mangadex_lecteur_pret`, faux par défaut) ; filtre final `yume_mangadex_synchro_active` |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
@@ -828,6 +829,50 @@ chapitres à un tome », champ caché `mode=chapitres`, `Service::MODE_CHAPITRES
 
 `yume_glossaire_importe( int $oeuvre_id, int $version_id )` (module glossaire) : un glossaire vient
 d'être importé (nouvelle version en ligne) ; pas émis pour une simulation ni un envoi « inchangé ».
+
+## 8 bis. Synchronisation MangaDex (module mangadex, depuis 2.3.0)
+
+`Yume\Core\MangaDex\Synchro` (`includes/mangadex/class-synchro.php`) ; planification et page
+d'administration dans `includes/mangadex/synchro.php`.
+
+- **Activation** : `Synchro::active()` = réglage `mangadex_synchro` ET `lecteur_pret()` (filtre
+  `yume_mangadex_lecteur_pret`, faux tant que le lecteur n'est pas livré), puis filtre
+  `yume_mangadex_synchro_active`. Active : tâche WP-Cron `yume_mangadex_synchro` toutes les heures
+  (planifiée sur `init`, retirée quand la synchronisation est coupée et à la désactivation de
+  l'extension).
+- **Flux** : `Client::chapitres_du_groupe( mangadex_groupe, 'fr' )` (toutes les pages). Chapitres
+  externes (`externalUrl`) comptés et ignorés ; série sans œuvre liée (`yume_mdx_serie`) :
+  `series_non_liees` ; œuvre liée non publiée : `oeuvres_non_publiees`, rien n'est créé.
+- **Tomes** : un volume MangaDex = un tome de nature `tome` (`yume_numero` = volume, slug
+  `tome-N`, titre « {Œuvre} — Tome N ») ; sans volume : un tome de nature `chapitres` (slug
+  `chapitres`). Créé en brouillon (`yume_parution = en_cours`, méta `_yume_mdx_tome`), publié
+  après ses chapitres, daté de son premier chapitre. Tome créé par la synchronisation et vidé :
+  remis en brouillon (`tomes_vides`).
+- **Chapitres** : retrouvés par `yume_mdx_chapitre`. Nouveau : publié, daté de `readableAt`, sans
+  contenu, titre « Chapitre N » ou « Chapitre N — titre » (oneshot : nature `bonus`, « Oneshot »),
+  slug `chapitre-N`, métas `yume_mdx_*`, `yume_sous_titre`, `yume_numero`,
+  `yume_credits.traduction` (groupes). Connu : mis à jour en place (titre, métas, tome si le volume
+  a changé ; date et adresse gardées) **seulement si `yume_mdx_version` a changé** (la version suit
+  `updatedAt` ; le titre stocké n'est jamais comparé, WordPress pouvant le filtrer à l'écriture).
+  Disparu du flux ou devenu externe : brouillon + méta `_yume_mdx_retire` (date GMT) ; remis en
+  ligne s'il revient (`remis_en_ligne`).
+- **Annonces** : première synchronisation d'une œuvre (méta `_yume_mdx_synchronisee` absente) =
+  ajout au catalogue : `_yume_publie_notifie = catalogue` sur tomes et chapitres et
+  `yume_core_notifier` coupé pendant le traitement. Ensuite, circuit de core (§8) : nouveau tome
+  annoncé par `yume_tome_publie`, nouveau chapitre d'un tome en ligne par `yume_chapitre_publie` ;
+  une mise à jour n'est jamais annoncée.
+- **Garde-fous** : erreur de lecture du flux → aucune écriture, rapport `ok = false` ; aucun
+  retrait si le flux est vide ou si plus de 50 % (`PART_MAX_RETRAITS`) des chapitres MangaDex du
+  site devaient partir (alerte) ; verrou option `yume_mdx_synchro_verrou` (repris après 15 min) ;
+  simulation (`Synchro::executer( true )`) sans aucune écriture.
+- **Rapport** : option `yume_mangadex_synchro` (non autochargée, `Synchro::dernier_rapport()`) :
+  `date, simulation, ok, erreur, groupe, chapitres_mangadex, tomes_crees, crees, maj,
+  remis_en_ligne, retires, externes, tomes_vides, oeuvres[], series_non_liees[],
+  oeuvres_non_publiees[], alertes[]`.
+- **Administration** : Yume → Mangas (MangaDex) (`yume-mangadex`, capacité `yume_reglages`) :
+  dernier rapport, « Simuler (sans rien changer) » (résultat en transient
+  `yume_mdx_simulation_{utilisateur}`) et « Synchroniser maintenant » (si active) ;
+  `admin-post.php?action=yume_mangadex_synchro`, jeton requis.
 
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 

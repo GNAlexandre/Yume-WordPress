@@ -12,6 +12,9 @@
  *   yume_mdx_version, yume_mdx_groupes). Un volume MangaDex est un tome (yume_numero) ; les
  *   chapitres sans volume vont dans un tome de nature « chapitres ». API : api.php ; boîtes
  *   d'administration : admin.php.
+ * - Synchronisation horaire (class-synchro.php, synchro.php) : chapitres du groupe → chapitres du
+ *   site ; import initial d'une œuvre sans annonce ; page Yume → Mangas (MangaDex) avec
+ *   simulation. Coupée tant que le lecteur n'est pas livré (lecteur_pret()).
  *
  * Voir tools/mangadex-prototype/README.md (essai, règles de MangaDex) et
  * docs/06-contrat-technique.md. Au chargement, les fichiers ne font qu'accrocher des hooks (§0).
@@ -27,3 +30,5 @@ require_once __DIR__ . '/fonctions.php';
 require_once __DIR__ . '/class-client.php';
 require_once __DIR__ . '/api.php';
 require_once __DIR__ . '/admin.php';
+require_once __DIR__ . '/class-synchro.php';
+require_once __DIR__ . '/synchro.php';

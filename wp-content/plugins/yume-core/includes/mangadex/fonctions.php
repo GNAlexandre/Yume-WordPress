@@ -16,6 +16,19 @@ const MOTIF_UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 const GROUPE_YUME = '4bbecb8b-41bb-48a8-8ddb-0c9243e4c344';
 
 /**
+ * Le lecteur de mangas est-il livré ? Tant qu'il ne l'est pas, la synchronisation reste coupée
+ * (elle publierait des chapitres sans lecteur). Passe à vrai avec le lecteur (étape 5).
+ */
+function lecteur_pret(): bool {
+	/**
+	 * Le lecteur des chapitres MangaDex est-il disponible ?
+	 *
+	 * @param bool $pret Faux tant que le lecteur n'est pas livré.
+	 */
+	return (bool) apply_filters( 'yume_mangadex_lecteur_pret', false );
+}
+
+/**
  * Identifiant MangaDex valide ?
  *
  * @param mixed $valeur Valeur.
@@ -119,6 +132,14 @@ function champs_reglages( $champs ): array {
 			return '' !== $uuid ? $uuid : GROUPE_YUME;
 		},
 		'description' => __( 'Identifiant (ou adresse https://mangadex.org/group/…) du groupe de traduction dont le site lit les chapitres en français. Par défaut : Yume Novel.', 'yume-core' ),
+	);
+	$champs[] = array(
+		'key'         => 'mangadex_synchro',
+		'label'       => __( 'Synchroniser les chapitres', 'yume-core' ),
+		'type'        => 'checkbox',
+		'section'     => 'mangadex',
+		'default'     => false,
+		'description' => __( 'Chaque heure, les chapitres du groupe sur MangaDex deviennent des chapitres du site, dans les œuvres liées à leur série (boîte « MangaDex » de l’œuvre). La première synchronisation d’une œuvre n’annonce rien ; ensuite, les nouveaux chapitres sont annoncés comme les autres. Rapport et essai sans rien changer : Yume → Mangas (MangaDex).', 'yume-core' ),
 	);
 	return $champs;
 }
