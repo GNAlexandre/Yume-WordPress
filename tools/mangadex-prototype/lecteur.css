@@ -1,0 +1,112 @@
+/**
+ * Lecteur du prototype MangaDex : variables du thème Yume (valables en Nuit, Papier et Sépia),
+ * avec des replis pour un autre thème.
+ */
+.ymdx-lecteur,
+.ymdx-serie {
+	display: grid;
+	gap: 14px;
+	max-width: 900px;
+	margin: 0 auto;
+	color: var(--wp--preset--color--texte, inherit);
+}
+
+.ymdx-lecteur .ymdx-lecteur__titre {
+	margin: 0 0 4px;
+	font-size: 22px;
+}
+
+.ymdx-lecteur .ymdx-credit,
+.ymdx-serie .ymdx-credit {
+	margin: 0;
+	font-size: 14px;
+	color: var(--wp--preset--color--texte-faible, inherit);
+}
+
+.ymdx-lecteur .ymdx-lecteur__outils {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.ymdx-lecteur .ymdx-btn {
+	min-height: 40px;
+	padding: 6px 14px;
+	border: 1px solid var(--wp--preset--color--filet, #8886);
+	border-radius: 999px;
+	background: var(--wp--preset--color--carte, transparent);
+	color: inherit;
+	font: inherit;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.ymdx-lecteur .ymdx-btn[aria-pressed="true"] {
+	border-color: var(--wp--preset--color--accent, currentColor);
+	background: var(--wp--preset--color--accent, #f3a6c8);
+	color: var(--wp--preset--color--accent-texte, #2a1240);
+}
+
+.ymdx-lecteur .ymdx-lecteur__scene {
+	display: grid;
+	justify-items: center;
+}
+
+.ymdx-lecteur[data-mode="defilement"] .ymdx-lecteur__image {
+	display: block;
+	width: 100%;
+	max-width: 900px;
+	height: auto;
+	min-height: 200px;
+	margin: 0;
+	background: var(--wp--preset--color--fond, #0002);
+}
+
+.ymdx-lecteur .ymdx-lecteur__page {
+	width: 100%;
+	cursor: pointer;
+}
+
+.ymdx-lecteur .ymdx-lecteur__page:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent, currentColor);
+	outline-offset: 2px;
+}
+
+.ymdx-lecteur[data-mode="page"] .ymdx-lecteur__image {
+	display: block;
+	max-width: 100%;
+	max-height: 85vh;
+	margin: 0 auto;
+}
+
+.ymdx-lecteur[data-mode="page"] .ymdx-lecteur__image.is-longue {
+	width: 100%;
+	max-height: none;
+}
+
+.ymdx-lecteur .ymdx-lecteur__compteur,
+.ymdx-lecteur .ymdx-lecteur__mesure {
+	margin: 0;
+	font-size: 13px;
+	color: var(--wp--preset--color--texte-faible, inherit);
+	text-align: center;
+}
+
+.ymdx-lecteur .ymdx-lecteur__erreur {
+	margin: 0;
+	padding: 12px 16px;
+	border: 1px solid var(--wp--preset--color--filet, #8886);
+	border-radius: 8px;
+}
+
+.ymdx-serie .ymdx-serie__liste {
+	margin: 0;
+	padding-left: 1.4em;
+	line-height: 1.8;
+}
+
+.ymdx-serie .ymdx-serie__groupe {
+	font-size: 13px;
+	color: var(--wp--preset--color--texte-faible, inherit);
+}
