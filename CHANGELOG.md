@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.1 — 2026-10-16
+
+- Mangas MangaDex, étape 1 : module mangadex, client de l'API MangaDex (chapitres en français du groupe, paginés ; serveur d'images d'un chapitre gardé 10 min ; User-Agent réel, jamais de nouvel essai après une limite) et réglage « Groupe MangaDex » (Yume Novel par défaut). Rien de visible pour les lecteurs.
+
 ## 2.2.2 — 2026-10-16
 
 - Yume Novel 2.2.2 : intégration du jeu WordEnd au site annulée avant sa mise en ligne. La page /jeu/, le bloc « Jeu WordEnd » et le lien du menu sont retirés ; l'easter egg (code Konami, papillon de SukaSuka) reste inchangé.

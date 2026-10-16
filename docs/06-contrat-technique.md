@@ -56,6 +56,7 @@ Historique des Go et des releases : `journal-des-decisions.md`.
 | `includes/library/`, `tests/test-library.php` | **bibliothèque** (blocs d'affichage) |
 | `includes/migration/`, `tests/test-migration.php`, `tools/migrate/` | **migration** |
 | `includes/updater/`, `lib/`, `tests/test-updater.php`, `.github/`, `tools/localenv/` (hors wp.sh/test.sh), `tools/playground/`, `phpcs.xml.dist`, `docs/guide-equipe.md`, `docs/guide-developpeur.md` | **outillage** |
+| `includes/mangadex/`, `tests/test-mangadex.php`, `tools/mangadex-prototype/` | **mangadex** (lecture des mangas publiés par l'équipe sur MangaDex : client de l'API, puis synchronisation, proxy d'images et lecteur ; aucune image gardée par le site) |
 | `includes/wordend/`, `tests/test-wordend.php`, `tools/wordend/` | **wordend** (easter egg SukaSuka : mini-jeu 2D, planches de Chtholly et du Timere) |
 | `wp-content/themes/yume/` | **thème** |
 
@@ -371,6 +372,7 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `recrutement_postes` | Traducteur EN→FR, Relecteur, Graphiste (clean et typeset), ouverts | planning : texte, une ligne par poste « Intitulé \| Description courte \| ouvert\|fermé » (12 au plus, assaini par `assainir_postes_recrutement()`) ; seuls les postes ouverts sont affichés |
 | `recrutement_test_url` | `''` | planning : lien du test de traduction (http(s), facultatif) |
 | `recrutement_consigne` | ticket dans le salon « tickets » du Discord | planning : texte au-dessus du bouton « Postuler sur le Discord » (lien : `discord_invite`) |
+| `mangadex_groupe` | `4bbecb8b-41bb-48a8-8ddb-0c9243e4c344` (groupe Yume Novel) | mangadex : groupe dont le site lit les chapitres en français (section « Mangas (MangaDex) » ajoutée par `yume_reglages_sections` ; identifiant ou adresse https://mangadex.org/group/…, une saisie invalide revient au défaut) |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre

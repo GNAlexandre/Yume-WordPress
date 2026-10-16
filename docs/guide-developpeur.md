@@ -12,7 +12,8 @@ modification.
 wp-content/plugins/yume-core/     plugin métier
   yume-core.php                   en-tête, version, chargement des modules (socle)
   includes/<module>/module.php    un dossier par module : core, import, publication, planning,
-                                  reader, social, library, glossaire, wordend, migration, updater
+                                  reader, social, library, glossaire, mangadex, wordend, migration,
+                                  updater
   includes/blocks-support.php     enregistrement des blocs dynamiques (socle)
   lib/plugin-update-checker/      bibliothèque de mises à jour vendorisée (MIT, voir lib/README.md)
   tests/                          mini-framework de test + tests/test-<module>.php (non livrés)
