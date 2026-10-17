@@ -870,7 +870,7 @@ d'administration dans `includes/mangadex/synchro.php`.
 - **Rapport** : option `yume_mangadex_synchro` (non autochargée, `Synchro::dernier_rapport()`) :
   `date, simulation, ok, erreur, groupe, chapitres_mangadex, tomes_crees, crees, maj,
   remis_en_ligne, retires, externes, tomes_vides, oeuvres[], series_non_liees[],
-  oeuvres_non_publiees[], alertes[]`.
+  oeuvres_non_publiees[], oeuvres_licenciees[], alertes[]`.
 - **Administration** : Yume → Mangas (MangaDex) (`yume-mangadex`, capacité `yume_reglages`) :
   dernier rapport, « Simuler (sans rien changer) » (résultat en transient
   `yume_mdx_simulation_{utilisateur}`) et « Synchroniser maintenant » (si active) ;
@@ -890,6 +890,21 @@ d'administration dans `includes/mangadex/synchro.php`.
   chapitres restent) ; champ absent de l'envoi (`saisie['mangadex']` null) : lien inchangé.
 - Liste « Œuvres » : pastille « MangaDex » (œuvre liée) ou « Lien MangaDex manquant » (type
   `manga` sans lien).
+
+### Règles (étape 6)
+
+- **Œuvre « Licenciée »** (terme `licenciee` de `yume_statut`, `Synchro::ETAT_LICENCIEE`) :
+  ignorée entièrement par la synchronisation (ni création, ni mise à jour, ni remise en ligne,
+  ni retrait), rapport `oeuvres_licenciees[] {oeuvre, titre, chapitres}`. Le retrait de la
+  lecture et sa restauration à la sortie sont faits par `changer_etat_oeuvre()` (planning) ; le
+  proxy refuse les chapitres en brouillon (404).
+- **Brouillon de l'équipe** : un chapitre mis en brouillon à la main n'est jamais remis en ligne
+  par la synchronisation (mise à jour du titre et des métas seulement) ; seuls les chapitres
+  retirés par elle (`_yume_mdx_retire`) reviennent en ligne.
+- **Rappel** `rappel_publication()` (« un chapitre publié sur MangaDex y est public tout de
+  suite… ») : page Yume → Mangas (MangaDex), boîte « MangaDex » de l'œuvre, aide du champ « Lien
+  MangaDex » du formulaire équipe.
+- Procédures de l'équipe (liaison, retrait, coupure d'urgence) : `docs/mangadex.md`.
 
 ### Proxy des pages (`includes/mangadex/class-proxy.php`, `Yume\Core\MangaDex\Proxy`)
 

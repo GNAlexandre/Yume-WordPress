@@ -120,10 +120,18 @@ function html_rapport( array $rapport ): string {
 		$html .= '</ul>';
 	}
 	if ( $rapport['series_non_liees'] ) {
-		$html .= '<h3>' . esc_html__( 'Séries du groupe liées à aucune œuvre', 'yume-core' ) . '</h3><p>' . esc_html__( 'Leurs chapitres ne sont pas repris. Pour les lire sur le site : ouvrir l’œuvre (ou la créer) et coller l’adresse de la série dans sa boîte « MangaDex ».', 'yume-core' ) . '</p><ul>';
+		$html .= '<h3>' . esc_html__( 'Séries du groupe liées à aucune œuvre', 'yume-core' ) . '</h3><p>' . esc_html__( 'Leurs chapitres ne sont pas repris. Pour les lire sur le site : dans l’espace équipe, vue « Œuvres », créer ou modifier l’œuvre (type « Manga ») et coller l’adresse de la série dans « Lien MangaDex de la série ».', 'yume-core' ) . '</p><ul>';
 		foreach ( (array) $rapport['series_non_liees'] as $s ) {
 			/* translators: %d : nombre de chapitres */
 			$html .= '<li><a href="' . esc_url( 'https://mangadex.org/title/' . $s['serie'] ) . '" target="_blank" rel="noopener">' . esc_html( '' !== $s['titre'] ? $s['titre'] : $s['serie'] ) . '</a> — ' . esc_html( sprintf( _n( '%d chapitre', '%d chapitres', (int) $s['chapitres'], 'yume-core' ), (int) $s['chapitres'] ) ) . '</li>';
+		}
+		$html .= '</ul>';
+	}
+	if ( ! empty( $rapport['oeuvres_licenciees'] ) ) {
+		$html .= '<h3>' . esc_html__( 'Œuvres licenciées (ignorées)', 'yume-core' ) . '</h3><p>' . esc_html__( 'Lecture retirée du site : aucun chapitre n’est créé ni remis en ligne tant que l’œuvre est « Licenciée ». À la sortie de cet état, la synchronisation suivante reprend les nouveaux chapitres.', 'yume-core' ) . '</p><ul>';
+		foreach ( (array) $rapport['oeuvres_licenciees'] as $o ) {
+			/* translators: %d : nombre de chapitres sur MangaDex */
+			$html .= '<li>' . esc_html( (string) $o['titre'] ) . ' — ' . esc_html( sprintf( _n( '%d chapitre sur MangaDex', '%d chapitres sur MangaDex', (int) $o['chapitres'], 'yume-core' ), (int) $o['chapitres'] ) ) . '</li>';
 		}
 		$html .= '</ul>';
 	}
@@ -145,6 +153,7 @@ function page(): void {
 		return;
 	}
 	echo '<div class="wrap"><h1>' . esc_html__( 'Mangas (MangaDex)', 'yume-core' ) . '</h1>';
+	echo '<div class="notice notice-warning inline"><p>' . esc_html( rappel_publication() ) . '</p></div>';
 	if ( ! lecteur_pret() ) {
 		echo '<div class="notice notice-info inline"><p>' . esc_html__( 'Le lecteur de mangas est coupé (filtre yume_mangadex_lecteur_pret) : la synchronisation l’est aussi. La simulation montre ce qu’elle ferait.', 'yume-core' ) . '</p></div>';
 	} elseif ( ! Synchro::active() ) {

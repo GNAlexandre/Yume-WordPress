@@ -32,6 +32,7 @@ function boite_oeuvre( \WP_Post $post ): void {
 	echo '<p><label for="yume-mdx-serie">' . esc_html__( 'Série MangaDex', 'yume-core' ) . '</label>';
 	echo '<input type="text" class="widefat code" id="yume-mdx-serie" name="yume_mdx[serie]" value="' . esc_attr( $serie ) . '" placeholder="https://mangadex.org/title/…"></p>';
 	echo '<p class="description">' . esc_html__( 'Adresse ou identifiant de la série sur MangaDex. Les chapitres en français du groupe de l’équipe (Yume → Réglages → Mangas) seront lus sur le site, sans qu’aucune image n’y soit gardée. Laisser vide pour une œuvre sans lecture MangaDex.', 'yume-core' ) . '</p>';
+	echo '<p class="description">' . esc_html( rappel_publication() ) . '</p>';
 	if ( '' === $serie ) {
 		return;
 	}

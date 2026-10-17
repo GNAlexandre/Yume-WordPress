@@ -21,6 +21,11 @@
  * déjà en ligne est annoncé seul (yume_chapitre_publie) ; un contenu daté de plus de 2 jours ne
  * l'est jamais (core).
  *
+ * Règles : une œuvre « Licenciée » (yume_statut) est ignorée entièrement, rien n'est créé ni
+ * remis en ligne (sa lecture a été retirée par le changement d'état, qui la rétablit à la
+ * sortie) ; un chapitre mis en brouillon à la main par l'équipe n'est jamais remis en ligne
+ * (seuls ceux que la synchronisation a retirés, méta _yume_mdx_retire, le sont).
+ *
  * Garde-fous : rien n'est modifié si la lecture du flux échoue ; aucun retrait si le flux est vide,
  * ni si plus de la moitié des chapitres MangaDex du site devaient être retirés d'un coup (alerte
  * dans le rapport) ; œuvre non publiée ignorée ; une seule synchronisation à la fois (verrou) ;
@@ -55,6 +60,9 @@ final class Synchro {
 
 	/** Méta d'un tome créé par la synchronisation. */
 	public const META_TOME_SYNCHRO = '_yume_mdx_tome';
+
+	/** État d'une œuvre (yume_statut) qui retire sa lecture du site : la synchronisation l'ignore. */
+	public const ETAT_LICENCIEE = 'licenciee';
 
 	/** Méta de core : notification de publication traitée (valeur « catalogue » : jamais annoncé). */
 	public const META_NOTIFIE = '_yume_publie_notifie';
@@ -149,6 +157,7 @@ final class Synchro {
 			'oeuvres'              => array(),
 			'series_non_liees'     => array(),
 			'oeuvres_non_publiees' => array(),
+			'oeuvres_licenciees'   => array(),
 			'alertes'              => array(),
 		);
 	}
@@ -335,6 +344,15 @@ final class Synchro {
 			$this->rapport['oeuvres_non_publiees'][] = array(
 				'oeuvre' => $oeuvre_id,
 				'titre'  => get_the_title( $oeuvre_id ),
+			);
+			return;
+		}
+		// Licenciée : lecture retirée du site, aucun chapitre créé, modifié ni remis en ligne.
+		if ( has_term( self::ETAT_LICENCIEE, 'yume_statut', $oeuvre_id ) ) {
+			$this->rapport['oeuvres_licenciees'][] = array(
+				'oeuvre'    => $oeuvre_id,
+				'titre'     => get_the_title( $oeuvre_id ),
+				'chapitres' => count( $chapitres ),
 			);
 			return;
 		}

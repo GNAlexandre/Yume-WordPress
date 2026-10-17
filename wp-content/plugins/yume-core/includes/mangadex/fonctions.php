@@ -145,3 +145,11 @@ function champs_reglages( $champs ): array {
 	return $champs;
 }
 add_filter( 'yume_reglages_champs', __NAMESPACE__ . '\\champs_reglages' );
+
+/**
+ * Rappel à l'équipe : un chapitre publié sur MangaDex y est public tout de suite ; le site ne
+ * peut qu'en retarder la reprise et l'annonce (synchronisation horaire), jamais le cacher.
+ */
+function rappel_publication(): string {
+	return __( 'Un chapitre publié sur MangaDex y est public tout de suite : le site le reprend à la synchronisation suivante (au plus une heure) et l’annonce comme les autres. Pour un chapitre qui ne doit pas encore sortir, ne le publiez pas sur MangaDex (ou programmez-le là-bas).', 'yume-core' );
+}

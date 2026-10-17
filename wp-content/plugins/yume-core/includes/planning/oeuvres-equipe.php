@@ -1046,7 +1046,11 @@ function formulaire_oeuvre( ?array $retour, int $oeuvre_id = 0 ): string {
 		// script de la vue ; toujours visible sans JavaScript.
 		$html .= '<p class="yn-team__champ" data-yn-mangadex-champ><label class="yn-label" for="yn-oeuvre-mangadex">' . esc_html__( 'Lien MangaDex de la série (manga)', 'yume-core' ) . '</label>';
 		$html .= '<input type="text" inputmode="url" id="yn-oeuvre-mangadex" name="mangadex" value="' . esc_attr( $val( 'mangadex' ) ) . '" maxlength="300" autocomplete="off" spellcheck="false" placeholder="https://mangadex.org/title/…" aria-describedby="yn-oeuvre-mangadex-aide">';
-		$html .= '<span class="yn-muted" id="yn-oeuvre-mangadex-aide">' . esc_html__( 'Facultatif, pour un manga que l’équipe publie sur MangaDex : adresse de la série. Ses chapitres arrivent ensuite sur le site par la synchronisation.', 'yume-core' ) . '</span></p>';
+		$html .= '<span class="yn-muted" id="yn-oeuvre-mangadex-aide">' . esc_html__( 'Facultatif, pour un manga que l’équipe publie sur MangaDex : adresse de la série. Ses chapitres arrivent ensuite sur le site par la synchronisation.', 'yume-core' );
+		if ( function_exists( 'Yume\\Core\\MangaDex\\rappel_publication' ) ) {
+			$html .= ' ' . esc_html( \Yume\Core\MangaDex\rappel_publication() );
+		}
+		$html .= '</span></p>';
 	}
 
 	$html .= '<p class="yn-team__champ"><label class="yn-label" for="yn-oeuvre-alt">' . esc_html__( 'Titres alternatifs (un par ligne : titre original, titre anglais…)', 'yume-core' ) . '</label>';

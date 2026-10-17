@@ -1781,3 +1781,115 @@ if ( function_exists( 'Yume\Core\Planning\traiter_formulaire_oeuvre' ) ) {
 		}
 	);
 }
+
+/*
+ * -----------------------------------------------------------------------------
+ * Règles (étape 6)
+ * -----------------------------------------------------------------------------
+ */
+
+if ( function_exists( 'Yume\Core\Planning\changer_etat_oeuvre' ) ) {
+	yume_tmdx_test_synchro(
+		'mangadex : règles — œuvre « Licenciée » ignorée par la synchronisation (rien de créé, modifié ni remis en ligne, rapport), reprise à la sortie de l’état ; lecture et proxy fermés pendant la licence',
+		function () {
+			$oeuvre = yume_tmdx_oeuvre();
+			Synchro::executer( false, yume_tmdx_flux_depart() );
+			$c1    = yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 1 ) );
+			$admin = yume_factory_user( 'administrator' );
+			$etat  = \Yume\Core\Planning\changer_etat_oeuvre( $oeuvre, 'licenciee', $admin, array( 'confirmer' => true ) );
+			yume_assert_false( is_wp_error( $etat ), is_wp_error( $etat ) ? $etat->get_error_message() : '' );
+			yume_assert_same( 'draft', get_post_status( $c1 ), 'lecture retirée par la licence' );
+
+			$flux    = yume_tmdx_flux_depart();
+			$flux[0] = yume_tmdx_norm(
+				1,
+				array(
+					'title'     => 'Nouveau titre',
+					'updatedAt' => yume_tmdx_il_y_a( 60 ),
+				)
+			);
+			$flux[]  = yume_tmdx_norm(
+				7,
+				array(
+					'chapter'    => '5',
+					'readableAt' => yume_tmdx_il_y_a( 600 ),
+					'updatedAt'  => yume_tmdx_il_y_a( 600 ),
+				)
+			);
+			$rapport = Synchro::executer( false, $flux );
+			yume_assert_same( array( 0, 0, 0, 0 ), array( $rapport['crees'], $rapport['maj'], $rapport['remis_en_ligne'], $rapport['retires'] ) );
+			yume_assert_same( array( $oeuvre ), array_column( $rapport['oeuvres_licenciees'], 'oeuvre' ) );
+			yume_assert_same( 0, yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 7 ) ), 'nouveau chapitre non repris' );
+			yume_assert_same( 'draft', get_post_status( $c1 ) );
+			yume_assert_same( 'Chapitre 1', get_the_title( $c1 ), 'aucune mise à jour' );
+			yume_assert_contains( 'Œuvres licenciées (ignorées)', \Yume\Core\MangaDex\html_rapport( $rapport ) );
+
+			add_filter( 'yume_mangadex_lecteur_pret', '__return_true' );
+			try {
+				yume_assert_same( 404, Proxy::reponse( yume_tmdx_uuid( 1 ) . '/' . get_post_meta( $c1, 'yume_mdx_version', true ) . '/data-saver/1' )['statut'], 'proxy fermé' );
+			} finally {
+				remove_filter( 'yume_mangadex_lecteur_pret', '__return_true' );
+			}
+
+			// Sortie de « Licenciée » : restauration par le changement d'état, puis la synchronisation reprend.
+			$sortie = \Yume\Core\Planning\changer_etat_oeuvre( $oeuvre, 'en-cours', $admin, array( 'confirmer' => true ) );
+			yume_assert_false( is_wp_error( $sortie ) );
+			yume_assert_same( 'publish', get_post_status( $c1 ), 'restauré à la sortie de la licence' );
+			yume_tmdx_nouvelle_requete();
+			$reprise = Synchro::executer( false, $flux );
+			yume_assert_same( array(), $reprise['oeuvres_licenciees'] );
+			yume_assert_same( 1, $reprise['crees'], 'nouveau chapitre repris' );
+			yume_assert_same( 'Chapitre 1 — Nouveau titre', get_the_title( $c1 ) );
+		}
+	);
+}
+
+yume_tmdx_test_synchro(
+	'mangadex : règles — un chapitre mis en brouillon à la main par l’équipe n’est jamais remis en ligne (même mis à jour sur MangaDex) ; rappel « public tout de suite » sur la page, la boîte et le formulaire',
+	function () {
+		yume_tmdx_oeuvre();
+		Synchro::executer( false, yume_tmdx_flux_depart() );
+		$c2 = yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 2 ) );
+		wp_update_post(
+			array(
+				'ID'          => $c2,
+				'post_status' => 'draft',
+			)
+		);
+		$flux    = yume_tmdx_flux_depart();
+		$flux[1] = yume_tmdx_norm(
+			2,
+			array(
+				'title'     => 'Corrigé',
+				'updatedAt' => yume_tmdx_il_y_a( 60 ),
+			)
+		);
+		$rapport = Synchro::executer( false, $flux );
+		yume_assert_same( array( 1, 0 ), array( $rapport['maj'], $rapport['remis_en_ligne'] ) );
+		yume_assert_same( 'draft', get_post_status( $c2 ), 'brouillon de l’équipe respecté' );
+		yume_assert_same( 'Chapitre 2 — Corrigé', get_the_title( $c2 ) );
+		yume_assert_same( 'draft', get_post_status( $c2 ), 'toujours en brouillon après une 2e synchronisation' );
+
+		$rappel = \Yume\Core\MangaDex\rappel_publication();
+		yume_assert_contains( 'public tout de suite', $rappel );
+		wp_set_current_user( yume_factory_user( 'administrator' ) );
+		try {
+			ob_start();
+			\Yume\Core\MangaDex\page();
+			$page = (string) ob_get_clean();
+			ob_start();
+			\Yume\Core\MangaDex\boite_oeuvre( get_post( yume_tmdx_oeuvre( yume_tmdx_uuid( 90 ) ) ) );
+			$boite = (string) ob_get_clean();
+			$form  = function_exists( 'Yume\Core\Planning\formulaire_oeuvre' ) ? \Yume\Core\Planning\formulaire_oeuvre( null ) : esc_html( $rappel );
+		} finally {
+			wp_set_current_user( 0 );
+		}
+		foreach ( array(
+			'page'       => $page,
+			'boîte'      => $boite,
+			'formulaire' => $form,
+		) as $ou => $html ) {
+			yume_assert_contains( esc_html( $rappel ), $html, $ou );
+		}
+	}
+);
