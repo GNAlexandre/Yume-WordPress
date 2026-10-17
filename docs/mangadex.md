@@ -22,6 +22,15 @@ immédiatement. Le site le reprend à la synchronisation suivante (au plus une h
 comme les autres. Pour un chapitre qui ne doit pas encore sortir : ne pas le publier sur MangaDex,
 ou l'y programmer.
 
+## Chapitre envoyé deux fois sur MangaDex
+
+Si le groupe publie deux fois le même numéro de chapitre (nouvel envoi, correction, erreur), le
+site n'en garde qu'un : celui déjà en ligne, sinon le premier sorti. Les autres sont listés dans
+le rapport (« Chapitres en double sur MangaDex (ignorés) ») avec leur lien : les supprimer sur
+MangaDex. Si c'est le chapitre gardé qui est supprimé, le doublon prend sa place à la
+synchronisation suivante. Ne sont pas des doublons : le même numéro dans deux volumes différents
+(numérotation reprise à chaque volume) et les oneshots sans numéro.
+
 ## Lier une œuvre à sa série MangaDex
 
 1. Espace équipe → Œuvres → « Nouvelle œuvre » (ou « Modifier » sur l'œuvre).

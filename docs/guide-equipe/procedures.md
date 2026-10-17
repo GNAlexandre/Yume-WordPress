@@ -317,6 +317,7 @@ Réservé aux gérants.
 | **Œuvres liées mais non publiées (ignorées)** | L'œuvre est en brouillon : publiez-la. |
 | **Œuvres licenciées (ignorées)** | L'œuvre est « Licenciée » : rien n'est repris tant qu'elle l'est. |
 | **Chapitres hors ligne mis à jour (restent hors ligne)** | Chapitres mis en brouillon par l'équipe et modifiés sur MangaDex : leur titre est mis à jour, ils restent hors ligne. |
+| **Chapitres en double sur MangaDex (ignorés)** | Le même chapitre a été envoyé plusieurs fois sur MangaDex. Le site garde celui déjà en ligne (sinon le premier sorti). Supprimez le doublon sur MangaDex avec le lien du rapport. |
 
 > **À savoir** : la synchronisation est coupée par défaut. Un gérant l'active une fois, dans **Réglages**, section **Mangas (MangaDex)**, case **Synchroniser les chapitres**.
 

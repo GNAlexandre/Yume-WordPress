@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.14 — 2026-10-17
+
+- MangaDex : garde-fou des chapitres en double (un seul chapitre par numéro, doublons au rapport)
+
 ## 2.3.0-dev.13 — 2026-10-17
 
 - MangaDex, recette 2.3.0-dev.12 : tome créé au planning (« Nouveau tome », sans fichier) repris et publié par la synchronisation à son premier chapitre ; tome retiré par l'équipe laissé hors ligne (alerte) ; chapitres hors ligne mis à jour comptés à part ; textes du réglage et du guide (pas de tome ni de chapitre à créer pour un manga, « Annoncer un tome de manga au planning »)

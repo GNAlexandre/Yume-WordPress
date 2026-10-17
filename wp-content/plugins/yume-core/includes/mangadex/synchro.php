@@ -101,6 +101,7 @@ function html_rapport( array $rapport ): string {
 		__( 'Tomes créés', 'yume-core' )                  => (int) $rapport['tomes_crees'],
 		__( 'Tomes vides mis en brouillon', 'yume-core' ) => (int) $rapport['tomes_vides'],
 		__( 'Chapitres hébergés hors de MangaDex (ignorés)', 'yume-core' ) => (int) $rapport['externes'],
+		__( 'Chapitres en double sur MangaDex (ignorés)', 'yume-core' ) => array_sum( array_map( 'count', array_column( (array) ( $rapport['doublons'] ?? array() ), 'ignores' ) ) ),
 	);
 	$html  .= '<table class="widefat striped" style="max-width:640px"><tbody>';
 	foreach ( $lignes as $libelle => $nombre ) {
@@ -125,6 +126,21 @@ function html_rapport( array $rapport ): string {
 		foreach ( (array) $rapport['series_non_liees'] as $s ) {
 			/* translators: %d : nombre de chapitres */
 			$html .= '<li><a href="' . esc_url( 'https://mangadex.org/title/' . $s['serie'] ) . '" target="_blank" rel="noopener">' . esc_html( '' !== $s['titre'] ? $s['titre'] : $s['serie'] ) . '</a> — ' . esc_html( sprintf( _n( '%d chapitre', '%d chapitres', (int) $s['chapitres'], 'yume-core' ), (int) $s['chapitres'] ) ) . '</li>';
+		}
+		$html .= '</ul>';
+	}
+	if ( ! empty( $rapport['doublons'] ) ) {
+		$html .= '<h3>' . esc_html__( 'Chapitres en double sur MangaDex (ignorés)', 'yume-core' ) . '</h3><p>' . esc_html__( 'Le groupe a envoyé plusieurs fois le même chapitre : seul le premier est repris sur le site (celui déjà en ligne, sinon le premier mis en lecture). Supprimer le doublon sur MangaDex. Si c’est le chapitre gardé qui est supprimé, le doublon prend sa place à la synchronisation suivante.', 'yume-core' ) . '</p><ul>';
+		foreach ( (array) $rapport['doublons'] as $d ) {
+			$liens = array();
+			foreach ( (array) $d['ignores'] as $uuid ) {
+				$liens[] = '<a href="' . esc_url( 'https://mangadex.org/chapter/' . $uuid ) . '" target="_blank" rel="noopener">' . esc_html( substr( (string) $uuid, 0, 8 ) ) . '</a>';
+			}
+			$html .= '<li><a href="' . esc_url( (string) get_edit_post_link( (int) $d['oeuvre'] ) ) . '">' . esc_html( (string) $d['titre'] ) . '</a> — '
+				/* translators: %s : numéro de chapitre */
+				. esc_html( sprintf( __( 'Chapitre %s', 'yume-core' ), str_replace( '.', ',', (string) $d['numero'] ) ) ) . ' : '
+				. esc_html__( 'gardé', 'yume-core' ) . ' <a href="' . esc_url( 'https://mangadex.org/chapter/' . $d['garde'] ) . '" target="_blank" rel="noopener">' . esc_html( substr( (string) $d['garde'], 0, 8 ) ) . '</a>, '
+				. esc_html__( 'ignoré', 'yume-core' ) . ' ' . implode( ', ', $liens ) . '</li>';
 		}
 		$html .= '</ul>';
 	}

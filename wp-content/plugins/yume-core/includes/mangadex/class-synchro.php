@@ -173,6 +173,7 @@ final class Synchro {
 			'series_non_liees'     => array(),
 			'oeuvres_non_publiees' => array(),
 			'oeuvres_licenciees'   => array(),
+			'doublons'             => array(),
 			'alertes'              => array(),
 		);
 	}
@@ -387,9 +388,13 @@ final class Synchro {
 		}
 		try {
 			$lisibles = array();
+			$doublons = $this->doublons( $oeuvre_id, $chapitres );
 			foreach ( $chapitres as $chapitre ) {
 				if ( '' !== $chapitre['externe'] ) {
 					++$this->rapport['externes'];
+					continue;
+				}
+				if ( isset( $doublons[ (string) $chapitre['id'] ] ) ) {
 					continue;
 				}
 				$lisibles[ (string) $chapitre['id'] ] = true;
@@ -413,6 +418,84 @@ final class Synchro {
 			'maj'       => $this->rapport['maj'] - $avant['maj'],
 			'retires'   => $this->rapport['retires'] - $avant['retires'],
 		);
+	}
+
+	/**
+	 * Chapitres en double à ignorer : même numéro de chapitre envoyé plusieurs fois par le groupe
+	 * (nouvel envoi, correction, envoi par erreur). Le chapitre déjà sur le site est gardé (tous,
+	 * s'il y en a plusieurs : rien n'est supprimé) ; sinon, le premier mis en lecture. Deux
+	 * chapitres de même numéro dans des volumes différents ne sont pas des doublons (numérotation
+	 * reprise à chaque volume) ; un chapitre sans volume double celui d'un volume. Les chapitres
+	 * sans numéro (oneshots) ne le sont jamais. Si le chapitre gardé disparaît de MangaDex, le
+	 * doublon prend sa place à la synchronisation suivante.
+	 *
+	 * @param int                            $oeuvre_id Œuvre.
+	 * @param array<int,array<string,mixed>> $chapitres Chapitres de la série (ordre de mise en lecture).
+	 * @return array<string,true> Identifiants MangaDex des chapitres ignorés.
+	 */
+	private function doublons( int $oeuvre_id, array $chapitres ): array {
+		$par_numero = array();
+		foreach ( $chapitres as $chapitre ) {
+			$numero = self::numero( (string) $chapitre['chapitre'] );
+			if ( '' === $chapitre['externe'] && null !== $numero ) {
+				$par_numero[ self::numero_texte( $numero ) ][] = $chapitre;
+			}
+		}
+		$ignores = array();
+		foreach ( $par_numero as $numero => $groupe ) {
+			if ( count( $groupe ) < 2 ) {
+				continue;
+			}
+			// Chapitres déjà sur le site d'abord, puis dans l'ordre de mise en lecture.
+			$sur_site = array();
+			$nouveaux = array();
+			foreach ( $groupe as $chapitre ) {
+				if ( yume_mangadex_chapitre_par_uuid( (string) $chapitre['id'] ) ) {
+					$sur_site[] = $chapitre;
+				} else {
+					$nouveaux[] = $chapitre;
+				}
+			}
+			$gardes = $sur_site;
+			$ecarts = array();
+			foreach ( $nouveaux as $chapitre ) {
+				$garde = null;
+				foreach ( $gardes as $candidat ) {
+					if ( self::meme_volume( (string) $candidat['volume'], (string) $chapitre['volume'] ) ) {
+						$garde = $candidat;
+						break;
+					}
+				}
+				if ( null === $garde ) {
+					$gardes[] = $chapitre;
+					continue;
+				}
+				$ignores[ (string) $chapitre['id'] ] = true;
+				$ecarts[ (string) $garde['id'] ][]   = (string) $chapitre['id'];
+			}
+			foreach ( $ecarts as $garde => $ids ) {
+				$this->rapport['doublons'][] = array(
+					'oeuvre'  => $oeuvre_id,
+					'titre'   => get_the_title( $oeuvre_id ),
+					'numero'  => (string) $numero,
+					'garde'   => (string) $garde,
+					'ignores' => $ids,
+				);
+			}
+		}
+		return $ignores;
+	}
+
+	/**
+	 * Deux volumes MangaDex désignent-ils le même tome ? Un volume absent peut être n'importe lequel.
+	 *
+	 * @param string $a Volume.
+	 * @param string $b Volume.
+	 */
+	private static function meme_volume( string $a, string $b ): bool {
+		$a = self::numero( $a );
+		$b = self::numero( $b );
+		return null === $a || null === $b || $a === $b;
 	}
 
 	/**

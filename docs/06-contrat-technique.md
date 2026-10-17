@@ -863,6 +863,13 @@ d'administration dans `includes/mangadex/synchro.php`.
   `updatedAt` ; le titre stocké n'est jamais comparé, WordPress pouvant le filtrer à l'écriture).
   Disparu du flux ou devenu externe : brouillon + méta `_yume_mdx_retire` (date GMT) ; remis en
   ligne s'il revient (`remis_en_ligne`).
+- **Doublons** (`Synchro::doublons()`) : chapitres non externes d'une série de même numéro
+  (`numero()`, « 3 » = « 3,0 ») et de volumes compatibles (égaux, ou l'un sans volume ; deux
+  volumes différents ne sont pas des doublons). Gardés : tous ceux déjà sur le site (rien n'est
+  supprimé), sinon le premier du flux (ordre de mise en lecture) ; les autres ne sont ni créés ni
+  mis à jour, ni comptés dans `oeuvres[].chapitres`. Chapitres sans numéro (oneshots) jamais
+  concernés. Chapitre gardé disparu de MangaDex : retiré, le doublon est créé à sa place dans la
+  même synchronisation. Rapport `doublons[] {oeuvre, titre, numero, garde, ignores[]}`.
 - **Annonces** : première synchronisation d'une œuvre (méta `_yume_mdx_synchronisee` absente) =
   ajout au catalogue : `_yume_publie_notifie = catalogue` sur tomes et chapitres et
   `yume_core_notifier` coupé pendant le traitement. Ensuite, circuit de core (§8) : nouveau tome
@@ -876,7 +883,7 @@ d'administration dans `includes/mangadex/synchro.php`.
   `date, simulation, ok, erreur, groupe, chapitres_mangadex, tomes_crees, crees, maj,
   maj_hors_ligne (chapitres hors ligne de l'équipe mis à jour, restés hors ligne),
   remis_en_ligne, retires, externes, tomes_vides, oeuvres[], series_non_liees[],
-  oeuvres_non_publiees[], oeuvres_licenciees[], alertes[]`.
+  oeuvres_non_publiees[], oeuvres_licenciees[], doublons[], alertes[]`.
 - **Administration** : Yume → Mangas (MangaDex) (`yume-mangadex`, capacité `yume_reglages`) :
   dernier rapport, « Simuler (sans rien changer) » (résultat en transient
   `yume_mdx_simulation_{utilisateur}`) et « Synchroniser maintenant » (si active) ;

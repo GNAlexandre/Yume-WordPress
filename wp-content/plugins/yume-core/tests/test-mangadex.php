@@ -1971,3 +1971,88 @@ if ( function_exists( 'Yume\Core\Planning\ajouter_tome' ) ) {
 		}
 	);
 }
+
+yume_tmdx_test_synchro(
+	'mangadex : doublons — même numéro envoyé deux fois : seul le premier est repris (signalé au rapport) ; chapitre déjà sur le site gardé ; autre volume et oneshots non concernés ; le doublon prend la place du chapitre supprimé de MangaDex',
+	function () {
+		yume_tmdx_oeuvre();
+		$flux    = yume_tmdx_flux_depart();
+		$flux[]  = yume_tmdx_norm( 10, array( 'chapter' => '2' ) );
+		$flux[]  = yume_tmdx_norm(
+			11,
+			array(
+				'chapter' => '2',
+				'volume'  => '3',
+			)
+		);
+		$flux[]  = yume_tmdx_norm(
+			12,
+			array(
+				'chapter' => null,
+				'title'   => 'Bonus A',
+			)
+		);
+		$flux[]  = yume_tmdx_norm(
+			13,
+			array(
+				'chapter' => null,
+				'title'   => 'Bonus B',
+			)
+		);
+		$flux[]  = yume_tmdx_norm(
+			14,
+			array(
+				'chapter' => '3',
+				'volume'  => null,
+			)
+		);
+		$rapport = Synchro::executer( false, $flux );
+		yume_assert_true( $rapport['ok'], (string) $rapport['erreur'] );
+		yume_assert_same( 7, $rapport['crees'], 'ch. 1-4, ch. 2 du vol. 3, deux oneshots' );
+		yume_assert_same( 0, yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 10 ) ), 'doublon du ch. 2 ignoré' );
+		yume_assert_same( 0, yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 14 ) ), 'ch. 3 sans volume : doublon du ch. 3 du vol. 2' );
+		yume_assert_true( yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 11 ) ) > 0, 'même numéro, autre volume : repris' );
+		yume_assert_true( yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 13 ) ) > 0, 'oneshots jamais doublons' );
+		yume_assert_same(
+			array(
+				array( '2', yume_tmdx_uuid( 2 ), array( yume_tmdx_uuid( 10 ) ) ),
+				array( '3', yume_tmdx_uuid( 3 ), array( yume_tmdx_uuid( 14 ) ) ),
+			),
+			array_map(
+				static function ( $d ) {
+					return array( $d['numero'], $d['garde'], $d['ignores'] );
+				},
+				$rapport['doublons']
+			)
+		);
+		$html = \Yume\Core\MangaDex\html_rapport( $rapport );
+		yume_assert_contains( 'Chapitres en double sur MangaDex (ignorés)</th><td>2', $html );
+		yume_assert_contains( 'https://mangadex.org/chapter/' . yume_tmdx_uuid( 10 ), $html );
+
+		$relance = Synchro::executer( false, $flux );
+		yume_assert_same( array( 0, 0, 0, 2 ), array( $relance['crees'], $relance['maj'], $relance['retires'], count( $relance['doublons'] ) ), 'relance sans effet' );
+
+		// Doublon mis en lecture avant le chapitre déjà sur le site : le chapitre du site est gardé.
+		$c1 = yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 1 ) );
+		array_unshift( $flux, yume_tmdx_norm( 15, array( 'chapter' => '1' ) ) );
+		$avant = Synchro::executer( false, $flux );
+		yume_assert_same( 0, $avant['crees'] );
+		yume_assert_same( 0, yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 15 ) ) );
+		yume_assert_same( yume_tmdx_uuid( 1 ), $avant['doublons'][0]['garde'] );
+
+		// Chapitre gardé supprimé de MangaDex : le doublon prend sa place.
+		$flux   = array_values(
+			array_filter(
+				$flux,
+				static function ( $c ) {
+					return yume_tmdx_uuid( 1 ) !== $c['id'];
+				}
+			)
+		);
+		$relais = Synchro::executer( false, $flux );
+		$c15    = yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 15 ) );
+		yume_assert_same( array( 1, 1 ), array( $relais['crees'], $relais['retires'] ) );
+		yume_assert_same( 'publish', get_post_status( $c15 ) );
+		yume_assert_true( 'publish' !== get_post_status( $c1 ), 'ancien chapitre retiré' );
+	}
+);
