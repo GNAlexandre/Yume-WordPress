@@ -219,7 +219,8 @@ caches en lecture seule pour l'API : `yume_note_moyenne` (number) · `yume_nb_no
 `yume_nb_favoris` (integer) · `yume_derniere_sortie` (string, date `Y-m-d H:i:s` GMT du dernier tome/chapitre publié) ·
 **MangaDex** (module mangadex, depuis 2.3.0) : `yume_mdx_serie` (string, identifiant de la série MangaDex ;
 assaini par `san_uuid()`, qui garde le premier UUID d'une saisie ou d'une adresse mangadex.org, en
-minuscules ; boîte « MangaDex » de l'écran de l'œuvre).
+minuscules ; champ « Lien MangaDex de la série » du formulaire équipe des œuvres, et boîte « MangaDex »
+de l'écran de l'œuvre dans l'administration).
 
 **`yume_tome`** : `yume_oeuvre_id` (integer, obligatoire) · `yume_numero` (number, ex. 9, 26.5) ·
 `yume_nature` (string enum `tome`,`arc`,`ex`,`bonus`,`chapitres`) · `yume_lien_pdf` (string url) ·
@@ -874,6 +875,21 @@ d'administration dans `includes/mangadex/synchro.php`.
   dernier rapport, « Simuler (sans rien changer) » (résultat en transient
   `yume_mdx_simulation_{utilisateur}`) et « Synchroniser maintenant » (si active) ;
   `admin-post.php?action=yume_mangadex_synchro`, jeton requis.
+
+### Lien d'une œuvre à MangaDex (formulaire équipe, `includes/planning/oeuvres-equipe.php`)
+
+- Champ « Lien MangaDex de la série (manga) » (`name="mangadex"`) des formulaires « Nouvelle
+  œuvre » et « Modifier l'œuvre », présent si le module mangadex est chargé
+  (`mangadex_disponible()`). Facultatif. Affiché par le script de la vue pour le type « Manga »
+  ou s'il est rempli ; toujours visible sans JavaScript.
+- Saisie acceptée (`serie_du_lien_mangadex()`) : identifiant seul ou
+  `https://mangadex.org/title/{id}/…` ; refus 400 `yume_oeuvre_mangadex` (adresse de chapitre,
+  de groupe ou d'un autre site), 400 `yume_oeuvre_mangadex_type` (type autre que `manga`),
+  409 `yume_oeuvre_mangadex_liee` (série liée à une autre œuvre). Saisie reprise après un refus.
+- Enregistrement dans `yume_mdx_serie` ; champ vidé : méta supprimée (œuvre déliée, ses
+  chapitres restent) ; champ absent de l'envoi (`saisie['mangadex']` null) : lien inchangé.
+- Liste « Œuvres » : pastille « MangaDex » (œuvre liée) ou « Lien MangaDex manquant » (type
+  `manga` sans lien).
 
 ### Proxy des pages (`includes/mangadex/class-proxy.php`, `Yume\Core\MangaDex\Proxy`)
 

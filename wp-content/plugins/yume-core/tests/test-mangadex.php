@@ -1634,3 +1634,150 @@ yume_test(
 		yume_assert_contains( 'e.clientX >= rect.left + rect.width / 2 ? 1 : -1', $manga, 'moitié droite : page suivante, quel que soit le sens' );
 	}
 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Formulaire équipe des œuvres : lien MangaDex
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Envoi du formulaire « Nouvelle œuvre » (ou « Modifier » avec oeuvre_id) de l'espace équipe.
+ *
+ * @param array<string,mixed> $champs    Champs.
+ * @param int                 $oeuvre_id Œuvre modifiée (0 : création).
+ * @return array<string,mixed> Retour de traiter_formulaire_oeuvre().
+ */
+function yume_tmdx_formulaire( array $champs, int $oeuvre_id = 0 ): array {
+	$post = array_merge(
+		array(
+			'action'      => $oeuvre_id ? 'yume_oeuvre_modifier' : 'yume_oeuvre_creer',
+			'_yume_nonce' => wp_create_nonce( $oeuvre_id ? 'yume_oeuvre_modifier_' . $oeuvre_id : 'yume_oeuvre_creer' ),
+		),
+		$oeuvre_id ? array( 'oeuvre_id' => (string) $oeuvre_id ) : array(),
+		$champs
+	);
+	return \Yume\Core\Planning\traiter_formulaire_oeuvre( wp_slash( $post ), array(), get_current_user_id() );
+}
+
+if ( function_exists( 'Yume\Core\Planning\traiter_formulaire_oeuvre' ) ) {
+	yume_test(
+		'mangadex : formulaire équipe — champ « Lien MangaDex » (création, adresse ou identifiant, modification, lien vidé = œuvre déliée, champ absent = lien gardé), refus (adresse de chapitre, autre site, type non manga, série déjà liée), pastilles de la liste',
+		function () {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			try {
+				$form = \Yume\Core\Planning\formulaire_oeuvre( null );
+				yume_assert_contains( 'name="mangadex"', $form );
+				yume_assert_contains( 'data-yn-mangadex-champ', $form );
+
+				$cree = yume_tmdx_formulaire(
+					array(
+						'titre'    => 'Mikadono Sanshimai',
+						'type'     => 'manga',
+						'mangadex' => 'https://mangadex.org/title/' . YUME_TMDX_SERIE . '/mikadono-sanshimai-wa-angai-choroi?tab=chapters',
+					)
+				);
+				yume_assert_same( 'ok', $cree['type'], (string) ( $cree['message'] ?? '' ) );
+				$oeuvre = (int) $cree['oeuvre_id'];
+				yume_assert_same( YUME_TMDX_SERIE, yume_mangadex_serie( $oeuvre ) );
+				yume_assert_same( $oeuvre, yume_mangadex_oeuvre_par_serie( YUME_TMDX_SERIE ) );
+				yume_assert_contains( 'value="https://mangadex.org/title/' . YUME_TMDX_SERIE . '"', \Yume\Core\Planning\formulaire_oeuvre( null, $oeuvre ), 'lien repris dans « Modifier »' );
+
+				// Refus, rien n'est créé ni lié.
+				$refus = array(
+					'chapitre'   => array(
+						'type'     => 'manga',
+						'mangadex' => 'https://mangadex.org/chapter/' . yume_tmdx_uuid( 1 ),
+					),
+					'autre site' => array(
+						'type'     => 'manga',
+						'mangadex' => 'https://exemple.org/title/' . yume_tmdx_uuid( 2 ),
+					),
+					'type'       => array(
+						'type'     => 'light-novel',
+						'mangadex' => yume_tmdx_uuid( 3 ),
+					),
+					'déjà liée'  => array(
+						'type'     => 'manga',
+						'mangadex' => strtoupper( YUME_TMDX_SERIE ),
+					),
+				);
+				foreach ( $refus as $cas => $champs ) {
+					$retour = yume_tmdx_formulaire( array_merge( array( 'titre' => 'Refus ' . $cas ), $champs ) );
+					yume_assert_same( 'erreur', $retour['type'], $cas );
+					yume_assert_same( $champs['mangadex'], $retour['saisie']['mangadex'], $cas . ' : saisie reprise' );
+				}
+				yume_assert_contains( 'pas celle d’un chapitre', yume_tmdx_formulaire( array_merge( array( 'titre' => 'X' ), $refus['chapitre'] ) )['message'] );
+				yume_assert_contains( 'réservé aux œuvres de type « Manga »', yume_tmdx_formulaire( array_merge( array( 'titre' => 'X' ), $refus['type'] ) )['message'] );
+				yume_assert_contains( 'déjà liée à l’œuvre « Mikadono Sanshimai »', yume_tmdx_formulaire( array_merge( array( 'titre' => 'X' ), $refus['déjà liée'] ) )['message'] );
+				yume_assert_same( 0, yume_mangadex_oeuvre_par_serie( yume_tmdx_uuid( 3 ) ) );
+
+				// Modification : la même série reste acceptée pour cette œuvre ; identifiant seul accepté.
+				$modif = yume_tmdx_formulaire(
+					array(
+						'titre'    => 'Mikadono Sanshimai',
+						'type'     => 'manga',
+						'mangadex' => yume_tmdx_uuid( 4 ),
+					),
+					$oeuvre
+				);
+				yume_assert_same( 'ok', $modif['type'], (string) ( $modif['message'] ?? '' ) );
+				yume_assert_same( yume_tmdx_uuid( 4 ), yume_mangadex_serie( $oeuvre ) );
+
+				// Champ absent (formulaire sans le module) : lien gardé.
+				yume_tmdx_formulaire(
+					array(
+						'titre' => 'Mikadono Sanshimai',
+						'type'  => 'manga',
+					),
+					$oeuvre
+				);
+				yume_assert_same( yume_tmdx_uuid( 4 ), yume_mangadex_serie( $oeuvre ) );
+
+				// Pastilles : lié → « MangaDex » ; manga sans lien → « Lien MangaDex manquant ».
+				$ligne = static function ( int $id ): string {
+					return \Yume\Core\Planning\ligne_oeuvre_equipe(
+						array(
+							'id'          => $id,
+							'titre'       => get_the_title( $id ),
+							'statut'      => (string) get_post_status( $id ),
+							'type'        => 'Manga',
+							'avancement'  => '',
+							'etat'        => '',
+							'tomes'       => 0,
+							'tomes_etats' => array(),
+							'suggestion'  => null,
+						),
+						null
+					);
+				};
+				yume_assert_contains( '>MangaDex</span>', $ligne( $oeuvre ) );
+
+				// Lien vidé : œuvre déliée.
+				yume_tmdx_formulaire(
+					array(
+						'titre'    => 'Mikadono Sanshimai',
+						'type'     => 'manga',
+						'mangadex' => '',
+					),
+					$oeuvre
+				);
+				yume_assert_same( '', yume_mangadex_serie( $oeuvre ) );
+				yume_assert_contains( 'Lien MangaDex manquant', $ligne( $oeuvre ) );
+
+				// Light novel : ni champ rempli ni pastille.
+				$ln = yume_tmdx_formulaire(
+					array(
+						'titre'    => 'Un light novel',
+						'type'     => 'light-novel',
+						'mangadex' => '',
+					)
+				);
+				yume_assert_same( 'ok', $ln['type'] );
+				yume_assert_not_contains( 'MangaDex', $ligne( (int) $ln['oeuvre_id'] ) );
+			} finally {
+				wp_set_current_user( 0 );
+			}
+		}
+	);
+}

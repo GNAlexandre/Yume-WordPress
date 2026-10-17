@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.8 — 2026-10-17
+
+- Formulaire équipe des œuvres : champ « Lien MangaDex de la série » pour un manga (facultatif ; adresse de série ou identifiant ; refusé pour une adresse de chapitre ou d'un autre site, un type autre que Manga ou une série déjà liée ; vidé = œuvre déliée), pastilles « MangaDex » et « Lien MangaDex manquant »
+
 ## 2.3.0-dev.7 — 2026-10-16
 
 - Lecteur MangaDex (recette 2.3.0-dev.6) : cadre d'une page pas encore chargée borné à l'écran en mode page (proportion gardée), page alignée sous la barre à l'ouverture en mode page, message et lien « Lire ce chapitre sur MangaDex » quand le lecteur est coupé
