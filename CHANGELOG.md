@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.10 — 2026-10-17
+
+- CI, contrôle de rendu : code de sortie du serveur PHP et lignes du noyau affichés quand il s'arrête en cours de route (plantage sans message à diagnostiquer)
+
 ## 2.3.0-dev.9 — 2026-10-17
 
 - Normes de code : alignement corrigé dans le formulaire équipe des œuvres (PHPCS)
