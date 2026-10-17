@@ -56,6 +56,7 @@ Historique des Go et des releases : `journal-des-decisions.md`.
 | `includes/library/`, `tests/test-library.php` | **bibliothèque** (blocs d'affichage) |
 | `includes/migration/`, `tests/test-migration.php`, `tools/migrate/` | **migration** |
 | `includes/updater/`, `lib/`, `tests/test-updater.php`, `.github/`, `tools/localenv/` (hors wp.sh/test.sh), `tools/playground/`, `phpcs.xml.dist`, `docs/guide-equipe.md`, `docs/guide-developpeur.md` | **outillage** |
+| `includes/mangadex/`, `tests/test-mangadex.php`, `tools/mangadex-prototype/` | **mangadex** (lecture des mangas publiés par l'équipe sur MangaDex : client de l'API, puis synchronisation, proxy d'images et lecteur ; aucune image gardée par le site) |
 | `includes/wordend/`, `tests/test-wordend.php`, `tools/wordend/` | **wordend** (easter egg SukaSuka : mini-jeu 2D, planches de Chtholly et du Timere) |
 | `wp-content/themes/yume/` | **thème** |
 
@@ -215,7 +216,11 @@ un `schema` REST complet.
 des formulaires « Nouvelle œuvre » et « Modifier l'œuvre » ; lues par `yume_oeuvre_a_venir()` et
 `yume_titre_public_oeuvre()`, règle de masquage et de révélation au §7 ·
 caches en lecture seule pour l'API : `yume_note_moyenne` (number) · `yume_nb_notes` (integer) ·
-`yume_nb_favoris` (integer) · `yume_derniere_sortie` (string, date `Y-m-d H:i:s` GMT du dernier tome/chapitre publié).
+`yume_nb_favoris` (integer) · `yume_derniere_sortie` (string, date `Y-m-d H:i:s` GMT du dernier tome/chapitre publié) ·
+**MangaDex** (module mangadex, depuis 2.3.0) : `yume_mdx_serie` (string, identifiant de la série MangaDex ;
+assaini par `san_uuid()`, qui garde le premier UUID d'une saisie ou d'une adresse mangadex.org, en
+minuscules ; champ « Lien MangaDex de la série » du formulaire équipe des œuvres, et boîte « MangaDex »
+de l'écran de l'œuvre dans l'administration).
 
 **`yume_tome`** : `yume_oeuvre_id` (integer, obligatoire) · `yume_numero` (number, ex. 9, 26.5) ·
 `yume_nature` (string enum `tome`,`arc`,`ex`,`bonus`,`chapitres`) · `yume_lien_pdf` (string url) ·
@@ -256,7 +261,13 @@ sur le calcul quand la méta est absente, tome migré).
 `yume_numero` (number ; 0 pour prologue) · `yume_sous_titre` (string) · `yume_nature` (string enum
 `chapitre`,`prologue`,`interlude`,`epilogue`,`postface`,`bonus`,`illustrations`) ·
 `yume_credits` (object{traduction,relecture,edition}) · `yume_nb_mots` (integer) ·
-`yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}) — `format` ∈ `docx`, `epub`, `migration`.
+`yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}) — `format` ∈ `docx`, `epub`, `migration` ·
+**chapitre hébergé sur MangaDex** (module mangadex, depuis 2.3.0 ; aucun contenu importé, aucune image
+gardée) : `yume_mdx_chapitre` (string, identifiant du chapitre MangaDex, `san_uuid()` ; vide pour un
+chapitre importé) · `yume_mdx_pages` (integer) · `yume_mdx_version` (string, 8 caractères hexadécimaux,
+change quand MangaDex met le chapitre à jour ; entre dans l'adresse des pages relayées) ·
+`yume_mdx_groupes` (array<string>, groupes crédités). Un volume MangaDex est un tome de l'œuvre
+(`yume_numero` = volume, nature `tome`) ; les chapitres sans volume vont dans un tome de nature `chapitres`.
 
 Statut de chapitre interne `yume_remplacement` (module publication, `Remplacement::STATUT`, libellé
 « Version en attente ») : version en attente d'un remplacement de lecture en ligne (§8). Non public,
@@ -371,6 +382,8 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `recrutement_postes` | Traducteur EN→FR, Relecteur, Graphiste (clean et typeset), ouverts | planning : texte, une ligne par poste « Intitulé \| Description courte \| ouvert\|fermé » (12 au plus, assaini par `assainir_postes_recrutement()`) ; seuls les postes ouverts sont affichés |
 | `recrutement_test_url` | `''` | planning : lien du test de traduction (http(s), facultatif) |
 | `recrutement_consigne` | ticket dans le salon « tickets » du Discord | planning : texte au-dessus du bouton « Postuler sur le Discord » (lien : `discord_invite`) |
+| `mangadex_groupe` | `4bbecb8b-41bb-48a8-8ddb-0c9243e4c344` (groupe Yume Novel) | mangadex : groupe dont le site lit les chapitres en français (section « Mangas (MangaDex) » ajoutée par `yume_reglages_sections` ; identifiant ou adresse https://mangadex.org/group/…, une saisie invalide revient au défaut) |
+| `mangadex_synchro` | `false` | mangadex : synchronisation horaire des chapitres du groupe (§8 bis) ; coupée aussi quand le lecteur l'est (`yume_mangadex_lecteur_pret`, vrai depuis 2.3.0) ; filtre final `yume_mangadex_synchro_active` |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
@@ -512,6 +525,16 @@ yume_est_page_illustrations(): bool;                                  // requêt
 yume_url_illustrations_avant( int $chapitre_id ): string;             // page Illustrations qui précède ce chapitre (premier publié du tome) ou ''
 yume_url_page( string $cle ): string;                                 // 'bibliotheque','planning','equipe','publier','membres','compte','connexion','actualites','mentions-legales','rejoindre','accueil' → URL de la page (option yume_pages) ; filtre yume_url_page
 yume_rest_arg_vide_absent( array $schema ): array;                    // argument REST facultatif : '' (champ de formulaire vide) lu comme absent (null), sinon contrôlé selon le schéma
+```
+
+**mangadex** (`includes/mangadex/api.php`, depuis 2.3.0) :
+
+```php
+yume_mangadex_chapitre( int $chapitre_id ): ?array;          // {uuid, pages, version, groupes: string[], url} ; null pour un chapitre importé ou un autre contenu
+yume_mangadex_serie( int $oeuvre_id ): string;               // série MangaDex de l'œuvre ou ''
+yume_mangadex_oeuvre_par_serie( string $serie ): int;        // première œuvre liée (hors corbeille), 0 sinon ; accepte une adresse mangadex.org
+yume_mangadex_chapitre_par_uuid( string $uuid ): int;        // chapitre du site lié à ce chapitre MangaDex (hors corbeille), 0 sinon
+yume_mangadex_url_page( int $chapitre_id, int $page, string $qualite = 'data-saver' ): string; // adresse relayée d'une page (§8 bis), '' hors du chapitre ; qualité data-saver | data
 ```
 
 **planning** (`includes/planning/api.php`) :
@@ -808,6 +831,156 @@ chapitres à un tome », champ caché `mode=chapitres`, `Service::MODE_CHAPITRES
 
 `yume_glossaire_importe( int $oeuvre_id, int $version_id )` (module glossaire) : un glossaire vient
 d'être importé (nouvelle version en ligne) ; pas émis pour une simulation ni un envoi « inchangé ».
+
+## 8 bis. MangaDex : synchronisation et proxy des pages (module mangadex, depuis 2.3.0)
+
+`Yume\Core\MangaDex\Synchro` (`includes/mangadex/class-synchro.php`) ; planification et page
+d'administration dans `includes/mangadex/synchro.php`.
+
+- **Activation** : `Synchro::active()` = réglage `mangadex_synchro` ET `lecteur_pret()` (filtre
+  `yume_mangadex_lecteur_pret`, vrai ; faux coupe lecteur, proxy et synchronisation), puis filtre
+  `yume_mangadex_synchro_active`. Active : tâche WP-Cron `yume_mangadex_synchro` toutes les heures
+  (planifiée sur `init`, retirée quand la synchronisation est coupée et à la désactivation de
+  l'extension).
+- **Flux** : `Client::chapitres_du_groupe( mangadex_groupe, 'fr' )` (toutes les pages). Chapitres
+  externes (`externalUrl`) comptés et ignorés ; série sans œuvre liée (`yume_mdx_serie`) :
+  `series_non_liees` ; œuvre liée non publiée : `oeuvres_non_publiees`, rien n'est créé.
+- **Tomes** : un volume MangaDex = un tome de nature `tome` (`yume_numero` = volume, slug
+  `tome-N`, titre « {Œuvre} — Tome N ») ; sans volume : un tome de nature `chapitres` (slug
+  `chapitres`). Le tome existant de même nature et numéro est repris (par exemple créé au
+  planning par « Nouveau tome ») ; sinon créé en brouillon (`yume_parution = en_cours`, méta
+  `_yume_mdx_tome`). Un tome jamais publié (sans `_yume_publie_notifie`), ou mis en brouillon
+  par la synchronisation parce qu'il était vide (`_yume_mdx_tome_range`, effacée à la
+  republication), est publié après ses chapitres, daté de son premier chapitre,
+  `yume_parution` passée à `en_cours` si besoin ; un tome déjà paru puis retiré par l'équipe
+  reste hors ligne (alerte du rapport). Tome créé par la synchronisation et vidé :
+  remis en brouillon (`tomes_vides`).
+- **Chapitres** : retrouvés par `yume_mdx_chapitre`. Nouveau : publié, daté de `readableAt`, sans
+  contenu, titre « Chapitre N » ou « Chapitre N — titre » (oneshot : nature `bonus`, « Oneshot »),
+  slug `chapitre-N`, métas `yume_mdx_*`, `yume_sous_titre`, `yume_numero`,
+  `yume_credits.traduction` (groupes). Connu : mis à jour en place (titre, métas, tome si le volume
+  a changé ; date et adresse gardées) **seulement si `yume_mdx_version` a changé** (la version suit
+  `updatedAt` ; le titre stocké n'est jamais comparé, WordPress pouvant le filtrer à l'écriture).
+  Disparu du flux ou devenu externe : brouillon + méta `_yume_mdx_retire` (date GMT) ; remis en
+  ligne s'il revient (`remis_en_ligne`).
+- **Doublons** (`Synchro::doublons()`) : chapitres non externes d'une série de même numéro
+  (`numero()`, « 3 » = « 3,0 ») et de volumes compatibles (égaux, ou l'un sans volume ; deux
+  volumes différents ne sont pas des doublons). Gardés : tous ceux déjà sur le site (rien n'est
+  supprimé), sinon le premier du flux (ordre de mise en lecture) ; les autres ne sont ni créés ni
+  mis à jour, ni comptés dans `oeuvres[].chapitres`. Chapitres sans numéro (oneshots) jamais
+  concernés. Chapitre gardé disparu de MangaDex : retiré, le doublon est créé à sa place dans la
+  même synchronisation. Rapport `doublons[] {oeuvre, titre, numero, garde, ignores[]}`.
+- **Annonces** : première synchronisation d'une œuvre (méta `_yume_mdx_synchronisee` absente) =
+  ajout au catalogue : `_yume_publie_notifie = catalogue` sur tomes et chapitres et
+  `yume_core_notifier` coupé pendant le traitement. Ensuite, circuit de core (§8) : nouveau tome
+  annoncé par `yume_tome_publie`, nouveau chapitre d'un tome en ligne par `yume_chapitre_publie` ;
+  une mise à jour n'est jamais annoncée.
+- **Garde-fous** : erreur de lecture du flux → aucune écriture, rapport `ok = false` ; aucun
+  retrait si le flux est vide ou si plus de 50 % (`PART_MAX_RETRAITS`) des chapitres MangaDex du
+  site devaient partir (alerte) ; verrou option `yume_mdx_synchro_verrou` (repris après 15 min) ;
+  simulation (`Synchro::executer( true )`) sans aucune écriture.
+- **Rapport** : option `yume_mangadex_synchro` (non autochargée, `Synchro::dernier_rapport()`) :
+  `date, simulation, ok, erreur, groupe, chapitres_mangadex, tomes_crees, crees, maj,
+  maj_hors_ligne (chapitres hors ligne de l'équipe mis à jour, restés hors ligne),
+  remis_en_ligne, retires, externes, tomes_vides, oeuvres[], series_non_liees[],
+  oeuvres_non_publiees[], oeuvres_licenciees[], doublons[], alertes[]`.
+- **Administration** : Yume → Mangas (MangaDex) (`yume-mangadex`, capacité `yume_reglages`) :
+  dernier rapport, « Simuler (sans rien changer) » (résultat en transient
+  `yume_mdx_simulation_{utilisateur}`) et « Synchroniser maintenant » (si active) ;
+  `admin-post.php?action=yume_mangadex_synchro`, jeton requis.
+
+### Lien d'une œuvre à MangaDex (formulaire équipe, `includes/planning/oeuvres-equipe.php`)
+
+- Champ « Lien MangaDex de la série (manga) » (`name="mangadex"`) des formulaires « Nouvelle
+  œuvre » et « Modifier l'œuvre », présent si le module mangadex est chargé
+  (`mangadex_disponible()`). Facultatif. Affiché par le script de la vue pour le type « Manga »
+  ou s'il est rempli ; toujours visible sans JavaScript.
+- Saisie acceptée (`serie_du_lien_mangadex()`) : identifiant seul ou
+  `https://mangadex.org/title/{id}/…` ; refus 400 `yume_oeuvre_mangadex` (adresse de chapitre,
+  de groupe ou d'un autre site), 400 `yume_oeuvre_mangadex_type` (type autre que `manga`),
+  409 `yume_oeuvre_mangadex_liee` (série liée à une autre œuvre). Saisie reprise après un refus.
+- Enregistrement dans `yume_mdx_serie` ; champ vidé : méta supprimée (œuvre déliée, ses
+  chapitres restent) ; champ absent de l'envoi (`saisie['mangadex']` null) : lien inchangé.
+- Liste « Œuvres » : pastille « MangaDex » (œuvre liée) ou « Lien MangaDex manquant » (type
+  `manga` sans lien).
+
+### Règles (étape 6)
+
+- **Œuvre « Licenciée »** (terme `licenciee` de `yume_statut`, `Synchro::ETAT_LICENCIEE`) :
+  ignorée entièrement par la synchronisation (ni création, ni mise à jour, ni remise en ligne,
+  ni retrait), rapport `oeuvres_licenciees[] {oeuvre, titre, chapitres}`. Le retrait de la
+  lecture et sa restauration à la sortie sont faits par `changer_etat_oeuvre()` (planning) ; le
+  proxy refuse les chapitres en brouillon (404).
+- **Brouillon de l'équipe** : un chapitre mis en brouillon à la main n'est jamais remis en ligne
+  par la synchronisation (mise à jour du titre et des métas seulement) ; seuls les chapitres
+  retirés par elle (`_yume_mdx_retire`) reviennent en ligne.
+- **Rappel** `rappel_publication()` (« un chapitre publié sur MangaDex y est public tout de
+  suite… ») : page Yume → Mangas (MangaDex), boîte « MangaDex » de l'œuvre, aide du champ « Lien
+  MangaDex » du formulaire équipe.
+- Procédures de l'équipe (liaison, retrait, coupure d'urgence) : `docs/mangadex.md`.
+
+### Proxy des pages (`includes/mangadex/class-proxy.php`, `Yume\Core\MangaDex\Proxy`)
+
+- **Adresse** : `/?yume_mdx_image={chapitre}/{version}/{qualite}/{page}` (servie sur `init`
+  priorité 20, avant le thème ; `Proxy::url()` / `yume_mangadex_url_page()`). `version` =
+  `yume_mdx_version` (8 caractères) : un chapitre mis à jour change d'adresse. Qualité
+  `data-saver` (économie de données, défaut) ou `data` (originale).
+- **Refus sans appel à MangaDex** : adresse mal formée → 400 ; lecteur non livré
+  (`lecteur_pret()` faux), chapitre absent de la base, chapitre / tome / œuvre non publiés (une œuvre
+  « Licenciée » a ses chapitres en brouillon), mot de passe → 404 ; version périmée → 404
+  « rechargez la page » ; page au-delà de `yume_mdx_pages` → 404 ; pause en cours → 503.
+- **Téléchargement** : serveur MD@Home du chapitre (`Client::at_home()`, transient 10 min),
+  `wp_remote_get` en mémoire (20 s, 15 Mo au plus, jamais `stream` ni fichier) ; échec du nœud →
+  un seul autre nœud (`at_home( …, true )`) puis 502 ; type lu dans les premiers octets (JPEG,
+  PNG, GIF, WebP ; tout le reste → 502). 429/403 de MangaDex → transient `yume_mdx_pause`
+  (60 s) : plus aucun appel, 503 `Retry-After: 60`.
+- **Réponse 200** : `Content-Type` détecté, `Cache-Control: public, max-age=31536000, immutable`,
+  `X-Content-Type-Options: nosniff`, `Cross-Origin-Resource-Policy: same-site`,
+  `Content-Security-Policy: default-src 'none'`, `X-Robots-Tag: noindex`, sans cookie. Erreurs :
+  texte brut, `Cache-Control: no-store`.
+- **Rien n'est gardé** : ni fichier, ni média, ni écriture en base par image (seuls les transients
+  ci-dessus, par chapitre ou en cas d'incident).
+- **Signalement** (`https://api.mangadex.network/report`, exigé pour les nœuds hors
+  `mangadex.org`) : `{url, success, cached, bytes, duration}` en JSON, mis en file pendant la
+  requête, envoyé **après** la réponse au lecteur (`fastcgi_finish_request()`), délai 3 s.
+  Coupe-circuit : un échec (réseau, délai, 5xx) pose le transient `yume_mdx_signalement_coupe`
+  (15 min), pendant lequel rien n'est envoyé ; un succès n'écrit rien. Le point de signalement
+  ne répondait pas le 16/10/2026 (522, puis délai dépassé).
+- **Non mesuré** : la mise en cache de ces réponses par WordPress.com (Batcache, cache de bord)
+  n'a pas été vérifiée ; sans elle, chaque page lue passe par PHP.
+
+### Lecteur (`includes/mangadex/lecteur.php`, `assets/manga.js`, `assets/manga.css`)
+
+- **Rendu** : filtre `the_content` (priorité 20) sur la page d'un chapitre MangaDex
+  (`chapitre_affiche()` : requête principale, `lecteur_pret()`) ; le lecteur `.yn-manga` est
+  placé dans `.wp-block-post-content` du modèle « Chapitre » (inchangé). Feuille et script
+  (poignée `yume-manga`) chargés seulement sur ces pages.
+- **HTML identique pour tous les visiteurs** (Batcache) : `figure.yn-manga__page` par page,
+  `img` avec `src` = qualité `data-saver`, `data-yn-originale` = qualité `data`,
+  `alt` « Page N sur M », `loading="eager"` pour les 2 premières (`fetchpriority="high"` sur la
+  1re), `lazy` ensuite. Outils (`.yn-manga__outils`) et navigation page par page
+  (`.yn-manga__navigation`) en `hidden`, affichés par le script : sans JavaScript, défilement.
+- **Outils** : « N pages », mode Défilement / Page par page, qualité « Économie de données » /
+  « Originale (≈ X Mo) » (X = pages × 1,6 Mo, `MO_PAR_PAGE_ORIGINALE`) ; choix dans
+  `localStorage yn.manga` (§14).
+- **Page par page** : moitié droite de la page, → ou Page suivante = page suivante ; moitié
+  gauche, ← ou Page précédente = page précédente, **quel que soit le sens de lecture** (décision
+  de l'équipe, 16/10/2026). Touches captées avant la barre de lecture ; au bout du chapitre,
+  ← / → reviennent à la barre (chapitre voisin) et le bouton devient « Chapitre suivant → ». Page
+  alignée sous la barre, entière à l'écran (cadre d'une page pas encore chargée au format 7/10,
+  largeur bornée par la hauteur disponible) ; deux pages préchargées. Ouverture d'un chapitre
+  en mode page, en haut de la page sans ancre : la page est alignée sous la barre (en-tête et
+  outils au-dessus) ; une ancre ou une position restaurée par le navigateur est respectée.
+- **Suivi de lecture** (`yume/reader-tools`) : chaque `.yn-manga__page` compte comme un
+  paragraphe (marque-page, `#yn-p-N`, « Reprendre à la page N ») ; en mode page, position et
+  pourcentage suivent `data-yn-courante` (événement `yn:manga-page`), la reprise passe par
+  `yn:manga-aller` (`detail.index`).
+- **Crédits et repli** : crédits du chapitre dans l'en-tête (`yume_credits.traduction` = groupes),
+  « Images hébergées par MangaDex · Lire ce chapitre sur MangaDex » sous les pages ; page en
+  échec → « Page N indisponible. Lire sur MangaDex » ; `yume_mdx_pages` = 0 → message et lien.
+  Lecteur coupé (`yume_mangadex_lecteur_pret` faux) : `.yn-manga--coupe`, « La lecture de ce
+  chapitre sur le site est momentanément indisponible » et bouton « Lire ce chapitre sur
+  MangaDex » (ni page, ni adresse du proxy, ni feuille ni script du lecteur).
 
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 
@@ -1141,6 +1314,7 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 | `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
 | `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
 | `yn.a11y` | `{contraste: bool, animations: 'systeme'\|'reduites'}` (appareil seulement, jamais envoyé au compte) | lecture (panneau Paramètres, script d'initialisation) |
+| `yn.manga` | `{mode: 'defilement'\|'page', qualite: 'data-saver'\|'data'}` (appareil seulement ; défaut défilement, économie de données) | lecteur des chapitres MangaDex (`includes/mangadex/assets/manga.js`, §8 bis) |
 | `yn.wordend` | `{meilleur: int, parties: int, maj: 'YYYY-MM-DD', volume: 0…1, muet: bool}` (meilleur score et réglages du son du jeu caché, appareil seulement) | wordend |
 
 Stockage Cache Storage du service worker (lecture hors ligne) : caches `yume-lecture-{version}`,

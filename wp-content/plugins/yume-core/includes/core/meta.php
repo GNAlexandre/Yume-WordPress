@@ -171,6 +171,28 @@ function san_rythme( $v ) {
 }
 
 /**
+ * Identifiant MangaDex (UUID) : le premier trouvé dans la saisie (identifiant seul ou adresse
+ * https://mangadex.org/…), en minuscules ; '' s'il n'y en a pas.
+ *
+ * @param mixed $v Valeur.
+ */
+function san_uuid( $v ): string {
+	if ( ! is_scalar( $v ) ) {
+		return '';
+	}
+	return preg_match( '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/', strtolower( (string) $v ), $m ) ? $m[0] : '';
+}
+
+/**
+ * Version d'un chapitre MangaDex : 8 caractères hexadécimaux, sinon ''.
+ *
+ * @param mixed $v Valeur.
+ */
+function san_version_mdx( $v ): string {
+	return is_scalar( $v ) && preg_match( '/^[0-9a-f]{8}$/', (string) $v ) ? (string) $v : '';
+}
+
+/**
  * Liste de textes (tableau ou texte d'une valeur par ligne).
  *
  * @param mixed $v Valeur.
@@ -496,6 +518,13 @@ function definitions_meta(): array {
 				'description' => __( 'Nom affiché au public d’une série à venir (80 caractères au plus ; vide : « Nouvelle série à venir »). Lire avec yume_titre_public_oeuvre().', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_libelle_a_venir',
 			),
+			// Module mangadex : série MangaDex de l'œuvre (manga publié par l'équipe sur MangaDex).
+			'yume_mdx_serie'         => array(
+				'type'        => 'string',
+				'description' => __( 'Série MangaDex de l’œuvre (identifiant) : ses chapitres traduits par le groupe sont lus sur le site, images relayées depuis MangaDex.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_uuid',
+				'default'     => '',
+			),
 		),
 		CPT_TOME     => array(
 			'yume_oeuvre_id'        => array(
@@ -772,6 +801,35 @@ function definitions_meta(): array {
 						'importe_le' => $chaine,
 					),
 					'additionalProperties' => false,
+				),
+			),
+			// Module mangadex : chapitre hébergé sur MangaDex (aucun contenu importé, aucune image gardée).
+			'yume_mdx_chapitre'  => array(
+				'type'        => 'string',
+				'description' => __( 'Chapitre MangaDex (identifiant) : ses pages sont relayées depuis MangaDex ; vide pour un chapitre importé d’un DOCX ou d’un EPUB.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_uuid',
+				'default'     => '',
+			),
+			'yume_mdx_pages'     => array(
+				'type'        => 'integer',
+				'description' => __( 'Nombre de pages du chapitre MangaDex.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_entier',
+				'default'     => 0,
+			),
+			'yume_mdx_version'   => array(
+				'type'        => 'string',
+				'description' => __( 'Version du chapitre MangaDex (8 caractères, change quand MangaDex le met à jour) : elle entre dans l’adresse des pages relayées.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_version_mdx',
+				'default'     => '',
+			),
+			'yume_mdx_groupes'   => array(
+				'type'        => 'array',
+				'description' => __( 'Groupes de traduction crédités sur MangaDex.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_liste_textes',
+				'default'     => array(),
+				'schema'      => array(
+					'type'  => 'array',
+					'items' => $chaine,
 				),
 			),
 		),

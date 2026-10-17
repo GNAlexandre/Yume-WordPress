@@ -12,7 +12,8 @@ modification.
 wp-content/plugins/yume-core/     plugin métier
   yume-core.php                   en-tête, version, chargement des modules (socle)
   includes/<module>/module.php    un dossier par module : core, import, publication, planning,
-                                  reader, social, library, glossaire, wordend, migration, updater
+                                  reader, social, library, glossaire, mangadex, wordend, migration,
+                                  updater
   includes/blocks-support.php     enregistrement des blocs dynamiques (socle)
   lib/plugin-update-checker/      bibliothèque de mises à jour vendorisée (MIT, voir lib/README.md)
   tests/                          mini-framework de test + tests/test-<module>.php (non livrés)
@@ -22,6 +23,7 @@ tools/build/                      lint.sh (php -l), zip.sh (archives installable
 tools/playground/                 blueprints WordPress Playground + contenu de démonstration
 tools/docx2chapters/, tools/migrate/   outils en ligne de commande (import DOCX, migration)
 tools/wordend/                    découpe de la planche de Chtholly (easter egg, Python, ponctuel)
+tools/mangadex-prototype/         prototype MangaDex (historique, remplacé par le module mangadex ; docs/mangadex.md)
 tools/preprod/                    préproduction locale (MariaDB) construite de zéro + parcours Playwright
 tools/ci/                         contrôle de rendu de la CI (rendu.sh, rendu.js, rendu-attendus.js)
 tools/guide/                      guide de l'équipe en Word : captures des maquettes, construction du DOCX
