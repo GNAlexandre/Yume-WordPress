@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.9 — 2026-10-17
+
+- Normes de code : alignement corrigé dans le formulaire équipe des œuvres (PHPCS)
+
 ## 2.3.0-dev.8 — 2026-10-17
 
 - Formulaire équipe des œuvres : champ « Lien MangaDex de la série » pour un manga (facultatif ; adresse de série ou identifiant ; refusé pour une adresse de chapitre ou d'un autre site, un type autre que Manga ou une série déjà liée ; vidé = œuvre déliée), pastilles « MangaDex » et « Lien MangaDex manquant »

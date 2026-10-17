@@ -1020,7 +1020,7 @@ function formulaire_oeuvre( ?array $retour, int $oeuvre_id = 0 ): string {
 		)
 	);
 	$html    .= champ_select( 'yn-oeuvre-type', 'type', __( 'Type', 'yume-core' ), array( '' => __( '— Choisir —', 'yume-core' ) ) + termes_taxonomie_oeuvre( 'yume_type' ), $val( 'type' ) );
-	$etats = yume_etats_oeuvre();
+	$etats    = yume_etats_oeuvre();
 	if ( ! $oeuvre_id || ! isset( $etats[ $val( 'avancement' ) ] ) ) {
 		$etats = array( '' => $oeuvre_id ? __( '— Non renseigné —', 'yume-core' ) : __( '— Choisir —', 'yume-core' ) ) + $etats;
 	}
