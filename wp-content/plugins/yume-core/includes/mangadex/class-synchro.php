@@ -6,8 +6,12 @@
  * MangaDex et rapprochés des œuvres liées à leur série (yume_mdx_serie) :
  *
  * - un volume MangaDex est un tome de l'œuvre (nature « tome », yume_numero = volume) ; les
- *   chapitres sans volume vont dans un tome de nature « chapitres ». Un tome créé est publié avec
- *   la parution « en cours » (yume_parution), une fois ses chapitres enregistrés ;
+ *   chapitres sans volume vont dans un tome de nature « chapitres ». Le tome de même nature et
+ *   numéro est repris s'il existe (par exemple créé par l'équipe au planning avec « Nouveau
+ *   tome ») ; sinon il est créé. Un tome jamais publié, ou rangé par la synchronisation parce
+ *   qu'il était vide (_yume_mdx_tome_range), est publié avec la parution « en cours »
+ *   (yume_parution) à son premier chapitre ; un tome déjà paru puis retiré par l'équipe reste
+ *   hors ligne (alerte) ;
  * - un chapitre nouveau devient un chapitre publié du site, daté de sa mise en lecture sur
  *   MangaDex, sans contenu (ses pages sont relayées à la lecture) ; un chapitre connu dont la
  *   version a changé est mis à jour en place (même adresse, mêmes commentaires) ;
@@ -61,6 +65,9 @@ final class Synchro {
 	/** Méta d'un tome créé par la synchronisation. */
 	public const META_TOME_SYNCHRO = '_yume_mdx_tome';
 
+	/** Méta d'un tome mis en brouillon par la synchronisation parce qu'il était vide (date GMT). */
+	public const META_TOME_RANGE = '_yume_mdx_tome_range';
+
 	/** État d'une œuvre (yume_statut) qui retire sa lecture du site : la synchronisation l'ignore. */
 	public const ETAT_LICENCIEE = 'licenciee';
 
@@ -97,6 +104,13 @@ final class Synchro {
 	 * @var array<string,bool>
 	 */
 	private array $tomes_simules = array();
+
+	/**
+	 * Tomes hors ligne déjà signalés (identifiant => vrai).
+	 *
+	 * @var array<int,bool>
+	 */
+	private array $tomes_hors_ligne = array();
 
 	/**
 	 * La synchronisation peut-elle tourner (réglage mangadex_synchro et lecteur livré) ?
@@ -150,6 +164,7 @@ final class Synchro {
 			'tomes_crees'          => 0,
 			'crees'                => 0,
 			'maj'                  => 0,
+			'maj_hors_ligne'       => 0,
 			'remis_en_ligne'       => 0,
 			'retires'              => 0,
 			'externes'             => 0,
@@ -418,14 +433,19 @@ final class Synchro {
 			if ( $a_jour && ! $retire ) {
 				return;
 			}
+			// Mis hors ligne par l'équipe (brouillon, licence…) : mis à jour mais compté à part,
+			// sans toucher à son tome (qui serait sinon publié).
+			$hors_ligne = ! $retire && ! in_array( get_post_status( $existant ), array( 'publish', 'future' ), true );
 			// Version changée : le volume a pu être renseigné ou modifié sur MangaDex (un chapitre
 			// sorti sans volume rejoint son tome).
-			$tome_cible = $a_jour ? 0 : $this->tome( $oeuvre_id, (string) $chapitre['volume'], (string) $chapitre['publie'], $catalogue );
+			$tome_cible = $a_jour || $hors_ligne ? 0 : $this->tome( $oeuvre_id, (string) $chapitre['volume'], (string) $chapitre['publie'], $catalogue );
 			if ( $tome_cible && (int) get_post_meta( $existant, 'yume_tome_id', true ) !== $tome_cible ) {
 				$champs['meta']['yume_tome_id'] = $tome_cible;
 			}
 			if ( $retire ) {
 				++$this->rapport['remis_en_ligne'];
+			} elseif ( $hors_ligne ) {
+				++$this->rapport['maj_hors_ligne'];
 			} else {
 				++$this->rapport['maj'];
 			}
@@ -552,11 +572,23 @@ final class Synchro {
 			}
 			$sien = self::numero( (string) get_post_meta( $tome->ID, 'yume_numero', true ) );
 			if ( $sien === $numero ) {
-				if ( 'publish' !== $tome->post_status && ! isset( $this->tomes_a_publier[ (int) $tome->ID ] ) && metadata_exists( 'post', $tome->ID, self::META_TOME_SYNCHRO ) ) {
-					$this->tomes_a_publier[ (int) $tome->ID ] = array(
-						'date'      => $date,
-						'catalogue' => $catalogue,
-					);
+				if ( 'publish' !== $tome->post_status && ! isset( $this->tomes_a_publier[ (int) $tome->ID ] ) ) {
+					// Tome créé par la synchronisation, ou par l'équipe au planning (« Nouveau tome »)
+					// et jamais publié : il sort avec son premier chapitre. Un tome déjà paru puis
+					// retiré par l'équipe reste hors ligne (alerte).
+					if ( ! metadata_exists( 'post', $tome->ID, self::META_NOTIFIE ) || metadata_exists( 'post', $tome->ID, self::META_TOME_RANGE ) ) {
+						$this->tomes_a_publier[ (int) $tome->ID ] = array(
+							'date'      => $date,
+							'catalogue' => $catalogue,
+						);
+					} elseif ( ! isset( $this->tomes_hors_ligne[ (int) $tome->ID ] ) ) {
+						$this->tomes_hors_ligne[ (int) $tome->ID ] = true;
+						$this->rapport['alertes'][]                = sprintf(
+							/* translators: %s : tome */
+							__( '« %s » est hors ligne (retiré par l’équipe) : ses chapitres MangaDex n’y sont pas lisibles tant qu’il n’est pas republié.', 'yume-core' ),
+							get_post_field( 'post_title', $tome->ID, 'raw' )
+						);
+					}
 				}
 				return (int) $tome->ID;
 			}
@@ -621,6 +653,11 @@ final class Synchro {
 			if ( $infos['catalogue'] && ! metadata_exists( 'post', $tome_id, self::META_NOTIFIE ) ) {
 				update_post_meta( $tome_id, self::META_NOTIFIE, 'catalogue' );
 			}
+			delete_post_meta( $tome_id, self::META_TOME_RANGE );
+			// Tome de l'équipe (planning) : « Planifié » → « En cours de publication ».
+			if ( ! in_array( (string) get_post_meta( $tome_id, 'yume_parution', true ), array( 'en_cours', 'complet' ), true ) ) {
+				update_post_meta( $tome_id, 'yume_parution', 'en_cours' );
+			}
 			wp_update_post(
 				array(
 					'ID'            => $tome_id,
@@ -677,6 +714,7 @@ final class Synchro {
 			}
 			++$this->rapport['tomes_vides'];
 			if ( ! $this->simulation ) {
+				update_post_meta( (int) $tome->ID, self::META_TOME_RANGE, current_time( 'mysql', true ) );
 				wp_update_post(
 					array(
 						'ID'          => (int) $tome->ID,

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.13 — 2026-10-17
+
+- MangaDex, recette 2.3.0-dev.12 : tome créé au planning (« Nouveau tome », sans fichier) repris et publié par la synchronisation à son premier chapitre ; tome retiré par l'équipe laissé hors ligne (alerte) ; chapitres hors ligne mis à jour comptés à part ; textes du réglage et du guide (pas de tome ni de chapitre à créer pour un manga, « Annoncer un tome de manga au planning »)
+
 ## 2.3.0-dev.12 — 2026-10-17
 
 - MangaDex, étapes 7 et 8 : guide de l'équipe (chapitre « Les mangas (MangaDex) » : lier un manga, publier, vérifier la synchronisation, retirer ; « Lire un manga »), guide en ligne, guide développeur, prototype marqué comme remplacé ; recette de bout en bout sur la vraie API

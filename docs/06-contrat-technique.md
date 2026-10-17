@@ -847,8 +847,13 @@ d'administration dans `includes/mangadex/synchro.php`.
   `series_non_liees` ; œuvre liée non publiée : `oeuvres_non_publiees`, rien n'est créé.
 - **Tomes** : un volume MangaDex = un tome de nature `tome` (`yume_numero` = volume, slug
   `tome-N`, titre « {Œuvre} — Tome N ») ; sans volume : un tome de nature `chapitres` (slug
-  `chapitres`). Créé en brouillon (`yume_parution = en_cours`, méta `_yume_mdx_tome`), publié
-  après ses chapitres, daté de son premier chapitre. Tome créé par la synchronisation et vidé :
+  `chapitres`). Le tome existant de même nature et numéro est repris (par exemple créé au
+  planning par « Nouveau tome ») ; sinon créé en brouillon (`yume_parution = en_cours`, méta
+  `_yume_mdx_tome`). Un tome jamais publié (sans `_yume_publie_notifie`), ou mis en brouillon
+  par la synchronisation parce qu'il était vide (`_yume_mdx_tome_range`, effacée à la
+  republication), est publié après ses chapitres, daté de son premier chapitre,
+  `yume_parution` passée à `en_cours` si besoin ; un tome déjà paru puis retiré par l'équipe
+  reste hors ligne (alerte du rapport). Tome créé par la synchronisation et vidé :
   remis en brouillon (`tomes_vides`).
 - **Chapitres** : retrouvés par `yume_mdx_chapitre`. Nouveau : publié, daté de `readableAt`, sans
   contenu, titre « Chapitre N » ou « Chapitre N — titre » (oneshot : nature `bonus`, « Oneshot »),
@@ -869,6 +874,7 @@ d'administration dans `includes/mangadex/synchro.php`.
   simulation (`Synchro::executer( true )`) sans aucune écriture.
 - **Rapport** : option `yume_mangadex_synchro` (non autochargée, `Synchro::dernier_rapport()`) :
   `date, simulation, ok, erreur, groupe, chapitres_mangadex, tomes_crees, crees, maj,
+  maj_hors_ligne (chapitres hors ligne de l'équipe mis à jour, restés hors ligne),
   remis_en_ligne, retires, externes, tomes_vides, oeuvres[], series_non_liees[],
   oeuvres_non_publiees[], oeuvres_licenciees[], alertes[]`.
 - **Administration** : Yume → Mangas (MangaDex) (`yume-mangadex`, capacité `yume_reglages`) :

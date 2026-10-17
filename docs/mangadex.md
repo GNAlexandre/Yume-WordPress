@@ -10,7 +10,7 @@ technique : `docs/06-contrat-technique.md` §8 bis ; décisions : `docs/journal-
 | Élément | Fonctionnement |
 | --- | --- |
 | Œuvre | Type « Manga » ; « Lien MangaDex de la série » (facultatif) dans le formulaire équipe de l'œuvre |
-| Tomes | Un volume MangaDex = un tome ; chapitres sans volume dans un tome « Chapitres » |
+| Tomes | Un volume MangaDex = un tome, créé par la synchronisation (ou repris s'il a été créé au planning avec « Nouveau tome », même numéro) et publié à son premier chapitre ; chapitres sans volume dans un tome « Chapitres ». Aucun tome ni chapitre à créer à la main, pas de fichier à envoyer |
 | Chapitres | Créés par la synchronisation horaire (Yume → Mangas (MangaDex)), datés de leur sortie sur MangaDex |
 | Images | Relayées par le site, jamais stockées ; « Économie de données » par défaut, « Originale » au choix du lecteur |
 | Annonces | Première synchronisation d'une œuvre : ajout au catalogue sans annonce ; ensuite, annonces habituelles |

@@ -95,6 +95,7 @@ function html_rapport( array $rapport ): string {
 		__( 'Chapitres du groupe sur MangaDex', 'yume-core' ) => (int) $rapport['chapitres_mangadex'],
 		__( 'Chapitres créés', 'yume-core' )              => (int) $rapport['crees'],
 		__( 'Chapitres mis à jour', 'yume-core' )         => (int) $rapport['maj'],
+		__( 'Chapitres hors ligne mis à jour (restent hors ligne)', 'yume-core' ) => (int) ( $rapport['maj_hors_ligne'] ?? 0 ),
 		__( 'Chapitres remis en ligne', 'yume-core' )     => (int) $rapport['remis_en_ligne'],
 		__( 'Chapitres retirés (absents de MangaDex)', 'yume-core' ) => (int) $rapport['retires'],
 		__( 'Tomes créés', 'yume-core' )                  => (int) $rapport['tomes_crees'],

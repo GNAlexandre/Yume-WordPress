@@ -880,6 +880,28 @@ yume_tmdx_test_synchro(
 		yume_assert_same( $tome2, (int) get_post_meta( $c4, 'yume_tome_id', true ), 'chapitre 4 dans le tome 2' );
 		yume_assert_same( $date_c4, get_post( $c4 )->post_date_gmt, 'date gardée' );
 		yume_assert_same( $avant, yume_tmdx_evenements(), 'une mise à jour n’est pas annoncée' );
+
+		// Tome « Chapitres » rangé par la synchronisation : il revient en ligne avec un nouveau
+		// chapitre sans volume.
+		$chapitres = 0;
+		foreach ( yume_get_tomes( $oeuvre, array( 'status' => 'any' ) ) as $tome ) {
+			if ( 'chapitres' === $tome->post_name ) {
+				$chapitres = (int) $tome->ID;
+			}
+		}
+		yume_assert_true( metadata_exists( 'post', $chapitres, Synchro::META_TOME_RANGE ) );
+		$flux[] = yume_tmdx_norm(
+			10,
+			array(
+				'volume'     => null,
+				'chapter'    => '10',
+				'readableAt' => yume_tmdx_il_y_a( 120 ),
+				'updatedAt'  => yume_tmdx_il_y_a( 120 ),
+			)
+		);
+		Synchro::executer( false, $flux );
+		yume_assert_same( 'publish', get_post_status( $chapitres ), 'tome « Chapitres » republié' );
+		yume_assert_false( metadata_exists( 'post', $chapitres, Synchro::META_TOME_RANGE ) );
 	}
 );
 
@@ -1865,7 +1887,8 @@ yume_tmdx_test_synchro(
 			)
 		);
 		$rapport = Synchro::executer( false, $flux );
-		yume_assert_same( array( 1, 0 ), array( $rapport['maj'], $rapport['remis_en_ligne'] ) );
+		yume_assert_same( array( 0, 1, 0 ), array( $rapport['maj'], $rapport['maj_hors_ligne'], $rapport['remis_en_ligne'] ), 'compté à part, pas dans « mis à jour »' );
+		yume_assert_contains( 'Chapitres hors ligne mis à jour (restent hors ligne)', \Yume\Core\MangaDex\html_rapport( $rapport ) );
 		yume_assert_same( 'draft', get_post_status( $c2 ), 'brouillon de l’équipe respecté' );
 		yume_assert_same( 'Chapitre 2 — Corrigé', get_the_title( $c2 ) );
 		yume_assert_same( 'draft', get_post_status( $c2 ), 'toujours en brouillon après une 2e synchronisation' );
@@ -1893,3 +1916,58 @@ yume_tmdx_test_synchro(
 		}
 	}
 );
+
+if ( function_exists( 'Yume\Core\Planning\ajouter_tome' ) ) {
+	yume_tmdx_test_synchro(
+		'mangadex : tome créé au planning (« Nouveau tome », sans fichier) repris par la synchronisation et publié à son premier chapitre (« en cours ») ; tome déjà paru puis retiré par l’équipe laissé hors ligne (alerte)',
+		function () {
+			$oeuvre = yume_tmdx_oeuvre();
+			$admin  = yume_factory_user( 'administrator' );
+			$tome1  = \Yume\Core\Planning\ajouter_tome(
+				array(
+					'oeuvre_id' => $oeuvre,
+					'nature'    => 'tome',
+					'numero'    => '1',
+				),
+				$admin
+			);
+			yume_assert_false( is_wp_error( $tome1 ), is_wp_error( $tome1 ) ? $tome1->get_error_message() : '' );
+			yume_assert_same( 'draft', get_post_status( $tome1 ), 'tome du planning en brouillon' );
+
+			$rapport = Synchro::executer( false, yume_tmdx_flux_depart() );
+			yume_assert_same( 2, $rapport['tomes_crees'], 'tome 1 repris : seuls « Tome 2 » et « Chapitres » sont créés' );
+			yume_assert_same( $tome1, (int) get_post_meta( yume_mangadex_chapitre_par_uuid( yume_tmdx_uuid( 1 ) ), 'yume_tome_id', true ) );
+			yume_assert_same( 'publish', get_post_status( $tome1 ), 'publié avec son premier chapitre' );
+			yume_assert_same( 'en_cours', get_post_meta( $tome1, 'yume_parution', true ) );
+			yume_assert_same( 'en_cours', yume_parution_tome( $tome1 ) );
+
+			// Tome 2 déjà paru, retiré par l'équipe : un nouveau chapitre du volume ne le republie pas.
+			$tome2 = 0;
+			foreach ( yume_get_tomes( $oeuvre, array( 'status' => 'any' ) ) as $t ) {
+				if ( 'tome-2' === $t->post_name ) {
+					$tome2 = (int) $t->ID;
+				}
+			}
+			wp_update_post(
+				array(
+					'ID'          => $tome2,
+					'post_status' => 'draft',
+				)
+			);
+			yume_tmdx_nouvelle_requete();
+			$flux   = yume_tmdx_flux_depart();
+			$flux[] = yume_tmdx_norm(
+				9,
+				array(
+					'volume'     => '2',
+					'chapter'    => '9',
+					'readableAt' => yume_tmdx_il_y_a( 600 ),
+					'updatedAt'  => yume_tmdx_il_y_a( 600 ),
+				)
+			);
+			$suite  = Synchro::executer( false, $flux );
+			yume_assert_same( 'draft', get_post_status( $tome2 ), 'tome retiré par l’équipe : pas republié' );
+			yume_assert_contains( 'hors ligne (retiré par l’équipe)', implode( ' ', $suite['alertes'] ) );
+		}
+	);
+}

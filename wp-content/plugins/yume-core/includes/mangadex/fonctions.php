@@ -140,7 +140,7 @@ function champs_reglages( $champs ): array {
 		'type'        => 'checkbox',
 		'section'     => 'mangadex',
 		'default'     => false,
-		'description' => __( 'Chaque heure, les chapitres du groupe sur MangaDex deviennent des chapitres du site, dans les œuvres liées à leur série (boîte « MangaDex » de l’œuvre). La première synchronisation d’une œuvre n’annonce rien ; ensuite, les nouveaux chapitres sont annoncés comme les autres. Rapport et essai sans rien changer : Yume → Mangas (MangaDex).', 'yume-core' ),
+		'description' => __( 'Chaque heure, les chapitres du groupe sur MangaDex deviennent des chapitres du site, dans les œuvres liées à leur série (champ « Lien MangaDex de la série » du formulaire équipe de l’œuvre). Aucun tome ni chapitre à créer à la main. La première synchronisation d’une œuvre n’annonce rien ; ensuite, les nouveaux chapitres sont annoncés comme les autres. Rapport et essai sans rien changer : Yume → Mangas (MangaDex).', 'yume-core' ),
 	);
 	return $champs;
 }

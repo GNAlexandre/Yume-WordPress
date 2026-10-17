@@ -249,7 +249,15 @@ En bas de la page **Œuvres**, la liste **Genres** propose une trentaine de genr
 
 # Les mangas (MangaDex)
 
-Les mangas de l'équipe sont publiés sur MangaDex. Le site les reprend tout seul et les fait lire sur yumenovel.fr, sans stocker aucune image : chaque page est relayée depuis MangaDex au moment de la lecture. Il n'y a ni fichier Word ni chapitre à envoyer.
+Les mangas de l'équipe sont publiés sur MangaDex. Le site les reprend tout seul et les fait lire sur yumenovel.fr, sans stocker aucune image : chaque page est relayée depuis MangaDex au moment de la lecture.
+
+Pour un manga, vous ne créez **ni tome ni chapitre** sur le site, et vous n'utilisez pas **Ajouter des chapitres** (réservé aux fichiers Word et EPUB des romans). Une fois l'œuvre liée à sa série, la synchronisation crée elle-même les tomes (un par volume MangaDex) et les chapitres, à mesure qu'ils sont publiés sur MangaDex.
+
+| Ce que vous faites | Ce que fait le site |
+| --- | --- |
+| Créer l'œuvre (type **Manga**) avec son **Lien MangaDex de la série** | Rien encore |
+| Publier un chapitre sur MangaDex | Crée le tome du volume s'il n'existe pas, puis le chapitre, au plus une heure après ; annonce |
+| (Facultatif) Annoncer un tome au planning avec **Nouveau tome** | Range les chapitres du volume dans ce tome et le publie à son premier chapitre |
 
 ## Lier un manga à sa série MangaDex
 
@@ -280,6 +288,20 @@ Dans la liste **Œuvres**, l'œuvre porte la pastille **MangaDex**. Un manga san
 
 > **À savoir** : un chapitre corrigé sur MangaDex (titre, volume, pages) est mis à jour sur le site à la synchronisation suivante, à la même adresse et sans nouvelle annonce.
 
+## Annoncer un tome de manga au planning
+
+Facultatif : pour montrer aux lecteurs un tome à venir (date cible, avancement), avant que ses chapitres ne sortent sur MangaDex.
+
+1. Ouvrez **Nouveau tome** (voir « Créer un tome vide »). Aucun fichier n'est demandé.
+2. Choisissez l'œuvre, la **Nature** **Tome** et, comme **Numéro**, le numéro du volume sur MangaDex.
+3. Remplissez le calendrier comme pour un roman, puis cliquez sur **Créer le tome**. Ne cliquez pas sur **Créer le tome et ajouter un chapitre** : il ouvre « Ajouter des chapitres », qui attend un fichier.
+
+Au premier chapitre de ce volume publié sur MangaDex, la synchronisation range le chapitre dans ce tome et le publie (« En cours de publication »). Les chapitres suivants du volume s'y ajoutent.
+
+> **À savoir** : un chapitre sans volume sur MangaDex va dans un tome **Chapitres**, créé tout seul. Dès que le volume est renseigné sur MangaDex, le chapitre rejoint son tome.
+
+> **Attention** : un tome déjà paru puis retiré par l'équipe n'est pas remis en ligne par la synchronisation. Le rapport le signale : republiez-le vous-même si besoin.
+
 ## Vérifier la synchronisation
 
 Réservé aux gérants.
@@ -287,13 +309,14 @@ Réservé aux gérants.
 1. Dans l'administration WordPress, ouvrez **Yume**, puis **Mangas (MangaDex)**.
 2. Lisez **Dernière synchronisation** : chapitres créés, mis à jour, retirés, et les éventuelles alertes.
 3. Pour voir ce que ferait la synchronisation sans rien changer, cliquez sur **Simuler (sans rien changer)**.
-4. Pour ne pas attendre l'heure suivante, cliquez sur **Synchroniser maintenant**.
+4. Pour ne pas attendre l'heure suivante, cliquez sur **Synchroniser maintenant**. Ce bouton n'apparaît qu'une fois la synchronisation activée (voir ci-dessous).
 
 | Rubrique du rapport | Ce qu'elle veut dire |
 | --- | --- |
 | **Séries du groupe liées à aucune œuvre** | Le groupe publie une série sur MangaDex, mais aucune œuvre du site n'a son lien. Créez ou modifiez l'œuvre (voir « Lier un manga à sa série MangaDex »). |
 | **Œuvres liées mais non publiées (ignorées)** | L'œuvre est en brouillon : publiez-la. |
 | **Œuvres licenciées (ignorées)** | L'œuvre est « Licenciée » : rien n'est repris tant qu'elle l'est. |
+| **Chapitres hors ligne mis à jour (restent hors ligne)** | Chapitres mis en brouillon par l'équipe et modifiés sur MangaDex : leur titre est mis à jour, ils restent hors ligne. |
 
 > **À savoir** : la synchronisation est coupée par défaut. Un gérant l'active une fois, dans **Réglages**, section **Mangas (MangaDex)**, case **Synchroniser les chapitres**.
 
