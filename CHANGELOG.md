@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0-dev.12 — 2026-10-17
+
+- MangaDex, étapes 7 et 8 : guide de l'équipe (chapitre « Les mangas (MangaDex) » : lier un manga, publier, vérifier la synchronisation, retirer ; « Lire un manga »), guide en ligne, guide développeur, prototype marqué comme remplacé ; recette de bout en bout sur la vraie API
+
 ## 2.3.0-dev.11 — 2026-10-17
 
 - MangaDex, étape 6 : règles — œuvre « Licenciée » ignorée par la synchronisation (rien de créé, modifié ni remis en ligne, rapport), chapitre mis en brouillon par l'équipe jamais remis en ligne, rappel « publié sur MangaDex = public tout de suite » (page Mangas, boîte de l'œuvre, formulaire équipe), procédures de retrait (docs/mangadex.md)

@@ -192,7 +192,7 @@ Réservé aux éditeurs et aux gérants. Menu **Catalogue**, puis **Œuvres**.
 
 1. Ouvrez **Catalogue**, puis **Œuvres**.
 2. Cliquez sur **Nouvelle œuvre**.
-3. Remplissez au moins le **Titre** et le **Type**. Ajoutez le **Statut de la traduction**, l'**Auteur**, l'**Illustrateur**, l'**Éditeur VO** et les **Genres**.
+3. Remplissez au moins le **Titre** et le **Type**. Ajoutez le **Statut de la traduction**, l'**Auteur**, l'**Illustrateur**, l'**Éditeur VO** et les **Genres**. Pour un manga que l'équipe publie sur MangaDex, voir aussi « Lier un manga à sa série MangaDex ».
 4. Écrivez le **Synopsis**. Une ligne vide sépare deux paragraphes.
 5. Ajoutez la couverture : JPG, PNG ou WebP, au format portrait de préférence.
 6. Si besoin, dépliez **Fiche détaillée : VO, jours de sortie, équipe, liens**.
@@ -246,6 +246,66 @@ Pour révéler le titre :
 En bas de la page **Œuvres**, la liste **Genres** propose une trentaine de genres courants. Pour en ajouter, écrivez-les dans **Nouveaux genres (séparés par des virgules)**, puis **Ajouter**. **Supprimer** retire un genre de toutes les œuvres qui l'avaient.
 
 > **Nouveau** : version 2.1.5. L'état de chaque œuvre (en cours de publication, terminée, en pause, abandonnée, licenciée) se change directement dans la liste **Œuvres**. Voir « Changer l'état d'une œuvre ».
+
+# Les mangas (MangaDex)
+
+Les mangas de l'équipe sont publiés sur MangaDex. Le site les reprend tout seul et les fait lire sur yumenovel.fr, sans stocker aucune image : chaque page est relayée depuis MangaDex au moment de la lecture. Il n'y a ni fichier Word ni chapitre à envoyer.
+
+## Lier un manga à sa série MangaDex
+
+Réservé aux éditeurs et aux gérants.
+
+1. Ouvrez **Catalogue**, puis **Œuvres**, et cliquez sur **Nouvelle œuvre** (ou sur **Modifier** à côté d'une œuvre existante).
+2. Dans **Type**, choisissez **Manga**. Le champ **Lien MangaDex de la série (manga)** apparaît sous la grille.
+3. Sur MangaDex, ouvrez la page de la série et copiez son adresse (elle commence par `https://mangadex.org/title/`). Collez-la dans **Lien MangaDex de la série (manga)**.
+4. Cliquez sur **Créer et publier** (ou sur **Enregistrer**).
+
+Dans la liste **Œuvres**, l'œuvre porte la pastille **MangaDex**. Un manga sans lien porte la pastille **Lien MangaDex manquant**.
+
+> **À savoir** : le lien est facultatif. Un manga peut être créé avant sa sortie sur MangaDex, puis lié plus tard avec **Modifier**.
+
+> **Attention** : collez l'adresse de la **série**, pas celle d'un chapitre ni du groupe : elle est refusée. Une série déjà liée à une autre œuvre est refusée aussi.
+
+> **À savoir** : l'œuvre doit être **publiée** pour que ses chapitres arrivent sur le site. Une œuvre en brouillon est ignorée.
+
+## Publier un chapitre de manga
+
+1. Publiez le chapitre sur MangaDex, avec le groupe Yume Novel, comme d'habitude.
+2. Attendez la synchronisation suivante : au plus une heure. Le chapitre apparaît sur le site, dans le tome de son volume (ou dans un tome **Chapitres** s'il n'a pas de volume), daté de sa sortie sur MangaDex.
+3. Le chapitre est annoncé comme les autres (Discord, e-mails, notifications).
+
+> **Attention** : un chapitre publié sur MangaDex y est **public tout de suite**. Le site ne peut que le reprendre une heure plus tard au plus, jamais le cacher. Pour un chapitre qui ne doit pas encore sortir, ne le publiez pas sur MangaDex, ou programmez-le là-bas.
+
+> **À savoir** : la toute première synchronisation d'une œuvre ajoute ses chapitres déjà parus **sans aucune annonce**. Seuls les chapitres suivants sont annoncés.
+
+> **À savoir** : un chapitre corrigé sur MangaDex (titre, volume, pages) est mis à jour sur le site à la synchronisation suivante, à la même adresse et sans nouvelle annonce.
+
+## Vérifier la synchronisation
+
+Réservé aux gérants.
+
+1. Dans l'administration WordPress, ouvrez **Yume**, puis **Mangas (MangaDex)**.
+2. Lisez **Dernière synchronisation** : chapitres créés, mis à jour, retirés, et les éventuelles alertes.
+3. Pour voir ce que ferait la synchronisation sans rien changer, cliquez sur **Simuler (sans rien changer)**.
+4. Pour ne pas attendre l'heure suivante, cliquez sur **Synchroniser maintenant**.
+
+| Rubrique du rapport | Ce qu'elle veut dire |
+| --- | --- |
+| **Séries du groupe liées à aucune œuvre** | Le groupe publie une série sur MangaDex, mais aucune œuvre du site n'a son lien. Créez ou modifiez l'œuvre (voir « Lier un manga à sa série MangaDex »). |
+| **Œuvres liées mais non publiées (ignorées)** | L'œuvre est en brouillon : publiez-la. |
+| **Œuvres licenciées (ignorées)** | L'œuvre est « Licenciée » : rien n'est repris tant qu'elle l'est. |
+
+> **À savoir** : la synchronisation est coupée par défaut. Un gérant l'active une fois, dans **Réglages**, section **Mangas (MangaDex)**, case **Synchroniser les chapitres**.
+
+## Retirer un chapitre ou un manga
+
+| Demande | Que faire |
+| --- | --- |
+| Un chapitre ne doit plus être lisible sur le site | Mettez-le en brouillon (voir « Publier, reprogrammer ou retirer un chapitre »). La synchronisation ne le remet jamais en ligne. |
+| Le manga est licencié en France, ou un éditeur demande son retrait | Passez l'œuvre à l'état **Licenciée** (voir « Changer l'état d'une œuvre »). La lecture est retirée tout de suite et la synchronisation ignore l'œuvre. C'est réversible. |
+| Le chapitre a été supprimé sur MangaDex | Rien à faire : le site le retire à la synchronisation suivante. Il revient seul s'il réapparaît. |
+
+> **Attention** : retirer un chapitre du site ne le retire pas de MangaDex. Pour une demande de retrait complète, supprimez-le aussi sur MangaDex.
 
 # Créer un tome vide
 
@@ -718,6 +778,16 @@ Vous pouvez aussi changer l'état dans la fiche de l'œuvre (**Modifier**, champ
 Il est utile de savoir ce que montre le site, pour répondre aux lecteurs sur Discord.
 
 > **Nouveau** : depuis la version 2.1.6, l'accueil a une section **Planning** à la place de la carte « Prochaines sorties », et la page Planning montre le prochain tome et une vue **Chapitres**. Rien n'est à saisir en plus : tout vient du planning, des chapitres publiés ou programmés avec **Ajouter des chapitres**, et des champs **Chapitres prévus** et **Rythme** du tome.
+
+## Lire un manga
+
+Un chapitre de manga affiche ses pages à la place du texte. Au-dessus des pages :
+
+- **Défilement** (par défaut) : toutes les pages à la suite, chargées au fil de la lecture ;
+- **Page par page** : une page à la fois, entière à l'écran. Un clic sur la moitié droite de la page, la flèche → ou **Page suivante** avancent ; la moitié gauche, la flèche ← ou **Page précédente** reculent ;
+- **Économie de données** (par défaut) ou **Originale**, avec le poids approximatif du chapitre (environ 1,6 Mo par page en originale).
+
+Le lecteur garde ces choix sur son appareil. Le marque-page et « Reprendre à la page N » fonctionnent comme pour les romans. Sous les pages : « Images hébergées par MangaDex » et le lien **Lire ce chapitre sur MangaDex**. Une page qui ne se charge pas affiche ce même lien.
 
 ## La page d'accueil
 

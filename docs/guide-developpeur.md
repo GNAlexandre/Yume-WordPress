@@ -23,6 +23,7 @@ tools/build/                      lint.sh (php -l), zip.sh (archives installable
 tools/playground/                 blueprints WordPress Playground + contenu de démonstration
 tools/docx2chapters/, tools/migrate/   outils en ligne de commande (import DOCX, migration)
 tools/wordend/                    découpe de la planche de Chtholly (easter egg, Python, ponctuel)
+tools/mangadex-prototype/         prototype MangaDex (historique, remplacé par le module mangadex ; docs/mangadex.md)
 tools/preprod/                    préproduction locale (MariaDB) construite de zéro + parcours Playwright
 tools/ci/                         contrôle de rendu de la CI (rendu.sh, rendu.js, rendu-attendus.js)
 tools/guide/                      guide de l'équipe en Word : captures des maquettes, construction du DOCX

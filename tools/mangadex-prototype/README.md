@@ -1,5 +1,9 @@
 # Prototype MangaDex (spike, jetable)
 
+> **Remplacé par la vraie intégration** (module `mangadex` de Yume Core, version 2.3.0) : voir
+> `docs/mangadex.md` et `docs/06-contrat-technique.md` §8 bis. Ce dossier reste pour l'historique
+> des mesures ; ne pas l'installer à côté du module.
+
 **Question :** peut-on publier les mangas de Yume Novel sur MangaDex (stockage et visibilité) et
 les faire lire **sur yumenovel.fr** comme si les pages y étaient, avec le site actuel sur
 WordPress.com ? Et le relais des images peut-il tenir dans WordPress (option A), ou faut-il un
@@ -147,7 +151,7 @@ essai, choisir d'emblée l'option B (voir ci-dessous) est le choix prudent.
   production.
 - Lecteur minimal : ni marque-page, ni commentaires, ni lecture hors ligne.
 
-## Si le prototype est concluant : la vraie intégration (non commencée)
+## Si le prototype est concluant : la vraie intégration (faite en 2.3.0, module `mangadex`)
 
 1. **Œuvre « manga »** (le type existe déjà, taxonomie `yume_type`) avec ses identifiants
    MangaDex (série, groupe Yume Novel), et chapitres `yume_chapitre` « hébergés sur MangaDex »
