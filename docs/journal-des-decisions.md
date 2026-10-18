@@ -37,6 +37,7 @@ relevé du site). Les décisions encore ouvertes sont listées à la fin. Ce jou
 | 2026-10-16 | Lecteur manga : défilement par défaut ; en page par page, **moitié droite = page suivante quel que soit le sens de lecture** (option B). | Décision d'Alexandre, `docs/mangadex.md` |
 | 2026-10-17 | Lien MangaDex d'une œuvre saisi dans le formulaire équipe (« Lien MangaDex de la série »), **facultatif** pour un manga. Règles : œuvre « Licenciée » ignorée par la synchronisation ; un chapitre mis en brouillon par l'équipe n'est jamais remis en ligne ; rappel qu'un chapitre publié sur MangaDex y est public tout de suite. | Décisions d'Alexandre, `docs/mangadex.md` |
 | 2026-10-17 | Garde-fou des **chapitres en double** sur MangaDex : un seul chapitre par numéro (celui déjà en ligne, sinon le premier sorti), doublons signalés au rapport ; même numéro dans un autre volume et oneshots non concernés. | Décision d'Alexandre, `docs/mangadex.md` |
+| 2026-10-18 | Séries du groupe : **Agents of the Four Seasons** (Shunkashuutou Daikousha, licenciée chez Akata) passe à l'état « Licenciée » sur le site, donc ignorée par la synchronisation (le doublon du chapitre 4 sur MangaDex, à garder dans le volume 2, est sans objet) ; permissions d'envoi du groupe sur MangaDex (« Anyone ») laissées telles quelles. Passage en **2.3.0** pour la mise en ligne. | Décisions d'Alexandre, `CHANGELOG.md` (2.3.0) |
 
 ## 2. Règle de livraison depuis le lancement
 
