@@ -57,6 +57,64 @@ En cas d'urgence (toute la lecture manga à couper d'un coup) : l'administrateur
 Lecteur, proxy et synchronisation s'arrêtent ; chaque chapitre manga affiche alors « Lire ce
 chapitre sur MangaDex ».
 
+## Vérifications en production
+
+Faites le 18/10/2026 sur yumenovel.fr (2.3.0, synchronisation active, Mikadono : 37 chapitres,
+tomes 1 à 4), en lecture seule, sans être connecté.
+
+### Cache des images
+
+| Demande (Mikadono, chapitre 1, page 17) | Cache WordPress.com (`x-ac`) | Temps |
+| --- | --- | --- |
+| Économie de données (205 Ko), 1re fois | MISS : relayée depuis MangaDex | 1,84 s |
+| Économie de données, 2e et 3e fois | HIT : servie par le cache, sans PHP ni MangaDex | 0,21 à 0,49 s |
+| Originale (836 Ko), 1re fois | MISS | 2,18 s |
+| Originale, 2e fois | HIT | 0,34 s |
+
+- En-têtes : `Cache-Control: public, max-age=31536000, immutable`, `Content-Type: image/jpeg`,
+  `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'`.
+- Le cache est propre à chaque centre de données : la première demande passant par un autre
+  centre repart d'un MISS.
+- **Lecteur connecté** (cookie de connexion WordPress) : le cache de WordPress.com est contourné
+  (`x-ac: BYPASS`). Sa première lecture d'une page passe par MangaDex ; son navigateur la garde
+  ensuite un an. Négligeable au trafic actuel (environ 2 100 vues par mois).
+
+### Stockage du site
+
+- Médiathèque : aucune image MangaDex (seuls fichiers ajoutés depuis le 17/10 : illustrations de
+  Grimgar of Fantasy and Ash T12 et Raven of the Inner Palace T7).
+- Code : l'image reste en mémoire le temps de la réponse (ni fichier temporaire, ni pièce
+  jointe) ; seules écritures, trois transients de quelques octets (serveur d'images du chapitre,
+  10 min ; pause après une limite ; coupe-circuit du signalement).
+- Non mesuré : l'espace disque total (non fourni par l'API de WordPress.com). À suivre dans
+  *Hébergement → Vue d'ensemble*.
+
+### Sécurité
+
+| Contrôle (visiteur non connecté) | Résultat |
+| --- | --- |
+| Chapitre inconnu (autre groupe, série non liée) | 404, sans appel à MangaDex |
+| Version périmée, page 0, page 999, qualité inconnue | 404 ou 400 |
+| Adresse externe passée au relais (relais ouvert) | 400 |
+| Chemin piégé (`../../wp-config.php`) | 404 |
+| Réponses d'erreur | Jamais gardées en cache (`no-store`) |
+| Synchronisation par `admin-post.php` (GET ou POST) | 400 : réservée aux gérants connectés, jeton requis |
+| Chapitres en brouillon par l'API REST | 404 |
+| Adresse d'un serveur d'images MangaDex dans la page du chapitre | Aucune (seulement les liens de crédit vers mangadex.org) |
+| En-têtes de la page du chapitre | HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` |
+| Tome 1 de Mikadono | 7 chapitres, aucun doublon |
+
+### Refaire le contrôle du cache
+
+Adresse d'une page : clic droit sur une image du lecteur → « Copier l'adresse de l'image ». Lancer
+deux fois de suite (PowerShell 7 ou Linux, remplacer l'adresse) :
+
+```powershell
+curl.exe -sS -o NUL -D - "https://yumenovel.fr/?yume_mdx_image=<chapitre>/<version>/data-saver/<page>" | Select-String "x-ac|cache-control"
+```
+
+Attendu : `MISS` puis `HIT` (ou `HIT` deux fois si la page a déjà été lue).
+
 ## Règles de MangaDex respectées
 
 User-Agent réel, aucune adresse MangaDex dans les pages (le navigateur ne contacte que le site),
