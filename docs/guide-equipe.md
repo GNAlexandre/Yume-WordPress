@@ -143,6 +143,23 @@ Aventure, Isekai, Romance, Slice of life…). Ajoutez-en (plusieurs à la fois, 
 virgules) ou supprimez-en ; un genre supprimé est retiré des œuvres qui l'avaient et n'est pas
 recréé aux mises à jour.
 
+### Mangas publiés sur MangaDex (depuis 2.3.0)
+
+Les mangas de l'équipe sont publiés sur MangaDex ; le site les reprend et les fait lire sans
+stocker aucune image. Procédures complètes : chapitre « Les mangas (MangaDex) » du guide Word, et
+[mangadex.md](mangadex.md).
+
+- **Lier un manga** : « Nouvelle œuvre » ou « Modifier », **Type** « Manga », puis coller
+  l'adresse de la série (`https://mangadex.org/title/…`) dans **Lien MangaDex de la série
+  (manga)** (facultatif). Pastilles **MangaDex** / **Lien MangaDex manquant** dans la liste.
+- **Publier** : publier sur MangaDex suffit ; le site reprend le chapitre à la synchronisation
+  suivante (au plus une heure) et l'annonce. **Un chapitre publié sur MangaDex y est public tout
+  de suite.** Première synchronisation d'une œuvre : ajout au catalogue sans annonce.
+- **Retirer** : un chapitre mis en brouillon reste hors ligne ; une œuvre « Licenciée » est
+  ignorée par la synchronisation ; un chapitre supprimé sur MangaDex est retiré tout seul.
+- **Gérants** : Yume → Mangas (MangaDex) (rapport, **Simuler (sans rien changer)**,
+  **Synchroniser maintenant**) ; activation dans **Réglages**, section **Mangas (MangaDex)**.
+
 ### Tous les tomes, nouveau tome et fiche d'un tome (`/equipe/?vue=tomes`, éditeurs et gérants)
 
 **Tous les tomes** liste le catalogue, publiés compris, par œuvre. Filtre **Statut** : Planifiés,

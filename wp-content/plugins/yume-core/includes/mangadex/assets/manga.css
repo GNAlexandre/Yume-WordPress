@@ -1,0 +1,137 @@
+/**
+ * Lecteur des chapitres MangaDex (module mangadex, contrat §8 bis).
+ *
+ * Couleurs du thème actif (html[data-yn-theme]) par les variables --wp--preset--color--* ;
+ * les images ne sont jamais retouchées. Une page pas encore chargée garde un format de page
+ * (7/10) pour que le chargement différé ne charge pas tout le chapitre d'un coup.
+ */
+
+/* Colonne plus large que pour le texte : une page de manga se lit en grand. */
+.yn-reader:has(.yn-manga) {
+	max-width: min(960px, 100%);
+}
+
+.yn-manga {
+	text-align: center;
+	-webkit-hyphens: manual;
+	hyphens: manual;
+}
+
+.yn-manga__outils {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 8px 16px;
+	margin: 0 0 1.2em;
+	font-family: var(--wp--preset--font-family--corps);
+}
+
+.yn-manga__outils[hidden],
+.yn-manga__navigation[hidden] {
+	display: none;
+}
+
+.yn-manga__choix {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.yn-manga [aria-pressed="true"] {
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-manga__pages {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.yn-manga__page {
+	width: 100%;
+	margin: 0;
+	scroll-margin-top: 80px;
+}
+
+.yn-manga__page img {
+	display: block;
+	width: 100%;
+	height: auto;
+	margin-inline: auto;
+	aspect-ratio: 7 / 10;
+	object-fit: contain;
+	background: var(--wp--preset--color--carte);
+}
+
+.yn-manga__page img.is-chargee {
+	width: auto;
+	max-width: 100%;
+	aspect-ratio: auto;
+	background: none;
+}
+
+/* Page par page : une seule page, entière à l'écran sous la barre de lecture, boutons compris
+   (sauf bande verticale de webtoon). */
+.yn-manga[data-yn-mode="page"] .yn-manga__page {
+	display: none;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+.yn-manga[data-yn-mode="page"] .yn-manga__page.is-courante {
+	display: block;
+}
+
+/* Cadre d'une page pas encore chargée : format de page (7/10) qui tient aussi à l'écran ; la
+   largeur est bornée par la hauteur disponible pour garder la proportion. */
+.yn-manga[data-yn-mode="page"] .yn-manga__page img:not(.is-chargee) {
+	width: min(100%, calc((100vh - 140px) * 0.7));
+	width: min(100%, calc((100dvh - 140px) * 0.7));
+}
+
+.yn-manga[data-yn-mode="page"] .yn-manga__page img.is-chargee:not(.is-longue) {
+	max-height: calc(100vh - 140px);
+	max-height: calc(100dvh - 140px);
+}
+
+.yn-manga__navigation {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 8px 16px;
+	margin: 1em 0 0;
+	font-family: var(--wp--preset--font-family--corps);
+}
+
+.yn-manga__compteur {
+	min-width: 9em;
+}
+
+.yn-manga__erreur {
+	margin: 1em 0;
+	padding: 2em 1em;
+	border: 1px dashed var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius, 8px);
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--corps);
+}
+
+.yn-manga__source {
+	margin: 1.2em 0 0;
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-manga--vide p,
+.yn-manga--coupe p {
+	font-family: var(--wp--preset--font-family--corps);
+}
+
+/* Libellés centrés malgré la remise à zéro de .yn-reader :where(.yn-label) (reader.css). */
+.yn-manga .yn-label {
+	text-align: center;
+}

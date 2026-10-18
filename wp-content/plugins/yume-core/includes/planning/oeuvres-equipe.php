@@ -23,6 +23,13 @@
  *
  * Genres (capacités edit_terms / delete_terms de yume_genre) : ajout et suppression dans la vue.
  *
+ * Manga publié par l'équipe sur MangaDex (module mangadex chargé) : champ « Lien MangaDex de la
+ * série » (adresse https://mangadex.org/title/… ou identifiant), facultatif, réservé au type
+ * « Manga » (affiché pour ce type par le script de la vue), enregistré dans yume_mdx_serie ;
+ * refusé s'il est invalide, si le type n'est pas « Manga » ou si la série est déjà liée à une
+ * autre œuvre ; vidé : l'œuvre est déliée (ses chapitres restent). Pastilles « MangaDex » et
+ * « Lien MangaDex manquant » dans la liste.
+ *
  * Formulaires sans JavaScript (admin-post.php : yume_oeuvre_creer, yume_oeuvre_modifier,
  * yume_oeuvre_publier, yume_genre_equipe), résultat affiché au retour (retour_formulaire()).
  *
@@ -262,6 +269,7 @@ function saisie_oeuvre( array $post ): array {
 	$nb_tomes = \Yume\Core\Core\san_entier( champ_post( $post, 'nb_tomes_vo' ) );
 	$publier  = champ_post( $post, 'publier' );
 	$a_venir  = champ_post( $post, 'serie_a_venir' );
+	$mangadex = champ_post( $post, 'mangadex' );
 	return array(
 		'titre'             => $texte( 'titre' ),
 		'titres_alt'        => \Yume\Core\Core\san_liste_textes( is_scalar( $alt ) ? (string) $alt : '' ),
@@ -284,6 +292,8 @@ function saisie_oeuvre( array $post ): array {
 		'cadrage'           => cadrage_saisi( $post ),
 		'serie_a_venir'     => '1' === ( is_scalar( $a_venir ) ? (string) $a_venir : '' ),
 		'libelle_a_venir'   => \Yume\Core\Core\san_libelle_a_venir( champ_post( $post, 'libelle_a_venir' ) ),
+		// null : champ absent du formulaire (module mangadex non chargé), lien inchangé.
+		'mangadex'          => null === $mangadex ? null : $texte( 'mangadex', 300 ),
 	);
 }
 
@@ -346,7 +356,73 @@ function valeurs_oeuvre( int $id ): array {
 		'cadrage'           => yume_cadrage_couverture( yume_get_cover_id( $id ) ),
 		'serie_a_venir'     => yume_oeuvre_a_venir( $id ),
 		'libelle_a_venir'   => (string) $meta( META_LIBELLE_A_VENIR ),
+		'mangadex'          => lien_mangadex_oeuvre( $id ),
 	);
+}
+
+/**
+ * Les mangas MangaDex sont-ils gérés (module mangadex chargé) ?
+ */
+function mangadex_disponible(): bool {
+	return function_exists( 'yume_mangadex_serie' ) && function_exists( 'yume_mangadex_oeuvre_par_serie' ) && defined( 'Yume\Core\MangaDex\MOTIF_UUID' );
+}
+
+/**
+ * Adresse MangaDex de la série liée à une œuvre (https://mangadex.org/title/…), '' sinon.
+ *
+ * @param int $id Œuvre.
+ */
+function lien_mangadex_oeuvre( int $id ): string {
+	$serie = mangadex_disponible() ? yume_mangadex_serie( $id ) : '';
+	return '' !== $serie ? 'https://mangadex.org/title/' . $serie : '';
+}
+
+/**
+ * Série MangaDex d'un lien saisi : identifiant seul, ou adresse d'une série sur mangadex.org
+ * (https://mangadex.org/title/{id}/…) ; '' pour toute autre saisie (chapitre, groupe, autre site).
+ *
+ * @param string $lien Saisie.
+ */
+function serie_du_lien_mangadex( string $lien ): string {
+	$motif = \Yume\Core\MangaDex\MOTIF_UUID;
+	$lien  = trim( $lien );
+	if ( preg_match( '/^(' . $motif . ')$/i', $lien, $m ) || preg_match( '#^(?:https?://)?(?:www\.)?mangadex\.org/title/(' . $motif . ')(?:[/?\#].*)?$#i', $lien, $m ) ) {
+		return strtolower( $m[1] );
+	}
+	return '';
+}
+
+/**
+ * Contrôle du lien MangaDex saisi (absent ou vide : rien à contrôler).
+ *
+ * @param array $saisie    Saisie nettoyée.
+ * @param int   $oeuvre_id Œuvre modifiée (0 : création).
+ */
+function valider_lien_mangadex( array $saisie, int $oeuvre_id ): ?\WP_Error {
+	$lien = $saisie['mangadex'] ?? null;
+	if ( ! is_string( $lien ) || '' === trim( $lien ) || ! mangadex_disponible() ) {
+		return null;
+	}
+	$serie = serie_du_lien_mangadex( $lien );
+	if ( '' === $serie ) {
+		return new \WP_Error( 'yume_oeuvre_mangadex', __( 'Lien MangaDex invalide : collez l’adresse de la série (https://mangadex.org/title/…), pas celle d’un chapitre ou du groupe.', 'yume-core' ), array( 'status' => 400 ) );
+	}
+	if ( 'manga' !== $saisie['type'] ) {
+		return new \WP_Error( 'yume_oeuvre_mangadex_type', __( 'Le lien MangaDex est réservé aux œuvres de type « Manga » : choisissez ce type, ou videz le lien.', 'yume-core' ), array( 'status' => 400 ) );
+	}
+	$liee = yume_mangadex_oeuvre_par_serie( $serie );
+	if ( $liee && $liee !== $oeuvre_id ) {
+		return new \WP_Error(
+			'yume_oeuvre_mangadex_liee',
+			/* translators: %s : titre de l'œuvre déjà liée */
+			sprintf( __( 'Cette série MangaDex est déjà liée à l’œuvre « %s ».', 'yume-core' ), titre_brut( $liee ) ),
+			array(
+				'status'    => 409,
+				'oeuvre_id' => $liee,
+			)
+		);
+	}
+	return null;
 }
 
 /**
@@ -378,7 +454,7 @@ function valider_oeuvre( array $saisie, int $oeuvre_id ): ?\WP_Error {
 	if ( '' !== $saisie['avancement'] && ! isset( termes_taxonomie_oeuvre( 'yume_statut' )[ $saisie['avancement'] ] ) ) {
 		return new \WP_Error( 'yume_oeuvre_statut', __( 'État de l’œuvre inconnu.', 'yume-core' ), array( 'status' => 400 ) );
 	}
-	return null;
+	return valider_lien_mangadex( $saisie, $oeuvre_id );
 }
 
 /**
@@ -424,6 +500,15 @@ function enregistrer_champs_oeuvre( int $id, array $saisie, ?array $fichier, int
 	}
 	wp_set_object_terms( $id, '' !== $saisie['type'] ? array( $saisie['type'] ) : array(), 'yume_type' );
 	wp_set_object_terms( $id, '' !== $saisie['avancement'] ? array( $saisie['avancement'] ) : array(), 'yume_statut' );
+	// Lien MangaDex : seulement si le champ était dans le formulaire (contrôlé par valider_oeuvre()).
+	if ( is_string( $saisie['mangadex'] ?? null ) && mangadex_disponible() ) {
+		$serie = serie_du_lien_mangadex( $saisie['mangadex'] );
+		if ( '' === $serie ) {
+			delete_post_meta( $id, 'yume_mdx_serie' );
+		} else {
+			update_post_meta( $id, 'yume_mdx_serie', $serie );
+		}
+	}
 
 	$avert  = array();
 	$genres = array_values( array_intersect( $saisie['genres'], array_keys( termes_taxonomie_oeuvre( 'yume_genre' ) ) ) );
@@ -956,6 +1041,17 @@ function formulaire_oeuvre( ?array $retour, int $oeuvre_id = 0 ): string {
 	$html .= champ_saisie( 'yn-oeuvre-illustrateur', 'illustrateur', __( 'Illustrateur', 'yume-core' ), $val( 'illustrateur' ), 'text', array( 'maxlength' => 200 ) );
 	$html .= champ_saisie( 'yn-oeuvre-editeur', 'editeur_vo', __( 'Éditeur VO', 'yume-core' ), $val( 'editeur_vo' ), 'text', array( 'maxlength' => 200 ) );
 	$html .= '</div>';
+	if ( mangadex_disponible() ) {
+		// Sous la grille, toute la largeur. Affiché pour le type « Manga » (ou s'il est rempli) par le
+		// script de la vue ; toujours visible sans JavaScript.
+		$html .= '<p class="yn-team__champ" data-yn-mangadex-champ><label class="yn-label" for="yn-oeuvre-mangadex">' . esc_html__( 'Lien MangaDex de la série (manga)', 'yume-core' ) . '</label>';
+		$html .= '<input type="text" inputmode="url" id="yn-oeuvre-mangadex" name="mangadex" value="' . esc_attr( $val( 'mangadex' ) ) . '" maxlength="300" autocomplete="off" spellcheck="false" placeholder="https://mangadex.org/title/…" aria-describedby="yn-oeuvre-mangadex-aide">';
+		$html .= '<span class="yn-muted" id="yn-oeuvre-mangadex-aide">' . esc_html__( 'Facultatif, pour un manga que l’équipe publie sur MangaDex : adresse de la série. Ses chapitres arrivent ensuite sur le site par la synchronisation.', 'yume-core' );
+		if ( function_exists( 'Yume\\Core\\MangaDex\\rappel_publication' ) ) {
+			$html .= ' ' . esc_html( \Yume\Core\MangaDex\rappel_publication() );
+		}
+		$html .= '</span></p>';
+	}
 
 	$html .= '<p class="yn-team__champ"><label class="yn-label" for="yn-oeuvre-alt">' . esc_html__( 'Titres alternatifs (un par ligne : titre original, titre anglais…)', 'yume-core' ) . '</label>';
 	$html .= '<textarea id="yn-oeuvre-alt" class="yn-team__court" name="titres_alt" rows="2">' . esc_textarea( implode( "\n", array_map( 'strval', (array) $s['titres_alt'] ) ) ) . '</textarea></p>';
@@ -1263,6 +1359,13 @@ function ligne_oeuvre_equipe( array $oeuvre, ?array $retour ): string {
 		: '<span class="yn-chip">' . esc_html__( 'Brouillon', 'yume-core' ) . '</span>' . pastille_titre_cache( $id );
 	if ( '' !== $oeuvre['type'] ) {
 		$html .= '<span class="yn-chip">' . esc_html( (string) $oeuvre['type'] ) . '</span>';
+	}
+	if ( mangadex_disponible() ) {
+		if ( '' !== yume_mangadex_serie( $id ) ) {
+			$html .= '<span class="yn-chip yn-chip--info">' . esc_html__( 'MangaDex', 'yume-core' ) . '</span>';
+		} elseif ( has_term( 'manga', 'yume_type', $id ) ) {
+			$html .= '<span class="yn-chip yn-chip--warn">' . esc_html__( 'Lien MangaDex manquant', 'yume-core' ) . '</span>';
+		}
 	}
 	$vo    = ligne_vo_oeuvre( $id );
 	$html .= '' !== $vo ? '<span class="yn-muted yn-tomes__date">' . esc_html( $vo ) . '</span>' : '';

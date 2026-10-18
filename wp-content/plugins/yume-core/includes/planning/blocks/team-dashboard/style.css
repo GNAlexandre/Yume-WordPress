@@ -441,6 +441,10 @@
 	min-width: 0;
 }
 
+.yn-team__champ[hidden] {
+	display: none;
+}
+
 .yn-team__champ select,
 .yn-team__champ input {
 	width: 100%;

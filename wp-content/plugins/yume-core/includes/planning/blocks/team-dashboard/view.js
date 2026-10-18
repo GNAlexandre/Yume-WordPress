@@ -11,11 +11,27 @@
  * - Lien direct vers une ligne (#yn-tome-ID) : la ligne est dépliée.
  * - Cadrage de la couverture (formulaire d'œuvre) : aperçu mis à jour par les curseurs, clic
  *   dans l'aperçu pour placer le point, aperçu de l'image choisie avant l'envoi, « Recentrer ».
+ * - Formulaire d'œuvre : le champ « Lien MangaDex » n'est affiché que pour le type « Manga »
+ *   (ou s'il est déjà rempli, pour que l'erreur reste visible).
  *
  * Sans JavaScript, les mêmes formulaires sont envoyés à admin-post.php.
  */
 ( function () {
 	'use strict';
+
+	document.querySelectorAll( '[data-yn-mangadex-champ]' ).forEach( function ( champ ) {
+		var formulaire = champ.closest( 'form' );
+		var type = formulaire ? formulaire.querySelector( 'select[name="type"]' ) : null;
+		var lien = champ.querySelector( 'input' );
+		if ( ! type || ! lien ) {
+			return;
+		}
+		function majChamp() {
+			champ.hidden = type.value !== 'manga' && lien.value.trim() === '';
+		}
+		type.addEventListener( 'change', majChamp );
+		majChamp();
+	} );
 
 	document.querySelectorAll( '[data-yn-cadrage]' ).forEach( function ( zone ) {
 		var apercu = zone.querySelector( '[data-yn-cadrage-apercu]' );

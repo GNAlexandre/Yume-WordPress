@@ -2,6 +2,66 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.0 — 2026-10-18
+
+- Yume Novel 2.3.0 : lecture sur le site des mangas que l'équipe publie sur MangaDex (groupe Yume Novel). Les pages sont relayées par le site au moment de la lecture, aucune image n'est gardée. Lecteur en défilement ou page par page, qualité économie de données (par défaut) ou originale. Une œuvre « Manga » se lie à sa série par le champ « Lien MangaDex de la série » du formulaire équipe ; la synchronisation horaire (coupée par défaut, Réglages → Mangas (MangaDex)) crée tomes et chapitres, sans annonce au premier import. Garde-fous : œuvre « Licenciée » ignorée, chapitre mis en brouillon par l'équipe jamais remis en ligne, chapitres en double ignorés, retraits massifs suspendus, simulation sans écriture. Rapport et procédures : Yume → Mangas (MangaDex), docs/mangadex.md, guide de l'équipe.
+
+## 2.3.0-dev.14 — 2026-10-17
+
+- MangaDex : garde-fou des chapitres en double (un seul chapitre par numéro, doublons au rapport)
+
+## 2.3.0-dev.13 — 2026-10-17
+
+- MangaDex, recette 2.3.0-dev.12 : tome créé au planning (« Nouveau tome », sans fichier) repris et publié par la synchronisation à son premier chapitre ; tome retiré par l'équipe laissé hors ligne (alerte) ; chapitres hors ligne mis à jour comptés à part ; textes du réglage et du guide (pas de tome ni de chapitre à créer pour un manga, « Annoncer un tome de manga au planning »)
+
+## 2.3.0-dev.12 — 2026-10-17
+
+- MangaDex, étapes 7 et 8 : guide de l'équipe (chapitre « Les mangas (MangaDex) » : lier un manga, publier, vérifier la synchronisation, retirer ; « Lire un manga »), guide en ligne, guide développeur, prototype marqué comme remplacé ; recette de bout en bout sur la vraie API
+
+## 2.3.0-dev.11 — 2026-10-17
+
+- MangaDex, étape 6 : règles — œuvre « Licenciée » ignorée par la synchronisation (rien de créé, modifié ni remis en ligne, rapport), chapitre mis en brouillon par l'équipe jamais remis en ligne, rappel « publié sur MangaDex = public tout de suite » (page Mangas, boîte de l'œuvre, formulaire équipe), procédures de retrait (docs/mangadex.md)
+
+## 2.3.0-dev.10 — 2026-10-17
+
+- CI, contrôle de rendu : code de sortie du serveur PHP et lignes du noyau affichés quand il s'arrête en cours de route (plantage sans message à diagnostiquer)
+
+## 2.3.0-dev.9 — 2026-10-17
+
+- Normes de code : alignement corrigé dans le formulaire équipe des œuvres (PHPCS)
+
+## 2.3.0-dev.8 — 2026-10-17
+
+- Formulaire équipe des œuvres : champ « Lien MangaDex de la série » pour un manga (facultatif ; adresse de série ou identifiant ; refusé pour une adresse de chapitre ou d'un autre site, un type autre que Manga ou une série déjà liée ; vidé = œuvre déliée), pastilles « MangaDex » et « Lien MangaDex manquant »
+
+## 2.3.0-dev.7 — 2026-10-16
+
+- Lecteur MangaDex (recette 2.3.0-dev.6) : cadre d'une page pas encore chargée borné à l'écran en mode page (proportion gardée), page alignée sous la barre à l'ouverture en mode page, message et lien « Lire ce chapitre sur MangaDex » quand le lecteur est coupé
+
+## 2.3.0-dev.6 — 2026-10-16
+
+- MangaDex, étape 5 : lecteur des chapitres MangaDex dans le modèle « Chapitre » (défilement par défaut ou page par page, moitié droite = page suivante quel que soit le sens, qualité économie de données ou originale avec son poids, choix gardés dans yn.manga, suivi de lecture par page, crédits et repli « Lire sur MangaDex ») ; lecteur, proxy et synchronisation activables (yume_mangadex_lecteur_pret vrai)
+
+## 2.3.0-dev.5 — 2026-10-16
+
+- Tests mangadex : heure de référence des flux simulés figée par test (relance « sans effet » instable si une seconde passait entre deux reconstructions du flux)
+
+## 2.3.0-dev.4 — 2026-10-16
+
+- MangaDex, étape 4 : proxy des pages (/?yume_mdx_image=…) limité aux chapitres publiés de la base, image relayée sans rien garder, type vérifié, cache d'un an, pause après 429/403, signalement à MangaDex après la réponse avec coupe-circuit ; fermé tant que le lecteur n'est pas livré
+
+## 2.3.0-dev.3 — 2026-10-16
+
+- MangaDex, étape 3 : synchronisation horaire des chapitres du groupe (tomes par volume, import initial sans annonce, mises à jour et retraits, garde-fous, simulation, page Yume → Mangas (MangaDex)) ; coupée tant que le lecteur n'est pas livré
+
+## 2.3.0-dev.2 — 2026-10-16
+
+- Mangas MangaDex, étape 2 : modèle de données. Une œuvre peut être liée à une série MangaDex (boîte « MangaDex » de l'œuvre, adresse ou identifiant) ; un chapitre peut être hébergé sur MangaDex (identifiant, pages, version, groupes ; informations en lecture seule dans l'administration). Un volume MangaDex devient un tome, les chapitres sans volume vont dans un tome « Chapitres ». Rien de visible pour les lecteurs.
+
+## 2.3.0-dev.1 — 2026-10-16
+
+- Mangas MangaDex, étape 1 : module mangadex, client de l'API MangaDex (chapitres en français du groupe, paginés ; serveur d'images d'un chapitre gardé 10 min ; User-Agent réel, jamais de nouvel essai après une limite) et réglage « Groupe MangaDex » (Yume Novel par défaut). Rien de visible pour les lecteurs.
+
 ## 2.2.2 — 2026-10-16
 
 - Yume Novel 2.2.2 : intégration du jeu WordEnd au site annulée avant sa mise en ligne. La page /jeu/, le bloc « Jeu WordEnd » et le lien du menu sont retirés ; l'easter egg (code Konami, papillon de SukaSuka) reste inchangé.

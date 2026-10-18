@@ -35,6 +35,19 @@ JOURNAL=${YUME_RENDU_JOURNAL:-${TMPDIR:-/tmp}/yume-rendu-$PORT.log}
 SERVEUR=$!
 trap 'kill "$SERVEUR" 2>/dev/null || true' EXIT INT TERM
 
+# Serveur PHP arrêté en cours de route (plantage sans message dans le journal) : code de sortie
+# (128 + n : signal n, 139 = SIGSEGV, 137 = SIGKILL) et dernières lignes du noyau (bibliothèque
+# en cause d'un segfault), pour diagnostiquer depuis le journal de la CI.
+diagnostic_serveur() {
+	if kill -0 "$SERVEUR" 2>/dev/null; then
+		return 0
+	fi
+	code=0
+	wait "$SERVEUR" || code=$?
+	echo "[rendu] le serveur PHP s'est arrêté (code de sortie $code)" >&2
+	{ dmesg 2>/dev/null || sudo -n dmesg 2>/dev/null || true; } | grep -iE 'php|segfault|oom|killed' | tail -n 5 >&2 || true
+}
+
 # Attend que le site réponde (première requête lente : compilation, SQLite).
 i=0
 until curl -fs -o /dev/null "$ADRESSE/"; do
@@ -42,6 +55,7 @@ until curl -fs -o /dev/null "$ADRESSE/"; do
 	if [ "$i" -ge 60 ] || ! kill -0 "$SERVEUR" 2>/dev/null; then
 		echo "[rendu] le site ne répond pas sur $ADRESSE (journal : $JOURNAL)" >&2
 		cat "$JOURNAL" >&2 || true
+		diagnostic_serveur
 		exit 2
 	fi
 	sleep 1
@@ -50,4 +64,7 @@ echo "[rendu] $ADRESSE (base « $YUME_ENV », journal du serveur : $JOURNAL)"
 
 statut=0
 node "$RACINE/tools/ci/rendu.js" --base "$ADRESSE" "$@" || statut=$?
+if [ "$statut" -ne 0 ]; then
+	diagnostic_serveur
+fi
 exit "$statut"
