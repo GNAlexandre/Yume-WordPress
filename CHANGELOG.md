@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.3.1-dev.1 — 2026-10-18
+
+- Documentation MangaDex : vérifications en production de la 2.3.0 (cache des images, stockage, sécurité), journal des décisions et des releases
+
 ## 2.3.0 — 2026-10-18
 
 - Yume Novel 2.3.0 : lecture sur le site des mangas que l'équipe publie sur MangaDex (groupe Yume Novel). Les pages sont relayées par le site au moment de la lecture, aucune image n'est gardée. Lecteur en défilement ou page par page, qualité économie de données (par défaut) ou originale. Une œuvre « Manga » se lie à sa série par le champ « Lien MangaDex de la série » du formulaire équipe ; la synchronisation horaire (coupée par défaut, Réglages → Mangas (MangaDex)) crée tomes et chapitres, sans annonce au premier import. Garde-fous : œuvre « Licenciée » ignorée, chapitre mis en brouillon par l'équipe jamais remis en ligne, chapitres en double ignorés, retraits massifs suspendus, simulation sans écriture. Rapport et procédures : Yume → Mangas (MangaDex), docs/mangadex.md, guide de l'équipe.

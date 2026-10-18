@@ -946,8 +946,13 @@ d'administration dans `includes/mangadex/synchro.php`.
   Coupe-circuit : un échec (réseau, délai, 5xx) pose le transient `yume_mdx_signalement_coupe`
   (15 min), pendant lequel rien n'est envoyé ; un succès n'écrit rien. Le point de signalement
   ne répondait pas le 16/10/2026 (522, puis délai dépassé).
-- **Non mesuré** : la mise en cache de ces réponses par WordPress.com (Batcache, cache de bord)
-  n'a pas été vérifiée ; sans elle, chaque page lue passe par PHP.
+- **Cache WordPress.com (mesuré en production le 18/10/2026, 2.3.0)** : les réponses 200 sont
+  gardées par le cache de bord d'Atomic (`x-ac: … MISS` à la 1re demande, `HIT` ensuite, environ
+  0,2 à 0,5 s au lieu de 1,8 à 2,2 s), par centre de données. Une requête avec un cookie de
+  connexion WordPress (`wordpress_logged_in_*`) contourne ce cache (`x-ac: … BYPASS`) : la page
+  passe par PHP et MangaDex, puis reste dans le cache du navigateur (un an). Les erreurs
+  (`no-store`) ne sont jamais gardées. Aucune image dans la médiathèque. Détail et commandes de
+  contrôle : `docs/mangadex.md`, « Vérifications en production ».
 
 ### Lecteur (`includes/mangadex/lecteur.php`, `assets/manga.js`, `assets/manga.css`)
 

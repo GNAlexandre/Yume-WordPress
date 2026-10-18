@@ -38,6 +38,7 @@ relevé du site). Les décisions encore ouvertes sont listées à la fin. Ce jou
 | 2026-10-17 | Lien MangaDex d'une œuvre saisi dans le formulaire équipe (« Lien MangaDex de la série »), **facultatif** pour un manga. Règles : œuvre « Licenciée » ignorée par la synchronisation ; un chapitre mis en brouillon par l'équipe n'est jamais remis en ligne ; rappel qu'un chapitre publié sur MangaDex y est public tout de suite. | Décisions d'Alexandre, `docs/mangadex.md` |
 | 2026-10-17 | Garde-fou des **chapitres en double** sur MangaDex : un seul chapitre par numéro (celui déjà en ligne, sinon le premier sorti), doublons signalés au rapport ; même numéro dans un autre volume et oneshots non concernés. | Décision d'Alexandre, `docs/mangadex.md` |
 | 2026-10-18 | Séries du groupe : **Agents of the Four Seasons** (Shunkashuutou Daikousha, licenciée chez Akata) passe à l'état « Licenciée » sur le site, donc ignorée par la synchronisation (le doublon du chapitre 4 sur MangaDex, à garder dans le volume 2, est sans objet) ; permissions d'envoi du groupe sur MangaDex (« Anyone ») laissées telles quelles. Passage en **2.3.0** pour la mise en ligne. | Décisions d'Alexandre, `CHANGELOG.md` (2.3.0) |
+| 2026-10-18 | **2.3.0 en ligne**, synchronisation MangaDex activée : Mikadono lue sur le site (37 chapitres, tomes 1 à 4 existants repris). Vérifié en production : images gardées par le cache de WordPress.com (MISS puis HIT), aucune image dans la médiathèque, relais fermé aux requêtes invalides ou étrangères. | `docs/mangadex.md` (« Vérifications en production ») |
 
 ## 2. Règle de livraison depuis le lancement
 
@@ -59,6 +60,7 @@ Détail : `docs/06-contrat-technique.md` §0 bis.
 | v2.1.4 | 2026-09-30 | Easter egg WordEnd (« Chtholly – Bats-toi contre ton destin ») | Tag reposé après quatre runs en échec ; run 11 réussi sur `77f6533` |
 | (v2.1.5-dev.9) | 2026-10-02 | Contenu de la PR #16 (publication chapitre par chapitre, états des tomes et des œuvres, guide Word) | Préversion (ignorée par les sites). Un premier tag v2.1.5 posé sur `0057124` (code en 2.1.5-dev.9) a échoué au contrôle des versions (run 12) |
 | v2.1.5 | 2026-10-02 | Publication chapitre par chapitre, états des tomes et des œuvres, guide Word de l'équipe | Commit de version 2.1.5 ; tag v2.1.5 reposé sur sa fusion dans `main` |
+| v2.3.0 | 2026-10-18 | Lecture sur le site des mangas du groupe publiés sur MangaDex (relais des images, lecteur, synchronisation, garde-fous) | Tag sur la fusion de la PR #27 (`044cca3`), posé par Alexandre |
 
 ## 4. Décisions en attente
 
