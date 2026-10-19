@@ -133,6 +133,10 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			'GET /yume/v1/statistiques/oeuvres'           => $equipe_stats,
 			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)' => $equipe_stats,
 			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)/lecteurs' => array( 'gerant', 'administrateur' ),
+
+			// L2 — discord (includes/discord/connexion.php) : retour OAuth2 de Discord, simple
+			// navigation (state + cookie + PKCE ; 404 yume_discord_inactif sans configuration).
+			'GET /yume/v1/discord/retour'                 => 'publique',
 		);
 	}
 
