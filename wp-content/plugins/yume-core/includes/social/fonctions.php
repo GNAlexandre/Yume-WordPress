@@ -738,7 +738,7 @@ function url_courante(): string {
 		$hote .= ':' . $port;
 	}
 	$url = $hote . $uri;
-	return remove_query_arg( array( 'yn-msg', 'yn-email', '_wpnonce', 'yn-identifiant', 'yn-minutes' ), $url );
+	return remove_query_arg( array( 'yn-msg', 'yn-email', '_wpnonce', 'yn-identifiant', 'yn-minutes', 'yn-discord' ), $url );
 }
 
 /**

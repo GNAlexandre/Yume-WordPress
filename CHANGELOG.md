@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.7 — 2026-10-19
+
+- Lecteurs, lot L2 : connexion avec Discord (OAuth2 + PKCE, création et liaison de compte, administrateurs exclus ; inactif tant que l'application Discord n'est pas configurée)
+
 ## 2.5.0-dev.6 — 2026-10-19
 
 - Lecteurs, lot L1 : signaler une coquille (bouton sur sélection dans le lecteur, vue équipe Corrections, Discord équipe, lecteur remercié quand c'est corrigé)

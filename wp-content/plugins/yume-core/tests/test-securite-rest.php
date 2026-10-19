@@ -145,6 +145,9 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			'GET /yume/v1/moi/recommandations'            => 'connectes',
 			// L5 — rattrapage (includes/rattrapage/rest.php) : membre connecté seulement.
 			'GET /yume/v1/moi/rattrapage'                 => 'connectes',
+			// L2 — discord (includes/discord/connexion.php) : retour OAuth2 de Discord, simple
+			// navigation (state + cookie + PKCE ; 404 yume_discord_inactif sans configuration).
+			'GET /yume/v1/discord/retour'                 => 'publique',
 		);
 	}
 
