@@ -1,0 +1,210 @@
+/*
+ * Signaler une coquille (module corrections) : bouton flottant, fenêtre <dialog>, annonce et lien
+ * de fin de chapitre. Couleurs : variables du thème (Nuit, Papier, Sépia via data-yn-theme).
+ * Sélecteurs préfixés par la classe racine (styles globaux du cœur, WordPress 6.6.0).
+ */
+
+.yn-coquilles-racine .yn-coquilles-flottant {
+	position: absolute;
+	z-index: 60;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+	text-decoration: none;
+}
+
+.yn-coquilles-racine .yn-coquilles-flottant[hidden],
+.yn-coquilles-fin[hidden] {
+	display: none;
+}
+
+/* Annonce du résultat (toast), invisible tant qu'elle est vide. */
+.yn-coquilles-racine .yn-coquilles-annonce {
+	position: fixed;
+	bottom: 32px;
+	left: 50%;
+	z-index: 70;
+	box-sizing: border-box;
+	max-width: calc(100vw - 32px);
+	margin: 0;
+	padding: 12px 18px;
+	transform: translateX(-50%);
+	border: 1px solid var(--wp--preset--color--succes);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--carte);
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	line-height: 1.4;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.yn-coquilles-racine .yn-coquilles-annonce:empty {
+	display: none;
+}
+
+/* Fenêtre modale. */
+.yn-coquilles-racine .yn-coquilles {
+	box-sizing: border-box;
+	width: min(520px, calc(100vw - 32px));
+	max-height: calc(100vh - 32px);
+	max-height: calc(100dvh - 32px);
+	margin: auto;
+	padding: 24px 26px;
+	overflow-y: auto;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: 12px;
+	background: var(--wp--preset--color--carte);
+	color: var(--wp--preset--color--texte);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	line-height: 1.5;
+}
+
+.yn-coquilles-racine .yn-coquilles::backdrop {
+	background: rgba(12, 6, 24, 0.7);
+}
+
+.yn-coquilles-racine .yn-coquilles__formulaire {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin: 0;
+}
+
+.yn-coquilles-racine .yn-coquilles__entete {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.yn-coquilles-racine .yn-coquilles__titre {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 22px;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.yn-coquilles-racine .yn-coquilles__position,
+.yn-coquilles-racine .yn-coquilles__note,
+.yn-coquilles-racine .yn-coquilles__aide {
+	margin: 0;
+	font-size: 13px;
+}
+
+.yn-coquilles-racine .yn-coquilles__bloc[hidden] {
+	display: none;
+}
+
+.yn-coquilles-racine .yn-coquilles__bloc,
+.yn-coquilles-racine .yn-coquilles__champ {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+}
+
+.yn-coquilles-racine .yn-coquilles__label {
+	margin: 0;
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-coquilles-racine .yn-coquilles__passage {
+	margin: 0;
+	padding: 10px 14px;
+	border: 0;
+	border-radius: var(--yn-radius, 6px);
+	background: var(--wp--preset--color--bande);
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--lecture);
+	font-size: 16px;
+	font-style: normal;
+	overflow-wrap: anywhere;
+}
+
+.yn-coquilles-racine .yn-coquilles__champ textarea,
+.yn-coquilles-racine .yn-coquilles__champ input {
+	box-sizing: border-box;
+	width: 100%;
+	font-family: inherit;
+	font-size: 15px;
+}
+
+.yn-coquilles-racine .yn-coquilles__champ--court input {
+	width: 8em;
+}
+
+.yn-coquilles-racine .yn-coquilles__champ textarea {
+	min-height: 64px;
+	resize: vertical;
+}
+
+.yn-coquilles-racine .yn-coquilles__erreur {
+	margin: 0;
+	color: var(--wp--preset--color--erreur);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.yn-coquilles-racine .yn-coquilles__erreur:empty {
+	display: none;
+}
+
+.yn-coquilles-racine .yn-coquilles__actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+/* Pot de miel (mode anonyme) : hors écran. */
+.yn-coquilles-racine .yn-coquilles__piege {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
+/* Lien de fin de chapitre. */
+.yn-reader .yn-coquilles-fin {
+	margin: 14px 0 0;
+	font-size: 13px;
+}
+
+.yn-reader .yn-coquilles-fin .yn-coquilles-fin__bouton {
+	display: inline;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--wp--preset--color--accent);
+	font: inherit;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+
+.yn-reader .yn-coquilles-fin .yn-coquilles-fin__bouton:hover {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.yn-coquilles-racine .yn-coquilles-annonce {
+		animation: yn-coquilles-apparition 0.2s ease-out;
+	}
+}
+
+@keyframes yn-coquilles-apparition {
+
+	from {
+		opacity: 0;
+		transform: translate(-50%, 8px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translate(-50%, 0);
+	}
+}

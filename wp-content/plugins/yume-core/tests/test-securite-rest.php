@@ -133,6 +133,10 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			'GET /yume/v1/statistiques/oeuvres'           => $equipe_stats,
 			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)' => $equipe_stats,
 			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)/lecteurs' => array( 'gerant', 'administrateur' ),
+
+			// L1 — corrections (includes/corrections/rest.php) : signaler une coquille, comptes
+			// connectés (le mode anonyme, réglage coquilles_anonymes, est désactivé par défaut).
+			'POST /yume/v1/chapitres/(?P<chapitre>\d+)/coquilles' => 'connectes',
 		);
 	}
 
