@@ -117,10 +117,13 @@ function sections_reglages(): array {
 /**
  * Champs de la page de réglages (contrat §6 + filtre yume_reglages_champs).
  *
- * Chaque champ : key, label, type (text|url|number|checkbox|select|media|textarea|checkboxes),
+ * Chaque champ : key, label, type (text|url|number|checkbox|select|media|textarea|checkboxes|secret),
  * section, options (select, checkboxes : valeur => libellé), description, et facultativement
  * default, min, max, step, placeholder, sanitize (callable), capability (capacité exigée en plus
  * de yume_reglages pour voir et modifier le champ), verrouille (message : champ non modifiable).
+ *
+ * Type secret (clé d'API, secret OAuth) : jamais réaffiché (champ mot de passe vide), une saisie
+ * vide conserve la valeur enregistrée (assainir_champ()), verrouillé sans montrer la valeur.
  *
  * @return array<int,array<string,mixed>>
  */
@@ -289,7 +292,7 @@ function champs_reglages(): array {
 	 */
 	$champs = (array) apply_filters( 'yume_reglages_champs', $champs );
 
-	$types  = array( 'text', 'url', 'number', 'checkbox', 'select', 'media', 'textarea', 'checkboxes', 'partenaires' );
+	$types  = array( 'text', 'url', 'number', 'checkbox', 'select', 'media', 'textarea', 'checkboxes', 'partenaires', 'secret' );
 	$propre = array();
 	$vues   = array();
 	foreach ( $champs as $champ ) {
@@ -328,6 +331,10 @@ function champs_reglages(): array {
  * @return mixed
  */
 function assainir_champ( array $champ, $valeur, $defaut ) {
+	if ( 'secret' === $champ['type'] && ( ! is_scalar( $valeur ) || '' === trim( (string) $valeur ) ) ) {
+		// Secret : le champ n'est jamais prérempli, une saisie vide conserve la valeur enregistrée.
+		return is_scalar( $defaut ) ? (string) $defaut : '';
+	}
 	if ( ! empty( $champ['sanitize'] ) && is_callable( $champ['sanitize'] ) ) {
 		return call_user_func( $champ['sanitize'], $valeur, $champ );
 	}
@@ -365,6 +372,8 @@ function assainir_champ( array $champ, $valeur, $defaut ) {
 			return san_texte_long( $valeur );
 		case 'partenaires':
 			return assainir_partenaires( $valeur );
+		case 'secret':
+			return trim( san_texte( $valeur ) );
 		default:
 			return san_texte( $valeur );
 	}
@@ -507,12 +516,14 @@ function afficher_champ( array $args ): void {
 	$desc   = (string) ( $champ['description'] ?? '' );
 	$aide   = '' !== $desc ? ' aria-describedby="' . esc_attr( $id . '-aide' ) . '"' : '';
 	if ( ! champ_modifiable( $champ ) ) {
-		// Champ verrouillé : valeur affichée en lecture seule (jamais envoyée par le formulaire).
+		// Champ verrouillé : valeur affichée en lecture seule (jamais envoyée par le formulaire) ;
+		// un secret n'est jamais affiché.
 		$verrou = (string) ( $champ['verrouille'] ?? '' );
 		printf(
-			'<input type="text" id="%1$s" value="%2$s" class="regular-text" disabled%3$s />',
+			'<input type="%1$s" id="%2$s" value="%3$s" class="regular-text" disabled%4$s />',
+			'secret' === $champ['type'] ? 'password' : 'text',
 			esc_attr( $id ),
-			esc_attr( is_scalar( $valeur ) ? (string) $valeur : '' ),
+			esc_attr( 'secret' !== $champ['type'] && is_scalar( $valeur ) ? (string) $valeur : '' ),
 			$aide // phpcs:ignore WordPress.Security.EscapeOutput
 		);
 		$desc = trim( $desc . ' ' . $verrou );
@@ -562,6 +573,17 @@ function afficher_champ( array $args ): void {
 		case 'partenaires':
 			champ_partenaires( $id, $nom, $valeur, (string) $champ['label'], '' !== $desc ? $id . '-aide' : '' );
 			break;
+		case 'secret':
+			// Jamais réaffiché : champ vide, la valeur enregistrée est seulement signalée.
+			$desc = trim( $desc . ' ' . aide_secret( $valeur ) );
+			$aide = ' aria-describedby="' . esc_attr( $id . '-aide' ) . '"';
+			printf(
+				'<input type="password" id="%1$s" name="%2$s" value="" class="regular-text" autocomplete="new-password" spellcheck="false"%3$s />',
+				esc_attr( $id ),
+				esc_attr( $nom ),
+				$aide // phpcs:ignore WordPress.Security.EscapeOutput
+			);
+			break;
 		case 'number':
 			printf(
 				'<input type="number" id="%1$s" name="%2$s" value="%3$s" class="small-text"%4$s%5$s%6$s%7$s />',
@@ -588,6 +610,17 @@ function afficher_champ( array $args ): void {
 	if ( '' !== $desc ) {
 		printf( '<p class="description" id="%1$s">%2$s</p>', esc_attr( $id . '-aide' ), esc_html( $desc ) );
 	}
+}
+
+/**
+ * Aide d'un champ secret : valeur enregistrée ou non (jamais la valeur elle-même) et consigne.
+ *
+ * @param mixed $valeur Valeur enregistrée.
+ */
+function aide_secret( $valeur ): string {
+	$defini = is_scalar( $valeur ) && '' !== (string) $valeur;
+	return ( $defini ? __( 'Une valeur est enregistrée.', 'yume-core' ) : __( 'Aucune valeur enregistrée.', 'yume-core' ) )
+		. ' ' . __( 'Laisser vide pour conserver la valeur enregistrée.', 'yume-core' );
 }
 
 /**

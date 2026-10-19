@@ -59,10 +59,22 @@ Historique des Go et des releases : `journal-des-decisions.md`.
 | `includes/mangadex/`, `tests/test-mangadex.php`, `tools/mangadex-prototype/` | **mangadex** (lecture des mangas publiés par l'équipe sur MangaDex : client de l'API, puis synchronisation, proxy d'images et lecteur ; aucune image gardée par le site) |
 | `includes/wordend/`, `tests/test-wordend.php`, `tools/wordend/` | **wordend** (easter egg SukaSuka : mini-jeu 2D, planches de Chtholly et du Timere) |
 | `includes/statistiques/`, `tests/test-statistiques*.php` | **statistiques** (vue « Statistiques » de l'espace équipe : trafic Jetpack, compteurs par œuvre, historique quotidien, listes nominatives des favoris, exports CSV ; §8 ter) |
+| `includes/corrections/`, `tests/test-corrections.php` | **corrections** (lot L1 : signalement des coquilles par les lecteurs, file `?vue=corrections` de l'espace équipe ; §8 quater) |
+| `includes/discord/`, `tests/test-discord.php` | **discord** (lot L2 : connexion et création de compte avec Discord, liaison depuis Mon compte ; §8 quinquies) |
+| `includes/recommandations/`, `tests/test-recommandations.php` | **recommandations** (lot L3 : « Si vous avez aimé… » sur la fiche d'une œuvre et rubrique « Pour vous » ; §8 sexies) |
+| `includes/rattrapage/`, `tests/test-rattrapage.php` | **rattrapage** (lot L5 : « Nouveaux chapitres depuis votre dernière lecture », accueil et Mon compte ; §8 sexies) |
 | `wp-content/themes/yume/` | **thème** |
 
 Chaque module range ses fichiers statiques dans `includes/<module>/assets/` et ses blocs dans
 `includes/<module>/blocks/<nom>/`.
+
+Chantier « lecteurs » (2.5.0) : les quatre modules `corrections`, `discord`, `recommandations`,
+`rattrapage` sont déclarés dans `YUME_CORE_MODULES` dès le lot 0, après `statistiques` (espaces de
+noms `Yume\Core\Corrections`, `Yume\Core\Discord`, `Yume\Core\Recommandations`,
+`Yume\Core\Rattrapage`) ; jusqu'à la livraison de leur lot, leur `module.php` ne charge rien. Ils
+n'appellent les autres modules (`Social\*`, `Reader\*`, `Planning\*`, `Library\*`) que dans des
+callbacks, gardés par `function_exists`. Le socle des comptes (`includes/social/creation-compte.php`,
+§7 « Comptes lecteurs ») et les points d'extension de la page compte appartiennent au module social.
 
 ## 2. Hooks du socle
 
@@ -388,11 +400,31 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `recrutement_consigne` | ticket dans le salon « tickets » du Discord | planning : texte au-dessus du bouton « Postuler sur le Discord » (lien : `discord_invite`) |
 | `mangadex_groupe` | `4bbecb8b-41bb-48a8-8ddb-0c9243e4c344` (groupe Yume Novel) | mangadex : groupe dont le site lit les chapitres en français (section « Mangas (MangaDex) » ajoutée par `yume_reglages_sections` ; identifiant ou adresse https://mangadex.org/group/…, une saisie invalide revient au défaut) |
 | `mangadex_synchro` | `false` | mangadex : synchronisation horaire des chapitres du groupe (§8 bis) ; coupée aussi quand le lecteur l'est (`yume_mangadex_lecteur_pret`, vrai depuis 2.3.0) ; filtre final `yume_mangadex_synchro_active` |
+| `coquilles_actives` | `true` | corrections (lot L1) : signalement des coquilles ouvert (section « Lecteurs » `lecteurs`, ajoutée par L1 via `yume_reglages_sections` ; filtre final `yume_coquilles_actives`) |
+| `coquilles_anonymes` | `false` | corrections : signalement sans compte (jeton horodaté + pot de miel, 5 par heure et par IP) |
+| `coquilles_discord` | `true` | corrections : message Discord au canal `equipe` à chaque signalement (étouffé, §8 quater ; filtre `yume_coquilles_discord`) |
+| `discord_connexion` | `false` | discord (lot L2) : bouton « Se connecter avec Discord » (section « Connexion Discord » `discord_connexion`, ajoutée par L2) |
+| `discord_inscription` | `true` | discord : création d'un compte au premier passage (sous réserve de `inscriptions_ouvertes()`) |
+| `discord_client_id` | `''` | discord : *Client ID* de l'application Discord (type `text`, verrouillé par la constante `YUME_DISCORD_CLIENT_ID`) |
+| `discord_client_secret` | `''` | discord : *Client Secret* (type **`secret`** ; verrouillé et ignoré si la constante `YUME_DISCORD_CLIENT_SECRET` existe — recommandé : constante dans `wp-config.php`, le réglage n'est qu'un repli) |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
-`yume_reglages_champs` (types en plus : `checkboxes` ; clés facultatives `default`, `min`, `max`,
+`yume_reglages_champs` (types en plus : `checkboxes`, `secret` ; clés facultatives `default`, `min`, `max`,
 `step`, `placeholder`, `sanitize`) et des sections via `yume_reglages_sections` (tableau de `array( 'key', 'label', 'type' => text|url|number|checkbox|select|media|textarea, 'section', 'options', 'description' )`).
+
+**Type de champ `secret`** (depuis 2.5.0, lot 0) : pour une clé d'API ou un secret OAuth. Affiché
+`<input type="password" value="" autocomplete="new-password">` avec l'aide « Une valeur est
+enregistrée. / Aucune valeur enregistrée. Laisser vide pour conserver la valeur enregistrée. »
+(`Core\aide_secret()`) dans *Yume → Réglages* et dans la vue « Réglages » de l'espace équipe
+(`Planning\champ_reglage_equipe()`) ; la valeur n'est **jamais réaffichée**. Assainissement
+(`assainir_champ()`) : saisie vide (ou espaces, ou non scalaire) → valeur enregistrée conservée, avant
+même un callback `sanitize` ; sinon texte (`san_texte()`, espaces de début et de fin retirées). Champ
+`verrouille` : champ mot de passe désactivé, vide, avec le message du verrou (« Défini par la
+constante … »), jamais la valeur. L'option `yume_reglages` n'est pas exposée en REST
+(`show_in_rest` faux) ; un secret se lit par `yume_setting()` côté serveur seulement et ne doit
+jamais être écrit dans une page, un attribut `data-*`, une réponse REST ou un journal. Aucun moyen
+d'effacer un secret depuis le formulaire : passer par une constante ou par programme.
 
 `partenaires` (section *Partenaires*, type de champ `partenaires`) : liste ordonnée d'au plus 8
 (`MAX_PARTENAIRES`) `{nom, url, description, logo: int (pièce jointe) | string (URL http(s)) | '',
@@ -449,7 +481,12 @@ sur `admin_menu` priorité ≥ 20.
   Tests *Outils → Santé du site* (`site_status_tests`, directs) : `yume_taches_cron` (critique si
   rappels, récapitulatif ou envoi non programmés, recommandé si une tâche a plus d'une heure de
   retard), `yume_emails` (abandon depuis 7 jours ou attente de plus d'une heure), `yume_webhooks`
-  (canal non configuré), `yume_version` (release plus récente connue).
+  (canal non configuré), `yume_version` (release plus récente connue), `yume_inscriptions`
+  (depuis 2.5.0 : « recommandé » quand `Social\inscriptions_ouvertes()` est faux — réglage
+  WordPress `users_can_register`, seule source de vérité, et filtre `yume_inscriptions_ouvertes` ;
+  « Les inscriptions des lecteurs sont fermées (Réglages → Général) : le formulaire « Créer un
+  compte » et la connexion Discord ne créent aucun compte. » ; `Core\test_sante_inscriptions()`,
+  `Core\inscriptions_lecteurs_ouvertes()`). La vue `?vue=sante` ne reprend pas ces tests.
 
 ## 6 ter. Sécurité (module core, `includes/core/securite.php` ; module updater, `integrite.php`)
 
@@ -631,6 +668,97 @@ yume_get_abonnes( int $oeuvre_id, string $frequence = 'immediat' ): array; // us
 yume_get_note( int $user_id, int $oeuvre_id ): int;                        // 0 si aucune
 ```
 
+**social — comptes lecteurs** (`includes/social/creation-compte.php`, espace de noms
+`Yume\Core\Social`, depuis 2.5.0, lot 0 du chantier « lecteurs ») : **tout** compte lecteur créé hors
+de wp-admin (inscription en façade, Discord, équipe) passe par `creer_compte_lecteur()`.
+
+```php
+creer_compte_lecteur( array $donnees ): int|\WP_Error;
+//  $donnees : pseudo (obligatoire), email (obligatoire), identifiant ('' = generer_identifiant()),
+//             mot_de_passe ('' = aléatoire, inconnu du titulaire), source ('inscription' (défaut) | 'discord' | 'equipe' ;
+//             autre valeur → 'inscription'), notifier (bool, défaut vrai), meta (array clé => valeur, posées à la création)
+//  erreurs (code, statut) : yume_inscriptions_fermees (403 ; sources inscription et discord si ! inscriptions_ouvertes()),
+//             yume_pseudo_invalide (400), yume_pseudo_pris (409), yume_email_invalide (400), yume_email_pris (409),
+//             yume_identifiant_invalide (400 : validate_username() faux, plus de 60 caractères, identifiant interdit),
+//             yume_identifiant_pris (409), yume_creation_echec (500 ; WP_Error de wp_insert_user() en donnée 'erreur')
+valider_pseudo( string $pseudo, int $user_id = 0 ): true|\WP_Error;   // yume_pseudo_invalide (donnée 'raison') | yume_pseudo_pris
+generer_identifiant(): string;                                       // 'yn-' . 8 caractères [a-z0-9], libre (username_exists et pseudo_pris)
+pseudo_pris( string $pseudo, int $user_id = 0 ): bool;               // display_name OU user_login d'un autre compte, casse ignorée
+compte_sans_mot_de_passe( int $user_id ): bool;                      // méta _yume_compte_sans_mdp (META_COMPTE_SANS_MDP)
+pseudos_reserves(): array;                                           // filtre yume_pseudos_reserves
+```
+
+- **Création** : `wp_insert_user()` (jamais `register_new_user()` : ni `registration_errors` ni l'action
+  `register_new_user` ; les protections anti-abus — pot de miel, jeton horodaté, limites par IP — restent
+  à la charge de l'appelant), rôle `subscriber`, `display_name` = `nickname` = pseudo (espaces de début
+  et de fin retirées), `meta_input` = `meta`. Mot de passe aléatoire : méta `default_password_nag`
+  comme `register_new_user()`. Contrôles dans l'ordre : inscriptions, pseudo, e-mail, identifiant.
+- **E-mails** : `wp_send_new_user_notifications( $id, notifier ? 'both' : 'admin' )` ; l'e-mail à
+  l'administrateur suit toujours le filtre `yume_notifier_admin_inscription( bool $notifier = false,
+  int $user_id, string $source )` (deux arguments ajoutés en 2.5.0, compatibles).
+- **Action** `yume_lecteur_inscrit( int $user_id, string $source )` (2ᵉ argument ajouté en 2.5.0,
+  compatible) émise en dernier, rôle, métas et e-mails en place.
+- **`valider_pseudo()`** (pseudo comparé après `trim`) : `raison` = `vide` (rien ou que des espaces),
+  `longueur` (2 à 40 caractères, `mb_strlen`), `balise` (balise HTML, `<`, `>` ou caractère de contrôle,
+  tabulation comprise), `email` (contient `@` ou `is_email()`), `reserve` (égal, une fois réduit par
+  `forme_pseudo()` — minuscules, sans accents, espaces, points, tirets et tirets bas confondus — à un
+  pseudo de `pseudos_reserves()` : `admin`, `administrateur`, `yume`, `yume novel`, `équipe`, filtre
+  `yume_pseudos_reserves`) ; puis `pseudo_pris( $pseudo, $user_id )` → `yume_pseudo_pris`. Un pseudo ne peut
+  donc pas reprendre l'identifiant d'un ancien compte.
+- **Inscription en façade** (`Social\traiter_inscription()`, inchangée pour le visiteur jusqu'au lot
+  L6) : pseudo `sanitize_user( …, true )` de 3 à 40 caractères, puis `creer_compte_lecteur( [ 'pseudo' =>
+  $pseudo, 'email' => $email, 'identifiant' => $pseudo, 'source' => 'inscription' ] )` ; codes traduits
+  en `yn-msg` : `yume_inscriptions_fermees` → `inscriptions-fermees`, `yume_pseudo_invalide` et
+  `yume_identifiant_invalide` → `pseudo-invalide`, `yume_pseudo_pris` et `yume_identifiant_pris` →
+  `pseudo-pris`, `yume_email_invalide` → `email-invalide`, `yume_email_pris` → réponse neutre
+  `inscription-ok` + `prevenir_adresse_prise()`, autre → `inscription-refusee`. Comme `valider_pseudo()`
+  s'applique, un pseudo égal au nom affiché d'un autre compte, contenant `@` ou réservé est désormais
+  refusé à l'inscription.
+- **`_yume_compte_sans_mdp`** : posée par l'appelant (`meta`) pour un compte dont le titulaire ne
+  connaît pas de mot de passe (Discord) ; retirée par le lot L6 (`comptes.php`) sur
+  `after_password_reset`, `wp_set_password` et `profile_update` avec changement de mot de passe.
+
+**social — page compte** (`includes/social/compte.php`) : points d'extension du bloc `yume/account`.
+
+```php
+apply_filters( 'yume_compte_rubriques', array $rubriques /* ancre => libellé, dans l'ordre */, int $user_id );
+apply_filters( 'yume_compte_sections_html', array $sections /* ancre => HTML, dans l'ordre */, \WP_User $user );
+apply_filters( 'yume_compte_html_connexion_extra', string $html /* '' */, string $demandee );  // après formulaire_connexion(), avant « Mot de passe oublié ? »
+apply_filters( 'yume_compte_html_inscription_extra', string $html /* '' */, string $ici );    // sous le formulaire d'inscription, ou sous « Les inscriptions sont fermées »
+```
+
+- Ancres existantes, dans l'ordre : `yn-lecture`, `yn-stats`, `yn-favoris`, `yn-listes`,
+  `yn-notifications`, `yn-notes`, `yn-reglages`, `yn-alertes`, `yn-profil`, `yn-profil-public`
+  (équipe seulement : rubrique ajoutée par `rubriques_profil_public()` avant le filtre, section vide
+  sinon), `yn-donnees`. Un module insère sa rubrique **et** sa section **après une ancre connue** (même
+  ancre dans les deux filtres), en reconstruisant le tableau dans l'ordre ; à défaut d'ancre trouvée, il
+  l'ajoute à la fin. Ancres prévues : `yn-rattrapage` (L5, « À rattraper », après `yn-lecture`),
+  `yn-pour-vous` (L3, « Pour vous ») ; L2 ajoute la rubrique « Connexion Discord ».
+- Une section commence par `Social\debut_section( $ancre, $titre, $aide = '' )` (`<section
+  class="yn-account__panneau" id data-yn-panneau tabindex="-1">` + `h2`) et se ferme par `</section>` ;
+  les onglets (`view.js`) suivent `data-yn-onglet` / `data-yn-panneau` : aucun JavaScript propre au module.
+  `Social\sections_compte( \WP_User $user, array $favoris ): array` construit le tableau et applique le
+  filtre (valeurs non chaînes ignorées) ; les rubriques dont l'ancre ou le libellé n'est pas une chaîne
+  sont ignorées.
+- Les filtres HTML visiteur renvoient du HTML **déjà échappé** par le module ; `$demandee` = `redirect_to`
+  validé (`wp_validate_redirect`) ou `''`, `$ici` = `url_courante()`.
+
+**social — RGPD** (`includes/social/rgpd.php`) :
+
+```php
+apply_filters( 'yume_donnees_personnelles', array $donnees, int $user_id );  // fin de donnees_personnelles() : export JSON GET /moi/export
+do_action( 'yume_effacer_donnees', int $user_id );                            // fin de effacer_donnees(), après les suppressions du module social
+```
+
+Un module **ajoute** sa clé à l'export (jamais de secret ni de jeton ; clés réservées :
+`signalements_coquilles` L1, `discord` L2) sans modifier les clés existantes (l'exportateur WordPress
+`yume-core-lecteur` les lit) ; une valeur filtrée non tableau est ignorée. `yume_effacer_donnees` est
+émise par `effacer_donnees()` (jamais pour `$user_id` ≤ 0), donc par l'effaceur WordPress
+`yume-core-lecteur` et par `supprimer_compte()` (après `yume_compte_suppression( $user_id )` et
+l'anonymisation des commentaires, avant `wp_delete_user()` qui émet `deleted_user`). Un module garde en
+plus ses propres exportateur et effaceur WordPress (`yume-core-coquilles`, `yume-core-discord`) et
+écoute `deleted_user` pour une suppression faite dans wp-admin.
+
 **import** : `Yume\Core\Import\Docx_Converter::convert_file( string $path, array $options = array() ): Yume\Core\Import\Result`
 et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces classes n'utilisent
 **aucune** fonction WordPress (réutilisées par l'outil en ligne de commande). Voir §9.
@@ -646,6 +774,12 @@ et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces 
 | `yume_tome_complet` | `int $tome_id, bool $annoncer` | publication (`Service::marquer_complet()` : case « Le tome est complet », tout de suite ou à la sortie du dernier chapitre programmé ; seulement pour un tome en ligne qui n'était pas complet) | planning (`appliquer_sortie()` : étape `publie`, 100 %, journal `publie` complet ; Discord « … est complet : PDF et EPUB disponibles » si `$annoncer`) |
 | `yume_planning_pause` | `int $tome_id, bool $pause, int $user_id` | planning (`basculer_pause()`) | planning (vide le cache ICS `yume_planning_ics` et les indicateurs `yume_kpi_*`, comme `yume_planning_mis_a_jour`, qui n'est pas émise : ses écouteurs attendent des changements de champs, la pause n'en est pas un) |
 | `yume_commentaire_signale` | `int $comment_id, int $user_id, int $actifs, bool $attente` | social (`signaler_commentaire()`) | — |
+| `yume_lecteur_inscrit` | `int $user_id, string $source` (`inscription`, `discord`, `equipe` ; 2ᵉ argument depuis 2.5.0) | social (`creer_compte_lecteur()`, §7 « Comptes lecteurs ») | — |
+| `yume_compte_suppression` | `int $user_id` | social (`supprimer_compte()`, données encore présentes) | modules qui gardent des données liées au compte |
+| `yume_effacer_donnees` | `int $user_id` | social (`effacer_donnees()` : effaceur WordPress, suppression du compte ; depuis 2.5.0) | corrections (anonymisation), discord (métas) |
+| `yume_coquille_signalee` | `int $id, int $chapitre_id, int $user_id` | corrections (`signaler_coquille()`, §8 quater) | corrections (Discord équipe) |
+| `yume_coquille_traitee` | `int $id, string $statut, int $user_id` | corrections (`changer_statut()`) | corrections (notification du lecteur à « corrigé ») |
+| `yume_discord_lie` / `yume_discord_delie` / `yume_discord_compte_cree` | `int $user_id, string $discord_id` / `int $user_id` / `int $user_id` | discord (§8 quinquies) | — |
 
 Filtres du lot planning/modération : `yume_rappels_plafond` (int, semaines de retard au-delà
 desquelles un tome ne reçoit plus de rappel, défaut 8, 0 = sans plafond : il reste dans le
@@ -1071,6 +1205,240 @@ persistant est actif) ; transients `yume_stats_*`. Filtres : `yume_statistiques_
 `yume_statistiques_vue_donnees`. Désinstallation : table `stats_jour` dans `uninstall.php`, options
 et transients `yume_*` déjà couverts.
 
+## 8 quater. Corrections : coquilles signalées par les lecteurs (module corrections, lot L1, 2.5.0)
+
+Contrat figé par le lot 0 ; implémentation : lot L1 (`includes/corrections/{module,fonctions,install,
+rest,lecteur,equipe,notifications,rgpd}.php`, `assets/{coquilles.js,coquilles.css,corrections.css}`,
+`tests/test-corrections.php` ; `uninstall.php` reçoit la table `coquilles`). Espace de noms
+`Yume\Core\Corrections`.
+
+**Lecteur** : chapitres texte publiés d'un tome et d'une œuvre publiés (jamais MangaDex :
+`yume_mangadex_chapitre()` non nul ; jamais la page Illustrations ; pas de mot de passe). Sélection de
+3 à 300 caractères (espaces normalisées) dans `.yn-reader__texte` → bouton flottant « Signaler une
+coquille » ; lien clavier « Signaler une coquille dans ce chapitre » après `yume/chapter-nav` (filtre
+`render_block_yume/chapter-nav`, aucune modification du gabarit). `<dialog>` modal : passage (lecture
+seule), « Paragraphe N », commentaire facultatif (500 caractères), « Envoyer » / « Annuler » ; envoi
+`POST /yume/v1/chapitres/{id}/coquilles` (`X-WP-Nonce`) ; « Merci ! L'équipe a reçu votre
+signalement. », doublon : « Vous avez déjà signalé ce passage. ». Visiteur : le bouton mène à la
+connexion (`url_connexion( permalien#yn-p-N )`). Sans JavaScript : rien. Script `yume-coquilles`
+(`wp_enqueue_scripts` si `Reader\page_de_lecture()` et chapitre signalable, `in_footer`, sans
+dépendance) ; numérotation identique au lecteur et à la recherche (§9 : enfant direct de
+`.wp-block-post-content` hors script/style, `closest('.wp-block-post-content > *')`, ou
+`data-yn-paragraphe` s'il est présent ; ancre `#yn-p-N`, N = index + 1) ; dialogue imprimé sur
+`wp_footer` avec `data-yn-coquilles='{"rest":…,"nonce":…,"chapitre":…,"connexion":…}'`.
+
+**Données** (table `coquilles`, §13) : chapitre, tome, œuvre (dénormalisés), `paragraphe` (index 0),
+`extrait` (≤ 300), `contexte` (texte du paragraphe, ≤ 600), `empreinte` (md5 du texte normalisé du
+paragraphe : badge « Paragraphe modifié depuis » quand l'empreinte actuelle diffère ; aucune clôture
+automatique), `commentaire` (≤ 500, `sanitize_textarea_field`, URL retirées sauf filtre
+`yume_coquilles_liens`), `user_id`, `statut` `nouveau | corrige | rejete`, `ip_hash` (HMAC, mode anonyme
+seulement, 30 jours), `cree_le`, `traite_le`, `traite_par`.
+
+**Anti-abus** : connecté par défaut ; 20 signalements par heure et par compte
+(`Social\limite_atteinte( 'coquille', 20, HOUR_IN_SECONDS, 'u'.$id )`, filtre `yume_coquilles_debit`) ;
+un signalement « nouveau » par (compte, chapitre, paragraphe) → 409 ; 200 « nouveau » au plus par
+chapitre → 429 `yume_coquilles_chapitre_sature` ; mode anonyme (`coquilles_anonymes`) : jeton horodaté et
+pot de miel (`Social\jeton_formulaire()` / `verifier_jeton()` via `function_exists`), 5 par heure et par IP.
+
+**Équipe** : vue `?vue=corrections` (`yume_vues_equipe` : clé `corrections`, groupe `catalogue`, capacité
+`yume_voir_equipe`, libellé « Corrections (N) », N = nouveaux) ; actions réservées à `edit_post` sur le
+chapitre (traducteurs et relecteurs lisent seulement : « Seul un éditeur peut traiter ce
+signalement »). Filtres GET `oeuvre`, `tome`, `statut` (`nouveau` défaut | `corrige` | `rejete` |
+`tous`), `pg` (50 par page) ; nouveaux groupés par chapitre ; par signalement : « Œuvre › Tome ›
+Chapitre », « ¶ N », extrait en `<mark>` dans son contexte, commentaire, pseudo et date, pastille
+« Paragraphe modifié depuis », « Voir le paragraphe » (`permalien#yn-p-N`, nouvel onglet), « Corriger dans
+l'éditeur » (`get_edit_post_link`, si `edit_post`), boutons Corrigé / Rejeté / Rouvrir. Admin-post
+`yume_correction` (champs `coquille`, `op` = `corrige|rejete|rouvrir`, nonce `yume_correction_{id}`) et
+`yume_correction_chapitre` (`chapitre`, `op`, nonce `yume_correction_chapitre_{chapitre}`), retour par
+`Planning\retour_formulaire()` / `rediriger_retour()` (cible `yn-corrections-retour`).
+
+**Notification** : Discord canal `equipe` immédiat (« Coquille signalée — **{Œuvre}** · {Tome} ·
+{Chapitre}, ¶ {N} : « {extrait} » — par {pseudo} → {lien vue} »), un message par chapitre et par
+10 minutes au plus (transient ; le suivant dit « +N autres signalements ») ; réglage
+`coquilles_discord`, filtre `yume_coquilles_discord`. Pas d'e-mail. À « Corrigé », notification
+lecteur (cloche, type `coquille`) « Votre signalement sur {Chapitre} a été corrigé, merci ! » via
+`Social\creer_notifications()` si elle existe.
+
+**RGPD** : export `/moi/export` clé `signalements_coquilles` (filtre `yume_donnees_personnelles`),
+exportateur WordPress `yume-core-coquilles` ; suppression du compte (`yume_effacer_donnees`,
+`deleted_user`, effaceur WordPress) → `user_id` mis à 0 ; purge quotidienne des signalements traités
+depuis plus de 180 jours (cron `yume_corrections_purge`, libellé « Purge des signalements de coquilles
+traités (180 jours) » par `yume_taches_cron`, retiré sur `yume_core_deactivate` ; filtre
+`yume_coquilles_retention`) ; chapitre supprimé définitivement → ses signalements aussi. Option de
+schéma `yume_corrections_schema` (`'1'`), `verifier_schema()` sur `init` 98.
+
+```php
+const STATUTS = array( 'nouveau', 'corrige', 'rejete' );
+function table_coquilles(): string;
+function coquilles_actives(): bool;                 // réglage coquilles_actives && filtre yume_coquilles_actives
+function chapitre_signalable( int $chapitre_id ): bool;   // publié, œuvre et tome publiés, pas MangaDex, pas de mot de passe
+function signaler_coquille( int $chapitre_id, int $user_id, array $donnees ): array|\WP_Error;  // {id, message} ; donnees : paragraphe, extrait, contexte, commentaire, ip_hash
+function empreinte_paragraphe( string $texte ): string;    // md5 du texte normalisé (balises retirées, espaces réduites, apostrophes unifiées)
+function texte_paragraphe( int $chapitre_id, int $index ): string;  // texte du i-ème bloc de premier niveau (numérotation du lecteur et de la recherche), '' sinon
+function lister_coquilles( array $args ): array;    // {lignes: array, total: int} ; args : statut ('nouveau'|'corrige'|'rejete'|'tous'), oeuvre, tome, chapitre, user_id, page, limite (50)
+function compter_nouvelles( int $oeuvre_id = 0 ): int;
+function changer_statut( int $id, string $statut, int $user_id ): true|\WP_Error;   // exige edit_post du chapitre ; action yume_coquille_traitee
+function traiter_chapitre( int $chapitre_id, string $statut, int $user_id ): int;
+function anonymiser_coquilles( int $user_id ): int;        // user_id → 0 (RGPD)
+function purger_coquilles( int $jours = 180 ): int;
+```
+
+Actions `yume_coquille_signalee( int $id, int $chapitre_id, int $user_id )`, `yume_coquille_traitee(
+int $id, string $statut, int $user_id )` ; filtres `yume_coquilles_actives`, `yume_coquilles_debit` (20),
+`yume_coquilles_retention` (180), `yume_coquilles_discord` (bool), `yume_coquilles_liens` (faux).
+
+## 8 quinquies. Connexion avec Discord (module discord, lot L2, 2.5.0)
+
+Contrat figé par le lot 0 ; implémentation : lot L2 (`includes/discord/{module,fonctions,client,
+connexion,compte,reglages,rgpd}.php`, `assets/discord.css`, `tests/test-discord.php`). Espace de noms
+`Yume\Core\Discord`. Aucune dépendance : `wp_safe_remote_*` seulement (User-Agent `YumeNovel/{version}
+(+home_url)`, comme `includes/mangadex/class-client.php`). Tant que `discord_configure()` est faux
+(connexion activée + client_id + secret), le site est strictement inchangé : aucun bouton, la route de
+retour répond 404 `yume_discord_inactif`, la rubrique du compte dit « non configuré » (équipe) ou
+n'apparaît pas (lecteur).
+
+**Flux** (OAuth2 *Authorization Code* + PKCE S256, scopes `identify email`) :
+
+1. Bouton « Se connecter avec Discord » / « Créer un compte avec Discord » (filtres
+   `yume_compte_html_connexion_extra` et `yume_compte_html_inscription_extra`, §7) : formulaire POST
+   admin-post `yume_discord_depart` (nopriv et priv), champs `redirect_to`, `yn_origine`, `mode` =
+   `connexion` | `liaison`, nonce `yume_discord_depart` pour un membre connecté seulement → `state`
+   (32 octets), `code_verifier` ; transient `yume_discord_etat_{hash(state)}` (10 min : `{verifier,
+   mode, user_id, redirect_to, origine, cree}`) **et** cookie `yume_discord_etat` (valeur = state,
+   `HttpOnly`, `Secure` si https, `SameSite=Lax`, 10 min) → 302 vers
+   `https://discord.com/oauth2/authorize?client_id=…&response_type=code&redirect_uri=…&scope=identify%20email&state=…&code_challenge=…&code_challenge_method=S256&prompt=consent`.
+2. Retour `GET /wp-json/yume/v1/discord/retour?code=…&state=…` (route publique servie par
+   `rest_pre_serve_request` comme `/planning.ics`, redirection puis sortie, `nocache_headers()`) : state
+   du cookie = state reçu = transient existant, sinon `expire` ; échange du code
+   (`https://discord.com/api/v10/oauth2/token`, `client_id`, `client_secret`,
+   `grant_type=authorization_code`, `code`, `redirect_uri`, `code_verifier`, 10 s) ; `GET
+   https://discord.com/api/v10/users/@me` (`Authorization: Bearer`) → `id`, `username`, `global_name`,
+   `email`, `verified` ; jeton **jamais stocké** (révocation tentée, échec ignoré). 10 retours par 15 min
+   et par IP (filtre `yume_discord_limites`).
+3. Résolution : compte lié (méta `yume_discord_id`) → session ouverte comme `Social\traiter_connexion()`
+   (`wp_set_auth_cookie`, `wp_set_current_user`, `do_action( 'wp_login' )`, `login_redirect`), sauf si
+   `connexion_autorisee()` est faux (défaut : `! Social\connexion_reservee_wordpress()`, donc
+   administrateurs exclus ; filtre `yume_discord_connexion_autorisee( bool, WP_User )`) → `reserve` ;
+   mode `liaison` : `id` déjà lié à un autre compte → `deja-lie`, sinon métas posées → `lie` ; aucun
+   compte lié : `verified !== true` → `non-verifie` ; `email_exists()` → `email-existant` (**pas de
+   liaison automatique** ; filtre `yume_discord_lier_par_email_verifie`, faux) ; sinon, si
+   `discord_inscription` et `inscriptions_ouvertes()` → `Social\creer_compte_lecteur( [ 'pseudo' =>
+   global_name ou username (suffixe « -2 », « -3 »… si pris), 'email', 'source' => 'discord', 'notifier'
+   => false, 'meta' => [ métas Discord, '_yume_compte_sans_mdp' => 1 ] ] )` puis session ; sinon
+   `inscriptions-fermees`.
+4. Mon compte, rubrique « Connexion Discord » (filtres `yume_compte_rubriques` /
+   `yume_compte_sections_html`) : état (« Lié à @pseudo depuis le … » / « Non lié »), « Lier mon compte
+   Discord » (départ, mode `liaison`), « Délier » (admin-post `yume_discord_delier`, nonce
+   `yume_discord_delier`, mot de passe actuel exigé ; refusé si `Social\compte_sans_mot_de_passe()` :
+   « Définissez d'abord un mot de passe (Mot de passe oublié ?) pour ne pas perdre l'accès »).
+
+Messages : `Social\messages()` n'a pas de filtre ; le module affiche les siens dans
+`yume_compte_html_connexion_extra` en lisant `?yn-discord=<code>` (`expire`, `refuse`, `non-verifie`,
+`email-existant`, `inscriptions-fermees`, `lie`, `delie`, `deja-lie`, `mdp`, `reserve`, `erreur`).
+
+**Réglages** (section `discord_connexion` « Connexion Discord », §6) : `discord_connexion`,
+`discord_inscription`, `discord_client_id` (constante `YUME_DISCORD_CLIENT_ID`), `discord_client_secret`
+(type `secret`, constante `YUME_DISCORD_CLIENT_SECRET` prioritaire). Test *Santé du site* `yume_discord`
+(activé sans secret ; secret en base plutôt qu'en constante). Redirect URI à déclarer **exactement**
+sur le portail Discord : `https://yumenovel.fr/wp-json/yume/v1/discord/retour` (`url_retour()`).
+
+**RGPD** : métas `yume_discord_id`, `yume_discord_pseudo` (username à la liaison), `yume_discord_lie_le`
+; export clé `discord`, effacées avec le compte (`yume_effacer_donnees`, `yume_compte_suppression`,
+`deleted_user`, effaceur WordPress `yume-core-discord`) ; avatar jamais téléchargé.
+
+```php
+const META_ID = 'yume_discord_id'; const META_PSEUDO = 'yume_discord_pseudo'; const META_LIE_LE = 'yume_discord_lie_le';
+function discord_configure(): bool;
+function client_id(): string;  function client_secret(): string;   // constante > réglage, jamais affichés
+function url_retour(): string;                                     // rest_url( 'yume/v1/discord/retour' )
+function url_autorisation( string $state, string $challenge ): string;
+function demarrer( string $mode, int $user_id, string $redirect_to, string $origine ): string;   // state/verifier (transient + cookie), URL Discord
+function echanger_code( string $code, string $verifier ): array|\WP_Error;    // {access_token, …} ; pre_http_request dans les tests
+function profil_discord( string $jeton ): array|\WP_Error;                    // {id, username, global_name, email, verified}
+function utilisateur_par_discord( string $discord_id ): int;                  // 0 sinon
+function lier( int $user_id, array $profil ): true|\WP_Error;                 // yume_discord_deja_lie
+function delier( int $user_id ): bool;
+function connexion_autorisee( \WP_User $user ): bool;                         // filtre yume_discord_connexion_autorisee
+function ouvrir_session( \WP_User $user, string $redirect_to ): string;       // même séquence que Social\traiter_connexion()
+function traiter_retour( array $get, array $cookie ): array;                  // {url: string} : destination avec yn-discord ; pure (testable)
+function bouton_html( string $mode, string $redirect_to, string $origine ): string;
+```
+
+Actions `yume_discord_lie( int $user_id, string $discord_id )`, `yume_discord_delie( int $user_id )`,
+`yume_discord_compte_cree( int $user_id )` ; filtres `yume_discord_pkce` (vrai),
+`yume_discord_lier_par_email_verifie` (faux), `yume_discord_limites` (10 / 900 s),
+`yume_discord_connexion_autorisee`.
+
+## 8 sexies. Recommandations et rattrapage (modules recommandations et rattrapage, lots L3 et L5, 2.5.0)
+
+Contrats figés par le lot 0. **Cache de page** (Batcache) : une requête porteuse d'un cookie
+`wordpress_logged_in_*` n'est jamais servie depuis le cache ; tout contenu personnel est rendu **côté
+serveur pour les membres**, et le HTML d'une page anonyme est **identique pour tous les visiteurs**
+(jamais de donnée personnelle).
+
+**Recommandations « Si vous avez aimé… »** (lot L3, `includes/recommandations/{module,fonctions,rest,
+compte}.php`, `blocks/recommandations/`, `tests/test-recommandations.php` ; espace de noms
+`Yume\Core\Recommandations`) :
+
+- Candidates : œuvres publiées, hors l'œuvre de départ, hors statuts exclus (filtre
+  `yume_recommandations_statuts_exclus`, défaut `['licenciee']`), hors `yume_oeuvre_a_venir()` ; filtre
+  `yume_recommandations_candidates( int[] $ids, int $oeuvre_id )`.
+- Score (filtre `yume_recommandations_poids`, défaut `{genres: 3, type: 1, cofavoris: 4}`) : `3 ×
+  Jaccard(genres)` + `1 × [même yume_type]` + `4 × cofav`, `cofav = n(A∩B) / sqrt(n(A) × n(B))` sur
+  `favoris`, compté seulement si `n(A∩B) ≥ SEUIL_COFAVORIS` (3, k-anonymat). Égalités : `yume_nb_favoris`
+  desc puis `yume_derniere_sortie` desc. Résultat vide si moins de 2 œuvres ont un score > 0 (filtre
+  `yume_recommandations_minimum`).
+- Bloc `yume/recommandations` (§10) dans `templates/single-yume_oeuvre.html` après `yume/oeuvre-news` ;
+  visiteur : HTML identique pour tous ; membre : œuvres en favori ou commencées retirées. Compte :
+  rubrique « Pour vous » (`#yn-pour-vous`, filtres du §7) : agrégat des recommandations de ses favoris
+  et lectures en cours, 6 au plus, « parce que vous suivez {X} » ; sans favori ni lecture : « Ajoutez
+  des favoris pour recevoir des suggestions ».
+- Cache : transient `yume_reco_{oeuvre}_{version}` (6 h, filtre `yume_recommandations_cache`) ; option
+  `yume_reco_version` incrémentée sur `yume_favori_ajoute`, `yume_favori_retire`, `save_post` /
+  `deleted_post` d'une œuvre, `set_object_terms` d'une œuvre, `yume_oeuvre_etat_change`,
+  `yume_tome_publie` (une fois par minute au plus : transient `yume_reco_tampon`). SQL des co-favoris :
+  `SELECT f2.oeuvre_id, COUNT(*) n FROM favoris f1 INNER JOIN favoris f2 ON f2.user_id = f1.user_id AND
+  f2.oeuvre_id <> f1.oeuvre_id WHERE f1.oeuvre_id = %d GROUP BY f2.oeuvre_id HAVING COUNT(*) >= %d`.
+- Filtre `yume_recommandations_actives` (vrai). Aucune requête externe.
+
+```php
+const SEUIL_COFAVORIS = 3;
+function recommandations_oeuvre( int $oeuvre_id, int $limite = 4, int $user_id = 0 ): array;   // [{id, titre, url, image, type, genres_communs, cofavoris, score}] ; user_id > 0 : exclut favoris et lectures
+function recommandations_membre( int $user_id, int $limite = 6 ): array;                       // [{…, parce_que: [oeuvre_id…]}]
+function cofavoris( int $oeuvre_id ): array;        // oeuvre_id => n (n ≥ SEUIL_COFAVORIS)
+function similarite_genres( int $a, int $b ): float;
+function version(): string;  function invalider(): void;
+function rendu_cartes( array $recommandations, array $options ): string;   // partagé bloc / compte
+```
+
+**Rattrapage « Nouveaux chapitres depuis votre dernière lecture »** (lot L5,
+`includes/rattrapage/{module,fonctions,rest,compte}.php`, `blocks/rattrapage/`,
+`tests/test-rattrapage.php` ; espace de noms `Yume\Core\Rattrapage`) :
+
+- `rattrapage( int $user_id, int $limite = 6 ): array` : pour chaque ligne de `progression` (œuvre
+  publiée, chapitre encore lisible), ordre de lecture par `Reader\plan_de_lecture()` ; **restants** =
+  chapitres publiés après la position (le chapitre courant compte s'il est lu à moins de
+  `Reader\SEUIL_CHAPITRE_LU` = 90 %) ; œuvre à jour omise ; tri par date du plus récent chapitre publié
+  parmi les restants ; `prochain` = premier restant, `reprise` = `url_reprise` de la position,
+  `nouveaux_depuis` = restants publiés après `updated_at` (« 3 nouveaux depuis votre dernière lecture »,
+  sinon « 12 chapitres à lire »), `tome` du prochain (« Tome 3 commence »). Seulement les lectures
+  commencées (pas les favoris jamais ouverts).
+- Bloc `yume/rattrapage` (§10) : membre → rendu serveur ; visiteur → chaîne vide (jamais de gabarit
+  caché). Accueil (`front-page.html`) : section pleine largeur entre « Dernières sorties » et le
+  Planning, lien « Toutes mes lectures » (`compte#yn-lecture`) ; rien à rattraper : la section
+  disparaît. Compte : rubrique « À rattraper » (`#yn-rattrapage`, après `yn-lecture`), 12 au plus,
+  « Vous êtes à jour sur toutes vos séries. ».
+- Cache : transient `yume_rattrapage_{user}` 15 min (filtre `yume_rattrapage_cache`, 900 s), effacé
+  sur `yume_progression_enregistree` (ce membre) ; version `yume_rattrapage_version` incrémentée sur
+  `yume_chapitre_publie`, `yume_tome_publie` et la dépublication d'un chapitre (`transition_post_status`
+  quittant `publish`). Filtre `yume_rattrapage_actif` (vrai).
+
+```php
+function rattrapage( int $user_id, int $limite = 6 ): array;   // même tableau que GET /moi/rattrapage (§12)
+function invalider_membre( int $user_id ): void;  function invalider_tous(): void;
+function rendu_cartes( array $lignes, string $layout ): string;
+```
+
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 
 Le contenu est stocké en **blocs Gutenberg** (modifiable dans l'éditeur) avec ces classes :
@@ -1168,6 +1536,8 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/liste-publique` | lecteurs | — | `.yn-liste-publique` | Page d'une liste de lecture (`/listes/{id}-{slug}/`, gabarit injecté par `listes.php`, hors inserteur) : « Liste de lecture », titre en `<h1>`, « par {nom affiché} » (jamais l'identifiant de connexion), nombre d'œuvres, date de mise à jour, description, grille de couvertures des œuvres publiées ; propriétaire : état Publique/Privée et lien « Gérer mes listes » |
 | `yume/recrutement` | planning | — | `.yn-recrutement` | Page « Rejoindre l'équipe » : introduction (`recrutement_intro`), `h2` « Postes ouverts » + cartes `.yn-recrutement__poste` (`h3`, description, pastille « Recrutement ouvert ») ou « Aucun poste ouvert pour le moment », carte « Postuler » : consigne, bouton « Postuler sur le Discord » (`discord_invite`, nouvel onglet) et « Télécharger le test de traduction » si `recrutement_test_url`. **Aucun formulaire** : le site ne recueille aucune candidature |
 | `yume/profil-contributeur` | lecteurs | `mode` (`auto` \| `liste`, `auto`), `titre` (string, « Profils des contributeurs ») | `.yn-contributeur`, `.yn-contributeurs` | `auto` : profil sur `/contributeurs/{slug}/` (fil d'Ariane, avatar à initiales, `h1` pseudo, rôle Yume, « Dans l'équipe depuis », présentation, liens `rel="me nofollow noopener"`, contributions par œuvre), liste avec `h1` « Contributeurs » sur `/contributeurs/`. `liste` (ou hors de `/contributeurs/`) : `h2` + cartes (initiales, pseudo lié, rôle, nombre de tomes publiés), **rien** sans profil public. Ajouté automatiquement sous le contenu de la page « L'équipe » (slug `lequipe`, filtre `render_block_core/post-content`) avec un bouton « Rejoindre l'équipe » ; les mentions « Poste à pourvoir » de cette page mènent à la page de recrutement |
+| `yume/recommandations` | recommandations (L3, 2.5.0) | `count` (number, 4) | `.yn-recommandations` | Fiche d'une œuvre (après `yume/oeuvre-news`) : « Si vous avez aimé {Œuvre} », cartes couverture, titre, type, genres communs en pastilles, « N lecteurs la suivent aussi » (co-favoris ≥ 3) ; HTML identique pour tous les visiteurs, favoris et lectures du membre retirés (§8 sexies) |
+| `yume/rattrapage` | rattrapage (L5, 2.5.0) | `count` (number, 6), `layout` (`section` \| `carte`, `section`) | `.yn-rattrapage` | « Nouveaux chapitres depuis votre dernière lecture » : membre connecté seulement (rendu serveur), chaîne vide pour un visiteur ou sans rien à rattraper ; cartes couverture, œuvre, « Tome 2 · 3 nouveaux chapitres », « Reprendre » et « Chapitre suivant » (§8 sexies) |
 | `yume/theme-toggle` | **thème** | — | `.yn-theme-toggle` | Bascule Nuit ↔ Papier (`aria-pressed`, `[data-yn-theme-toggle]`) |
 
 Les blocs posés dans le modèle `page-large` (planning, compte, équipe, publication) commencent leurs
@@ -1275,11 +1645,21 @@ sauvegardées (dont `comment_registration`) telles quelles, sans les filtres `sa
 | `GET /statistiques/oeuvres?periode=&tri=&page=&limite=` | statistiques | `yume_voir_statistiques` — `classement()` ; `tri` ∈ `favoris`, `suiveurs`, `lecteurs`, `vues`, `nouveaux`, `croissance` ; `limite` 1–100 (20) |
 | `GET /statistiques/oeuvres/(?P<oeuvre>\d+)?periode=` | statistiques | `yume_voir_statistiques` — `fiche_oeuvre()` ; 404 `yume_oeuvre_introuvable` |
 | `GET /statistiques/oeuvres/(?P<oeuvre>\d+)/lecteurs?type=&q=&page=&limite=&tri=&ordre=` | statistiques | **`yume_voir_lecteurs`** — `lecteurs_oeuvre()` : `type` `favoris` (défaut) \| `suiveurs`, `q` (pseudo, 2 caractères au moins, sinon ignorée), `limite` 1–100 (50), `tri` `date` \| `pseudo`, `ordre` `desc` \| `asc` → `{oeuvre, type, total, page, pages, limite, q, lecteurs: [{pseudo, depuis (ISO 8601 UTC), frequence, equipe}]}`, jamais `user_login` ni `user_email` |
+| `POST /chapitres/(?P<chapitre>\d+)/coquilles` | corrections (L1, 2.5.0) | connecté (attente `connectes` ; mode anonyme `coquilles_anonymes` : la permission accepte l'anonyme, la matrice de sécurité force le réglage à faux) — corps `{paragraphe: int ≥ 0, extrait: string 3–300, contexte: string ≤ 600, commentaire?: string ≤ 500}` → 201 `{id, message}` ; 404 `yume_chapitre_introuvable`, 400 `yume_coquille_extrait`, 409 `yume_coquille_doublon`, 429 `yume_coquilles_debit` / `yume_coquilles_chapitre_sature`, 403 `yume_coquilles_inactives` (§8 quater) |
+| `GET /discord/retour` | discord (L2, 2.5.0) | public (`__return_true` ; servi par `rest_pre_serve_request` : redirection, `nocache_headers()`) — paramètres `code`, `state`, `error` ; 404 `yume_discord_inactif` si non configuré (§8 quinquies) |
+| `GET /recommandations/(?P<oeuvre>\d+)` | recommandations (L3, 2.5.0) | public — `{oeuvre, recommandations: [{id, titre, url, image, type, genres_communs: string[], cofavoris: int\|null, score}]}`, `Cache-Control: public, max-age=3600` ; 404 `yume_oeuvre_introuvable` (œuvre non publiée) |
+| `GET /moi/recommandations` | recommandations (L3, 2.5.0) | connecté — `recommandations_membre()`, `Cache-Control: private, no-store` |
+| `GET /moi/rattrapage?limite=` | rattrapage (L5, 2.5.0) | connecté — `limite` 1–50 (6) → `{total, oeuvres: [{oeuvre_id, titre, url, image, restants, nouveaux_depuis, tome: {id, libelle}, prochain: {id, titre, url}, reprise: {url, titre, pourcentage}, dernier_publie_le}]}`, `Cache-Control: private, no-store` |
 
 Les routes `/statistiques/*` sont toutes en lecture : 401 anonyme, 403 sans la capacité, `Cache-Control:
 private, no-store` sur toutes les réponses, erreurs comprises (`rest_request_after_callbacks`) ; 503
 `yume_statistiques_indisponible` si la fonction de données du module manque ; période hors de 7, 30,
 90, 365 → 30.
+
+Attentes de sécurité des routes du chantier « lecteurs » (`tests/test-securite-rest.php`, seul fichier
+partagé) : chaque lot ajoute **à la fin** de `yume_tsrest_attentes()` un bloc commenté `// L1 —
+Corrections (includes/corrections/rest.php)`, `// L2 — Discord …`, `// L3 — Recommandations …`, `// L5 —
+Rattrapage …`, ordre de fusion L1 → L2 → L3 → L5, motifs copiés exactement comme déclarés.
 
 **Flux RSS d’une œuvre** (`includes/library/flux.php`) : `/oeuvres/{o}/feed/` (et `rss2`, `rss`, `atom`, `rdf`) sert en RSS 2.0 les tomes et chapitres publiés de l’œuvre (cache de la bibliothèque) et les articles liés (`yume_oeuvre_liee`), du plus récent au plus ancien, 50 au plus (filtres `yume_flux_oeuvre_max`, `yume_flux_oeuvre_elements`) ; l’ancien flux natif des commentaires de l’œuvre reste servi avec `?commentaires=1`. La fiche d’une œuvre publiée annonce ce flux par `<link rel="alternate" type="application/rss+xml">` (le lien natif des commentaires y est retiré).
 
@@ -1302,6 +1682,7 @@ accepte `reinitialiser` ; `GET /moi/progression?oeuvre=` renvoie `url`, `url_rep
 | `push` | `id` AI, `user_id`, `endpoint` VARCHAR(1000), `empreinte` CHAR(64) (SHA-256 de l'endpoint, UNIQUE), `session` CHAR(64) (SHA-256 du jeton de la session WordPress qui a créé l'abonnement), `p256dh` VARCHAR(200), `auth` VARCHAR(100), `cree_le`, `dernier_envoi` (NULL possible), `echecs` SMALLINT ; KEY user_id | social (Web Push, AMEL-06) |
 | `stats_jour` | `jour` DATE, `oeuvre_id` BIGINT DEFAULT 0 (0 = ligne « site »), `vues` INT NULL, `visiteurs` INT NULL (NULL = trafic indisponible ce jour ; `visiteurs` toujours NULL sur une ligne d'œuvre), `favoris`, `suiveurs`, `listes`, `lecteurs`, `lecteurs_30j`, `chapitres_lus`, `comptes`, `inscriptions` (INT, 0 par défaut ; les deux derniers sur la ligne site seulement) ; PK (jour, oeuvre_id), KEY oeuvre_id ; aucune donnée personnelle ; écrite par `$wpdb->replace()` | statistiques (historique quotidien, §8 ter) |
 | `glossaire_versions` | `id` AI, `oeuvre_id`, `user_id`, `source` VARCHAR(20) (`api`, `televersement`, `restauration` ; `brouillon` : glossaire vérifié non publié, hors historique et rétention), `cree_le` DATETIME (GMT), `sha256` CHAR(64), `nb_entrees` INT (hors anglicismes), `yaml` LONGTEXT, `note` VARCHAR(255) ; KEY oeuvre_id ; 5 dernières par œuvre | glossaire |
+| `coquilles` | `id` BIGINT AI, `chapitre_id` BIGINT, `tome_id` BIGINT DEFAULT 0, `oeuvre_id` BIGINT DEFAULT 0, `user_id` BIGINT DEFAULT 0 (0 : anonyme ou compte supprimé), `paragraphe` INT UNSIGNED DEFAULT 0, `extrait` VARCHAR(300), `contexte` TEXT, `empreinte` CHAR(32), `commentaire` VARCHAR(500), `statut` VARCHAR(10) DEFAULT 'nouveau' (`nouveau`, `corrige`, `rejete`), `ip_hash` CHAR(64) DEFAULT '', `cree_le` DATETIME, `traite_le` DATETIME NULL, `traite_par` BIGINT DEFAULT 0 ; KEY chapitre_statut (chapitre_id, statut), KEY oeuvre_statut (oeuvre_id, statut), KEY user_id, KEY cree_le ; option de schéma `yume_corrections_schema` (`'1'`) | corrections (L1, 2.5.0, §8 quater) |
 
 `planning_journal.champ` contient aussi des événements (`creation`, `publie`, `depublie`,
 `chapitre_publie`, `retire`, `etape_forcee`, `rappel`, `signalement`, `digest` ; `tome_id` 0 pour le
@@ -1314,6 +1695,12 @@ Méta utilisateur : `yume_reglages` (`{size, lh, font, width, bgAlpha, theme}`) 
 désabonnement, effacé avec les données du membre). Méta internes : `_yume_alerte_envoyee` (tome ou chapitre
 notifié aux lecteurs), `_yume_migration_cle`, `_yume_source_id`, `_yume_migration_run` ; options
 `yume_redirections`, `yume_migration_*` ; actions `yume_migration_terminee`, `yume_migration_annulee`.
+Métas utilisateur du chantier « lecteurs » (2.5.0) : `_yume_compte_sans_mdp` (compte sans mot de passe
+connu de son titulaire, `Social\compte_sans_mot_de_passe()`, §7), `yume_discord_id`,
+`yume_discord_pseudo`, `yume_discord_lie_le` (L2, §8 quinquies), `yume_avis_pseudo_vu` (L6 : avis
+« choisissez un pseudo différent de votre identifiant » fermé). Toutes couvertes par la désinstallation
+(`LIKE 'yume_%'` / `'_yume_%'`). Les lots L2, L3 et L5 n'ont pas de table (métas, transients et options
+de version).
 
 Méta utilisateur du profil public (`includes/social/profil-public.php`, PAGE-04, membres de l'équipe
 seulement, rubrique « Profil public » de la page compte, formulaire `admin-post.php?action=yume_compte_profil_public`

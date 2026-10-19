@@ -12,7 +12,8 @@
  *   retour sur la vue de l'espace équipe) ;
  * - version installée et dernière release connue, lue dans l'état mis en cache par la
  *   vérification des mises à jour (aucune requête réseau à l'affichage) ;
- * - prérequis de mise en production (etat_prerequis(), notices.php).
+ * - prérequis de mise en production (etat_prerequis(), notices.php) ;
+ * - inscriptions des lecteurs (test yume_inscriptions, « recommandé » quand elles sont fermées).
  *
  * @package Yume\Core
  */
@@ -366,6 +367,35 @@ function test_sante_version(): array {
 }
 
 /**
+ * Inscriptions des lecteurs ouvertes ? (Social\inscriptions_ouvertes() : réglage WordPress
+ * « Tout le monde peut s'inscrire » et filtre yume_inscriptions_ouvertes ; option seule sans le
+ * module lecteurs).
+ */
+function inscriptions_lecteurs_ouvertes(): bool {
+	if ( function_exists( '\\Yume\\Core\\Social\\inscriptions_ouvertes' ) ) {
+		return \Yume\Core\Social\inscriptions_ouvertes();
+	}
+	return (bool) get_option( 'users_can_register' );
+}
+
+/**
+ * Test : inscriptions des lecteurs ouvertes (rappel quand elles sont fermées : le formulaire
+ * « Créer un compte » et la connexion Discord ne créent alors aucun compte).
+ */
+function test_sante_inscriptions(): array {
+	if ( ! inscriptions_lecteurs_ouvertes() ) {
+		return resultat_sante(
+			'yume_inscriptions',
+			'recommended',
+			__( 'Les inscriptions des lecteurs sont fermées', 'yume-core' ),
+			'<p>' . esc_html__( 'Les inscriptions des lecteurs sont fermées (Réglages → Général) : le formulaire « Créer un compte » et la connexion Discord ne créent aucun compte.', 'yume-core' ) . '</p><p>'
+			. esc_html__( 'Pour les ouvrir, cochez « Tout le monde peut s’inscrire » avec le rôle par défaut « Abonné ».', 'yume-core' ) . '</p>'
+		);
+	}
+	return resultat_sante( 'yume_inscriptions', 'good', __( 'Les inscriptions des lecteurs sont ouvertes', 'yume-core' ), '<p>' . esc_html__( 'Les visiteurs peuvent créer un compte lecteur depuis la page de connexion.', 'yume-core' ) . '</p>' );
+}
+
+/**
  * Ajoute les tests Yume à l'écran « Santé du site » (tests directs, sans requête réseau).
  *
  * @param array $tests Tests.
@@ -374,10 +404,11 @@ function test_sante_version(): array {
 function tests_sante_site( $tests ): array {
 	$tests = is_array( $tests ) ? $tests : array();
 	foreach ( array(
-		'yume_taches_cron' => array( __( 'Tâches planifiées Yume', 'yume-core' ), 'test_sante_cron' ),
-		'yume_emails'      => array( __( 'E-mails Yume', 'yume-core' ), 'test_sante_emails' ),
-		'yume_webhooks'    => array( __( 'Webhooks Discord Yume', 'yume-core' ), 'test_sante_webhooks' ),
-		'yume_version'     => array( __( 'Version de Yume Core', 'yume-core' ), 'test_sante_version' ),
+		'yume_taches_cron'  => array( __( 'Tâches planifiées Yume', 'yume-core' ), 'test_sante_cron' ),
+		'yume_emails'       => array( __( 'E-mails Yume', 'yume-core' ), 'test_sante_emails' ),
+		'yume_webhooks'     => array( __( 'Webhooks Discord Yume', 'yume-core' ), 'test_sante_webhooks' ),
+		'yume_version'      => array( __( 'Version de Yume Core', 'yume-core' ), 'test_sante_version' ),
+		'yume_inscriptions' => array( __( 'Inscriptions des lecteurs', 'yume-core' ), 'test_sante_inscriptions' ),
 	) as $cle => $test ) {
 		$tests['direct'][ $cle ] = array(
 			'label' => $test[0],

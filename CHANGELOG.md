@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.1 — 2026-10-19
+
+- Lecteurs, lot 0 : socle des comptes (création de compte unique, points d'extension du compte et des formulaires, RGPD, réglage secret, alerte inscriptions fermées)
+
 ## 2.4.0 — 2026-10-19
 
 - Yume Novel 2.4.0 : statistiques d'audience dans l'espace équipe (menu Site → Statistiques). Toute l'équipe voit le trafic Jetpack (vues, visiteurs, contenus, référents, recherches, pays), les chiffres par œuvre (favoris, suiveurs alertés, lecteurs, chapitres lus estimés, listes), les classements et les chiffres des lecteurs, sur 7, 30 ou 90 jours ou 12 mois ; les gérants et administrateurs voient aussi la liste des lecteurs qui suivent chaque œuvre (pseudo, date, alertes), avec export CSV journalisé. Historique quotidien à partir de l'installation. Guide de l'équipe : « Statistiques d'audience ».

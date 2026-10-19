@@ -166,10 +166,11 @@ function champ_reglage_equipe( array $champ ): string {
 	}
 
 	if ( ! \Yume\Core\Core\champ_modifiable( $champ ) ) {
-		// Champ verrouillé : valeur en lecture seule, jamais envoyée (comme dans l'administration).
+		// Champ verrouillé : valeur en lecture seule, jamais envoyée (comme dans l'administration) ;
+		// un secret n'est jamais affiché.
 		$desc  = trim( $desc . ' ' . (string) ( $champ['verrouille'] ?? '' ) );
 		$html  = '<div class="' . esc_attr( $classe ) . '"><label class="yn-label" for="' . esc_attr( $id ) . '">' . esc_html( $libelle ) . '</label>';
-		$html .= '<input type="text" id="' . esc_attr( $id ) . '" value="' . esc_attr( is_scalar( $valeur ) ? (string) $valeur : '' ) . '" disabled' . $decrit( $desc ) . '>';
+		$html .= '<input type="' . ( 'secret' === $type ? 'password' : 'text' ) . '" id="' . esc_attr( $id ) . '" value="' . esc_attr( 'secret' !== $type && is_scalar( $valeur ) ? (string) $valeur : '' ) . '" disabled' . $decrit( $desc ) . '>';
 		return $html . aide_reglage( $aide_id, $desc ) . '</div>';
 	}
 
@@ -212,6 +213,13 @@ function champ_reglage_equipe( array $champ ): string {
 
 		case 'partenaires':
 			return champ_partenaires_equipe( $id, $nom, $valeur, $libelle, $desc );
+
+		case 'secret':
+			// Jamais réaffiché (type de champ du socle, includes/core/settings.php).
+			$desc  = trim( $desc . ' ' . \Yume\Core\Core\aide_secret( $valeur ) );
+			$html  = '<div class="' . esc_attr( $classe ) . '"><label class="yn-label" for="' . esc_attr( $id ) . '">' . esc_html( $libelle ) . '</label>';
+			$html .= '<input type="password" id="' . esc_attr( $id ) . '" name="' . esc_attr( $nom ) . '" value="" autocomplete="new-password" spellcheck="false"' . $decrit( $desc ) . '>';
+			return $html . aide_reglage( $aide_id, $desc ) . '</div>';
 
 		case 'number':
 			$html  = '<div class="' . esc_attr( $classe ) . '"><label class="yn-label" for="' . esc_attr( $id ) . '">' . esc_html( $libelle ) . '</label>';

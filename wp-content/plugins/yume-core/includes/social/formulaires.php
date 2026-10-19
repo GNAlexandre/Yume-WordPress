@@ -3,8 +3,9 @@
  * Formulaires en façade traités par admin-post.php (nonce obligatoire), utilisés sans
  * JavaScript et par la page compte :
  *
- * - visiteurs : inscription (pot de miel, délai minimal, limite par adresse IP, e-mail
- *   standard de WordPress pour choisir son mot de passe, rôle subscriber) et mot de passe oublié ;
+ * - visiteurs : inscription (pot de miel, délai minimal, limite par adresse IP, compte créé par
+ *   creer_compte_lecteur() de creation-compte.php : e-mail standard de WordPress pour choisir son
+ *   mot de passe, rôle subscriber) et mot de passe oublié ;
  * - membres : profil et sécurité (pseudo, e-mail confirmé par lien, mot de passe), réglages
  *   de lecture, préférences d'alerte, suppression du compte, et repli sans JavaScript des
  *   actions de la fiche œuvre (favori, note, alerte).
@@ -139,33 +140,19 @@ function traiter_inscription(): void {
 		rediriger( $retour, 'email-invalide', 'yn-inscription' );
 	}
 
-	// Pas d'e-mail à l'administrateur pour chaque lecteur inscrit (filtre pour le rétablir).
-	$notifier_admin = static function () {
-		/**
-		 * Faut-il prévenir l'administrateur de chaque inscription en façade ?
-		 *
-		 * @param bool $notifier Défaut : non.
-		 */
-		return (bool) apply_filters( 'yume_notifier_admin_inscription', false );
-	};
-	add_filter( 'wp_send_new_user_notification_to_admin', $notifier_admin );
-	traitement_facade( true );
-	$user_id = register_new_user( $pseudo, $email );
-	traitement_facade( false );
-	remove_filter( 'wp_send_new_user_notification_to_admin', $notifier_admin );
-
+	// Identifiant = pseudo (comportement historique) ; e-mail WordPress pour choisir son mot de
+	// passe ; administrateur prévenu seulement par le filtre yume_notifier_admin_inscription.
+	$user_id = creer_compte_lecteur(
+		array(
+			'pseudo'      => $pseudo,
+			'email'       => $email,
+			'identifiant' => $pseudo,
+			'source'      => 'inscription',
+		)
+	);
 	if ( is_wp_error( $user_id ) ) {
-		$codes = $user_id->get_error_codes();
-		if ( in_array( 'username_exists', $codes, true ) ) {
-			rediriger( $retour, 'pseudo-pris', 'yn-inscription' );
-		}
-		if ( array_intersect( array( 'invalid_email', 'empty_email' ), $codes ) ) {
-			rediriger( $retour, 'email-invalide', 'yn-inscription' );
-		}
-		if ( array_intersect( array( 'invalid_username', 'empty_username', 'username_too_long', 'illegal_user_login' ), $codes ) ) {
-			rediriger( $retour, 'pseudo-invalide', 'yn-inscription' );
-		}
-		if ( array( 'email_exists' ) === array_values( array_unique( $codes ) ) ) {
+		$code = $user_id->get_error_code();
+		if ( 'yume_email_pris' === $code ) {
 			// Même réponse qu'une inscription réussie : la page ne révèle pas quelles adresses
 			// sont inscrites. Le titulaire de l'adresse est prévenu (lien « mot de passe oublié »).
 			$titulaire = email_exists( $email );
@@ -174,16 +161,16 @@ function traiter_inscription(): void {
 			}
 			rediriger( $retour, 'inscription-ok', 'yn-connexion' );
 		}
-		rediriger( $retour, 'inscription-refusee', 'yn-inscription' );
+		$messages = array(
+			'yume_inscriptions_fermees' => 'inscriptions-fermees',
+			'yume_pseudo_invalide'      => 'pseudo-invalide',
+			'yume_identifiant_invalide' => 'pseudo-invalide',
+			'yume_pseudo_pris'          => 'pseudo-pris',
+			'yume_identifiant_pris'     => 'pseudo-pris',
+			'yume_email_invalide'       => 'email-invalide',
+		);
+		rediriger( $retour, $messages[ $code ] ?? 'inscription-refusee', 'yn-inscription' );
 	}
-	$user = new \WP_User( (int) $user_id );
-	$user->set_role( 'subscriber' );
-	/**
-	 * Un lecteur vient de s'inscrire en façade.
-	 *
-	 * @param int $user_id Utilisateur.
-	 */
-	do_action( 'yume_lecteur_inscrit', (int) $user_id );
 	rediriger( $retour, 'inscription-ok', 'yn-connexion' );
 }
 add_action( 'admin_post_nopriv_yume_inscription', __NAMESPACE__ . '\\traiter_inscription' );
@@ -225,26 +212,6 @@ function exiger_connexion(): void {
 		wp_safe_redirect( url_connexion( page_retour( home_url( '/' ) ) ) );
 		exit;
 	}
-}
-
-/**
- * Pseudo déjà porté par un autre compte (nom affiché ou identifiant) ?
- *
- * @param string $pseudo  Pseudo.
- * @param int    $user_id Membre qui le demande.
- */
-function pseudo_pris( string $pseudo, int $user_id ): bool {
-	global $wpdb;
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-	$autre = $wpdb->get_var(
-		$wpdb->prepare(
-			"SELECT ID FROM {$wpdb->users} WHERE ID <> %d AND ( LOWER(display_name) = LOWER(%s) OR LOWER(user_login) = LOWER(%s) ) LIMIT 1",
-			$user_id,
-			$pseudo,
-			$pseudo
-		)
-	);
-	return null !== $autre;
 }
 
 /**
