@@ -133,6 +133,9 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			'GET /yume/v1/statistiques/oeuvres'           => $equipe_stats,
 			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)' => $equipe_stats,
 			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)/lecteurs' => array( 'gerant', 'administrateur' ),
+
+			// L5 — rattrapage (includes/rattrapage/rest.php) : membre connecté seulement.
+			'GET /yume/v1/moi/rattrapage'                 => 'connectes',
 		);
 	}
 
