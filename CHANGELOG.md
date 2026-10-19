@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.6 — 2026-10-19
+
+- Lecteurs, lot L1 : signaler une coquille (bouton sur sélection dans le lecteur, vue équipe Corrections, Discord équipe, lecteur remercié quand c'est corrigé)
+
 ## 2.5.0-dev.5 — 2026-10-19
 
 - Lecteurs, intégration : les tests de la page Mon compte comptent les rubriques du module social seulement (Pour vous et À rattraper coupées)

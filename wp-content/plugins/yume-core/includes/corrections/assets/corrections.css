@@ -1,0 +1,145 @@
+/*
+ * Vue « Corrections » de l'espace équipe (?vue=corrections) : filtres, cartes par chapitre,
+ * signalements. Couleurs : variables du thème uniquement. Sélecteurs préfixés par la classe de la
+ * vue (styles globaux du cœur, WordPress 6.6.0).
+ */
+
+.yn-team--corrections .yn-corrections__barre {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px 20px;
+}
+
+.yn-team--corrections .yn-corrections__filtres {
+	flex: 1 1 520px;
+}
+
+.yn-team--corrections .yn-corrections__comptes {
+	margin: 0 0 8px;
+	font-size: 14px;
+}
+
+.yn-team--corrections .yn-corrections__groupes {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.yn-team--corrections .yn-corrections__chapitre {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 20px 22px;
+}
+
+.yn-team--corrections .yn-corrections__tete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.yn-team--corrections .yn-corrections__titre {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+.yn-team--corrections .yn-corrections__nombre {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0 0;
+	font-size: 13px;
+}
+
+.yn-team--corrections .yn-corrections__boutons,
+.yn-team--corrections .yn-corrections__actions,
+.yn-team--corrections .yn-corrections__form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+
+.yn-team--corrections .yn-corrections__liste {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team--corrections .yn-corrections__signalement {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 14px 0 0;
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-team--corrections .yn-corrections__signalement + .yn-corrections__signalement {
+	margin-top: 14px;
+}
+
+.yn-team--corrections .yn-corrections__ligne {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+	margin: 0;
+}
+
+.yn-team--corrections .yn-corrections__numero {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-team--corrections .yn-corrections__cit {
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--lecture);
+	font-size: 16px;
+	overflow-wrap: anywhere;
+}
+
+.yn-team--corrections .yn-corrections__cit mark {
+	padding: 1px 2px;
+	border-radius: 2px;
+	background: var(--wp--preset--color--selection);
+	box-shadow: 0 0 0 1px var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-team--corrections .yn-corrections__meta {
+	margin: 0;
+	font-size: 14px;
+	overflow-wrap: anywhere;
+}
+
+.yn-team--corrections .yn-corrections__meta b {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-team--corrections .yn-corrections__ok {
+	border-color: var(--wp--preset--color--succes);
+	color: var(--wp--preset--color--succes);
+}
+
+.yn-team--corrections .yn-corrections__non {
+	border-color: var(--wp--preset--color--texte-faible);
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-team--corrections .yn-corrections__reserve,
+.yn-team--corrections .yn-corrections__note {
+	margin: 0;
+	font-size: 13px;
+}

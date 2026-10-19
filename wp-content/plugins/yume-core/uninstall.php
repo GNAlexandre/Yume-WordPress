@@ -12,7 +12,7 @@
  * métadonnées et commentaires), les termes des taxonomies Yume, les tables yume_* (favoris,
  * notes, progression, journal du planning, file d'e-mails, glossaires et leurs versions,
  * listes de lecture, notifications du lecteur, abonnements Web Push, historique des
- * statistiques), les rôles Yume et les capacités yume_*, les options yume_* (réglages, schémas
+ * statistiques, coquilles signalées par les lecteurs), les rôles Yume et les capacités yume_*, les options yume_* (réglages, schémas
  * des modules, clés VAPID yume_vapid, règles de réécriture mémorisées yume_listes_regles et
  * yume_regles_contributeurs, dernières exécutions yume_cron_derniers…), les transients yume_* et les métadonnées yume_* et _yume_*
  * des utilisateurs (profil public yume_profil_*, yume_listes_auto…), contenus (_yume_glossaire…),
@@ -100,6 +100,7 @@ function yume_uninstall_purger(): void {
 		'notifications_lecteur',
 		'push',
 		'stats_jour',
+		'coquilles',
 	);
 	foreach ( $tables as $table ) {
 		$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $wpdb->prefix . 'yume_' . $table ) . '`' ); // phpcs:ignore WordPress.DB
