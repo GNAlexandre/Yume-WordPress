@@ -133,6 +133,13 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			'GET /yume/v1/statistiques/oeuvres'           => $equipe_stats,
 			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)' => $equipe_stats,
 			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)/lecteurs' => array( 'gerant', 'administrateur' ),
+
+			// L3 — recommandations (includes/recommandations/rest.php) : suggestions publiques d'une
+			// œuvre (agrégats ≥ 3 lecteurs, jamais personnalisées), rubrique « Pour vous » du membre.
+			// Antislash doublé (même motif) : écrite \d, la clé aurait juste la longueur qui réaligne
+			// toute la table pour PHPCS (alignement des flèches jusqu'à la colonne 60).
+			'GET /yume/v1/recommandations/(?P<oeuvre>\\d+)' => 'publique',
+			'GET /yume/v1/moi/recommandations'            => 'connectes',
 		);
 	}
 
