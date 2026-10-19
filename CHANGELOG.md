@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.4.0-dev.3 — 2026-10-19
+
+- Statistiques, lot B : compteurs par œuvre (favoris, suiveurs alertés, listes, lecteurs, chapitres lus), classements, historique quotidien (cron, rattrapage, rétention 400 jours)
+
 ## 2.4.0-dev.2 — 2026-10-19
 
 - Statistiques, lot A : trafic Jetpack (vues, visiteurs, contenus, référents, recherches, pays ; cache, repli et données simulées hors production)
