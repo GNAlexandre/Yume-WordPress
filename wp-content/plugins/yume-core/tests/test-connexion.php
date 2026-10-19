@@ -170,7 +170,7 @@ yume_test(
 		yume_assert_contains( 'action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"', $html );
 		yume_assert_contains( 'name="action" value="yume_connexion"', $html );
 		yume_assert_contains( 'name="_yn_nonce"', $html );
-		yume_assert_contains( '<label for="yn-identifiant">Pseudo ou adresse e-mail</label>', $html );
+		yume_assert_contains( '<label for="yn-identifiant">Adresse e-mail ou identifiant</label>', $html );
 		yume_assert_contains( '<label for="yn-mot-de-passe">Mot de passe</label>', $html );
 		yume_assert_contains( '<label for="yn-se-souvenir">Se souvenir de moi</label>', $html );
 		yume_assert_contains( 'autocomplete="username"', $html );
