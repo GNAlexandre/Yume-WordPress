@@ -1,11 +1,17 @@
 <?php
 /**
- * Module « recommandations » : recommandations « Si vous avez aimé… » (genres, type, co-favoris agrégés) sur la fiche d'une œuvre et dans Mon compte.
+ * Module « recommandations » (lot L3 du chantier « lecteurs », docs/06 §8 sexies) :
+ * « Si vous avez aimé… » sur la fiche d'une œuvre et rubrique « Pour vous » de Mon compte.
  *
- * Fichier d'attente posé par le lot 0 du chantier « lecteurs » (module déclaré dans
- * YUME_CORE_MODULES) : il ne charge encore rien et sera remplacé par le lot L3. Contrat :
- * docs/06-contrat-technique.md (§8 sexies). Au chargement, les fichiers du module ne font qu'accrocher
- * des hooks (§0).
+ * - fonctions.php : candidates, score (genres, type, co-favoris agrégés à partir de 3 lecteurs),
+ *   cache versionné (transients yume_reco_{oeuvre}_{version}) et invalidation par événements ;
+ * - rendu.php     : bloc yume/recommandations (blocks/recommandations) et cartes partagées ;
+ * - compte.php    : rubrique « Pour vous » (#yn-pour-vous) par les filtres de la page compte ;
+ * - rest.php      : GET /yume/v1/recommandations/{oeuvre} (publique) et /moi/recommandations.
+ *
+ * Aucune requête externe, aucune table, aucun réglage (filtres seulement). Au chargement, le
+ * module n'appelle aucune fonction d'un autre module : il accroche des hooks ; les appels à
+ * Social\*, Library\* et à l'API du core se font dans des callbacks, gardés par function_exists.
  *
  * @package Yume\Core
  */
@@ -13,3 +19,8 @@
 namespace Yume\Core\Recommandations;
 
 defined( 'ABSPATH' ) || exit;
+
+require_once __DIR__ . '/fonctions.php';
+require_once __DIR__ . '/rendu.php';
+require_once __DIR__ . '/compte.php';
+require_once __DIR__ . '/rest.php';

@@ -1,0 +1,149 @@
+/**
+ * yume/recommandations — « Si vous avez aimé… » sur la fiche d'une œuvre, et cartes de la
+ * rubrique « Pour vous » de Mon compte (même liste .yn-recommandations__grille). Couvertures :
+ * .yn-cover du thème ; couleurs : variables du thème (§15). Sélecteurs préfixés par la classe du
+ * bloc ou de la liste (styles globaux du cœur sous WordPress 6.6, guide développeur §6).
+ */
+.yn-recommandations {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.yn-recommandations > * {
+	margin: 0;
+}
+
+/* Intitulé repris de yume/tome-list et yume/oeuvre-news. */
+.yn-recommandations__tete {
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-recommandations .yn-recommandations__titre {
+	display: inline-block;
+	margin: 0 0 -1px;
+	padding: 10px 4px;
+	border-bottom: 2px solid var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.5;
+	letter-spacing: 0;
+}
+
+/* Grille : deux colonnes sur mobile, cartes d'au moins 170 px au-delà. */
+.yn-recommandations__grille {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 24px 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+@media (min-width: 600px) {
+	.yn-recommandations__grille {
+		grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+		gap: 28px 20px;
+	}
+}
+
+.yn-recommandations__grille .yn-recommandations__item {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	margin: 0;
+}
+
+.yn-recommandations__grille .yn-recommandations__item > * {
+	margin: 0;
+}
+
+.yn-recommandations__grille .yn-recommandations__lien {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	color: var(--wp--preset--color--texte-fort);
+	text-decoration: none;
+}
+
+.yn-recommandations__grille .yn-recommandations__lien:hover .yn-recommandations__nom,
+.yn-recommandations__grille .yn-recommandations__lien:focus-visible .yn-recommandations__nom {
+	text-decoration: underline;
+}
+
+.yn-recommandations__grille .yn-recommandations__nom {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.3;
+	letter-spacing: 0;
+	overflow-wrap: anywhere;
+}
+
+.yn-recommandations__grille .yn-recommandations__type,
+.yn-recommandations__grille .yn-recommandations__raison {
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.yn-recommandations__grille .yn-recommandations__genres {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-recommandations__grille .yn-recommandations__genres > li {
+	margin: 0;
+}
+
+.yn-recommandations__grille .yn-recommandations__cofavoris {
+	color: var(--wp--preset--color--accent-2);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+/*
+ * Fiche en deux colonnes (grille de .yn-fiche__corps posée par yume/oeuvre-infos au-delà de
+ * 1000 px) : les suggestions prennent toute la largeur juste après le sommaire des tomes (et
+ * l'encart yume/oeuvre-news s'il est présent), les commentaires et les infos descendent d'une ligne.
+ */
+@media (min-width: 1000px) {
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-recommandations) > .yn-recommandations {
+		grid-row: 2;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-recommandations) > .yn-fiche__commentaires,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-recommandations) > .yn-oeuvre-infos {
+		grid-row: 3;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-oeuvre-news):has(> .yn-recommandations) > .yn-recommandations,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-recommandations) > .yn-recommandations {
+		grid-row: 3;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-oeuvre-news):has(> .yn-recommandations) > .yn-fiche__commentaires,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-oeuvre-news):has(> .yn-recommandations) > .yn-oeuvre-infos,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-recommandations) > .yn-fiche__commentaires,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-recommandations) > .yn-oeuvre-infos {
+		grid-row: 4;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-oeuvre-news):has(> .yn-recommandations) > .yn-recommandations {
+		grid-row: 4;
+	}
+
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-oeuvre-news):has(> .yn-recommandations) > .yn-fiche__commentaires,
+	.yn-fiche__corps:has(> .yn-oeuvre-infos):has(> .yn-onglets-oeuvre):has(> .yn-oeuvre-news):has(> .yn-recommandations) > .yn-oeuvre-infos {
+		grid-row: 5;
+	}
+}

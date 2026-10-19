@@ -1,0 +1,37 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/recommandations",
+	"title": "Si vous avez aimé… (recommandations)",
+	"category": "yume",
+	"icon": "thumbs-up",
+	"description": "Fiche d’une œuvre : œuvres proches (genres, type, lecteurs en commun à partir de 3), avec couverture, type et genres communs. Même contenu pour tous les visiteurs ; un membre connecté ne voit ni ses favoris ni ses lectures. Rien sans assez de données.",
+	"keywords": [
+		"recommandations",
+		"suggestions",
+		"œuvres"
+	],
+	"textdomain": "yume-core",
+	"attributes": {
+		"count": {
+			"type": "number",
+			"default": 4,
+			"label": "Nombre de suggestions (1 à 12)"
+		}
+	},
+	"usesContext": [
+		"postId",
+		"postType"
+	],
+	"supports": {
+		"html": false,
+		"align": [
+			"wide"
+		]
+	},
+	"render": "file:./render.php",
+	"style": [
+		"yume-bibliotheque",
+		"file:./style.css"
+	]
+}

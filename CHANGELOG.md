@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.4 — 2026-10-19
+
+- Lecteurs, lot L3 : recommandations « Si vous avez aimé… » (fiche œuvre, rubrique Pour vous)
+
 ## 2.5.0-dev.3 — 2026-10-19
 
 - Lecteurs, lot L5 : rattrapage des nouveaux chapitres (accueil et Mon compte, lecteurs connectés)
