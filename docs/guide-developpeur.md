@@ -12,8 +12,8 @@ modification.
 wp-content/plugins/yume-core/     plugin métier
   yume-core.php                   en-tête, version, chargement des modules (socle)
   includes/<module>/module.php    un dossier par module : core, import, publication, planning,
-                                  reader, social, library, glossaire, mangadex, wordend, migration,
-                                  updater
+                                  reader, social, library, statistiques, glossaire, mangadex,
+                                  wordend, migration, updater
   includes/blocks-support.php     enregistrement des blocs dynamiques (socle)
   lib/plugin-update-checker/      bibliothèque de mises à jour vendorisée (MIT, voir lib/README.md)
   tests/                          mini-framework de test + tests/test-<module>.php (non livrés)
@@ -67,7 +67,16 @@ jour par l'administration est refusée (elle effacerait votre copie de travail).
 ```sh
 tools/localenv/test.sh              # tous les tests
 tools/localenv/test.sh updater      # tests/test-updater.php seulement
+YUME_ENV=autre tools/localenv/test.sh statistiques   # base distincte (deux suites en parallèle)
 ```
+
+Un module peut avoir plusieurs fichiers de tests (`test-<module>-<partie>.php`, lancés par leur nom
+complet) : le module statistiques a `statistiques` (socle, REST), `statistiques-trafic`,
+`statistiques-oeuvres`, `statistiques-lecteurs` et `statistiques-vue`. Ses tests n'appellent jamais
+Jetpack : les réponses de l'API sont injectées par le filtre `yume_statistiques_requete_stats` (charges
+utiles au format de l'API REST v1.1), la source est forcée par `yume_statistiques_source_trafic`,
+« maintenant » est figé par `yume_statistiques_maintenant`, et `pre_http_request` fait échouer le
+test s'il est atteint.
 
 `tests/runner.php` (exécuté par `wp eval-file`) charge `tests/test-*.php` ; chaque test est déclaré
 avec `yume_test( 'libellé', function () { … } )` et utilise les assertions de `tests/helpers.php`

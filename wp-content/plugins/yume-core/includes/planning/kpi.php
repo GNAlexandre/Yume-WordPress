@@ -511,6 +511,10 @@ function rendu_vue_kpi(): string {
 			format_fr( (int) $d['calcule'], 'H\hi' )
 		)
 	) . '</p>';
+	// Audience détaillée (trafic, œuvres, lecteurs) : vue Statistiques du module statistiques.
+	if ( function_exists( '\Yume\Core\Statistiques\url_statistiques' ) ) {
+		$html .= '<p class="yn-kpi__lien-stats"><a href="' . esc_url( \Yume\Core\Statistiques\url_statistiques( array( 'periode' => $jours ) ) ) . '">' . esc_html__( 'Voir les statistiques d’audience', 'yume-core' ) . ' →</a></p>';
+	}
 
 	// Filtre de période.
 	$choix = array();

@@ -80,6 +80,8 @@
 				<element value="yume_gerer_equipe"/>
 				<element value="yume_reglages"/>
 				<element value="yume_voir_equipe"/>
+				<element value="yume_voir_statistiques"/>
+				<element value="yume_voir_lecteurs"/>
 				<element value="edit_yume_oeuvre"/>
 				<element value="read_yume_oeuvre"/>
 				<element value="delete_yume_oeuvre"/>

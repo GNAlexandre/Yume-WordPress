@@ -2,6 +2,34 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.4.0-dev.7 — 2026-10-19
+
+- Statistiques : la liste nominative précise que le pseudo affiché est celui des commentaires (souvent aussi l'identifiant de connexion, le pseudo d'inscription servant aux deux)
+
+## 2.4.0-dev.6 — 2026-10-19
+
+- Statistiques : documentation, guide de l'équipe, démo Playground, lien depuis les Indicateurs
+
+## 2.4.0-dev.5 — 2026-10-19
+
+- Statistiques, lot D : page Statistiques de l'espace équipe (menu Site, onglets Aperçu, Trafic, Œuvres, Lecteurs, fiche d'une œuvre, graphiques SVG accessibles, sans JavaScript)
+
+## 2.4.0-dev.4 — 2026-10-19
+
+- Statistiques, lot C : liste nominative des favoris et suiveurs d'une œuvre (pseudo, date, alertes ; gérants et administrateurs), export CSV du classement et de la liste, exports nominatifs journalisés
+
+## 2.4.0-dev.3 — 2026-10-19
+
+- Statistiques, lot B : compteurs par œuvre (favoris, suiveurs alertés, listes, lecteurs, chapitres lus), classements, historique quotidien (cron, rattrapage, rétention 400 jours)
+
+## 2.4.0-dev.2 — 2026-10-19
+
+- Statistiques, lot A : trafic Jetpack (vues, visiteurs, contenus, référents, recherches, pays ; cache, repli et données simulées hors production)
+
+## 2.4.0-dev.1 — 2026-10-19
+
+- Statistiques, lot 0 : socle du module (capacités, table d'historique, cron, routes REST)
+
 ## 2.3.1-dev.1 — 2026-10-18
 
 - Documentation MangaDex : vérifications en production de la 2.3.0 (cache des images, stockage, sécurité), journal des décisions et des releases

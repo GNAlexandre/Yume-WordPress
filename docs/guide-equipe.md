@@ -16,13 +16,26 @@ explique comment se connecter, tenir le planning à jour, publier un tome et s'o
 | Rôle | Pour qui | Peut |
 | --- | --- | --- |
 | **Lecteur** | Tout compte créé par un lecteur | Lire, commenter, gérer ses favoris, notes, alertes et réglages de lecture |
-| **Traducteur**, **Relecteur**, **Graphiste** | Membres de l'équipe | Accéder à l'espace équipe, mettre à jour le planning **des tomes dont ils sont responsables**, envoyer des images |
+| **Traducteur**, **Relecteur**, **Graphiste** | Membres de l'équipe | Accéder à l'espace équipe, mettre à jour le planning **des tomes dont ils sont responsables**, envoyer des images, consulter les **statistiques d'audience** (chiffres seulement) et exporter le classement des œuvres |
 | **Éditeur Yume** | Personnes qui publient | Tout ce qui précède, plus : publier un tome, mettre à jour le planning de **tous** les tomes, modifier œuvres, tomes et chapitres, écrire des actualités, **modérer les commentaires** |
-| **Gérant** | Responsables de Yume | Tout ce qui précède, plus : gérer les membres de l'équipe, régler le site (*Yume → Réglages*), modifier les articles des autres |
+| **Gérant** | Responsables de Yume | Tout ce qui précède, plus : gérer les membres de l'équipe, régler le site (*Yume → Réglages*), modifier les articles des autres, voir les **Indicateurs** et la **Santé du site**, voir et exporter la **liste nominative** des lecteurs qui suivent une œuvre |
 | Administrateur | 1 ou 2 comptes techniques | Tout (installation, extensions) |
 
 Un rôle se demande à un gérant. Chacun n'a que les droits dont il a besoin : c'est normal de ne pas
 voir tous les menus.
+
+Statistiques d'audience (section 3, « Statistiques d'audience ») :
+
+| Ce qu'on voit | Traducteur, Relecteur, Graphiste, Éditeur Yume | Gérant, administrateur |
+| --- | --- | --- |
+| Trafic (vues, visiteurs, contenus, référents, recherches, pays) | oui | oui |
+| Chiffres par œuvre, classements, chiffres des lecteurs (sans nom) | oui | oui |
+| Export CSV du classement des œuvres | oui | oui |
+| Liste nominative des favoris et des suiveurs d'une œuvre (pseudos) et son export | non (chiffre seulement) | oui |
+| Indicateurs (gestion de l'équipe), Santé du site | non | oui |
+
+L'ouverture de la liste nominative aux éditeurs est une décision en attente de l'équipe
+(`docs/journal-des-decisions.md`).
 
 ## 2. Se connecter
 
@@ -63,7 +76,7 @@ Le tableau de bord rassemble, sans passer par l'administration WordPress :
 - **Mes retards** : ce qui a dépassé sa date cible ;
 - la **prochaine sortie** de l'équipe et les **rappels** envoyés ce mois-ci ;
 - le **journal de l'équipe** : les dernières mises à jour (qui, quoi, quand) ;
-- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Ajouter des chapitres, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; pour les gérants
+- le menu, en quatre rubriques repliables (celle de la page affichée est ouverte) : **Catalogue** (Œuvres, Tous les tomes, Ajouter des chapitres, Lecture à compléter, Glossaires), **Planning** (Planning complet, Journal), **Équipe** (Membres et rôles, Commentaires) et **Site** (Statistiques, Indicateurs, Santé du site, Réglages) — chacun n'y voit que ce que son rôle permet ; **Statistiques** est ouvert à toute l'équipe ; pour les gérants
   **Membres et rôles** et **Réglages** ;
 - **Se déconnecter**, sous votre nom dans le menu de l'espace équipe.
 
@@ -262,6 +275,93 @@ Depuis le planning public (`/planning/`), un membre connecté a un bouton **Modi
 mises à jour, page par page, avec des filtres par œuvre et par tome ; cochez **Inclure les rappels
 automatiques** pour voir aussi les rappels et signalements. Cliquer sur le nom d'un tome filtre le
 journal sur ce tome.
+
+### Statistiques d'audience (`/equipe/?vue=statistiques`, toute l'équipe)
+
+Entrée **Statistiques**, en tête du menu **Site**. Ouverte à **tous les rôles de l'équipe** (capacité
+`yume_voir_statistiques`) : on n'y voit que des chiffres, sauf la liste nominative d'une œuvre,
+réservée aux gérants et administrateurs (capacité `yume_voir_lecteurs`). Tout s'affiche sans
+JavaScript ; chaque courbe a son tableau des valeurs (**Voir le tableau des valeurs**).
+
+Vocabulaire :
+
+- **Favoris** : les lecteurs qui ont mis l'œuvre en favori. Sur le site, « suivre » une œuvre, c'est
+  la mettre en favori ; il n'existe pas d'autre abonnement.
+- **Suiveurs alertés** : les favoris avec une alerte **immédiate** ou **hebdomadaire** (sans l'alerte
+  « Jamais »).
+- **Lecteurs** : comptes qui ont une position de lecture sur l'œuvre (lecture en ligne, connecté) ;
+  **lecteurs actifs** : position mise à jour sur la période (**Actifs 30 j** : sur 30 jours).
+- **Chapitres lus (est.)** : estimation tirée de la position de lecture (une seule position par
+  lecteur et par œuvre) : les chapitres publiés qui la précèdent, plus le chapitre en cours s'il est
+  lu à 90 % — même règle que *Mon compte → Mes statistiques*. Un lecteur qui relit ou saute des
+  chapitres n'est pas distingué.
+
+**Période** : 7 jours, 30 jours (par défaut), 90 jours ou 12 mois se terminant aujourd'hui, puis
+**Afficher** ; chaque chiffre est comparé à la période précédente de même durée (▲ / ▼ et
+pourcentage, « — » quand la période précédente est vide). La période reste choisie d'un onglet à
+l'autre.
+
+Onglets :
+
+- **Aperçu** : vues, visiteurs, lecteurs actifs, favoris (et nouveaux favoris de la période),
+  suiveurs alertés ; courbe des vues et visiteurs ; les 5 œuvres les plus suivies et les plus vues.
+- **Trafic** : vues et visiteurs par jour (par mois sur 12 mois), vues par visiteur, meilleur jour,
+  contenus les plus vus (fiche, tome, chapitre, page), vues regroupées **par œuvre**, référents
+  (Google, Discord…), termes de recherche (la plupart sont masqués par les moteurs : chiffre
+  indicatif), **pays** (jamais de ville). Les administrateurs y voient en plus une ligne « Source du
+  trafic : … — dernière erreur : … ».
+- **Œuvres** : classement de toutes les œuvres, **Trier par** Favoris, Suiveurs alertés, Lecteurs,
+  Vues, Nouveaux favoris ou Croissance 30 j, puis **Trier**. Un clic sur un titre ouvre la fiche de
+  l'œuvre.
+- **Lecteurs** : comptes lecteurs, inscriptions de la période (et courbe par jour), lecteurs actifs,
+  part des comptes avec au moins un favori, fréquence des alertes choisie. Aucun lecteur n'y est
+  nommé.
+
+**Fiche d'une œuvre** (`?vue=statistiques&oeuvre=ID`) : favoris (+ nouveaux sur la période),
+suiveurs alertés (immédiat / hebdo), lecteurs, actifs 30 j, chapitres lus (est.), vues ; courbes
+d'évolution (favoris et suiveurs, lecteurs actifs, vues par jour) ; présence dans les listes de
+lecture des lecteurs (**À lire**, **En cours**, **Terminé**, listes perso : chiffres seulement, les
+listes pouvant être privées) ; lecteurs positionnés dans chaque tome ; **Voir la fiche publique**.
+
+**Liste nominative et RGPD** (bas de la fiche, gérants et administrateurs seulement) : **Lecteurs qui
+suivent l'œuvre**, en **Favoris** ou **Suiveurs alertés**, 50 par page, **Rechercher un pseudo** (2
+caractères au moins), tri par date d'ajout ou par pseudo. Chaque ligne ne donne que le **pseudo**
+(nom affiché du compte, le même que sous ses commentaires), la date d'ajout, la fréquence d'alerte
+et une pastille **Équipe** : jamais d'e-mail, d'adresse IP ni d'avatar. Le pseudo choisi à
+l'inscription sert aussi d'identifiant de connexion : tant que le lecteur n'en a pas changé dans
+*Mon compte*, le pseudo affiché est donc aussi son identifiant. Un compte supprimé disparaît de la liste. Les autres membres
+voient seulement le nombre, avec la mention « réservée aux gérants et administrateurs (RGPD) ». Ces
+données ne sortent pas de l'équipe (pas de copie sur Discord). La page *Confidentialité* du site
+devra mentionner ces statistiques internes : décision en attente de l'équipe (journal des
+décisions).
+
+**Exports CSV** (UTF-8, séparateur `;`, s'ouvrent dans Excel ou LibreOffice) :
+
+- **Exporter le classement (CSV)** (en haut de la vue, toute l'équipe) : une ligne par œuvre, pour
+  la période et le tri affichés, sans aucun nom ;
+- **Exporter la liste (CSV)** (fiche d'une œuvre, gérants et administrateurs) : la liste nominative
+  affichée (favoris ou suiveurs, recherche comprise). **Chaque export est journalisé** (qui, quand,
+  quelle œuvre, combien de lignes ; les 100 derniers sont gardés). Le fichier contient des données
+  personnelles : à garder pour un usage interne et à supprimer après usage.
+
+**D'où viennent les chiffres** :
+
+- **Vues et visiteurs** : Jetpack (statistiques WordPress.com), relus au plus toutes les 15 minutes.
+  Si Jetpack n'est pas connecté, la vue affiche « Trafic indisponible » ; les autres chiffres restent
+  justes. Sur un site de test (Playground, ordinateur d'un développeur), un bandeau **Démonstration**
+  signale que vues, visiteurs, référents, recherches et pays sont **simulés**.
+- **Favoris, lecteurs, listes** : les données du site, recalculées au plus toutes les 5 minutes (tout
+  de suite après un favori ajouté ou retiré, ou une publication).
+- **Historique jour par jour** (courbes des fiches, croissance) : calculé chaque nuit vers 3 h 10
+  (tâche « Statistiques quotidiennes (historique) » visible dans **Santé du site**), gardé 400 jours.
+  **Il commence le jour de l'installation** de cette fonction (version 2.4.0) : les courbes se
+  remplissent au fil des jours, la fiche indique « Historique quotidien depuis le … ». Les jours où
+  le site n'a eu aucune visite la nuit sont rattrapés le lendemain (7 jours au plus).
+
+**Données de démonstration** : dans Playground (`tools/playground/`), la démo crée six comptes
+lecteurs fictifs, leurs favoris, positions de lecture et listes, et 60 jours d'historique pour
+l'œuvre de démonstration ; le compte `equipe` voit les chiffres, le compte `admin` voit aussi la
+liste nominative.
 
 ### Réglages (`/equipe/?vue=reglages`, gérants et administrateurs)
 
@@ -863,7 +963,9 @@ signalé, jusqu'à votre décision. Vos réponses portent un badge **Équipe** �
   sortis par mois sur un an (graphique et tableau), temps moyen passé dans chaque étape, tâches
   ouvertes et en retard de chaque membre, retards en cours, lecteurs actifs, favoris et lecteurs par
   œuvre, e-mails envoyés. Choisissez la période (30 jours, 90 jours ou 12 mois) puis **Afficher**.
-  Les chiffres sont recalculés toutes les 5 minutes ; aucun lecteur n'y est nommé.
+  Les chiffres sont recalculés toutes les 5 minutes ; aucun lecteur n'y est nommé. Le lien **Voir
+  les statistiques d'audience** mène à la vue Statistiques (même période), plus complète pour
+  l'audience ; Indicateurs reste l'outil de gestion de l'équipe.
 - **Santé du site** (menu de l'espace équipe, juste avant *Réglages*, `/equipe/?vue=sante`, gérants
   et administrateurs ; *Yume → Santé* dans l'administration y mène aussi) : dernière et prochaine
   exécution des tâches automatiques (rappels, récapitulatifs, envoi des e-mails), e-mails en
@@ -975,6 +1077,9 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | J'ai oublié mon mot de passe | Lien « Mot de passe oublié ? » sur la page de connexion. |
 | Un lecteur veut lire sans connexion (train, avion) | Qu'il ouvre les chapitres voulus une fois en ligne (le chapitre suivant est gardé aussi) : ils restent lisibles hors ligne sur cet appareil, 30 au plus. Il peut aussi installer le site comme une application (« Installer » / « Ajouter à l'écran d'accueil » du navigateur). Hors ligne, les autres pages affichent « Vous êtes hors ligne » avec la liste des chapitres disponibles. Désactivable : *Yume → Réglages* → **Lecture hors ligne**. |
 | Un lecteur a du mal à lire (dyslexie, vue basse, animations gênantes) | Dans un chapitre, bouton ⚙ **Paramètres** → **Accessibilité** : police adaptée à la dyslexie (OpenDyslexic), contraste renforcé, réduction des animations. Les raccourcis clavier (← → pour changer de chapitre) y sont listés. |
+| Je ne vois pas la liste des lecteurs d'une œuvre dans *Statistiques* | Elle est réservée aux gérants et aux administrateurs (RGPD) ; les chiffres restent visibles pour toute l'équipe. |
+| Les courbes d'une œuvre sont presque vides dans *Statistiques* | L'historique jour par jour commence à l'installation (2.4.0) et se remplit chaque nuit. |
+| *Statistiques* affiche « Trafic indisponible » ou des vues vides sur le site en ligne | Jetpack n'est pas connecté ou ne répond pas : prévenez l'équipe technique (favoris, lecteurs et classements restent justes). |
 | Un lecteur demande combien il a lu | *Mon compte* → **Mes statistiques** : tomes terminés, chapitres lus, temps de lecture estimé, séries en cours et badge « À jour » par série (d'après sa position de lecture, en étant connecté). |
 | Un lecteur ne retrouve pas une œuvre dans « En cours » ou « Terminé » | Le classement automatique suit sa position de lecture en étant connecté ; il a pu le couper dans *Mon compte → Mes listes*. Il peut toujours ranger l'œuvre à la main avec **Ajouter à une liste** sur la fiche. |
 | Un lecteur ne reçoit pas les notifications du navigateur | Elles s'activent appareil par appareil dans *Mon compte → Notifications* ; le navigateur doit les autoriser pour le site. Elles arrivent quelques minutes après la sortie (envoi planifié). Sa cloche, elle, se met à jour dans tous les cas. |

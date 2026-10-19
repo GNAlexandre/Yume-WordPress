@@ -46,6 +46,14 @@ du contrat (§11), créées comme par la migration (`Migration_Planner::PAGES_A_
 d'accueil statique). Comme après la migration, les commentaires sont réservés aux comptes
 connectés. Relancer le script ne crée aucun doublon et recrée seulement les pages manquantes.
 
+Statistiques de l'espace équipe (*Site → Statistiques*) : six comptes lecteurs fictifs (`demo-lecteur-1`
+à `demo-lecteur-6`, mot de passe aléatoire : ils ne servent pas à se connecter) inscrits ces dernières
+semaines, leurs favoris datés (alertes immédiates, hebdomadaires ou aucune), positions de lecture et
+listes de lecture, puis 60 jours d'historique quotidien (vues de l'œuvre inventées). Les blueprints
+déclarent `WP_ENVIRONMENT_TYPE` = `staging` : sans Jetpack, le trafic (vues, visiteurs, référents,
+pays) est alors **simulé** et signalé par un bandeau « Démonstration ». Le compte `equipe` (Éditeur
+Yume) voit les chiffres ; `admin` voit aussi la liste nominative des lecteurs qui suivent l'œuvre.
+
 ## Limites
 
 - Aucune release n'existe tant que l'équipe n'a pas donné son « Go » (contrat §0 bis) :

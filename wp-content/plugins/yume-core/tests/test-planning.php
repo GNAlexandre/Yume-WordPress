@@ -2982,7 +2982,8 @@ yume_test(
 		wp_set_current_user( yume_factory_user( 'yume_traducteur' ) );
 		try {
 			$vues = \Yume\Core\Planning\vues_equipe_ajoutees();
-			yume_assert_same( array( 'essai' ), array_keys( $vues ) );
+			// « statistiques » : vue du module Statistiques, ouverte à toute l'équipe (priorité 5).
+			yume_assert_same( array( 'statistiques', 'essai' ), array_keys( $vues ) );
 			$nav = \Yume\Core\Planning\navigation_equipe( 'essai' );
 			yume_assert_contains( 'Vue d’essai', $nav );
 			yume_assert_contains( 'vue=essai" aria-current="page"', $nav );

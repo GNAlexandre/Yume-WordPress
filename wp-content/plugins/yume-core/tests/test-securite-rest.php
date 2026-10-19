@@ -60,6 +60,7 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 	 */
 	function yume_tsrest_attentes(): array {
 		$equipe_planning = array( 'editeur', 'gerant', 'administrateur' );
+		$equipe_stats    = array( 'traducteur', 'editeur', 'gerant', 'administrateur' );
 		return array(
 			// Index de l'espace de noms (généré par WordPress).
 			'GET /yume/v1'                                => 'publique',
@@ -124,6 +125,14 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			// Glossaire (includes/glossaire/rest.php) : capacité yume_glossaire.
 			'GET /yume/v1/oeuvres/(?P<oeuvre>[\w-]+)/glossaire' => $equipe_planning,
 			'POST /yume/v1/oeuvres/(?P<oeuvre>[\w-]+)/glossaire' => $equipe_planning,
+
+			// Statistiques (includes/statistiques/rest.php) : yume_voir_statistiques (toute l'équipe),
+			// liste nominative des lecteurs : yume_voir_lecteurs (gérants et administrateurs).
+			'GET /yume/v1/statistiques/resume'            => $equipe_stats,
+			'GET /yume/v1/statistiques/trafic'            => $equipe_stats,
+			'GET /yume/v1/statistiques/oeuvres'           => $equipe_stats,
+			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)' => $equipe_stats,
+			'GET /yume/v1/statistiques/oeuvres/(?P<oeuvre>\d+)/lecteurs' => array( 'gerant', 'administrateur' ),
 		);
 	}
 

@@ -8,6 +8,8 @@
  * membres, compte, connexion, actualités, mentions légales, accueil) avec les réglages de lecture
  * (accueil statique, page des articles), les pages institutionnelles du menu et deux comptes de
  * test (equipe / equipe, lecteur / lecteur). Les commentaires sont réservés aux comptes connectés.
+ * Pour la vue Statistiques de l'espace équipe : six comptes lecteurs fictifs (sans mot de passe
+ * connu), favoris, positions de lecture, listes et 60 jours d'historique quotidien.
  *
  * Ce fichier est la source de l'étape runPHP des blueprints (tools/playground/construire.php
  * l'y recopie). Il s'exécute aussi sur un WordPress local :
@@ -221,9 +223,12 @@ if ( $yume_demo_oeuvre ) {
 				. yume_demo_paragraphe( 'Fin de l’extrait de démonstration', 'yn-center' ),
 		),
 	);
+
+	// IDs des chapitres (positions de lecture des statistiques de démonstration).
+	$yume_demo_chapitre_ids = array();
 	if ( $yume_demo_tome1 ) {
 		foreach ( $yume_demo_chapitres as $yume_demo_numero => $yume_demo_chapitre ) {
-			yume_demo_contenu(
+			$yume_demo_chapitre_ids[ $yume_demo_numero ] = yume_demo_contenu(
 				array(
 					'post_type'    => 'yume_chapitre',
 					'post_name'    => 'chapitre-' . $yume_demo_numero,
@@ -399,6 +404,118 @@ if ( $yume_demo_oeuvre && '' !== $yume_demo_glossaire && function_exists( 'Yume\
 			'note'    => 'Démonstration',
 		)
 	);
+}
+
+// Statistiques de l'espace équipe (?vue=statistiques) : comptes lecteurs fictifs inscrits ces
+// dernières semaines, favoris datés (alertes immédiates, hebdomadaires ou aucune), positions de
+// lecture, listes de lecture, puis 60 jours d'historique quotidien (calculer_jour()). Le trafic
+// (vues, visiteurs) est simulé hors production : les blueprints déclarent WP_ENVIRONMENT_TYPE
+// « staging ». Relancé : rien n'est dupliqué, l'historique est recalculé à l'identique.
+if ( $yume_demo_oeuvre && function_exists( 'Yume\\Core\\Statistiques\\calculer_jour' ) && function_exists( 'Yume\\Core\\Social\\table_favoris' ) && function_exists( 'Yume\\Core\\Reader\\table_progression' ) ) {
+	global $wpdb;
+	$yume_demo_jour    = static fn( int $jours ): string => gmdate( 'Y-m-d H:i:s', time() - $jours * DAY_IN_SECONDS );
+	$yume_demo_ch1     = (int) ( $yume_demo_chapitre_ids[1] ?? 0 );
+	$yume_demo_ch2     = (int) ( $yume_demo_chapitre_ids[2] ?? 0 );
+	$yume_demo_tome_id = (int) ( $yume_demo_tome1 ?? 0 );
+	// Identifiant => [ inscrit il y a N jours, favori il y a N jours (-1 : aucun),
+	// fréquence d'alerte, chapitre lu (1, 2 ou 0), pourcentage, lu il y a N jours, liste système ].
+	$yume_demo_lecteurs = array(
+		'lecteur'        => array( 58, 55, 'immediat', 2, 50, 1, 'en_cours' ),
+		'demo-lecteur-1' => array( 57, 41, 'immediat', 2, 100, 3, 'termine' ),
+		'demo-lecteur-2' => array( 44, 30, 'hebdo', 1, 95, 12, 'en_cours' ),
+		'demo-lecteur-3' => array( 36, 22, 'jamais', 1, 40, 40, 'a_lire' ),
+		'demo-lecteur-4' => array( 20, 12, 'immediat', 2, 92, 2, 'en_cours' ),
+		'demo-lecteur-5' => array( 9, 5, 'jamais', 0, 0, 0, 'a_lire' ),
+		'demo-lecteur-6' => array( 4, -1, 'immediat', 1, 20, 1, '' ),
+		'equipe'         => array( 60, 2, 'hebdo', 0, 0, 0, '' ),
+	);
+	$yume_demo_pseudos  = array(
+		'demo-lecteur-1' => 'Sakura_Lit',
+		'demo-lecteur-2' => 'Kenji',
+		'demo-lecteur-3' => 'Mio des Brumes',
+		'demo-lecteur-4' => 'Hoshi',
+		'demo-lecteur-5' => 'Aoi',
+		'demo-lecteur-6' => 'Lanterne_rouge',
+	);
+	foreach ( $yume_demo_lecteurs as $yume_demo_login => $yume_demo_l ) {
+		$yume_demo_user = get_user_by( 'login', $yume_demo_login );
+		if ( ! $yume_demo_user && isset( $yume_demo_pseudos[ $yume_demo_login ] ) ) {
+			$yume_demo_uid  = wp_insert_user(
+				array(
+					'user_login'      => $yume_demo_login,
+					'user_pass'       => wp_generate_password( 24 ),
+					'user_email'      => $yume_demo_login . '@example.org',
+					'display_name'    => $yume_demo_pseudos[ $yume_demo_login ],
+					'role'            => 'subscriber',
+					'user_registered' => $yume_demo_jour( $yume_demo_l[0] ),
+				)
+			);
+			$yume_demo_user = is_wp_error( $yume_demo_uid ) ? false : get_userdata( (int) $yume_demo_uid );
+		}
+		if ( ! $yume_demo_user ) {
+			continue;
+		}
+		$yume_demo_uid = (int) $yume_demo_user->ID;
+		if ( 'equipe' !== $yume_demo_login ) {
+			// Date d'inscription étalée : courbe des inscriptions de l'onglet Lecteurs.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->update( $wpdb->users, array( 'user_registered' => $yume_demo_jour( $yume_demo_l[0] ) ), array( 'ID' => $yume_demo_uid ) );
+			clean_user_cache( $yume_demo_uid );
+		}
+		if ( $yume_demo_l[1] >= 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->replace(
+				\Yume\Core\Social\table_favoris(),
+				array(
+					'user_id'    => $yume_demo_uid,
+					'oeuvre_id'  => $yume_demo_oeuvre,
+					'frequence'  => $yume_demo_l[2],
+					'created_at' => $yume_demo_jour( $yume_demo_l[1] ),
+				),
+				array( '%d', '%d', '%s', '%s' )
+			);
+		}
+		$yume_demo_chapitre = 2 === $yume_demo_l[3] ? $yume_demo_ch2 : ( 1 === $yume_demo_l[3] ? $yume_demo_ch1 : 0 );
+		if ( $yume_demo_chapitre && $yume_demo_tome_id ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->replace(
+				\Yume\Core\Reader\table_progression(),
+				array(
+					'user_id'     => $yume_demo_uid,
+					'oeuvre_id'   => $yume_demo_oeuvre,
+					'tome_id'     => $yume_demo_tome_id,
+					'chapitre_id' => $yume_demo_chapitre,
+					'paragraphe'  => 0,
+					'pourcentage' => $yume_demo_l[4],
+					'updated_at'  => $yume_demo_jour( $yume_demo_l[5] ),
+				),
+				array( '%d', '%d', '%d', '%d', '%d', '%d', '%s' )
+			);
+		}
+		if ( '' !== $yume_demo_l[6] && function_exists( 'Yume\\Core\\Social\\liste_systeme' ) ) {
+			$yume_demo_liste = \Yume\Core\Social\liste_systeme( $yume_demo_uid, $yume_demo_l[6] );
+			if ( $yume_demo_liste ) {
+				\Yume\Core\Social\ajouter_a_liste( $yume_demo_liste, $yume_demo_oeuvre );
+			}
+		}
+	}
+	if ( function_exists( 'Yume\\Core\\Social\\recalculer_caches' ) ) {
+		\Yume\Core\Social\recalculer_caches( $yume_demo_oeuvre );
+	}
+	// Historique quotidien des 60 derniers jours (la veille comprise), comme la tâche de 03:10.
+	// L'œuvre de démonstration vient d'être publiée : la simulation ne lui donne aucune vue les
+	// jours précédents. Ses vues quotidiennes sont donc inventées (déterministes, en hausse), sauf
+	// si le trafic est indisponible (colonne NULL).
+	$yume_demo_table = \Yume\Core\Statistiques\table_stats_jour();
+	for ( $yume_demo_n = 60; $yume_demo_n >= 1; --$yume_demo_n ) {
+		$yume_demo_date = wp_date( 'Y-m-d', time() - $yume_demo_n * DAY_IN_SECONDS );
+		\Yume\Core\Statistiques\calculer_jour( $yume_demo_date );
+		$yume_demo_vues = 35 + (int) ( ( 60 - $yume_demo_n ) * 0.8 ) + crc32( 'yume-demo|' . $yume_demo_date ) % 40;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare( "UPDATE {$yume_demo_table} SET vues = %d WHERE jour = %s AND oeuvre_id = %d AND vues IS NOT NULL", $yume_demo_vues, $yume_demo_date, $yume_demo_oeuvre ) );
+	}
+	\Yume\Core\Statistiques\cache_vider();
+	update_option( \Yume\Core\Statistiques\OPTION_DERNIER_JOUR, wp_date( 'Y-m-d', time() - DAY_IN_SECONDS ), false );
 }
 
 flush_rewrite_rules( false );

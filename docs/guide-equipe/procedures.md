@@ -29,6 +29,7 @@ L'espace équipe est la partie du site réservée à l'équipe, à l'adresse **y
 - créer les œuvres et les tomes ;
 - ajouter les chapitres d'un tome, les programmer et les annoncer ;
 - publier les glossaires et modérer les commentaires ;
+- suivre l'audience du site et des œuvres (**Statistiques**) ;
 - pour les gérants : gérer les membres et régler le site.
 
 Le site fait le reste tout seul : pages de lecture, annonces sur Discord, e-mails aux lecteurs, rappels de planning.
@@ -39,9 +40,9 @@ Chaque membre a un rôle. Un rôle se demande à un gérant.
 
 | Rôle | Peut |
 | --- | --- |
-| **Traducteur**, **Relecteur**, **Graphiste** | Voir l'espace équipe et tout le planning. Mettre à jour l'avancement des tomes dont il est responsable. Envoyer des images. |
+| **Traducteur**, **Relecteur**, **Graphiste** | Voir l'espace équipe et tout le planning. Mettre à jour l'avancement des tomes dont il est responsable. Envoyer des images. Consulter les statistiques d'audience (chiffres seulement) et exporter le classement des œuvres. |
 | **Éditeur Yume** | Tout ce qui précède, plus : créer et modifier les œuvres et les tomes, ajouter des chapitres, mettre à jour le planning de tous les tomes, publier les glossaires, écrire des actualités, modérer les commentaires. |
-| **Gérant** | Tout ce qui précède, plus : gérer les membres et leurs rôles, voir les indicateurs et la santé du site, modifier les réglages. |
+| **Gérant** | Tout ce qui précède, plus : gérer les membres et leurs rôles, voir les indicateurs et la santé du site, modifier les réglages, voir et exporter la liste des lecteurs qui suivent une œuvre. |
 
 > **À savoir** : chacun ne voit que les menus dont son rôle a besoin. Une entrée absente n'est pas une panne.
 
@@ -903,6 +904,74 @@ La date programmée compte en priorité ; sinon, c'est la date cible.
 - **PDF et EPUB seront proposés quand les 12 chapitres seront en ligne** : les liens n'apparaissent qu'une fois le tome complet.
 - Les **Crédits** : traduction, relecture, édition.
 
+# Les statistiques d'audience
+
+Le menu **Site**, puis **Statistiques**, montre l'audience du site et de chaque œuvre : vues, visiteurs, favoris, lecteurs. Toute l'équipe y a accès. Les chiffres sont des totaux : aucun lecteur n'y est nommé, sauf dans la liste des lecteurs d'une œuvre, réservée aux gérants.
+
+| Mot | Ce qu'il compte |
+| --- | --- |
+| **Vues**, **Visiteurs** | Pages vues et visiteurs, mesurés par Jetpack (WordPress.com) |
+| **Favoris** | Lecteurs qui ont mis l'œuvre en favori (« suivre » une œuvre, c'est la mettre en favori) |
+| **Suiveurs alertés** | Favoris avec une alerte **Immédiate** ou **Hebdomadaire** (sans l'alerte **Jamais**) |
+| **Lecteurs** | Comptes qui ont une position de lecture sur l'œuvre (lecture en ligne, connecté) |
+| **Lecteurs actifs** | Comptes dont la position de lecture a bougé sur la période (ou sur 30 jours pour **Actifs 30 j**) |
+| **Chapitres lus (est.)** | Estimation tirée de la position de lecture : les chapitres qui la précèdent, plus le chapitre en cours s'il est lu à 90 % |
+
+## Lire l'aperçu
+
+1. Dans le menu, ouvrez **Site**, puis **Statistiques**.
+2. Sous **Période**, choisissez **7 jours**, **30 jours**, **90 jours** ou **12 mois**, puis cliquez sur **Afficher**. La période reste choisie quand vous changez d'onglet.
+3. L'onglet **Aperçu** affiche les chiffres clés, comparés à la période précédente de même durée (▲ hausse, ▼ baisse), la courbe des vues et des visiteurs, et les œuvres les plus suivies et les plus vues.
+
+![L'onglet Aperçu des statistiques (chiffres fictifs).](images/Statistiques-apercu.png){largeur=80%}
+
+Les autres onglets :
+
+- **Trafic** : vues et visiteurs par jour (par mois sur 12 mois), contenus les plus vus, vues regroupées par œuvre (fiche, tomes et chapitres), sites qui envoient des visiteurs (**Référents**), **Termes de recherche** et **Pays** (jamais de ville) ;
+- **Œuvres** : le classement de toutes les œuvres. Choisissez **Trier par** (**Favoris**, **Suiveurs alertés**, **Lecteurs**, **Vues**, **Nouveaux favoris**, **Croissance 30 j**), puis **Trier** ;
+- **Lecteurs** : comptes lecteurs, inscriptions, lecteurs actifs, part des comptes qui ont au moins un favori, fréquence des alertes choisie par les lecteurs. Personne n'y est nommé.
+
+> **Astuce** : sous chaque courbe, **Voir le tableau des valeurs** affiche les chiffres jour par jour. Survolez la courbe pour lire la valeur d'un jour.
+
+## Consulter les statistiques d'une œuvre
+
+1. Ouvrez l'onglet **Œuvres** (ou cliquez sur une œuvre dans l'**Aperçu**).
+2. Cliquez sur le titre de l'œuvre.
+3. La fiche affiche ses favoris, suiveurs alertés, lecteurs, lecteurs actifs, chapitres lus estimés et vues, l'évolution jour par jour, sa place dans les listes de lecture des lecteurs (**À lire**, **En cours**, **Terminé**, listes personnelles : chiffres seulement) et les lecteurs de chaque tome.
+4. **Voir la fiche publique** ouvre la page de l'œuvre sur le site ; **← Retour au classement des œuvres** ramène au classement.
+
+![La fiche statistique d'une œuvre (chiffres fictifs).](images/Statistiques-fiche.png){largeur=80%}
+
+> **À savoir** : l'historique jour par jour commence le jour où la fonction a été installée sur le site. Les courbes se remplissent au fil des jours ; la fiche indique depuis quand.
+
+## Voir qui suit une œuvre (gérants)
+
+Réservé aux gérants et aux administrateurs. Les autres membres voient seulement le nombre de lecteurs, avec la mention « La liste des pseudos est réservée aux gérants et administrateurs (RGPD) ».
+
+1. Ouvrez la fiche statistique de l'œuvre (procédure précédente).
+2. Descendez jusqu'à **Lecteurs qui suivent l'œuvre**.
+3. Choisissez **Favoris** (tous) ou **Suiveurs alertés** (alerte immédiate ou hebdomadaire).
+4. Pour retrouver quelqu'un, tapez au moins 2 caractères dans **Rechercher un pseudo**, choisissez **Trier par** (**Date d'ajout** ou **Pseudo**), puis cliquez sur **Rechercher**.
+5. Pour garder la liste, cliquez sur **Exporter la liste (CSV)**.
+
+![La liste des lecteurs qui suivent une œuvre (pseudos fictifs).](images/Statistiques-lecteurs.png){largeur=80%}
+
+La liste ne montre que le **pseudo**, la date d'ajout et la fréquence d'alerte, avec une pastille **Équipe** pour les membres. Jamais d'adresse e-mail. Un compte supprimé disparaît de la liste.
+
+> **Attention** : ce sont des données personnelles. Ne les recopiez pas sur Discord ni ailleurs. Chaque export est enregistré (qui, quand, quelle œuvre) : gardez le fichier pour un usage interne et supprimez-le après usage.
+
+## Exporter le classement des œuvres
+
+1. Choisissez la période (et, dans l'onglet **Œuvres**, le tri).
+2. Cliquez sur **Exporter le classement (CSV)**, en haut à droite.
+3. Ouvrez le fichier avec Excel ou LibreOffice : une ligne par œuvre, sans aucun nom de lecteur.
+
+## Comprendre les données de démonstration
+
+Sur le site en ligne, les vues et les visiteurs viennent de Jetpack. Sur un site de test (Playground, ordinateur d'un développeur), Jetpack n'est pas connecté : un bandeau **Démonstration** l'indique, et les vues, visiteurs, référents, recherches et pays sont inventés.
+
+> **À savoir** : si le site en ligne affiche « Trafic indisponible » ou des vues vides, Jetpack n'y est pas connecté ou ne répond pas : prévenez l'équipe technique. Favoris, lecteurs et classements restent justes.
+
 # Glossaires, actualités et commentaires
 
 ## Publier le glossaire d'une œuvre
@@ -950,6 +1019,8 @@ Pour chaque commentaire :
 | Un lien PDF ou EPUB ne marche plus. | **Tous les tomes**, **Modifier**, encadré **État du tome** (**Publié**) : remplacez le lien, puis **Enregistrer**. |
 | Le tome publié n'apparaît pas sur le site. | Il est encore en brouillon ou programmé. Vérifiez son statut dans **Tous les tomes** (filtre **Statut**). |
 | Un lecteur ne reçoit pas les alertes. | Il doit avoir l'œuvre en favori, avec une alerte active (page **Mon compte**). |
+| Je ne vois pas la liste des lecteurs d'une œuvre dans **Statistiques**. | Elle est réservée aux gérants et aux administrateurs. Les chiffres restent visibles pour toute l'équipe. |
+| Les courbes d'une œuvre sont presque vides. | L'historique jour par jour a commencé à l'installation des statistiques : il se remplit chaque nuit. |
 | J'ai oublié mon mot de passe. | Lien **Mot de passe oublié ?** sur la page de connexion. |
 
 # En cas de problème

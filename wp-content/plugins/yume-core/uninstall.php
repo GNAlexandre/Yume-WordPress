@@ -11,10 +11,10 @@
  * La purge supprime alors les contenus Yume (œuvres, tomes, chapitres, avec leurs
  * métadonnées et commentaires), les termes des taxonomies Yume, les tables yume_* (favoris,
  * notes, progression, journal du planning, file d'e-mails, glossaires et leurs versions,
- * listes de lecture, notifications du lecteur, abonnements Web Push), les rôles Yume et les
- * capacités yume_*, les options yume_* (réglages, schémas des modules, clés VAPID yume_vapid,
- * règles de réécriture mémorisées yume_listes_regles et yume_regles_contributeurs, dernières
- * exécutions yume_cron_derniers…), les transients yume_* et les métadonnées yume_* et _yume_*
+ * listes de lecture, notifications du lecteur, abonnements Web Push, historique des
+ * statistiques), les rôles Yume et les capacités yume_*, les options yume_* (réglages, schémas
+ * des modules, clés VAPID yume_vapid, règles de réécriture mémorisées yume_listes_regles et
+ * yume_regles_contributeurs, dernières exécutions yume_cron_derniers…), les transients yume_* et les métadonnées yume_* et _yume_*
  * des utilisateurs (profil public yume_profil_*, yume_listes_auto…), contenus (_yume_glossaire…),
  * commentaires et termes ; les règles de réécriture sont recalculées. Les fichiers de la
  * médiathèque (couvertures, illustrations) sont conservés.
@@ -99,6 +99,7 @@ function yume_uninstall_purger(): void {
 		'listes_oeuvres',
 		'notifications_lecteur',
 		'push',
+		'stats_jour',
 	);
 	foreach ( $tables as $table ) {
 		$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $wpdb->prefix . 'yume_' . $table ) . '`' ); // phpcs:ignore WordPress.DB

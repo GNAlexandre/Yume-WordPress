@@ -394,6 +394,10 @@ yume_tk_test(
 		yume_assert_contains( 'Charge par membre', $html );
 		yume_assert_contains( 'aria-current="page"', $html );
 		yume_assert_true( wp_style_is( 'yume-kpi', 'enqueued' ), 'feuille de style chargée' );
+		if ( function_exists( '\Yume\Core\Statistiques\url_statistiques' ) ) {
+			yume_assert_contains( 'Voir les statistiques d’audience', $html, 'lien vers la vue Statistiques' );
+			yume_assert_contains( 'vue=statistiques', $html );
+		}
 
 		// Période choisie.
 		$_GET['periode'] = '365';
