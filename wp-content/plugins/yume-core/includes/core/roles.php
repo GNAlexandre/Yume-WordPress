@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string[]
  */
 function capacites_propres(): array {
-	return array( 'yume_maj_planning', 'yume_maj_planning_tous', 'yume_publier', 'yume_gerer_equipe', 'yume_reglages', 'yume_voir_equipe', 'yume_glossaire' );
+	return array( 'yume_maj_planning', 'yume_maj_planning_tous', 'yume_publier', 'yume_gerer_equipe', 'yume_reglages', 'yume_voir_equipe', 'yume_glossaire', 'yume_voir_statistiques', 'yume_voir_lecteurs' );
 }
 
 /**
@@ -43,7 +43,8 @@ function capacites_types(): array {
  * @return array<string,array{nom:string,caps:string[]}>
  */
 function definitions_roles(): array {
-	$equipe  = array( 'read', 'upload_files', 'yume_voir_equipe', 'yume_maj_planning', 'edit_yume_tomes' );
+	// Statistiques d'audience (module statistiques) : agrégats pour toute l'équipe.
+	$equipe  = array( 'read', 'upload_files', 'yume_voir_equipe', 'yume_maj_planning', 'edit_yume_tomes', 'yume_voir_statistiques' );
 	$editeur = array_merge(
 		$equipe,
 		array( 'yume_publier', 'yume_maj_planning_tous' ),
@@ -60,7 +61,10 @@ function definitions_roles(): array {
 		// capacites_retirees().
 		array( 'promote_users' ),
 		// Sans ces deux capacités, delete_others_posts ne permet pas de supprimer un article publié.
-		array( 'delete_posts', 'delete_published_posts' )
+		array( 'delete_posts', 'delete_published_posts' ),
+		// Listes nominatives des favoris et des suiveurs (module statistiques) : minimisation RGPD,
+		// gérants et administrateurs seulement.
+		array( 'yume_voir_lecteurs' )
 	);
 	return array(
 		'yume_traducteur' => array(
