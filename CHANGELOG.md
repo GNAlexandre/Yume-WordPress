@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.4.0-dev.4 — 2026-10-19
+
+- Statistiques, lot C : liste nominative des favoris et suiveurs d'une œuvre (pseudo, date, alertes ; gérants et administrateurs), export CSV du classement et de la liste, exports nominatifs journalisés
+
 ## 2.4.0-dev.3 — 2026-10-19
 
 - Statistiques, lot B : compteurs par œuvre (favoris, suiveurs alertés, listes, lecteurs, chapitres lus), classements, historique quotidien (cron, rattrapage, rétention 400 jours)
