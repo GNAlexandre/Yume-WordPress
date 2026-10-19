@@ -354,7 +354,7 @@ yume_test(
 );
 
 yume_test(
-	'inscription en façade : compte créé par creer_compte_lecteur (identifiant = pseudo, source inscription)',
+	'inscription en façade : compte créé par creer_compte_lecteur (identifiant généré, source inscription)',
 	function () {
 		$ip_avant               = $_SERVER['REMOTE_ADDR'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sauvegarde puis restauration telle quelle.
 		$_SERVER['REMOTE_ADDR'] = '203.0.113.' . wp_rand( 1, 250 );
@@ -405,8 +405,10 @@ yume_test(
 			}
 		}
 		yume_assert_contains( 'yn-msg=inscription-ok', $url );
-		$user = get_user_by( 'login', $pseudo );
+		// Depuis le lot L6, l'identifiant est généré (tests/test-inscription.php).
+		$user = get_user_by( 'email', $pseudo . '@example.test' );
 		yume_assert_true( $user instanceof WP_User );
+		yume_assert_same( 1, preg_match( '/^yn-[a-z0-9]{8}$/', $user->user_login ) );
 		yume_assert_same( $pseudo, $user->display_name );
 		yume_assert_same( array( 'inscription' ), $sources );
 	}

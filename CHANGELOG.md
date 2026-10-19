@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.2 — 2026-10-19
+
+- Lecteurs, lot L6 : pseudo public distinct de l'identifiant (inscription par pseudo public et e-mail, identifiant généré, connexion par e-mail, avis aux anciens comptes, registration_errors rétabli)
+
 ## 2.5.0-dev.1 — 2026-10-19
 
 - Lecteurs, lot 0 : socle des comptes (création de compte unique, points d'extension du compte et des formulaires, RGPD, réglage secret, alerte inscriptions fermées)

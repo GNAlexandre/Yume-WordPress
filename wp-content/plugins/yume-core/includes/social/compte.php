@@ -6,7 +6,11 @@
  * - Connecté : navigation par rubriques (onglets accessibles avec JavaScript, sections
  *   empilées et ancres sans JavaScript) : Lecture en cours, Mes statistiques, Favoris et alertes, Mes
  *   listes (listes.php), Notifications (notifications-lecteur.php), Notes et commentaires, Réglages de lecture, Alertes, Profil et sécurité, Données et suppression.
- * - Déconnecté : connexion (formulaire propre, connexion.php), mot de passe oublié et inscription en façade.
+ * - Déconnecté : connexion (formulaire propre, connexion.php), mot de passe oublié et inscription en façade
+ *   (pseudo public et adresse e-mail ; identifiant de connexion généré, connexion par l'adresse e-mail).
+ * - Compte dont le pseudo public est aussi l'identifiant de connexion (créé avant 2.5.0) : avis
+ *   fermable en tête de page (avis_pseudo(), méta yume_avis_pseudo_vu) et encart dans « Profil et
+ *   sécurité » ; rien n'est changé automatiquement.
  *
  * Points d'extension (docs/06 §7, « Comptes lecteurs ») : yume_compte_rubriques et
  * yume_compte_sections_html (rubrique et section d'un autre module, insérées après une ancre
@@ -18,6 +22,51 @@
 namespace Yume\Core\Social;
 
 defined( 'ABSPATH' ) || exit;
+
+/** Méta utilisateur : avis « choisissez un pseudo différent de votre identifiant » fermé (horodatage). */
+const META_AVIS_PSEUDO = 'yume_avis_pseudo_vu';
+
+/**
+ * Identifiant de connexion généré à l'inscription (generer_identifiant() : « yn- » et 8
+ * caractères [a-z0-9]) ? Le titulaire ne l'a jamais vu : il se connecte avec son adresse e-mail.
+ *
+ * @param string $identifiant Identifiant de connexion (user_login).
+ */
+function identifiant_genere( string $identifiant ): bool {
+	return 1 === preg_match( '/^yn-[a-z0-9]{8}$/', $identifiant );
+}
+
+/**
+ * Le pseudo public du compte est-il aussi son identifiant de connexion (casse ignorée) ? Cas des
+ * comptes créés avant 2.5.0, dont l'identifiant était le pseudo choisi à l'inscription.
+ *
+ * @param \WP_User $user Compte.
+ */
+function pseudo_est_identifiant( \WP_User $user ): bool {
+	$login = (string) $user->user_login;
+	return '' !== $login && mb_strtolower( trim( (string) $user->display_name ) ) === mb_strtolower( $login );
+}
+
+/**
+ * Avis en tête de la page compte quand le pseudo public est aussi l'identifiant de connexion,
+ * tant que le membre ne l'a pas fermé (formulaire admin-post yume_compte_avis, sans JavaScript).
+ *
+ * @param \WP_User $user Membre connecté.
+ */
+function avis_pseudo( \WP_User $user ): string {
+	if ( ! pseudo_est_identifiant( $user ) || get_user_meta( $user->ID, META_AVIS_PSEUDO, true ) ) {
+		return '';
+	}
+	return '<div class="yn-avis yn-avis--info" id="yn-avis-pseudo">'
+		. '<p><strong>' . esc_html__( 'Conseil :', 'yume-core' ) . '</strong> ' . esc_html__( 'choisissez un pseudo public différent de votre identifiant de connexion.', 'yume-core' ) . '</p>'
+		. '<form class="yn-account__boutons" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
+		. '<input type="hidden" name="action" value="yume_compte_avis">'
+		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
+		. champ_nonce( 'yume_compte_avis' )
+		. '<a class="yn-btn yn-btn--sm" href="#yn-profil">' . esc_html__( 'Changer de pseudo', 'yume-core' ) . '</a>'
+		. '<button type="submit" class="yn-btn yn-btn--sm">' . esc_html__( 'Fermer', 'yume-core' ) . '<span class="yn-visually-hidden"> ' . esc_html__( 'ce conseil', 'yume-core' ) . '</span></button>'
+		. '</form></div>';
+}
 
 /**
  * Rubriques de la page compte : identifiant d'ancre => libellé.
@@ -234,6 +283,9 @@ function compte_connecte(): string {
 		)
 	) . '>';
 	$html .= '<div class="yn-account__messages">' . confirmation_desabonnement() . html_messages( messages_courants() ) . '</div>';
+	// Hors du bloc des messages : view.js y amène le lecteur au retour d'un formulaire.
+	$avis  = avis_pseudo( $user );
+	$html .= '' !== $avis ? '<div class="yn-account__messages yn-account__conseil">' . $avis . '</div>' : '';
 	$html .= '<div class="yn-account__grille">';
 
 	// Navigation.
@@ -623,15 +675,30 @@ function section_alertes( int $user_id ): string {
 function section_profil( \WP_User $user ): string {
 	$html    = debut_section( 'yn-profil', __( 'Profil et sécurité', 'yume-core' ) );
 	$attente = get_user_meta( $user->ID, META_EMAIL_ATTENTE, true );
-	$html   .= '<form class="yn-card yn-account__bloc yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
+	$login   = (string) $user->user_login;
+	if ( identifiant_genere( $login ) ) {
+		$aide = __( 'Affiché avec vos commentaires. Vous vous connectez avec votre adresse e-mail.', 'yume-core' );
+	} else {
+		/* translators: %s : identifiant de connexion. */
+		$aide = sprintf( __( 'Affiché avec vos commentaires. Identifiant de connexion : %s (non modifiable). Un pseudo ne peut pas reprendre l’identifiant d’un autre compte ni ressembler à une adresse e-mail.', 'yume-core' ), $login );
+	}
+	if ( pseudo_est_identifiant( $user ) ) {
+		$html .= '<p class="yn-avis yn-avis--info" id="yn-profil-conseil">' . esc_html(
+			sprintf(
+				/* translators: %s : identifiant de connexion. */
+				__( 'Votre pseudo public est aussi votre identifiant de connexion. Choisir un pseudo différent le rend plus discret ; vous continuerez à vous connecter avec « %s » ou votre adresse e-mail.', 'yume-core' ),
+				$login
+			)
+		) . '</p>';
+	}
+	$html .= '<form class="yn-card yn-account__bloc yn-account__formulaire" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'
 		. '<input type="hidden" name="action" value="yume_compte_profil">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( url_courante() ) . '">'
 		. champ_nonce( 'yume_compte_profil' )
 		. '<div class="yn-account__champs">'
-		. '<p class="yn-account__champ"><label for="yn-pseudo">' . esc_html__( 'Pseudo', 'yume-core' ) . '</label>'
+		. '<p class="yn-account__champ"><label for="yn-pseudo">' . esc_html__( 'Pseudo public', 'yume-core' ) . '</label>'
 		. '<input type="text" id="yn-pseudo" name="yn_pseudo" value="' . esc_attr( $user->display_name ) . '" minlength="2" maxlength="40" autocomplete="nickname" aria-describedby="yn-pseudo-aide">'
-		/* translators: %s : identifiant de connexion. */
-		. '<span class="yn-muted yn-account__note" id="yn-pseudo-aide">' . esc_html( sprintf( __( 'Affiché avec vos commentaires. Identifiant de connexion : %s (non modifiable).', 'yume-core' ), $user->user_login ) ) . '</span></p>'
+		. '<span class="yn-muted yn-account__note" id="yn-pseudo-aide">' . esc_html( $aide ) . '</span></p>'
 		. '<p class="yn-account__champ"><label for="yn-email">' . esc_html__( 'Adresse e-mail', 'yume-core' ) . '</label>'
 		. '<input type="email" id="yn-email" name="yn_email" value="' . esc_attr( $user->user_email ) . '" autocomplete="email" aria-describedby="yn-email-aide">'
 		. '<span class="yn-muted yn-account__note" id="yn-email-aide">'
@@ -732,10 +799,12 @@ function compte_visiteur(): string {
 		. '<input type="hidden" name="action" value="yume_oubli">'
 		. '<input type="hidden" name="yn_retour" value="' . esc_url( $ici ) . '">'
 		. champ_nonce( 'yume_oubli' )
-		. '<p class="yn-account__champ"><label for="yn-oubli-identifiant">' . esc_html__( 'Pseudo ou adresse e-mail', 'yume-core' ) . '</label>'
+		. '<p class="yn-account__champ"><label for="yn-oubli-identifiant">' . esc_html__( 'Adresse e-mail ou identifiant', 'yume-core' ) . '</label>'
 		. '<input type="text" id="yn-oubli-identifiant" name="yn_identifiant" required autocomplete="username"></p>'
 		. '<div class="yn-account__boutons"><button type="submit" class="yn-btn">' . esc_html__( 'Recevoir un lien de réinitialisation', 'yume-core' ) . '</button></div>'
 		. '</form></details>'
+		// Comptes créés avant 2.5.0 : leur identifiant est le pseudo choisi à l'inscription.
+		. '<p class="yn-muted yn-account__note">' . esc_html__( 'Compte créé avant la version 2.5 : votre identifiant est le pseudo choisi à l’inscription.', 'yume-core' ) . '</p>'
 		. lien_connexion_administrateur( $demandee )
 		. '</section>';
 
@@ -750,14 +819,15 @@ function compte_visiteur(): string {
 			. '<input type="hidden" name="yn_retour" value="' . esc_url( $ici ) . '">'
 			. '<input type="hidden" name="yn_jeton" value="' . esc_attr( jeton_formulaire() ) . '">'
 			. champ_nonce( 'yume_inscription' )
-			. '<p class="yn-account__champ"><label for="yn-inscription-pseudo">' . esc_html__( 'Pseudo', 'yume-core' ) . '</label>'
-			. '<input type="text" id="yn-inscription-pseudo" name="yn_pseudo" required minlength="3" maxlength="40" autocomplete="username" aria-describedby="yn-inscription-pseudo-aide">'
-			. '<span class="yn-muted yn-account__note" id="yn-inscription-pseudo-aide">' . esc_html__( '3 à 40 caractères : lettres, chiffres, espaces, points, tirets et tirets bas.', 'yume-core' ) . '</span></p>'
+			. '<p class="yn-account__champ"><label for="yn-inscription-pseudo">' . esc_html__( 'Pseudo public', 'yume-core' ) . '</label>'
+			. '<input type="text" id="yn-inscription-pseudo" name="yn_pseudo" required minlength="2" maxlength="40" autocomplete="nickname" spellcheck="false" aria-describedby="yn-inscription-pseudo-aide">'
+			. '<span class="yn-muted yn-account__note" id="yn-inscription-pseudo-aide">' . esc_html__( 'Affiché avec vos commentaires. 2 à 40 caractères, pas d’adresse e-mail.', 'yume-core' ) . '</span></p>'
 			. '<p class="yn-account__champ"><label for="yn-inscription-email">' . esc_html__( 'Adresse e-mail', 'yume-core' ) . '</label>'
 			. '<input type="email" id="yn-inscription-email" name="yn_email" required autocomplete="email"></p>'
 			. '<div class="yn-account__pot" aria-hidden="true"><label for="yn-site-web">' . esc_html__( 'Site web (laisser vide)', 'yume-core' ) . '</label>'
 			. '<input type="text" id="yn-site-web" name="yn_site_web" value="" tabindex="-1" autocomplete="off"></div>'
 			. '<div class="yn-account__boutons"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Créer mon compte', 'yume-core' ) . '</button></div>'
+			. '<p class="yn-muted yn-account__note">' . esc_html__( 'Vous vous connecterez avec votre adresse e-mail. Votre pseudo est le nom affiché avec vos commentaires ; votre identifiant de connexion n’est jamais public.', 'yume-core' ) . '</p>'
 			. '<p class="yn-muted yn-account__note">' . esc_html__( 'Vous recevrez un e-mail pour choisir votre mot de passe. Nous ne gardons que votre pseudo et votre adresse e-mail.', 'yume-core' )
 			. ' <a href="' . esc_url( $mentions ) . '">' . esc_html__( 'Mentions légales', 'yume-core' ) . '</a></p>'
 			. '</form>';
