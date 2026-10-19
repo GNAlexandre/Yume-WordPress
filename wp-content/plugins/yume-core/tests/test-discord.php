@@ -409,7 +409,7 @@ yume_test(
 		yume_assert_true( $depart['expire'] > time() + 500 && $depart['expire'] <= time() + 600, 'cookie de 10 minutes' );
 		yume_assert_true( str_starts_with( $depart['url'], 'https://discord.com/oauth2/authorize?' ) );
 		yume_assert_contains( 'scope=identify%20email', $depart['url'] );
-		yume_assert_contains( 'prompt=consent', $depart['url'] );
+		yume_assert_contains( 'prompt=none', $depart['url'], 'prompt=none par défaut : pas d’écran d’autorisation si l’application est déjà autorisée' );
 		parse_str( (string) wp_parse_url( $depart['url'], PHP_URL_QUERY ), $params );
 		yume_assert_same( '112233445566778899', $params['client_id'] );
 		yume_assert_same( 'code', $params['response_type'] );
@@ -433,6 +433,24 @@ yume_test(
 		}
 		yume_assert_not_contains( 'code_challenge', $sans['url'] );
 		yume_assert_same( '', get_transient( 'yume_discord_etat_' . hash( 'sha256', $sans['state'] ) )['verifier'] );
+
+		// Filtre yume_discord_prompt : « consent » accepté, toute autre valeur ramenée à « none ».
+		foreach ( array(
+			'consent'   => 'consent',
+			'none'      => 'none',
+			'login'     => 'none',
+			'n’importe' => 'none',
+		) as $demande => $attendu_prompt ) {
+			$prompt = static fn() => $demande;
+			add_filter( 'yume_discord_prompt', $prompt );
+			try {
+				$url = Discord\url_autorisation( 'etat', '' );
+			} finally {
+				remove_filter( 'yume_discord_prompt', $prompt );
+			}
+			parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $avec );
+			yume_assert_same( $attendu_prompt, $avec['prompt'], 'prompt pour « ' . $demande . ' »' );
+		}
 	}
 );
 

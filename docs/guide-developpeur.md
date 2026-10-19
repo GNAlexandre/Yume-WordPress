@@ -12,8 +12,9 @@ modification.
 wp-content/plugins/yume-core/     plugin métier
   yume-core.php                   en-tête, version, chargement des modules (socle)
   includes/<module>/module.php    un dossier par module : core, import, publication, planning,
-                                  reader, social, library, statistiques, glossaire, mangadex,
-                                  wordend, migration, updater
+                                  reader, social, library, statistiques, corrections, discord,
+                                  recommandations, rattrapage, glossaire, mangadex, wordend,
+                                  migration, updater
   includes/blocks-support.php     enregistrement des blocs dynamiques (socle)
   lib/plugin-update-checker/      bibliothèque de mises à jour vendorisée (MIT, voir lib/README.md)
   tests/                          mini-framework de test + tests/test-<module>.php (non livrés)
@@ -77,6 +78,15 @@ Jetpack : les réponses de l'API sont injectées par le filtre `yume_statistique
 utiles au format de l'API REST v1.1), la source est forcée par `yume_statistiques_source_trafic`,
 « maintenant » est figé par `yume_statistiques_maintenant`, et `pre_http_request` fait échouer le
 test s'il est atteint.
+
+Fonctionnalités lecteurs (2.5.0) : `comptes-creation` (socle des comptes : `creer_compte_lecteur()`,
+pseudo, e-mail de bienvenue, points d'extension de Mon compte, réglage `secret`), `inscription` (pseudo
+public distinct de l'identifiant, connexion par e-mail), `corrections` (coquilles), `discord` (Discord
+**toujours simulé** par `pre_http_request` ; cookie d'état capturé par le filtre
+`yume_discord_envoyer_cookie`), `recommandations` et `rattrapage`. Piège d'ordre : `test-contributeurs`
+échoue si un fichier exécuté avant lui (ordre alphabétique) déclenche `rest_api_init` (le réglage
+`yume_reglages` est alors déclaré et filtre le HTML) : appelez les rappels REST directement, ou vérifiez
+la suite complète.
 
 `tests/runner.php` (exécuté par `wp eval-file`) charge `tests/test-*.php` ; chaque test est déclaré
 avec `yume_test( 'libellé', function () { … } )` et utilise les assertions de `tests/helpers.php`
@@ -226,7 +236,8 @@ Le job « Rendu » l'empêche de revenir :
    dans `tools/ci/`, jamais d'édition du fichier de verrouillage à la main) et
    `npx playwright install --with-deps chromium` ;
 3. `tools/ci/rendu.sh` sert le site avec `php -S` et `tools/localenv/router.php`, puis
-   `tools/ci/rendu.js` ouvre dans Chromium (fenêtre 1280×900) la page de l'œuvre, celle du tome 1 et
+   `tools/ci/rendu.js` ouvre dans Chromium (fenêtre 1280×900) la page de l'œuvre (avec le bloc
+   « Si vous avez aimé… », affiché grâce aux favoris croisés de la démo), celle du tome 1 et
    le chapitre 1 avec le panneau *Paramètres de lecture* ouvert, et compare `font-size`,
    `font-weight` et `color` des éléments listés dans `tools/ci/rendu-attendus.js` ; sur chacune de
    ces pages, il exécute ensuite **axe-core** (règles WCAG 2.0/2.1 A et AA) : toute violation

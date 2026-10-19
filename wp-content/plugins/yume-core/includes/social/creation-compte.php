@@ -30,20 +30,25 @@ const SOURCES_COMPTE = array( 'inscription', 'discord', 'equipe' );
  * Pseudo déjà porté par un autre compte (nom affiché ou identifiant, sans tenir compte de la
  * casse) ?
  *
+ * Le cœur enregistre le nom affiché encodé (filtres pre_user_display_name : « & » devient
+ * « &amp; ») : le pseudo est donc cherché sous sa forme saisie, décodée et encodée.
+ *
  * @param string $pseudo  Pseudo.
  * @param int    $user_id Compte qui le demande (exclu de la recherche ; 0 : aucun).
  */
 function pseudo_pris( string $pseudo, int $user_id = 0 ): bool {
 	global $wpdb;
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$decode  = wp_specialchars_decode( $pseudo, ENT_NOQUOTES );
+	$formes  = array_values( array_unique( array( $pseudo, $decode, _wp_specialchars( $decode, ENT_NOQUOTES ) ) ) );
+	$marques = implode( ', ', array_fill( 0, count( $formes ), 'LOWER(%s)' ) );
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- marques %s générées ci-dessus.
 	$autre = $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT ID FROM {$wpdb->users} WHERE ID <> %d AND ( LOWER(display_name) = LOWER(%s) OR LOWER(user_login) = LOWER(%s) ) LIMIT 1",
-			$user_id,
-			$pseudo,
-			$pseudo
+			"SELECT ID FROM {$wpdb->users} WHERE ID <> %d AND ( LOWER(display_name) IN ( {$marques} ) OR LOWER(user_login) IN ( {$marques} ) ) LIMIT 1",
+			array_merge( array( $user_id ), $formes, $formes )
 		)
 	);
+	// phpcs:enable
 	return null !== $autre;
 }
 
@@ -292,3 +297,38 @@ function creer_compte_lecteur( array $donnees ) {
 	do_action( 'yume_lecteur_inscrit', $user_id, $source );
 	return $user_id;
 }
+
+/**
+ * E-mail WordPress « choisissez votre mot de passe » d'un compte à identifiant généré
+ * (yn-xxxxxxxx) : l'identifiant n'est jamais montré au titulaire ; la ligne « Identifiant : … »
+ * (versions du cœur qui l'écrivent) est remplacée par « Connectez-vous avec votre adresse
+ * e-mail : … », ajoutée en tête sinon. Le lien de définition du mot de passe est inchangé.
+ *
+ * @param array|mixed $courriel Éléments de l'e-mail (to, subject, message, headers).
+ * @param \WP_User    $user     Compte créé.
+ * @return array|mixed
+ */
+function courriel_nouveau_compte( $courriel, $user ) {
+	if ( ! is_array( $courriel ) || ! $user instanceof \WP_User || ! identifiant_genere( (string) $user->user_login ) ) {
+		return $courriel;
+	}
+	$message = isset( $courriel['message'] ) && is_string( $courriel['message'] ) ? $courriel['message'] : '';
+	/* translators: %s: adresse e-mail du compte. */
+	$ligne     = sprintf( __( 'Connectez-vous avec votre adresse e-mail : %s', 'yume-core' ), $user->user_email );
+	$anciennes = array_unique(
+		array(
+			/* translators: %s: User login. */
+			sprintf( __( 'Username: %s' ), $user->user_login ), // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- chaîne du cœur, telle qu'écrite dans l'e-mail.
+			sprintf( 'Username: %s', $user->user_login ),
+		)
+	);
+	foreach ( $anciennes as $ancienne ) {
+		if ( str_contains( $message, $ancienne ) ) {
+			$courriel['message'] = str_replace( $ancienne, $ligne, $message );
+			return $courriel;
+		}
+	}
+	$courriel['message'] = $ligne . "\r\n\r\n" . $message;
+	return $courriel;
+}
+add_filter( 'wp_new_user_notification_email', __NAMESPACE__ . '\\courriel_nouveau_compte', 10, 2 );

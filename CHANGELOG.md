@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.8 — 2026-10-19
+
+- Lecteurs, intégration : e-mail « choisissez votre mot de passe » sans l'identifiant généré, connexion Discord sans écran d'autorisation répété (prompt=none, filtre yume_discord_prompt), doublon de pseudo avec « & » détecté, démo Playground (4 œuvres, favoris croisés, rattrapage, coquilles), contrat, guide de l'équipe et mise en service Discord
+
 ## 2.5.0-dev.7 — 2026-10-19
 
 - Lecteurs, lot L2 : connexion avec Discord (OAuth2 + PKCE, création et liaison de compte, administrateurs exclus ; inactif tant que l'application Discord n'est pas configurée)

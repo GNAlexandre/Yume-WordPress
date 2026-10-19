@@ -68,6 +68,22 @@ function challenge( string $verifier ): string {
 }
 
 /**
+ * Valeur du paramètre prompt de la page d'autorisation : « none » (défaut : Discord ne redemande
+ * pas l'autorisation quand l'application est déjà autorisée avec les mêmes scopes) ou « consent »
+ * (écran d'autorisation à chaque connexion). Filtre yume_discord_prompt ; toute autre valeur
+ * revient à « none ».
+ */
+function prompt(): string {
+	/**
+	 * Filtre le paramètre prompt de l'autorisation Discord.
+	 *
+	 * @param string $prompt 'none' (défaut) ou 'consent'.
+	 */
+	$prompt = apply_filters( 'yume_discord_prompt', 'none' );
+	return 'consent' === $prompt ? 'consent' : 'none';
+}
+
+/**
  * Adresse de la page d'autorisation de Discord.
  *
  * @param string $state     Valeur state (liée au navigateur par le cookie yume_discord_etat).
@@ -85,7 +101,7 @@ function url_autorisation( string $state, string $challenge ): string {
 		$parametres['code_challenge']        = $challenge;
 		$parametres['code_challenge_method'] = 'S256';
 	}
-	$parametres['prompt'] = 'consent';
+	$parametres['prompt'] = prompt();
 	return URL_AUTORISATION . '?' . http_build_query( $parametres, '', '&', PHP_QUERY_RFC3986 );
 }
 

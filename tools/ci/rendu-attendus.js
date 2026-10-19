@@ -49,6 +49,18 @@ module.exports = {
 					selecteur: '.yn-tome-list__nom a',
 					attendu: { 'font-size': '16px', 'font-weight': '600', color: 'preset:texte-fort' },
 				},
+				{
+					// « Si vous avez aimé… » (yume/recommandations) : présent grâce aux favoris croisés
+					// de la démo ; intitulé repris de yume/tome-list (h2 : les styles globaux du cœur
+					// le passaient en 28px/700).
+					selecteur: '.yn-recommandations .yn-recommandations__titre',
+					attendu: { 'font-size': '15px', 'font-weight': '600', color: 'preset:texte-fort' },
+				},
+				{
+					// Titre d'une suggestion (h3 dans un lien) : texte-fort, pas l'accent des liens.
+					selecteur: '.yn-recommandations__grille .yn-recommandations__nom',
+					attendu: { 'font-size': '15px', 'font-weight': '700', color: 'preset:texte-fort' },
+				},
 			],
 		},
 		{

@@ -15,7 +15,7 @@ explique comment se connecter, tenir le planning à jour, publier un tome et s'o
 
 | Rôle | Pour qui | Peut |
 | --- | --- | --- |
-| **Lecteur** | Tout compte créé par un lecteur | Lire, commenter, gérer ses favoris, notes, alertes et réglages de lecture |
+| **Lecteur** | Tout compte créé par un lecteur | Lire, commenter, gérer ses favoris, notes, alertes et réglages de lecture, signaler une coquille |
 | **Traducteur**, **Relecteur**, **Graphiste** | Membres de l'équipe | Accéder à l'espace équipe, mettre à jour le planning **des tomes dont ils sont responsables**, envoyer des images, consulter les **statistiques d'audience** (chiffres seulement) et exporter le classement des œuvres |
 | **Éditeur Yume** | Personnes qui publient | Tout ce qui précède, plus : publier un tome, mettre à jour le planning de **tous** les tomes, modifier œuvres, tomes et chapitres, écrire des actualités, **modérer les commentaires** |
 | **Gérant** | Responsables de Yume | Tout ce qui précède, plus : gérer les membres de l'équipe, régler le site (*Yume → Réglages*), modifier les articles des autres, voir les **Indicateurs** et la **Santé du site**, voir et exporter la **liste nominative** des lecteurs qui suivent une œuvre |
@@ -40,8 +40,8 @@ L'ouverture de la liste nominative aux éditeurs est une décision en attente de
 ## 2. Se connecter
 
 - **Lecteurs et équipe** (traducteurs, relecteurs, graphistes, éditeurs, gérants) : cliquer sur
-  **Connexion** en haut à droite du site (page `/connexion/`), saisir son pseudo ou son e-mail et
-  son mot de passe ; cocher « Se souvenir de moi » sur un appareil personnel. On arrive sur la page
+  **Connexion** en haut à droite du site (page `/connexion/`), saisir son **adresse e-mail** (ou
+  son identifiant) et son mot de passe ; cocher « Se souvenir de moi » sur un appareil personnel. On arrive sur la page
   d'où l'on venait (ou sur **Mon compte**, ou l'espace équipe pour un traducteur, un relecteur ou
   un graphiste). En cas d'erreur, le message « Identifiant ou mot de passe incorrect. » s'affiche
   au-dessus du formulaire, l'identifiant reste rempli : on corrige et on recommence, sans passer
@@ -53,6 +53,14 @@ L'ouverture de la liste nominative aux éditeurs est une décision en attente de
   le formulaire de `/connexion/`. Le formulaire de `/connexion/` refuse un compte administrateur,
   même avec le bon mot de passe, et affiche ce lien. La page WordPress sert aussi aux personnes
   invitées par l'administrateur à créer leur compte.
+- **Identifiant de connexion** : depuis la version 2.5, un compte créé sur le site a un pseudo public
+  (affiché avec les commentaires) et se connecte avec son **adresse e-mail** ; son identifiant
+  technique (`yn-…`) n'est jamais montré. Les comptes plus anciens gardent leur identifiant (le pseudo
+  choisi à l'inscription), qui marche toujours, tout comme l'adresse e-mail.
+- **Se connecter avec Discord** (quand la connexion Discord est mise en service, voir §8) : bouton
+  sous le formulaire de `/connexion/`, pour les lecteurs comme pour l'équipe, **sauf les
+  administrateurs**. Pour un membre de l'équipe, il faut d'abord lier son compte Discord depuis
+  *Mon compte → Connexion Discord* ; le formulaire habituel reste toujours disponible.
 - Une fois connecté, le menu du compte affiche **Mon compte** et, pour les membres de l'équipe,
   **Espace équipe** (page `/equipe/`). **Se déconnecter** est à côté, dans le menu du site.
 - Traducteurs, relecteurs et graphistes travaillent uniquement dans l'espace équipe : s'ils ouvrent
@@ -359,8 +367,9 @@ décisions).
   le site n'a eu aucune visite la nuit sont rattrapés le lendemain (7 jours au plus).
 
 **Données de démonstration** : dans Playground (`tools/playground/`), la démo crée six comptes
-lecteurs fictifs, leurs favoris, positions de lecture et listes, et 60 jours d'historique pour
-l'œuvre de démonstration ; le compte `equipe` voit les chiffres, le compte `admin` voit aussi la
+lecteurs fictifs, leurs favoris (sur cinq œuvres fictives), positions de lecture et listes, et
+60 jours d'historique pour l'œuvre de démonstration (plus trois coquilles signalées dans
+*Corrections*) ; le compte `equipe` voit les chiffres, le compte `admin` voit aussi la
 liste nominative.
 
 ### Réglages (`/equipe/?vue=reglages`, gérants et administrateurs)
@@ -368,8 +377,9 @@ liste nominative.
 L'entrée **Réglages** du menu affiche tous les réglages du site dans l'espace équipe, sans passer
 par l'administration : *Site et réseaux*, *Planning et rappels*, *Annonces et notifications*
 (webhooks Discord, e-mails aux lecteurs, modèle d'annonce, notifications navigateur),
-*Partenaires*, *Recrutement* (et *Mises à jour* pour l'administrateur seulement ; voir la
-section 8 pour le détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
+*Partenaires*, *Recrutement*, *Lecteurs* (signalement des coquilles, §6 bis), *Connexion Discord*
+(§8 ; le Client Secret n'est jamais réaffiché) (et *Mises à jour* pour l'administrateur seulement ;
+voir la section 8 pour le détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
 bas de page) : un message en haut de la vue confirme l'enregistrement ou liste ce qui a été
 refusé (par exemple un partenaire sans lien valide, ou un lien qui n'est pas un webhook Discord ;
 l'ancienne valeur est alors conservée).
@@ -868,7 +878,8 @@ remplacement de 5.4 bis). En ligne de commande : `docx2chapters.php publish … 
 
 ## 6. Corriger un chapitre
 
-Pour une coquille signalée par un lecteur (Éditeurs Yume et Gérants) :
+Pour une coquille signalée par un lecteur (Éditeurs Yume et Gérants ; les signalements arrivent
+dans **Catalogue → Corrections**, voir §6 bis) :
 
 1. Ouvrir l'administration : lien **Tableau de bord** du compte, ou `yumenovel.fr/wp-admin/`.
 2. Menu **Yume → Chapitres**, rechercher le chapitre (titre ou œuvre), cliquer sur **Modifier**.
@@ -884,6 +895,50 @@ Les liens PDF / EPUB, la couverture et les crédits d'un tome se corrigent de la
 
 Traducteurs, relecteurs et graphistes : signalez la correction à un éditeur (Discord de l'équipe).
 
+## 6 bis. Corrections signalées par les lecteurs (depuis 2.5)
+
+**Côté lecteur** : dans un chapitre, un lecteur connecté sélectionne le passage fautif (de 3 à
+300 caractères) ; un bouton **Signaler une coquille** apparaît à côté. Il ouvre une petite fenêtre :
+le passage, le numéro du paragraphe, un **Commentaire (facultatif)** (« il manque l'accent sur
+« à » »), puis **Envoyer**. Au clavier, le lien **Signaler une coquille dans ce chapitre**, sous les
+boutons Précédent / Suivant, ouvre la même fenêtre avec le paragraphe en cours de lecture et un champ
+où recopier le passage. Un visiteur non connecté est invité à se connecter. Rien n'apparaît sur un
+chapitre de manga (MangaDex). Le pseudo du lecteur n'est visible que de l'équipe.
+
+**Où les retrouver** : espace équipe, menu **Catalogue → Corrections (N)** (`/equipe/?vue=corrections`),
+N = signalements nouveaux. Comme **Commentaires**, l'entrée n'apparaît dans le menu qu'à partir du
+**premier signalement reçu** ; ensuite elle reste (« Corrections » quand il n'y a rien de nouveau).
+
+**Qui traite** : toute l'équipe peut lire la liste ; seuls les **Éditeurs Yume et les Gérants** (les
+comptes qui peuvent modifier le chapitre) ont les boutons. Un traducteur ou un relecteur voit « Seul
+un éditeur peut traiter ce signalement » : il prévient un éditeur sur le Discord de l'équipe.
+
+Les signalements nouveaux sont groupés par chapitre (« Œuvre › Tome › Chapitre », nombre de
+signalements). Pour chacun : `¶ N` (numéro du paragraphe), le passage surligné dans son paragraphe,
+le commentaire du lecteur, son pseudo et la date. Filtres **Œuvre**, **Tome**, **Statut**
+(**Nouveaux**, **Corrigés**, **Rejetés**, **Tous**), puis **Filtrer**.
+
+1. **Voir le paragraphe** ouvre le chapitre dans un nouvel onglet, directement au bon paragraphe.
+2. **Corriger dans l'éditeur** ouvre le chapitre dans l'administration : corrigez le texte (§6),
+   puis **Mettre à jour**.
+3. Revenez sur la liste et cliquez sur **Corrigé**. Le lecteur reçoit une notification dans sa
+   cloche : « Votre signalement sur {chapitre} a été corrigé, merci ! ».
+4. Si ce n'est pas une faute (choix de traduction, style voulu), cliquez sur **Rejeté** : le lecteur
+   n'est pas prévenu. **Rouvrir** remet un signalement traité dans les nouveaux.
+
+**Tout marquer corrigé** (en tête d'un chapitre) traite d'un coup tous ses signalements nouveaux,
+pratique quand plusieurs lecteurs ont signalé la même coquille. La pastille **Paragraphe modifié
+depuis** indique que le paragraphe a changé depuis le signalement (déjà corrigé, ou texte
+remplacé) : vérifiez puis marquez **Corrigé**. Rien n'est clôturé automatiquement.
+
+**Discord** : chaque signalement est annoncé dans le salon de l'équipe (webhook « équipe »), au plus
+un message par chapitre toutes les 10 minutes (« +N autres signalements » ensuite). Aucun e-mail.
+
+**Réglages** (gérants, *Yume → Réglages*, section **Lecteurs**) : **Signalement des coquilles**
+(activé), **Signalements sans compte** (désactivé : seuls les comptes connectés signalent),
+**Coquilles sur Discord** (activé). Les signalements traités sont effacés au bout de 180 jours ; ceux
+d'un compte supprimé restent, sans pseudo.
+
 ## 7. Modérer les commentaires
 
 Les lecteurs commentent sous chaque tome et chaque chapitre ; il faut **un compte** pour commenter
@@ -897,6 +952,7 @@ modèrent dans **Commentaires** (administration) :
   enfreint les règles (insultes, spoilers non signalés, liens pirates).
 
 Un commentaire qui signale une coquille : corrigez (§6), répondez, puis approuvez-le ou supprimez-le.
+Vous pouvez aussi inviter le lecteur à utiliser **Signaler une coquille** dans le chapitre (§6 bis).
 
 **Sans passer par l'administration** : dans l'espace équipe, l'entrée **Commentaires (N)** du menu
 (`/equipe/?vue=commentaires`, éditeurs, gérants et administrateurs) apparaît dès qu'il y a quelque
@@ -1055,6 +1111,46 @@ Ce que les lecteurs connectés trouvent sur le site (utile pour leur répondre s
   ses réglages. Désactivable pour tout le site : *Yume → Réglages → Notifications →
   Notifications navigateur*.
 
+### Recommandations et nouveaux chapitres (côté lecteurs, depuis 2.5)
+
+Ce que les lecteurs voient, sans rien à régler par l'équipe :
+
+- **Si vous avez aimé…** : sur la fiche d'une œuvre, après le sommaire des tomes, jusqu'à 4 œuvres
+  proches (genres en commun, même type, et œuvres suivies par les mêmes lecteurs : « N lecteurs la
+  suivent aussi », seulement à partir de 3 lecteurs en commun, sans jamais nommer personne). Les œuvres
+  licenciées ne sont jamais proposées. Un lecteur connecté ne s'y voit pas proposer ses favoris ni ce
+  qu'il lit déjà. Le bloc n'apparaît pas tant que le site manque de données (moins de 2 œuvres proches).
+  Bien renseigner les **genres** d'une œuvre améliore les suggestions.
+- **Pour vous** (*Mon compte*) : suggestions d'après ses favoris et ses lectures, « parce que vous
+  suivez … ».
+- **Nouveaux chapitres depuis votre dernière lecture** : sur l'accueil (lecteur connecté seulement) et
+  dans *Mon compte → À rattraper*, les séries commencées qui ont des chapitres publiés après sa
+  position de lecture, avec **Reprendre** (là où il s'était arrêté) et **Chapitre suivant**. Une
+  série à jour n'apparaît pas. Un chapitre publié y apparaît dans la minute.
+
+### Connexion Discord (mise en service par Alexandre)
+
+Une fois mise en service, les lecteurs peuvent **se connecter ou créer un compte avec Discord** (bouton
+sur `/connexion/`), et chacun peut lier son compte Discord dans *Mon compte → Connexion Discord*.
+Le site ne reçoit de Discord que l'identifiant, le nom et l'adresse e-mail **vérifiée** ; jamais de
+mot de passe, et rien n'est publié sur Discord.
+
+- **Administrateurs exclus** : ils se connectent toujours par la page de connexion WordPress
+  (validation en deux étapes). Les autres membres de l'équipe peuvent l'utiliser après avoir lié leur
+  compte.
+- Une adresse e-mail déjà inscrite n'est **jamais** liée automatiquement : le lecteur se connecte avec
+  son mot de passe puis lie Discord depuis *Mon compte*.
+- Un compte créé avec Discord n'a pas de mot de passe : pour en avoir un (et pouvoir délier Discord),
+  le lecteur utilise « Mot de passe oublié ? » avec son adresse e-mail.
+- Création de compte avec Discord : seulement si les inscriptions sont ouvertes (*Réglages → Général →
+  Inscription*).
+- Réglages (gérants) : *Yume → Réglages*, section **Connexion Discord** : **Connexion avec Discord**
+  (case), **Création de compte avec Discord**, **Client ID Discord**, **Client Secret Discord** (jamais
+  réaffiché). La mise en service (application sur le portail Discord, secret dans `wp-config.php`) est
+  faite par Alexandre : `docs/mise-en-production.md`, « Connexion Discord : mise en service ». Tant que
+  ce n'est pas fait, aucun bouton n'apparaît et *Mon compte* indique aux membres de l'équipe que la
+  connexion n'est pas configurée.
+
 ## 9. Mises à jour du site
 
 Le site se met à jour tout seul quand l'équipe technique publie une nouvelle version : rien à faire
@@ -1075,6 +1171,11 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | Un lecteur ne veut plus d'e-mails | Chaque e-mail d'alerte a un lien de désabonnement (une œuvre, les réponses aux commentaires ou tout) : il confirme sans se connecter. Il peut aussi tout régler dans *Mon compte*. |
 | Un lecteur ne reçoit pas les alertes | Il doit avoir l'œuvre en favori avec une alerte active (page *Mon compte*) ; les e-mails aux lecteurs doivent être activés dans *Yume → Réglages*. |
 | J'ai oublié mon mot de passe | Lien « Mot de passe oublié ? » sur la page de connexion. |
+| Un lecteur ne retrouve pas son identifiant | Qu'il se connecte avec son **adresse e-mail** (champ « Adresse e-mail ou identifiant »). Depuis la version 2.5, l'identifiant d'un nouveau compte n'est jamais montré : l'e-mail suffit. Mot de passe perdu : « Mot de passe oublié ? » avec la même adresse. |
+| Je ne vois pas **Corrections** dans le menu | L'entrée apparaît au premier signalement de coquille reçu. Avant, la liste reste accessible à l'adresse `/equipe/?vue=corrections`. |
+| Je vois les coquilles signalées mais pas les boutons **Corrigé** / **Rejeté** | Ils sont réservés aux Éditeurs Yume et aux Gérants : prévenez un éditeur sur Discord. |
+| Un lecteur dit « Un compte existe déjà avec cette adresse » avec Discord | Il a déjà un compte : qu'il se connecte avec son e-mail et son mot de passe, puis lie Discord dans *Mon compte → Connexion Discord*. |
+| Une fiche d'œuvre n'affiche pas « Si vous avez aimé… » | Il faut au moins 2 œuvres proches (genres, type ou lecteurs en commun) : complétez les genres de l'œuvre. |
 | Un lecteur veut lire sans connexion (train, avion) | Qu'il ouvre les chapitres voulus une fois en ligne (le chapitre suivant est gardé aussi) : ils restent lisibles hors ligne sur cet appareil, 30 au plus. Il peut aussi installer le site comme une application (« Installer » / « Ajouter à l'écran d'accueil » du navigateur). Hors ligne, les autres pages affichent « Vous êtes hors ligne » avec la liste des chapitres disponibles. Désactivable : *Yume → Réglages* → **Lecture hors ligne**. |
 | Un lecteur a du mal à lire (dyslexie, vue basse, animations gênantes) | Dans un chapitre, bouton ⚙ **Paramètres** → **Accessibilité** : police adaptée à la dyslexie (OpenDyslexic), contraste renforcé, réduction des animations. Les raccourcis clavier (← → pour changer de chapitre) y sont listés. |
 | Je ne vois pas la liste des lecteurs d'une œuvre dans *Statistiques* | Elle est réservée aux gérants et aux administrateurs (RGPD) ; les chiffres restent visibles pour toute l'équipe. |

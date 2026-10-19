@@ -315,6 +315,85 @@ yume_test(
 );
 
 yume_test(
+	'pseudo_pris : pseudo avec « & » enregistré encodé par le cœur (&amp;) reconnu comme doublon',
+	function () {
+		$n       = wp_rand( 1000, 9999 );
+		$pseudo  = 'Tom & Jerry ' . $n;
+		$user_id = creer_compte_lecteur(
+			yume_tcc_donnees(
+				array(
+					'pseudo'   => $pseudo,
+					'source'   => 'equipe',
+					'notifier' => false,
+				)
+			)
+		);
+		yume_assert_true( is_int( $user_id ), yume_tcc_code( $user_id ) );
+		yume_assert_same( 'Tom &amp; Jerry ' . $n, get_userdata( $user_id )->display_name, 'forme enregistrée par le cœur (pre_user_display_name)' );
+		yume_assert_true( pseudo_pris( $pseudo ), 'forme saisie' );
+		yume_assert_true( pseudo_pris( 'TOM & JERRY ' . $n ), 'forme saisie, casse ignorée' );
+		yume_assert_true( pseudo_pris( 'Tom &amp; Jerry ' . $n ), 'forme encodée' );
+		yume_assert_false( pseudo_pris( $pseudo, $user_id ), 'son propre pseudo' );
+		yume_assert_false( pseudo_pris( 'Tom et Jerry ' . $n ) );
+		yume_assert_same( 'yume_pseudo_pris', yume_tcc_code( valider_pseudo( $pseudo ) ) );
+		$double = creer_compte_lecteur(
+			yume_tcc_donnees(
+				array(
+					'pseudo'   => $pseudo,
+					'source'   => 'equipe',
+					'notifier' => false,
+				)
+			)
+		);
+		yume_assert_same( 'yume_pseudo_pris', yume_tcc_code( $double ) );
+	}
+);
+
+yume_test(
+	'e-mail « choisissez votre mot de passe » : adresse e-mail au lieu de l’identifiant généré, lien intact',
+	function () {
+		$messages = array();
+		$capture  = static function ( $retour, $atts ) use ( &$messages ) {
+			$messages[ implode( ',', (array) $atts['to'] ) ] = (string) $atts['message'];
+			return true;
+		};
+		add_filter( 'pre_wp_mail', $capture, 5, 2 );
+		$donnees = yume_tcc_donnees( array( 'source' => 'equipe' ) );
+		try {
+			$user_id = creer_compte_lecteur( $donnees );
+		} finally {
+			remove_filter( 'pre_wp_mail', $capture, 5 );
+		}
+		yume_assert_true( is_int( $user_id ), yume_tcc_code( $user_id ) );
+		$login   = get_userdata( $user_id )->user_login;
+		$message = $messages[ $donnees['email'] ] ?? '';
+		yume_assert_contains( 'Connectez-vous avec votre adresse e-mail : ' . $donnees['email'], $message );
+		yume_assert_contains( 'login=' . rawurlencode( $login ), $message, 'lien de définition du mot de passe conservé' );
+		yume_assert_contains( 'action=rp', $message );
+		yume_assert_not_contains( 'Identifiant : ' . $login, $message );
+		yume_assert_not_contains( 'Username: ' . $login, $message );
+
+		// Versions du cœur qui écrivent la ligne de l'identifiant : la ligne est remplacée.
+		$user   = get_userdata( $user_id );
+		$ancien = array(
+			'to'      => $user->user_email,
+			'subject' => '[%s] Login Details',
+			'message' => sprintf( __( 'Username: %s' ), $login ) . "\r\n\r\nTo set your password, visit the following address:\r\n\r\nhttps://exemple.test/wp-login.php?login=" . rawurlencode( $login ) . "&key=abc&action=rp\r\n", // phpcs:ignore WordPress.WP.I18n.MissingArgDomain, WordPress.WP.I18n.MissingTranslatorsComment
+			'headers' => '',
+		);
+		$filtre = apply_filters( 'wp_new_user_notification_email', $ancien, $user, 'Yume' );
+		yume_assert_true( str_starts_with( $filtre['message'], 'Connectez-vous avec votre adresse e-mail : ' . $user->user_email . "\r\n" ), 'ligne remplacée en tête' );
+		yume_assert_same( 1, substr_count( $filtre['message'], 'Connectez-vous' ) );
+		yume_assert_contains( 'login=' . rawurlencode( $login ) . '&key=abc&action=rp', $filtre['message'] );
+
+		// Identifiant choisi (compte créé avant 2.5) : e-mail du cœur inchangé.
+		$ancien_compte = get_userdata( yume_factory_user() );
+		$inchange      = apply_filters( 'wp_new_user_notification_email', $ancien, $ancien_compte, 'Yume' );
+		yume_assert_same( $ancien, $inchange );
+	}
+);
+
+yume_test(
 	'creer_compte_lecteur : e-mail invalide ou pris, identifiant invalide ou pris, inscriptions fermées sauf équipe',
 	function () {
 		$existant = get_userdata( yume_factory_user() );

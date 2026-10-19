@@ -358,3 +358,94 @@ connecté en **administrateur**, dans *Espace équipe → Site → Statistiques*
 
 L'historique quotidien commence à la mise en ligne : rien n'est repris du passé. Les vues passées par
 œuvre restent consultables dans Jetpack.
+
+## 12. Connexion Discord : mise en service (2.5.0, A)
+
+La connexion avec Discord (bouton « Se connecter avec Discord » / « Créer un compte avec Discord »,
+rubrique *Mon compte → Connexion Discord*) est livrée **inactive** : tant que les trois éléments
+ci-dessous ne sont pas en place, le site est strictement inchangé (aucun bouton, adresse de retour en
+404). Elle sert aux lecteurs et aux membres de l'équipe, **jamais aux administrateurs** (ils restent
+sur la page de connexion WordPress et sa validation en deux étapes). Fonctionnement :
+`docs/06-contrat-technique.md` §8 quinquies.
+
+**Rappel inscriptions** : la création de compte (formulaire du site comme Discord) suit *Réglages →
+Général → Inscription* (« Tout le monde peut s'enregistrer », rôle par défaut **Abonné**). Ce réglage
+était décoché à la mise en ligne : Alexandre a demandé sa réouverture avec les fonctionnalités lecteurs
+(journal du 19/10/2026). Tant qu'il est décoché, *Outils → Santé du site* l'indique (test « Les
+inscriptions des lecteurs sont fermées ») et Discord ne connecte que des comptes déjà liés.
+
+### 12.1 Application sur le portail Discord (Alexandre)
+
+- [ ] Ouvrir <https://discord.com/developers/applications> (compte Discord de Yume), **New
+      Application**, nom « Yume Novel », accepter les conditions.
+- [ ] Onglet **OAuth2** : copier le **Client ID** (nombre de 17 à 20 chiffres).
+- [ ] Même onglet, **Reset Secret** : copier le **Client Secret** (affiché **une seule fois** : le
+      mettre aussitôt dans le gestionnaire de mots de passe, jamais dans un ticket ni sur Discord).
+- [ ] **Redirects**, **Add Redirect** : coller **exactement**
+      `https://yumenovel.fr/wp-json/yume/v1/discord/retour` (sans barre finale, sans paramètre ;
+      *Yume → Réglages*, sous **Client ID Discord**, affiche l'adresse attendue), puis **Save
+      Changes**. Pour un essai en local : `http://127.0.0.1:8080/wp-json/yume/v1/discord/retour`
+      (Playground n'a pas d'adresse publique : la connexion Discord n'y est pas démontrable).
+- [ ] **Public Client** : laisser **désactivé** (le site garde le secret côté serveur).
+- [ ] Aucun **bot**, aucune permission de serveur, aucune autre option : le site ne demande que les
+      scopes `identify` et `email`.
+
+### 12.2 Secret dans `wp-config.php` par SFTP
+
+Même accès qu'au §6. Au-dessus de `/* That's all, stop editing! */` :
+
+```php
+// Yume : connexion avec Discord (le secret n'est jamais enregistré en base ni réaffiché).
+define( 'YUME_DISCORD_CLIENT_SECRET', 'collez-ici-le-client-secret' );
+// Facultatif : Client ID figé (sinon il se saisit dans Yume → Réglages).
+define( 'YUME_DISCORD_CLIENT_ID', '123456789012345678' );
+```
+
+- [ ] Enregistrer, recharger *Yume → Réglages* : le champ **Client Secret Discord** affiche « Défini
+      par la constante YUME_DISCORD_CLIENT_SECRET (wp-config.php). », sans la valeur.
+- [ ] Repli sans SFTP : saisir le secret dans le champ **Client Secret Discord** (type mot de passe,
+      jamais réaffiché ; vide = valeur conservée). *Santé du site* le signale alors (« Secret Discord
+      enregistré dans la base de données ») : passer à la constante dès que possible, puis vider le
+      réglage par programme.
+
+### 12.3 Activer
+
+- [ ] *Yume → Réglages*, section **Connexion Discord** (ou vue **Réglages** de l'espace équipe pour un
+      gérant) : **Client ID Discord** (si pas de constante), cocher **Connexion avec Discord** ;
+      **Création de compte avec Discord** reste cochée (création au premier passage, adresse vérifiée
+      par Discord, si les inscriptions sont ouvertes).
+- [ ] *Outils → Santé du site* : « Connexion Discord configurée » (sinon « activée mais incomplète » :
+      Client ID ou secret manquant).
+- [ ] Sur `/connexion/`, en navigation privée : le bouton **Se connecter avec Discord** est présent.
+
+### 12.4 Points à vérifier en recette (sur yumenovel.fr)
+
+- [ ] **Création** : un compte Discord jamais venu crée un compte lecteur (pseudo = nom Discord) et
+      arrive connecté sur *Mon compte* ; la rubrique **Connexion Discord** dit « Lié à … ».
+- [ ] **Retour** : une seconde connexion avec Discord ne redemande pas l'autorisation (`prompt=none`) ;
+      si Discord renvoie une erreur à ce stade, repasser à l'écran d'autorisation systématique avec le
+      filtre `yume_discord_prompt` (`'consent'`) dans une petite extension.
+- [ ] **PKCE avec un client confidentiel** : l'échange du code envoie `code_verifier` **et** le
+      secret. Si Discord le refuse (message « La connexion avec Discord a échoué » à chaque essai,
+      erreur `invalid_grant` dans les journaux), couper PKCE avec le filtre `yume_discord_pkce`
+      (`__return_false`) : le `state` lié au navigateur reste en place.
+- [ ] **Identifiants du client dans le corps** : `client_id` et `client_secret` sont envoyés dans le
+      corps du `POST /oauth2/token` (pas d'en-tête `Authorization: Basic`). Discord accepte les deux
+      formes ; en cas de refus `invalid_client`, vérifier d'abord le secret (Reset Secret puis
+      nouvelle constante), puis signaler à l'équipe technique.
+- [ ] **Cache** : l'adresse `/wp-json/yume/v1/discord/retour` ne doit pas être mise en cache
+      (réponse 302 avec les en-têtes de `nocache_headers()` : `Cache-Control: no-cache, …` et
+      `Expires` passé ; `curl -sI "https://yumenovel.fr/wp-json/yume/v1/discord/retour?state=x&code=y"`
+      deux fois de suite : même `Location`, pas d'en-tête `age:` non nul ni d'en-tête de cache de page
+      de WordPress.com). Sans cela, la connexion échouerait au hasard (« La connexion avec Discord a
+      expiré »).
+- [ ] **Administrateur** : un compte administrateur lié ou à lier est refusé (« Les administrateurs se
+      connectent par la page de connexion WordPress »), sans session ouverte.
+- [ ] **Adresse déjà inscrite** : un compte Discord dont l'adresse existe sur le site n'est pas lié
+      tout seul (« Un compte existe déjà avec cette adresse … ») ; se connecter avec le mot de passe,
+      puis **Lier mon compte Discord** dans *Mon compte* fonctionne.
+- [ ] **Délier** : demande le mot de passe actuel ; pour un compte créé avec Discord, le site propose
+      d'abord de définir un mot de passe (« Se déconnecter et définir un mot de passe »).
+- [ ] Page *Confidentialité* : la mention de la connexion Discord (et des signalements de coquilles,
+      des recommandations) est en ligne une fois validée par l'équipe (décision en attente,
+      `docs/journal-des-decisions.md`).

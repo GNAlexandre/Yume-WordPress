@@ -54,6 +54,16 @@ déclarent `WP_ENVIRONMENT_TYPE` = `staging` : sans Jetpack, le trafic (vues, vi
 pays) est alors **simulé** et signalé par un bandeau « Démonstration ». Le compte `equipe` (Éditeur
 Yume) voit les chiffres ; `admin` voit aussi la liste nominative des lecteurs qui suivent l'œuvre.
 
+Fonctionnalités lecteurs (2.5) : quatre autres œuvres fictives (« Les Veilleurs du Col », « Le
+Cartographe des marées », « Sous le cerisier d'hiver », « La Bibliothèque aux sept horloges » ;
+genres et types croisés, un tome publié chacune) suivies par les comptes fictifs, si bien que la
+fiche de chaque œuvre affiche « Si vous avez aimé… » (avec « N lecteurs la suivent aussi » dès trois
+lecteurs communs). Le compte `lecteur` s'est arrêté au chapitre 2 des Veilleurs du Col, publiés
+depuis : chapitres 3 et 4 (section « Nouveaux chapitres depuis votre dernière lecture » de
+l'accueil, rubriques « À rattraper » et « Pour vous » de Mon compte). Trois signalements de
+coquilles sur les Lanternes (deux nouveaux, un corrigé) remplissent *Catalogue → Corrections* de
+l'espace équipe. La connexion Discord reste non configurée (aucun bouton).
+
 ## Limites
 
 - Aucune release n'existe tant que l'équipe n'a pas donné son « Go » (contrat §0 bis) :
