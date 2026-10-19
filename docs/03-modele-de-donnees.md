@@ -81,7 +81,7 @@ Créées à l'activation (`dbDelta`), préfixe `{$wpdb->prefix}yume_` :
 
 ### Tables ajoutées depuis
 
-Créées par les modules social et glossaire après la rédaction de ce document ; colonnes et règles
+Créées par les modules social, glossaire et statistiques après la rédaction de ce document ; colonnes et règles
 dans le contrat §13.
 
 | Table | Usage |
@@ -90,6 +90,7 @@ dans le contrat §13.
 | `notifications_lecteur` | Centre de notifications (cloche) : sorties des œuvres en favori, réponses aux commentaires |
 | `push` | Abonnements Web Push (un par appareil, liés à la session WordPress) |
 | `glossaire`, `glossaire_versions` | Entrées du glossaire par œuvre et historique des versions YAML (5 dernières) |
+| `stats_jour` | Historique quotidien des statistiques d'audience (2.4.0) : une ligne par jour pour le site (`oeuvre_id` 0 : vues et visiteurs Jetpack, comptes lecteurs, inscriptions) et une par œuvre publiée (vues, favoris, suiveurs alertés, listes, lecteurs, lecteurs actifs sur 30 jours, chapitres lus estimés). Compteurs seulement, aucune donnée personnelle ; 400 jours gardés |
 
 Réglages de lecture : `user_meta yume_reglages` (JSON : police, taille, interligne, opacité, thème,
 largeur) ; pour les visiteurs, `localStorage` uniquement.
@@ -99,9 +100,9 @@ largeur) ; pour les visiteurs, `localStorage` uniquement.
 | Rôle | Capacités clés |
 | --- | --- |
 | `subscriber`, affiché « Lecteur » | `read` seulement : favoris, notes, commentaires et progression sont ouverts à tout compte connecté (pas de capacités `yume_favoris` / `yume_noter`) |
-| `yume_traducteur`, `yume_relecteur`, `yume_graphiste` | + `yume_maj_planning` (ses tomes), `upload_files` |
+| `yume_traducteur`, `yume_relecteur`, `yume_graphiste` | + `yume_maj_planning` (ses tomes), `upload_files`, `yume_voir_statistiques` (statistiques d'audience, agrégats) |
 | `yume_editeur` | + `yume_publier`, `edit_yume_*`, `moderate_comments`, `yume_maj_planning_tous` |
-| `yume_gerant` | + `yume_gerer_equipe`, `yume_reglages`, `edit_others_yume_*` |
+| `yume_gerant` | + `yume_gerer_equipe`, `yume_reglages`, `edit_others_yume_*`, `yume_voir_lecteurs` (liste nominative des favoris d'une œuvre et son export) |
 | `administrator` | tout (1 ou 2 comptes techniques) |
 
 ## API REST `yume/v1` (extraits)
@@ -116,6 +117,8 @@ largeur) ; pour les visiteurs, `localStorage` uniquement.
 | `PUT /moi/progression` | lecteur | Marque-page |
 | `POST/DELETE /moi/favoris/{oeuvre}` | lecteur | Favoris |
 | `PUT /moi/notes/{oeuvre}` | lecteur | Note |
+| `GET /statistiques/resume`, `/statistiques/trafic`, `/statistiques/oeuvres`, `/statistiques/oeuvres/{oeuvre}` | équipe (`yume_voir_statistiques`) | Statistiques d'audience (agrégats) |
+| `GET /statistiques/oeuvres/{oeuvre}/lecteurs` | gérant (`yume_voir_lecteurs`) | Favoris et suiveurs d'une œuvre : pseudo, date, fréquence d'alerte |
 
 Authentification : cookie + nonce WordPress pour le front ; **mots de passe d'application** pour les
 intégrations (Yume-Trad, bot Discord).

@@ -313,3 +313,48 @@ sont gratuites).
       nouvel administrateur.
 - [ ] À chaque départ d'un membre : rôle retiré, mots de passe d'application révoqués, webhooks
       Discord régénérés s'il y avait accès, accès GitHub retiré.
+
+---
+
+## 11. Statistiques d'audience : vérifications après la mise en production (2.4.0)
+
+L'adaptateur Jetpack (`includes/statistiques/trafic.php`) a été écrit d'après le code source de
+Jetpack et testé sur des réponses simulées : l'API WordPress.com Stats ne peut pas être appelée hors
+du site. Les points marqués « INCERTAIN » en tête de `trafic.php` se vérifient sur yumenovel.fr,
+connecté en **administrateur**, dans *Espace équipe → Site → Statistiques*, en comparant avec
+*Jetpack → Statistiques* (ou wordpress.com/stats). Toute correction se fait dans `trafic.php` seul.
+
+- [ ] Onglet **Trafic** : la ligne « Source du trafic : Jetpack (WordPress.com Stats) — dernière
+      erreur : aucune » s'affiche (sinon : noter le message d'erreur ; « indisponible » = Jetpack non
+      connecté). Aucun bandeau « Démonstration » (il est impossible en production).
+- [ ] **7 et 30 jours** : vues et visiteurs (total et courbe jour par jour) égaux à ceux de Jetpack ;
+      le dernier point est bien **aujourd'hui** (paramètre `date` = dernier jour inclus, au fuseau du
+      site — hypothèse à confirmer).
+- [ ] **12 mois** : série **mensuelle** de 12 points, comparée aux 12 mois précédents (paramètre
+      `quantity` = 24 mois accepté ; format de la période « AAAA-MM-JJ » ou « AAAA-MM »).
+- [ ] **90 jours** : 90 points (`quantity` = 180 jours accepté) ; si `stat_fields=views,visitors` est
+      ignoré, les colonnes sont tout de même lues par leur nom.
+- [ ] **Contenus les plus vus** : plus de 10 contenus reçus (paramètre `max` = 100 demandé ; le bloc
+      « Top Posts » de Jetpack s'arrête à 30) ; « Par œuvre » et « Autres pages » cohérents avec le
+      total de Jetpack (présence de `total_views` ; à défaut, total = somme des lignes reçues).
+- [ ] **12 mois** pour les listes : `num` = 365 accepté par `top-posts`, `referrers`,
+      `search-terms`, `country-views` (sinon la liste ne couvre qu'une partie de l'année).
+- [ ] **Référents**, **Termes de recherche** (ligne « Termes masqués par les moteurs » :
+      `encrypted_search_terms`), **Pays** (noms et pourcentages, jamais de ville) : listes non
+      tronquées à 10 par l'API, `max` pris en compte ou ignoré sans erreur.
+- [ ] Lendemain de la mise en ligne, après 3 h 10 : *Santé du site* montre la tâche
+      « Statistiques quotidiennes (historique) » exécutée ; la fiche d'une œuvre lue la veille affiche
+      « Historique quotidien depuis le … » et une carte **Vues** chiffrée (vues par œuvre du jour
+      `top-posts` `period=day`, `max=100` : vérifier qu'une œuvre peu vue n'est pas comptée à 0 parce
+      que coupée de la liste).
+- [ ] Temps d'ouverture de l'onglet **Trafic** acceptable à la première visite (4 à 6 appels à
+      l'API, puis cache de 15 minutes) ; aucune erreur de quota de l'API dans la ligne « dernière
+      erreur » après quelques ouvertures.
+- [ ] Rôles : un traducteur voit **Statistiques** (chiffres, export du classement) mais pas la liste
+      nominative ; un gérant voit la liste et peut l'exporter.
+- [ ] Page *Confidentialité* : la mention des statistiques internes (finalité « statistiques
+      d'audience internes », favoris et alertes visibles des gérants) est en ligne une fois rédigée
+      par l'équipe (décision en attente, `docs/journal-des-decisions.md` §4).
+
+L'historique quotidien commence à la mise en ligne : rien n'est repris du passé. Les vues passées par
+œuvre restent consultables dans Jetpack.

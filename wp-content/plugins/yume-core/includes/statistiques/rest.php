@@ -4,6 +4,7 @@
  *
  *   GET /yume/v1/statistiques/resume?periode=                       aperçu de la période
  *   GET /yume/v1/statistiques/trafic?periode=&section=              contenus|referents|recherches|pays
+ *                                                                    (sans données : { source, message, erreur?, detail? })
  *   GET /yume/v1/statistiques/oeuvres?periode=&tri=&page=&limite=   classement des œuvres
  *   GET /yume/v1/statistiques/oeuvres/{oeuvre}?periode=             fiche d'une œuvre
  *   GET /yume/v1/statistiques/oeuvres/{oeuvre}/lecteurs?type=&q=&page=&limite=&tri=&ordre=
@@ -323,8 +324,8 @@ function rest_resume( \WP_REST_Request $requete ) {
 
 /**
  * GET /statistiques/trafic : une section du trafic (trafic_contenus(), trafic_referents(),
- * trafic_recherches(), trafic_pays()), ou { source: 'aucune', message } si le trafic est
- * indisponible.
+ * trafic_recherches(), trafic_pays()), ou, si elle n'a pas de données, la réponse de
+ * reponse_trafic_indisponible() (Jetpack absent ou erreur de l'API).
  *
  * @param \WP_REST_Request $requete Requête.
  * @return \WP_REST_Response|\WP_Error
@@ -336,13 +337,34 @@ function rest_trafic( \WP_REST_Request $requete ) {
 		return indisponible();
 	}
 	$resultat = call_user_func( __NAMESPACE__ . '\\' . $fonction, periode_valide( $requete->get_param( 'periode' ) ) );
-	if ( null === $resultat ) {
-		$resultat = array(
+	return rest_ensure_response( null === $resultat ? reponse_trafic_indisponible() : $resultat );
+}
+
+/**
+ * Réponse de /trafic quand la section n'a pas de données (fonction trafic_*() → null) :
+ * - source « aucune » (Jetpack absent ou non connecté en production) : { source: 'aucune', message } ;
+ * - sinon, l'API a échoué (erreur gardée 2 minutes en cache) : { source, erreur: true, message },
+ *   plus « detail » (derniere_erreur_trafic(), message technique) pour les administrateurs seulement.
+ *
+ * @return array{source:string,message:string,erreur?:bool,detail?:string}
+ */
+function reponse_trafic_indisponible(): array {
+	$source = fonction_disponible( 'source_trafic' ) ? source_trafic() : 'aucune';
+	if ( 'aucune' === $source ) {
+		return array(
 			'source'  => 'aucune',
-			'message' => __( 'Trafic indisponible : Jetpack n’est pas connecté sur ce site.', 'yume-core' ),
+			'message' => __( 'Trafic indisponible : Jetpack est absent ou n’est pas connecté sur ce site.', 'yume-core' ),
 		);
 	}
-	return rest_ensure_response( $resultat );
+	$reponse = array(
+		'source'  => $source,
+		'erreur'  => true,
+		'message' => __( 'Trafic momentanément indisponible : les statistiques WordPress.com n’ont pas pu être lues. Réessayez dans quelques minutes.', 'yume-core' ),
+	);
+	if ( current_user_can( 'manage_options' ) && fonction_disponible( 'derniere_erreur_trafic' ) ) {
+		$reponse['detail'] = derniere_erreur_trafic();
+	}
+	return $reponse;
 }
 
 /**

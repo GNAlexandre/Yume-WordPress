@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.4.0-dev.6 — 2026-10-19
+
+- Statistiques : documentation, guide de l'équipe, démo Playground, lien depuis les Indicateurs
+
 ## 2.4.0-dev.5 — 2026-10-19
 
 - Statistiques, lot D : page Statistiques de l'espace équipe (menu Site, onglets Aperçu, Trafic, Œuvres, Lecteurs, fiche d'une œuvre, graphiques SVG accessibles, sans JavaScript)

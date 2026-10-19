@@ -120,6 +120,13 @@ function yume_pg_blueprint( string $titre, string $description, array $installat
 					'step'     => 'setSiteLanguage',
 					'language' => 'fr_FR',
 				),
+				// Site de préproduction : trafic des statistiques simulé (Jetpack absent).
+				array(
+					'step'   => 'defineWpConfigConsts',
+					'consts' => array(
+						'WP_ENVIRONMENT_TYPE' => 'staging',
+					),
+				),
 			),
 			$installation,
 			array(

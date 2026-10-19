@@ -1094,8 +1094,39 @@ yume_test(
 				$r = yume_rest( 'GET', '/yume/v1/statistiques/trafic', array( 'section' => 'pays' ), $traducteur );
 				yume_assert_same( 200, $r->get_status() );
 				yume_assert_same( 'aucune', $r->get_data()['source'] ?? null );
+				yume_assert_contains( 'Jetpack', (string) ( $r->get_data()['message'] ?? '' ) );
+				yume_assert_false( isset( $r->get_data()['erreur'] ), 'pas une erreur de l’API' );
 			},
 			'aucune'
+		);
+	}
+);
+
+yume_test(
+	'statistiques trafic REST : erreur de l’API → message neutre ; détail technique aux administrateurs seulement',
+	function () {
+		$traducteur = yume_factory_user( 'yume_traducteur' );
+		$gerant     = yume_factory_user( 'yume_gerant' );
+		$admin      = yume_factory_user( 'administrator' );
+		yume_tstrafic(
+			array(
+				'country-views' => new WP_Error( 'unknown_blog', 'Blog inconnu' ),
+			),
+			function () use ( $traducteur, $gerant, $admin ) {
+				foreach ( array( $traducteur, $gerant ) as $uid ) {
+					$r    = yume_rest( 'GET', '/yume/v1/statistiques/trafic', array( 'section' => 'pays' ), $uid );
+					$data = $r->get_data();
+					yume_assert_same( 200, $r->get_status() );
+					yume_assert_same( 'jetpack', $data['source'] ?? null, 'la source reste exacte' );
+					yume_assert_true( $data['erreur'] ?? false );
+					yume_assert_not_contains( 'n’est pas connecté', (string) ( $data['message'] ?? '' ), 'message neutre' );
+					yume_assert_false( isset( $data['detail'] ), 'pas de détail technique' );
+					yume_assert_not_contains( 'Blog inconnu', (string) wp_json_encode( $data ) );
+				}
+				$data = yume_rest( 'GET', '/yume/v1/statistiques/trafic', array( 'section' => 'pays' ), $admin )->get_data();
+				yume_assert_true( $data['erreur'] ?? false );
+				yume_assert_same( 'Blog inconnu', $data['detail'] ?? null, 'détail pour l’administrateur' );
+			}
 		);
 	}
 );
