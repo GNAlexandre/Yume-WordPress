@@ -448,6 +448,10 @@ yume_test(
 		};
 		add_filter( 'yume_compte_rubriques', $rubrique, 10, 2 );
 		add_filter( 'yume_compte_sections_html', $section, 10, 2 );
+		// Rubriques des autres modules (Pour vous, À rattraper) coupées : le compte ne doit porter
+		// que les dix rubriques du module social et celle du test.
+		add_filter( 'yume_recommandations_actives', '__return_false' );
+		add_filter( 'yume_rattrapage_actif', '__return_false' );
 		wp_set_current_user( $u );
 		try {
 			$html = yume_render_block( 'yume/account' );
@@ -455,6 +459,8 @@ yume_test(
 			wp_set_current_user( 0 );
 			remove_filter( 'yume_compte_rubriques', $rubrique, 10 );
 			remove_filter( 'yume_compte_sections_html', $section, 10 );
+			remove_filter( 'yume_recommandations_actives', '__return_false' );
+			remove_filter( 'yume_rattrapage_actif', '__return_false' );
 		}
 		$onglet_favoris = strpos( $html, 'href="#yn-favoris"' );
 		$onglet_test    = strpos( $html, 'href="#yn-test-rubrique"' );

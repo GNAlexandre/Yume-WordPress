@@ -1204,9 +1204,18 @@ yume_test(
 		$s = yume_ts_oeuvre( 1 );
 		$u = yume_ts_membre();
 		ajouter_favori( $u, $s['oeuvre'] );
+		// Rubriques ajoutées par les autres modules (Pour vous, À rattraper) coupées : on compte
+		// celles du module social.
+		add_filter( 'yume_recommandations_actives', '__return_false' );
+		add_filter( 'yume_rattrapage_actif', '__return_false' );
 		wp_set_current_user( $u );
-		$html = yume_render_block( 'yume/account' );
-		wp_set_current_user( 0 );
+		try {
+			$html = yume_render_block( 'yume/account' );
+		} finally {
+			wp_set_current_user( 0 );
+			remove_filter( 'yume_recommandations_actives', '__return_false' );
+			remove_filter( 'yume_rattrapage_actif', '__return_false' );
+		}
 		// Dix rubriques depuis le lot P3-D (Mes listes, Notifications).
 		foreach ( array( 'yn-lecture', 'yn-stats', 'yn-favoris', 'yn-listes', 'yn-notifications', 'yn-notes', 'yn-reglages', 'yn-alertes', 'yn-profil', 'yn-donnees' ) as $ancre ) {
 			yume_assert_contains( 'id="' . $ancre . '"', $html );

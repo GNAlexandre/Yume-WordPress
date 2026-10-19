@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.5 — 2026-10-19
+
+- Lecteurs, intégration : les tests de la page Mon compte comptent les rubriques du module social seulement (Pour vous et À rattraper coupées)
+
 ## 2.5.0-dev.4 — 2026-10-19
 
 - Lecteurs, lot L3 : recommandations « Si vous avez aimé… » (fiche œuvre, rubrique Pour vous)
