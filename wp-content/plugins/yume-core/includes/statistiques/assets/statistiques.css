@@ -1,4 +1,727 @@
-/*
- * Statistiques de l'espace équipe (?vue=statistiques) : cartes, onglets, graphiques SVG.
- * Handle yume-statistiques, dépend de yume-kpi. Lot D (fichier réservé) ; bouchon du socle.
+/**
+ * Espace équipe, vue « Statistiques » (?vue=statistiques) — compléments de kpi.css (tableaux,
+ * <details> des données), structure et couleurs par variables du thème uniquement
+ * (--wp--preset--color--*) : Nuit, Papier et Sépia sans règle supplémentaire. Chargée par
+ * includes/statistiques/equipe.php quand la vue est rendue (handle yume-statistiques).
  */
+
+.yn-team--stats .yn-team__principal {
+	gap: 22px;
+}
+
+.yn-stats__presentation {
+	margin-top: -12px;
+	font-size: 14px;
+}
+
+/* Bandeau « Données de démonstration », ligne « Source du trafic » (administrateurs). */
+.yn-stats__bandeau,
+.yn-stats__source {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	padding: 12px 16px;
+	font-size: 14px;
+}
+
+.yn-stats__bandeau {
+	border-color: var(--wp--preset--color--avertissement);
+	border-style: dashed;
+}
+
+.yn-stats__bandeau b {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-stats__source {
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--mono);
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+/* Barre : période (segments) et export. */
+.yn-stats__barre {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: flex-end;
+	gap: 12px 16px;
+}
+
+.yn-stats__periode {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 10px;
+}
+
+.yn-stats__segments {
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yn-stats__segments legend {
+	margin-bottom: 4px;
+	padding: 0;
+}
+
+.yn-stats__choix {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+}
+
+/* Bouton radio masqué mais focalisable : son libellé est le segment. */
+.yn-stats__radio {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.yn-stats__choix label {
+	display: inline-flex;
+	align-items: center;
+	box-sizing: border-box;
+	min-height: 40px;
+	margin-left: -1px;
+	padding: 0 14px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	background: transparent;
+	color: var(--wp--preset--color--texte);
+	font-size: 14px;
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.yn-stats__choix label:first-of-type {
+	margin-left: 0;
+	border-radius: var(--yn-radius) 0 0 var(--yn-radius);
+}
+
+.yn-stats__choix label:last-of-type {
+	border-radius: 0 var(--yn-radius) var(--yn-radius) 0;
+}
+
+.yn-stats__choix label:hover {
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-stats__radio:checked + label {
+	position: relative;
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-stats__radio:focus-visible + label {
+	position: relative;
+	z-index: 1;
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+/* Onglets (liens). */
+.yn-stats__onglets {
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-team .yn-stats__onglets ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-stats__onglets a {
+	display: inline-flex;
+	align-items: center;
+	box-sizing: border-box;
+	min-height: 44px;
+	margin-bottom: -1px;
+	padding: 0 18px;
+	border-bottom: 3px solid transparent;
+	color: var(--wp--preset--color--texte-faible);
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.yn-team .yn-stats__onglets a:hover {
+	color: var(--wp--preset--color--texte-fort);
+	border-bottom-color: var(--wp--preset--color--bordure);
+}
+
+.yn-team .yn-stats__onglets a[aria-current="page"] {
+	border-bottom-color: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-stats__onglet {
+	display: flex;
+	flex-direction: column;
+	gap: 22px;
+	min-width: 0;
+}
+
+/* Cartes de chiffres. */
+.yn-stats__cartes {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+	gap: 14px;
+}
+
+.yn-stats__cartes--fiche {
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+
+.yn-stats__carte {
+	gap: 4px;
+	min-width: 0;
+}
+
+.yn-stats__evolution,
+.yn-stats__detail {
+	font-size: 13px;
+}
+
+.yn-stats__variation {
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.yn-stats__variation--hausse {
+	color: var(--wp--preset--color--succes);
+}
+
+.yn-stats__variation--baisse {
+	color: var(--wp--preset--color--erreur);
+}
+
+.yn-stats__variation--stable,
+.yn-stats__variation--inconnue {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-stats__sparkline {
+	display: block;
+	width: 100%;
+	height: 28px;
+	margin-top: 6px;
+	overflow: visible;
+}
+
+/* Sections. */
+.yn-stats__section {
+	padding: 20px 22px;
+}
+
+.yn-stats__section .yn-team__section-tete > h2 {
+	font-size: 18px;
+}
+
+.yn-stats__section > p > a {
+	font-size: 14px;
+}
+
+.yn-stats__duo {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+	gap: 16px;
+	align-items: start;
+}
+
+.yn-stats__duo--large {
+	grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+.yn-stats__trio {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+	gap: 16px;
+	align-items: start;
+}
+
+.yn-stats__vide {
+	font-size: 14px;
+}
+
+.yn-stats__note {
+	font-size: 13px;
+}
+
+/* Courbes. */
+.yn-stats__graphique {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	margin: 0;
+}
+
+.yn-team .yn-stats__legende {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 18px;
+	margin: 0;
+	padding: 0;
+	font-size: 13px;
+	list-style: none;
+}
+
+.yn-stats__legende li {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.yn-stats__trait {
+	display: inline-block;
+	width: 18px;
+	height: 0;
+	border-top: 3px solid var(--wp--preset--color--accent);
+}
+
+.yn-stats__trait--2 {
+	border-top-style: dashed;
+	border-top-color: var(--wp--preset--color--accent-2);
+}
+
+.yn-stats__repere {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 8px;
+}
+
+.yn-stats__axe-y {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	height: var(--yn-stats-hauteur, 240px);
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	text-align: right;
+}
+
+.yn-stats__svg {
+	display: block;
+	width: 100%;
+	height: var(--yn-stats-hauteur, 240px);
+	overflow: visible;
+}
+
+.yn-stats__grille {
+	stroke: var(--wp--preset--color--filet);
+	stroke-width: 1;
+}
+
+.yn-stats__ligne {
+	fill: none;
+	stroke: var(--wp--preset--color--accent);
+	stroke-width: 2.5;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+}
+
+.yn-stats__ligne--2 {
+	stroke: var(--wp--preset--color--accent-2);
+	stroke-dasharray: 8 6;
+}
+
+.yn-stats__aire {
+	fill: var(--wp--preset--color--accent);
+	fill-opacity: 0.12;
+}
+
+.yn-stats__zone {
+	fill: transparent;
+}
+
+.yn-stats__zone:hover {
+	fill: var(--wp--preset--color--texte-faible);
+	fill-opacity: 0.14;
+}
+
+.yn-stats__axe-x {
+	display: flex;
+	grid-column: 2;
+	justify-content: space-between;
+	gap: 8px;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+/* Tops de l'aperçu. */
+.yn-team .yn-stats__top {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-stats__top li {
+	display: grid;
+	grid-template-columns: 22px minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: center;
+}
+
+.yn-stats__rang {
+	color: var(--wp--preset--color--texte-faible);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.yn-stats__top-corps {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.yn-stats__top-corps a,
+.yn-stats__top-corps > span:first-child {
+	overflow: hidden;
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.yn-stats__top-corps .yn-bar {
+	height: 8px;
+	border-radius: 4px;
+	background: var(--wp--preset--color--filet);
+}
+
+.yn-stats__top-valeur {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+/* Listes de valeurs (référents, recherches). */
+.yn-team .yn-stats__valeurs {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	font-size: 14px;
+	list-style: none;
+}
+
+.yn-stats__valeurs li {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	overflow-wrap: anywhere;
+}
+
+.yn-stats__valeurs b {
+	color: var(--wp--preset--color--texte-fort);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* Barres horizontales (pays). */
+.yn-stats__barres-h {
+	display: block;
+	overflow: visible;
+	font-size: 13px;
+}
+
+.yn-stats__barre-libelle {
+	fill: var(--wp--preset--color--texte);
+}
+
+.yn-stats__barre-valeur {
+	fill: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-stats__barre-piste {
+	fill: var(--wp--preset--color--filet);
+}
+
+.yn-stats__barre-remplie {
+	fill: var(--wp--preset--color--accent);
+}
+
+/* Répartition des fréquences d'alerte (la légende écrit les valeurs). */
+.yn-stats__repartition {
+	display: flex;
+	height: 18px;
+	overflow: hidden;
+	border-radius: var(--yn-radius);
+	background: var(--wp--preset--color--filet);
+}
+
+.yn-stats__part {
+	display: block;
+	width: var(--part, 0%);
+}
+
+.yn-stats__part--1 {
+	background: var(--wp--preset--color--accent);
+}
+
+.yn-stats__part--2 {
+	background: var(--wp--preset--color--accent-2);
+}
+
+.yn-stats__part--3 {
+	background: var(--wp--preset--color--bordure);
+}
+
+.yn-team .yn-stats__legende-parts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	margin: 0;
+	padding: 0;
+	font-size: 14px;
+	list-style: none;
+}
+
+.yn-stats__legende-parts li {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.yn-stats__legende-parts b {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-stats__puce {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border-radius: 2px;
+}
+
+/* Fiche d'une œuvre. */
+.yn-stats__fiche-tete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 16px 18px;
+}
+
+.yn-stats__fiche-tete > div {
+	display: flex;
+	flex: 1 1 260px;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.yn-stats__couverture {
+	flex: 0 0 72px;
+	width: 72px;
+	height: 104px;
+	overflow: hidden;
+	border-radius: var(--yn-radius-card);
+	background: var(--yn-degrade-couverture);
+}
+
+.yn-stats__couverture img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.yn-stats__fiche-titre {
+	font-size: 30px;
+	line-height: 1.15;
+	overflow-wrap: anywhere;
+}
+
+.yn-stats__listes-lecture {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	margin: 0;
+}
+
+.yn-stats__listes-lecture dt {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-stats__listes-lecture dd {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 20px;
+	font-weight: 800;
+}
+
+/* Liste nominative : choix de la liste, recherche, export. */
+.yn-stats__outils {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: flex-end;
+	gap: 12px;
+}
+
+.yn-team .yn-stats__listes {
+	display: flex;
+	flex-wrap: wrap;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team .yn-stats__listes a {
+	display: inline-flex;
+	align-items: center;
+	box-sizing: border-box;
+	min-height: 40px;
+	margin-left: -1px;
+	padding: 0 14px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	color: var(--wp--preset--color--texte);
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.yn-team .yn-stats__listes li:first-child a {
+	margin-left: 0;
+	border-radius: var(--yn-radius) 0 0 var(--yn-radius);
+}
+
+.yn-team .yn-stats__listes li:last-child a {
+	border-radius: 0 var(--yn-radius) var(--yn-radius) 0;
+}
+
+.yn-team .yn-stats__listes a:hover {
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-team .yn-stats__listes a[aria-current="true"] {
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-stats__recherche {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 10px;
+}
+
+.yn-stats__recherche .yn-team__champ {
+	flex: 1 1 180px;
+}
+
+.yn-stats__equipe {
+	margin-left: 6px;
+	border-color: var(--wp--preset--color--accent-2);
+	color: var(--wp--preset--color--accent-2);
+}
+
+.yn-stats__export {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 14px;
+	font-size: 13px;
+}
+
+/* Encart « réservé aux gérants ». */
+.yn-stats__cadenas {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 18px;
+	border: 1px dashed var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius-card);
+}
+
+.yn-stats__cadenas b {
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-stats__icone {
+	flex: 0 0 28px;
+	fill: none;
+	stroke: var(--wp--preset--color--texte-faible);
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+@media (max-width: 999.98px) {
+	.yn-stats__duo--large {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 699.98px) {
+	.yn-stats__section {
+		padding: 16px;
+	}
+
+	.yn-stats__fiche-titre {
+		font-size: 24px;
+	}
+
+	.yn-team .yn-stats__onglets a {
+		padding: 0 12px;
+	}
+
+	.yn-stats__choix label {
+		padding: 0 10px;
+	}
+
+	/* Trois repères de date au lieu de cinq. */
+	.yn-stats__axe-x span:nth-child(2),
+	.yn-stats__axe-x span:nth-child(4) {
+		display: none;
+	}
+}
+
+@media (forced-colors: active) {
+	.yn-stats__ligne,
+	.yn-stats__ligne--2 {
+		stroke: CanvasText;
+	}
+
+	.yn-stats__aire,
+	.yn-stats__barre-remplie,
+	.yn-stats__part--1 {
+		fill: Highlight;
+		background: Highlight;
+	}
+
+	.yn-stats__barre-libelle,
+	.yn-stats__barre-valeur {
+		fill: CanvasText;
+	}
+
+	.yn-stats__radio:checked + label,
+	.yn-team .yn-stats__listes a[aria-current="true"] {
+		border-width: 3px;
+	}
+}

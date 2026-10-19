@@ -294,9 +294,10 @@ yume_te_test(
 			yume_assert_same( url_vue_equipe( 'taches' ), $entrees[1][1], '« Mes tâches » : vue ?vue=taches' );
 		}
 
-		// Traducteur : ni publier, ni tous les tomes, ni membres ; les vues restent proposées.
+		// Traducteur : ni publier, ni tous les tomes, ni membres ; les vues restent proposées, et les
+		// statistiques d'audience (yume_voir_statistiques) sont ouvertes à toute l'équipe.
 		wp_set_current_user( yume_te_membre( 'yume_traducteur', 'Calumi' ) );
-		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Planning complet', 'Journal' ), array_column( yume_te_nav( navigation_equipe( 'tableau' ) ), 0 ) );
+		yume_assert_same( array( 'Tableau de bord', 'Mes tâches', 'Planning complet', 'Journal', 'Statistiques' ), array_column( yume_te_nav( navigation_equipe( 'tableau' ) ), 0 ) );
 	}
 );
 
