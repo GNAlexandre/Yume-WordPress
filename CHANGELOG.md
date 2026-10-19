@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.4.0-dev.2 — 2026-10-19
+
+- Statistiques, lot A : trafic Jetpack (vues, visiteurs, contenus, référents, recherches, pays ; cache, repli et données simulées hors production)
+
 ## 2.4.0-dev.1 — 2026-10-19
 
 - Statistiques, lot 0 : socle du module (capacités, table d'historique, cron, routes REST)
