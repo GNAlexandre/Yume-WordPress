@@ -326,8 +326,10 @@ listes pouvant être privées) ; lecteurs positionnés dans chaque tome ; **Voir
 **Liste nominative et RGPD** (bas de la fiche, gérants et administrateurs seulement) : **Lecteurs qui
 suivent l'œuvre**, en **Favoris** ou **Suiveurs alertés**, 50 par page, **Rechercher un pseudo** (2
 caractères au moins), tri par date d'ajout ou par pseudo. Chaque ligne ne donne que le **pseudo**
-(nom affiché du compte), la date d'ajout, la fréquence d'alerte et une pastille **Équipe** : jamais
-d'e-mail, d'adresse IP ni d'avatar. Un compte supprimé disparaît de la liste. Les autres membres
+(nom affiché du compte, le même que sous ses commentaires), la date d'ajout, la fréquence d'alerte
+et une pastille **Équipe** : jamais d'e-mail, d'adresse IP ni d'avatar. Le pseudo choisi à
+l'inscription sert aussi d'identifiant de connexion : tant que le lecteur n'en a pas changé dans
+*Mon compte*, le pseudo affiché est donc aussi son identifiant. Un compte supprimé disparaît de la liste. Les autres membres
 voient seulement le nombre, avec la mention « réservée aux gérants et administrateurs (RGPD) ». Ces
 données ne sortent pas de l'équipe (pas de copie sur Discord). La page *Confidentialité* du site
 devra mentionner ces statistiques internes : décision en attente de l'équipe (journal des

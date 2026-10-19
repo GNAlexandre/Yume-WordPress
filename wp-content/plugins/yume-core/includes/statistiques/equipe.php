@@ -1165,7 +1165,7 @@ function vue_liste_nominative( int $oeuvre_id, array $etat, ?array $compteurs ):
 		)
 	);
 	$html .= pagination_vue( VUE_CLE, $args, $page, $page < $pages, $pages );
-	$html .= '<p class="yn-muted yn-stats__note">' . esc_html__( 'Pseudo, date et fréquence seulement (ni e-mail, ni identifiant de connexion).', 'yume-core' ) . '</p>';
+	$html .= '<p class="yn-muted yn-stats__note">' . esc_html__( 'Pseudo affiché (le même que sous les commentaires), date et fréquence seulement : jamais l’adresse e-mail.', 'yume-core' ) . '</p>';
 
 	$export = vue_donnees(
 		'url_export',
