@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0 — 2026-10-20
+
+- Yume Novel 2.5.0 : fonctionnalités lecteurs. Signaler une coquille depuis le lecteur (sélection du passage, file « Corrections » de l'espace équipe, annonce Discord à l'équipe, lecteur remercié quand c'est corrigé) ; connexion et création de compte avec Discord (à mettre en service dans les réglages) ; recommandations « Si vous avez aimé… » sur les fiches et « Pour vous » dans Mon compte ; « Nouveaux chapitres depuis votre dernière lecture » sur l'accueil et « À rattraper » dans Mon compte ; inscription avec un pseudo public distinct de l'identifiant de connexion (connexion par e-mail). Alerte dans Santé du site quand les inscriptions sont fermées.
+
 ## 2.5.0-dev.9 — 2026-10-20
 
 - Connexion Discord : Client ID et Client Secret saisis dans les réglages (Yume → Réglages ou Réglages de l'espace équipe), cas normal sur WordPress.com où wp-config.php n'est pas modifiable ; Santé du site ne le signale plus
