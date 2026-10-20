@@ -62,7 +62,7 @@ Historique des Go et des releases : `journal-des-decisions.md`.
 | `includes/corrections/`, `tests/test-corrections.php` | **corrections** (lot L1 : signalement des coquilles par les lecteurs, file `?vue=corrections` de l'espace équipe ; §8 quater) |
 | `includes/discord/`, `tests/test-discord.php` | **discord** (lot L2 : connexion et création de compte avec Discord, liaison depuis Mon compte ; §8 quinquies) |
 | `includes/recommandations/`, `tests/test-recommandations.php` | **recommandations** (lot L3 : « Si vous avez aimé… » sur la fiche d'une œuvre et rubrique « Pour vous » ; §8 sexies) |
-| `includes/rattrapage/`, `tests/test-rattrapage.php` | **rattrapage** (lot L5 : « Nouveaux chapitres depuis votre dernière lecture », accueil et Mon compte ; §8 sexies) |
+| `includes/rattrapage/`, `tests/test-rattrapage.php` | **rattrapage** (lot L5 : « Nouveaux chapitres depuis votre dernière lecture » ; accueil « Reprendre la lecture » depuis 2.5.1, et Mon compte ; §8 sexies) |
 | `wp-content/themes/yume/` | **thème** |
 
 Chaque module range ses fichiers statiques dans `includes/<module>/assets/` et ses blocs dans
@@ -1506,10 +1506,29 @@ function rendu_cartes( array $recommandations, array $options ): string;   // pa
   sinon « 12 chapitres à lire »), `tome` du prochain (« Tome 3 commence »). Seulement les lectures
   commencées (pas les favoris jamais ouverts).
 - Bloc `yume/rattrapage` (§10) : membre → rendu serveur ; visiteur → chaîne vide (jamais de gabarit
-  caché). Accueil (`front-page.html`) : section pleine largeur entre « Dernières sorties » et le
-  Planning, lien « Toutes mes lectures » (`compte#yn-lecture`) ; rien à rattraper : la section
-  disparaît. Compte : rubrique « À rattraper » (`#yn-rattrapage`, après `yn-lecture`), 12 au plus,
-  « Vous êtes à jour sur toutes vos séries. ».
+  caché). Accueil (`front-page.html`, `{"count":3}`) : section pleine largeur **« Reprendre la
+  lecture »** entre « Dernières sorties » et le Planning (2.5.1 : fusion avec l'ancien bandeau de
+  reprise), une rangée de 3 cartes au plus (≥ 900 px ; empilées sur mobile) : **1.** la dernière
+  lecture du membre (`derniere_lecture()` : position la plus récente encore lisible, la même que
+  `yume/resume-reading`), même si la série est à jour — surtitre « Dernière lecture », « Tome 4 ·
+  chapitre 27 · 81 % du chapitre », barre, bouton « Continuer » (`url_reprise`) ; quand la série a des
+  chapitres après la position, « 3 nouveaux chapitres » (ou « N chapitres à lire », « Tome 5
+  commence »), la date et « Chapitre suivant → » ; **2.** jusqu'à 2 séries à rattraper (ordre de
+  `rattrapage()`), sans celle de la dernière lecture (`donnees_accueil()`). Lien d'en-tête « Toutes mes
+  lectures » (`compte#yn-lecture`) ; séries à rattraper non affichées : « Et N autres séries à
+  rattraper → » (`compte#yn-rattrapage`). Aucune position : la section disparaît. Boutons des cartes
+  sous la couverture et le texte, sur toute la largeur de la carte : côte à côte quand ils tiennent,
+  sinon empilés pleine largeur. Dates « dernier publié le 18 oct. » au format du site
+  (`Library\date_courte()`, année ajoutée si elle diffère). Compte : rubrique « À rattraper »
+  (`#yn-rattrapage`, après `yn-lecture`), 12 au plus, « Vous êtes à jour sur toutes vos séries. »
+  (inchangée, sans carte de dernière lecture).
+- Bandeau du bas de l'accueil (`yn-bandeau-reprise`) : le bloc note la dernière lecture affichée
+  (`noter_reprise_affichee()`, registre de la requête par membre) ; `yume/resume-reading` en
+  `bandeau`, rendu ensuite, passe sa position au filtre **`yume_resume_reading_afficher`** (`true`,
+  `$position`, `$layout`) auquel le module répond faux pour ce membre et cette œuvre : le bloc ne rend
+  rien et le bandeau montre son repli « Communauté » + « Rejoindre le Discord ». Sans le bloc du haut
+  (rattrapage coupé, autre page) ou en `carte`, la reprise s'affiche comme avant. Visiteur inchangé
+  (gabarit masqué rempli depuis `localStorage`, aucune donnée personnelle dans le HTML).
 - Cache : transient `yume_rattrapage_{user}` 15 min (filtre `yume_rattrapage_cache`, 900 s), effacé
   sur `yume_progression_enregistree` (ce membre) ; version `yume_rattrapage_version` incrémentée sur
   `yume_chapitre_publie`, `yume_tome_publie` et la dépublication d'un chapitre (`transition_post_status`
@@ -1545,7 +1564,10 @@ commencé au moins une série (sinon ni rubrique ni texte « à jour »).
 ```php
 function rattrapage( int $user_id, int $limite = 6 ): array;   // même tableau que GET /moi/rattrapage (§12)
 function invalider_membre( int $user_id ): void;  function invalider_tous(): void;
-function rendu_cartes( array $lignes, string $layout ): string;
+function rendu_cartes( array $lignes, string $layout, array $reprise = array() ): string;  // $reprise : {position, ligne} en tête
+function donnees_accueil( int $user_id, int $nombre = NOMBRE_BLOC ): array;  // {reprise: {position, ligne}|null, oeuvres, autres}
+function derniere_lecture( int $user_id ): ?array;   // position enrichie la plus récente
+function noter_reprise_affichee( int $user_id, int $oeuvre_id ): void;  function reprise_affichee( int $user_id ): int;
 ```
 
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
@@ -1639,14 +1661,14 @@ s'y accrochent. Contexte courant : `get_queried_object_id()` ou `$block->context
 | `yume/recherche` | bibliothèque | `perPage` (20 : un seul groupe affiché), `apercu` (5 : par groupe quand tous sont affichés), `showFilters` (true) | `.yn-search` | Page de résultats de `/?s=` (modèle `search.html` du thème, à la place de la boucle de requête ; AMEL-04, `includes/library/recherche.php` + `recherche-rendu.php`). Groupes `oeuvres` (titre, `yume_titres_alt`, `yume_auteur`, `yume_illustrateur`, `yume_editeur_vo`), `tomes` (titre ; publiés, œuvre publiée), `actualites` (articles publiés sans mot de passe : titre, extrait, texte ; préfiltre SQL limité à 300, filtre `yume_recherche_actualites_max`) et, si `recherche_chapitres` est actif, `chapitres` (texte et titre des chapitres publiés d'un tome et d'une œuvre publiés, œuvre ni `licenciee` ni statut du filtre `yume_recherche_statuts_exclus_chapitres` ; terme ≥ 3 caractères ; 60 chapitres lus au plus, les plus récents, filtre `yume_recherche_chapitres_max`, compteur « N+ » au-delà ; extrait de 200 caractères autour de la première occurrence, lien `#yn-p-N` vers le bloc de premier niveau). GET : `s`, `contenu` (un groupe), `statut` (liste de slugs, groupes de la bibliothèque), `genre`, `tri` (`pertinence` par défaut, `recent`, `az`), `pg_{groupe}` (pagination propre à chaque groupe, ancre `#yn-search-{groupe}`) ; compteurs par groupe ; tout mot doit figurer (ET) ; comparaison sur texte « plié » (`plier()` : minuscules, sans accents ni ligatures, apostrophe typographique) identique sur SQLite et MariaDB : SQL ne fait qu'un préfiltre `LIKE` large (lettres accentuables en `_` sauf collation `*_ci` MySQL, `œ`/`æ` et `< > & "` en `%`, filtre `yume_recherche_like_insensible`), PHP décide. Surlignage `<mark class="yn-search__marque">` dans un texte toujours échappé (le terme n'est jamais débarrassé de ses balises, il est échappé). Aucun résultat : œuvres au titre proche (distance d'édition) et lien Bibliothèque. Index (œuvres, tomes) dans le cache de la bibliothèque (`en_cache( 'recherche' )`, renouvelé aussi au changement des métas ci-dessus et de `_thumbnail_id`) |
 | `yume/reader-tools` | lecture | — | `.yn-reader-tools` | Barre de lecture, repère `<header aria-label="Barre de lecture">` (les gabarits de lecture n'ont pas d'en-tête du site) : progression, sommaire, marque-page, thème, panneau Paramètres. Page Illustrations : même barre (retour et Sommaire vers le tome, réglages, thème, compte) sans marque-page, configuration `chapitre: 0` (aucun suivi, position jamais écrite), `next` = chapitre 1 |
 | `yume/oeuvre-actions` | lecteurs | — | `.yn-oeuvre-actions` | Reprendre, Favori (compteur), Note (moyenne), Alerte ; membre connecté : menu « Ajouter à une liste » (`details[data-yn-menu="listes"]`, inséré par `render.php` via `inserer_menu_listes()`, `listes.php`) : une case par liste (PUT/DELETE REST à chaque case), création rapide (POST puis PUT), sans JavaScript formulaire `admin-post.php?action=yume_listes_oeuvre` (nonce `yume_social_{oeuvre}`, messages `?yn-lmsg=`) |
-| `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé |
+| `yume/resume-reading` | lecteurs | `layout` (enum `bandeau`,`carte`) | `.yn-resume` | Reprendre la lecture (membre : serveur ; visiteur : `localStorage`). En `bandeau`, rend seulement son contenu (surtitre `.yn-label`, titre, bouton `.yn-btn--primary` « Continuer ») : le thème fournit le bandeau. Rien à reprendre : aucune sortie, ou `.yn-resume[hidden]` tant que le JS visiteur n'a rien trouvé. Membre dont la position est écartée par le filtre `yume_resume_reading_afficher` (2.5.1 : en `bandeau`, dernière lecture déjà montrée par `yume/rattrapage` plus haut dans la page) : aucune sortie, le bandeau de l'accueil montre son repli « Communauté » |
 | `yume/account` | lecteurs | — | `.yn-account` | Page compte : lecture en cours, favoris et alertes, notes, réglages, données (export/suppression) ; visiteur : connexion en façade (`#yn-connexion`, admin-post `yume_connexion`, §6 ter), petit lien « Connexion administrateur » (wp-login.php), mot de passe oublié, inscription |
 | `yume/auth-links` | lecteurs | — | `.yn-auth` | « Connexion » (la page connexion propose aussi l'inscription) ou « Mon compte » (+ « Espace équipe » si capacité) et « Se déconnecter » ; placé dans `core/navigation`. Membre connecté : cloche des notifications en tête (`.yn-cloche`, `inserer_cloche()`, `notifications-lecteur.php`) — pastille du nombre de non lues (rendu serveur), bouton `aria-expanded`/`aria-controls` qui ouvre le panneau `#yn-cloche-panneau` (8 dernières, « Tout marquer comme lu », lien `compte#yn-notifications`), lien simple sans JavaScript ; script `yume-cloche` (`blocks/auth-links/view.js`) chargé pour les membres seulement : rafraîchi à l'ouverture et toutes les 5 min si l'onglet est visible ; aucun script ni requête pour un visiteur |
 | `yume/liste-publique` | lecteurs | — | `.yn-liste-publique` | Page d'une liste de lecture (`/listes/{id}-{slug}/`, gabarit injecté par `listes.php`, hors inserteur) : « Liste de lecture », titre en `<h1>`, « par {nom affiché} » (jamais l'identifiant de connexion), nombre d'œuvres, date de mise à jour, description, grille de couvertures des œuvres publiées ; propriétaire : état Publique/Privée et lien « Gérer mes listes » |
 | `yume/recrutement` | planning | — | `.yn-recrutement` | Page « Rejoindre l'équipe » : introduction (`recrutement_intro`), `h2` « Postes ouverts » + cartes `.yn-recrutement__poste` (`h3`, description, pastille « Recrutement ouvert ») ou « Aucun poste ouvert pour le moment », carte « Postuler » : consigne, bouton « Postuler sur le Discord » (`discord_invite`, nouvel onglet) et « Télécharger le test de traduction » si `recrutement_test_url`. **Aucun formulaire** : le site ne recueille aucune candidature |
 | `yume/profil-contributeur` | lecteurs | `mode` (`auto` \| `liste`, `auto`), `titre` (string, « Profils des contributeurs ») | `.yn-contributeur`, `.yn-contributeurs` | `auto` : profil sur `/contributeurs/{slug}/` (fil d'Ariane, avatar à initiales, `h1` pseudo, rôle Yume, « Dans l'équipe depuis », présentation, liens `rel="me nofollow noopener"`, contributions par œuvre), liste avec `h1` « Contributeurs » sur `/contributeurs/`. `liste` (ou hors de `/contributeurs/`) : `h2` + cartes (initiales, pseudo lié, rôle, nombre de tomes publiés), **rien** sans profil public. Ajouté automatiquement sous le contenu de la page « L'équipe » (slug `lequipe`, filtre `render_block_core/post-content`) avec un bouton « Rejoindre l'équipe » ; les mentions « Poste à pourvoir » de cette page mènent à la page de recrutement |
 | `yume/recommandations` | recommandations (L3, 2.5.0) | `count` (number, 4) | `.yn-recommandations` | Fiche d'une œuvre (après `yume/oeuvre-news`) : « Si vous avez aimé {Œuvre} », cartes couverture, titre, type, genres communs en pastilles, « N lecteurs la suivent aussi » (co-favoris ≥ 3) ; HTML identique pour tous les visiteurs, favoris et lectures du membre retirés (§8 sexies) |
-| `yume/rattrapage` | rattrapage (L5, 2.5.0) | `count` (number, 6), `layout` (`section` \| `carte`, `section`) | `.yn-rattrapage` | « Nouveaux chapitres depuis votre dernière lecture » : membre connecté seulement (rendu serveur), chaîne vide pour un visiteur ou sans rien à rattraper ; cartes couverture, œuvre, « Tome 2 · 3 nouveaux chapitres », « Reprendre » et « Chapitre suivant » (§8 sexies) |
+| `yume/rattrapage` | rattrapage (L5, 2.5.0) | `count` (number, 3), `layout` (`section` \| `carte`, `section`) | `.yn-rattrapage` | « Reprendre la lecture » (2.5.1) : membre connecté seulement (rendu serveur), chaîne vide pour un visiteur ou sans lecture commencée ; dernière lecture en première carte (`.yn-rattrapage__item--reprise`, « Continuer », nouveaux chapitres et « Chapitre suivant » s'il y en a), puis les séries à rattraper (couverture, œuvre, « Tome 2 · 3 nouveaux chapitres », « Reprendre » et « Chapitre suivant ») ; note la lecture affichée pour le bandeau `yume/resume-reading` (§8 sexies) |
 | `yume/theme-toggle` | **thème** | — | `.yn-theme-toggle` | Bascule Nuit ↔ Papier (`aria-pressed`, `[data-yn-theme-toggle]`) |
 
 Les blocs posés dans le modèle `page-large` (planning, compte, équipe, publication) commencent leurs

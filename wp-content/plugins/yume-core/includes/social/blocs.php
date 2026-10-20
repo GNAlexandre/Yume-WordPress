@@ -333,8 +333,10 @@ function rendu_oeuvre_actions( array $attributes = array(), $bloc = null ): stri
  */
 
 /**
- * Rendu du bloc yume/resume-reading. Membre avec une position : rendu serveur. Sinon, un
- * gabarit masqué que le script remplit depuis localStorage['yn.progression'] (visiteur).
+ * Rendu du bloc yume/resume-reading. Membre avec une position : rendu serveur, sauf si le filtre
+ * yume_resume_reading_afficher l'écarte (dernière lecture déjà montrée par le bloc « Reprendre la
+ * lecture » de l'accueil : chaîne vide). Sinon, un gabarit masqué que le script remplit depuis
+ * localStorage['yn.progression'] (visiteur).
  *
  * @param array $attributes Attributs (layout : bandeau | carte).
  */
@@ -342,6 +344,20 @@ function rendu_resume( array $attributes = array() ): string {
 	$layout   = in_array( $attributes['layout'] ?? '', array( 'bandeau', 'carte' ), true ) ? $attributes['layout'] : 'carte';
 	$position = position_membre( 0 );
 	$classe   = 'yn-resume yn-resume--' . $layout . ( 'carte' === $layout ? ' yn-card' : '' );
+
+	/**
+	 * Affiche-t-on la reprise de ce membre ? Faux : le bloc ne rend rien (ni reprise, ni gabarit
+	 * visiteur) et le bandeau de l'accueil montre son repli « Communauté ». Le module rattrapage
+	 * répond faux en « bandeau » quand son bloc « Reprendre la lecture », rendu plus haut dans la
+	 * page, a déjà montré cette lecture.
+	 *
+	 * @param bool   $afficher Vrai par défaut.
+	 * @param array  $position Position du membre (Reader\enrichir_ligne()).
+	 * @param string $layout   bandeau | carte.
+	 */
+	if ( $position && ! apply_filters( 'yume_resume_reading_afficher', true, $position, $layout ) ) {
+		return '';
+	}
 
 	if ( $position ) {
 		$texte = implode( ' · ', array_filter( array( $position['oeuvre'], $position['tome'], mb_strtolower( $position['chapitre'] ), libelle_part_chapitre( (int) $position['pourcentage'] ) ), 'strlen' ) );

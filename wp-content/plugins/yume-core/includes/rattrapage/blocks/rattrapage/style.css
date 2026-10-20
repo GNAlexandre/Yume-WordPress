@@ -34,14 +34,21 @@
 	font-size: var(--wp--preset--font-size--grand);
 }
 
-/* Liste des séries : une colonne sur mobile, plusieurs dès que la place le permet. */
+/* Liste des cartes. Accueil : une colonne sur mobile, deux sur tablette, une rangée de trois sur
+   ordinateur (≥ 900 px). Compte : autant de colonnes que la place le permet. */
 ul.yn-rattrapage__liste {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 	gap: 16px;
 	margin: 0;
 	padding: 0;
 	list-style: none;
+}
+
+@media (min-width: 900px) {
+	ul.yn-rattrapage__liste--section {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
 }
 
 ul.yn-rattrapage__liste--carte {
@@ -49,10 +56,14 @@ ul.yn-rattrapage__liste--carte {
 	gap: 14px;
 }
 
+/* Carte : couverture et texte côte à côte, boutons sur toute la largeur de la carte, alignés en
+   bas d'une rangée de cartes de hauteurs différentes. */
 .yn-rattrapage__liste > .yn-rattrapage__item {
-	display: flex;
-	align-items: flex-start;
-	gap: 16px;
+	display: grid;
+	grid-template-columns: 76px minmax(0, 1fr);
+	grid-template-rows: 1fr auto;
+	align-items: start;
+	gap: 12px 16px;
 	box-sizing: border-box;
 	min-width: 0;
 	margin: 0;
@@ -64,30 +75,32 @@ ul.yn-rattrapage__liste--carte {
 }
 
 .yn-rattrapage__liste--carte > .yn-rattrapage__item {
-	gap: 14px;
+	grid-template-columns: 64px minmax(0, 1fr);
+	gap: 12px 14px;
 	padding: 12px;
 	background: transparent;
 }
 
 .yn-rattrapage__liste .yn-rattrapage__couverture.yn-cover {
-	flex: 0 0 76px;
 	width: 76px;
 	padding: 6px;
 	font-size: 13px;
 }
 
 .yn-rattrapage__liste--carte .yn-rattrapage__couverture.yn-cover {
-	flex-basis: 64px;
 	width: 64px;
 	font-size: 11px;
 }
 
 .yn-rattrapage__liste .yn-rattrapage__corps {
 	display: flex;
-	flex: 1 1 auto;
 	flex-direction: column;
 	gap: 4px;
 	min-width: 0;
+}
+
+.yn-rattrapage__liste .yn-rattrapage__surtitre {
+	margin-bottom: 2px;
 }
 
 .yn-rattrapage__liste .yn-rattrapage__oeuvre {
@@ -108,8 +121,12 @@ ul.yn-rattrapage__liste--carte {
 	text-decoration: underline;
 }
 
-.yn-rattrapage__liste .yn-rattrapage__avancement {
+.yn-rattrapage__liste :is(.yn-rattrapage__avancement, .yn-rattrapage__position) {
 	font-size: 14px;
+}
+
+.yn-rattrapage__liste .yn-rattrapage__barre {
+	margin: 4px 0 2px;
 }
 
 .yn-rattrapage__liste .yn-rattrapage__nombre {
@@ -121,15 +138,24 @@ ul.yn-rattrapage__liste--carte {
 	font-size: 12px;
 }
 
+/* Boutons : côte à côte quand ils tiennent sur une ligne, sinon empilés sur toute la largeur. */
 .yn-rattrapage__liste .yn-rattrapage__actions {
 	display: flex;
+	grid-column: 1 / -1;
 	flex-wrap: wrap;
 	gap: 8px;
-	margin-top: 6px;
 }
 
 .yn-rattrapage__liste .yn-rattrapage__actions a.yn-btn {
+	flex: 1 1 auto;
+	justify-content: center;
 	text-decoration: none;
 	white-space: normal;
 	text-align: center;
+}
+
+/* Séries à rattraper non affichées (accueil). */
+.yn-rattrapage .yn-rattrapage__plus {
+	margin-top: 12px;
+	font-size: 14px;
 }

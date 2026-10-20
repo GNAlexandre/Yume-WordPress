@@ -3,8 +3,9 @@
  * Module « rattrapage » (lot L5) : « Nouveaux chapitres depuis votre dernière lecture ».
  *
  * Pour chaque série commencée par un membre (table progression), les chapitres publiés après
- * sa position dans l'ordre de lecture (Reader\plan_de_lecture()) : section de l'accueil (bloc
- * yume/rattrapage, dans templates/front-page.html), rubrique « À rattraper » de Mon compte
+ * sa position dans l'ordre de lecture (Reader\plan_de_lecture()) : section « Reprendre la
+ * lecture » de l'accueil (bloc yume/rattrapage, dans templates/front-page.html : dernière
+ * lecture puis deux séries à rattraper ; 2.5.1), rubrique « À rattraper » de Mon compte
  * (#yn-rattrapage, après « Reprendre la lecture ») et route GET /yume/v1/moi/rattrapage.
  *
  * Cache de page (Batcache) : une page anonyme est servie à tous les visiteurs ; le bloc ne

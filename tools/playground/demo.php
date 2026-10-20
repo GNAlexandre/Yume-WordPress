@@ -707,7 +707,7 @@ if ( $yume_demo_oeuvre && $yume_demo_autres_ids && function_exists( 'Yume\\Core\
 	}
 
 	// Compte lecteur : chapitre 2 des Veilleurs lu en entier il y a 10 jours ; les chapitres 3 et
-	// 4, publiés depuis, apparaissent dans « Nouveaux chapitres depuis votre dernière lecture ».
+	// 4, publiés depuis, apparaissent dans « Reprendre la lecture » (accueil) et « À rattraper ».
 	$yume_demo_lecteur = $yume_demo_uid( 'lecteur' );
 	$yume_demo_ch_veil = $yume_demo_autres_ch['les-veilleurs-du-col'] ?? array();
 	if ( $yume_demo_lecteur && ! empty( $yume_demo_ch_veil[2] ) ) {

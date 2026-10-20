@@ -1,7 +1,7 @@
 <?php
 /**
- * Rendu du bloc yume/rattrapage (module rattrapage, voir fonctions.php) : chaîne vide pour un
- * visiteur, rendu serveur pour un membre connecté.
+ * Rendu du bloc yume/rattrapage, « Reprendre la lecture » (module rattrapage, voir fonctions.php) :
+ * chaîne vide pour un visiteur, rendu serveur pour un membre connecté.
  *
  * @package Yume\Core
  *

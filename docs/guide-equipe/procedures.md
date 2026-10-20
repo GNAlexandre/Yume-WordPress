@@ -835,6 +835,8 @@ En haut, **Dernières sorties** ne change pas : les derniers tomes et chapitres 
 
 Les deux colonnes ont la même hauteur. Sur téléphone, elles deviennent deux onglets : **Chapitres** et **Tomes**. Viennent ensuite, sans changement, les **Actualités**, le Discord et **Nos partenaires**.
 
+Un lecteur connecté voit aussi, entre **Dernières sorties** et le **Planning**, la section **Reprendre la lecture** : sa dernière lecture puis les séries où de nouveaux chapitres l'attendent (voir « Les suggestions et les nouveaux chapitres »).
+
 > **À savoir** : seules les œuvres publiques apparaissent. Un chapitre retiré (licence, retour d'un tome à « Planifié ») n'apparaît jamais.
 
 > **À savoir** : une **série à venir** apparaît aussi, même en brouillon, mais sous son nom affiché (« Nouvelle série à venir » par défaut) : sans titre, sans couverture, sans lien et sans bouton **Suivre l'œuvre**. Voir « Annoncer une nouvelle série sans dévoiler son titre ».
@@ -906,7 +908,8 @@ La date programmée compte en priorité ; sinon, c'est la date cible.
 
 - **Si vous avez aimé…**, sur la fiche d'une œuvre : des œuvres qui partagent ses genres ou son type, ou que suivent les mêmes lecteurs (« 4 lecteurs la suivent aussi », à partir de 3 lecteurs en commun, sans jamais nommer personne). Jamais d'œuvre licenciée. Un lecteur connecté n'y voit pas ses favoris ni ce qu'il lit déjà.
 - **Pour vous**, dans **Mon compte** : des suggestions tirées de ses favoris et de ses lectures, « parce que vous suivez… ».
-- **Nouveaux chapitres depuis votre dernière lecture**, sur l'accueil et dans **Mon compte**, rubrique **À rattraper** : les séries qu'il a commencées et qui ont de nouveaux chapitres, avec **Reprendre** et **Chapitre suivant**. Seulement pour un lecteur connecté.
+- **Reprendre la lecture**, sur l'accueil, juste après **Dernières sorties** : une rangée de 3 cartes au plus. D'abord sa **dernière lecture** (« Tome 4 · chapitre 27 · 81 % du chapitre », bouton **Continuer**, et « 3 nouveaux chapitres » avec **Chapitre suivant** quand il y en a), puis 2 séries qu'il a commencées et qui ont de nouveaux chapitres, avec **Reprendre** et **Chapitre suivant**. Le bandeau du bas de l'accueil ne répète plus sa lecture : il invite à **Rejoindre le Discord**. Seulement pour un lecteur connecté.
+- **Nouveaux chapitres depuis votre dernière lecture**, dans **Mon compte**, rubrique **À rattraper** : toutes les séries qu'il a commencées et qui ont de nouveaux chapitres (12 au plus), avec **Reprendre** et **Chapitre suivant**.
 
 > **Astuce** : des **genres** bien renseignés sur chaque œuvre donnent de meilleures suggestions. Sans au moins 2 œuvres proches, le bloc n'apparaît pas.
 

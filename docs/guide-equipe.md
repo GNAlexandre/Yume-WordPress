@@ -1123,9 +1123,14 @@ Ce que les lecteurs voient, sans rien à régler par l'équipe :
   Bien renseigner les **genres** d'une œuvre améliore les suggestions.
 - **Pour vous** (*Mon compte*) : suggestions d'après ses favoris et ses lectures, « parce que vous
   suivez … ».
-- **Nouveaux chapitres depuis votre dernière lecture** : sur l'accueil (lecteur connecté seulement) et
-  dans *Mon compte → À rattraper*, les séries commencées qui ont des chapitres publiés après sa
-  position de lecture, avec **Reprendre** (là où il s'était arrêté) et **Chapitre suivant**. Une
+- **Reprendre la lecture** (accueil, lecteur connecté seulement, depuis la 2.5.1) : une rangée de
+  3 cartes au plus. D'abord sa **dernière lecture** (« Tome 4 · chapitre 27 · 81 % du chapitre »,
+  bouton **Continuer**, et « 3 nouveaux chapitres » avec **Chapitre suivant** quand il y en a), puis
+  jusqu'à 2 séries commencées qui ont des chapitres publiés après sa position, avec **Reprendre** et
+  **Chapitre suivant**. Le bandeau du bas de l'accueil ne répète plus sa lecture : il invite à
+  **Rejoindre le Discord**.
+- **Nouveaux chapitres depuis votre dernière lecture** : dans *Mon compte → À rattraper*, toutes les
+  séries commencées qui ont des chapitres publiés après sa position de lecture (12 au plus). Une
   série à jour n'apparaît pas. Un chapitre publié y apparaît dans la minute.
 
 ### Connexion Discord (mise en service par Alexandre)

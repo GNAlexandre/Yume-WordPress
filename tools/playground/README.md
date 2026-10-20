@@ -59,8 +59,8 @@ Cartographe des marées », « Sous le cerisier d'hiver », « La Bibliothèque 
 genres et types croisés, un tome publié chacune) suivies par les comptes fictifs, si bien que la
 fiche de chaque œuvre affiche « Si vous avez aimé… » (avec « N lecteurs la suivent aussi » dès trois
 lecteurs communs). Le compte `lecteur` s'est arrêté au chapitre 2 des Veilleurs du Col, publiés
-depuis : chapitres 3 et 4 (section « Nouveaux chapitres depuis votre dernière lecture » de
-l'accueil, rubriques « À rattraper » et « Pour vous » de Mon compte). Trois signalements de
+depuis : chapitres 3 et 4 (section « Reprendre la lecture » de l'accueil, dernière lecture en
+première carte, rubriques « À rattraper » et « Pour vous » de Mon compte). Trois signalements de
 coquilles sur les Lanternes (deux nouveaux, un corrigé) remplissent *Catalogue → Corrections* de
 l'espace équipe. La connexion Discord reste non configurée (aucun bouton).
 
