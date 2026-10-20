@@ -81,8 +81,8 @@ Créées à l'activation (`dbDelta`), préfixe `{$wpdb->prefix}yume_` :
 
 ### Tables ajoutées depuis
 
-Créées par les modules social, glossaire et statistiques après la rédaction de ce document ; colonnes et règles
-dans le contrat §13.
+Créées par les modules social, glossaire, statistiques et corrections après la rédaction de ce document ;
+colonnes et règles dans le contrat §13.
 
 | Table | Usage |
 | --- | --- |
@@ -90,10 +90,27 @@ dans le contrat §13.
 | `notifications_lecteur` | Centre de notifications (cloche) : sorties des œuvres en favori, réponses aux commentaires |
 | `push` | Abonnements Web Push (un par appareil, liés à la session WordPress) |
 | `glossaire`, `glossaire_versions` | Entrées du glossaire par œuvre et historique des versions YAML (5 dernières) |
+| `coquilles` | Coquilles signalées par les lecteurs (2.5.0, module corrections) : chapitre, tome et œuvre, paragraphe (index à partir de 0), extrait (300 caractères), contexte (texte du paragraphe), empreinte du paragraphe (badge « Paragraphe modifié depuis »), commentaire (500), compte (0 : anonyme ou compte supprimé), statut `nouveau` / `corrige` / `rejete`, empreinte d'IP (mode anonyme seulement, 30 jours), dates de signalement et de traitement, membre qui a traité. Signalements traités purgés après 180 jours ; compte supprimé : `user_id` mis à 0 |
 | `stats_jour` | Historique quotidien des statistiques d'audience (2.4.0) : une ligne par jour pour le site (`oeuvre_id` 0 : vues et visiteurs Jetpack, comptes lecteurs, inscriptions) et une par œuvre publiée (vues, favoris, suiveurs alertés, listes, lecteurs, lecteurs actifs sur 30 jours, chapitres lus estimés). Compteurs seulement, aucune donnée personnelle ; 400 jours gardés |
 
 Réglages de lecture : `user_meta yume_reglages` (JSON : police, taille, interligne, opacité, thème,
 largeur) ; pour les visiteurs, `localStorage` uniquement.
+
+Comptes lecteurs (2.5.0) : l'identifiant de connexion (`user_login`) d'un compte créé en façade est
+généré (`yn-` + 8 caractères) et jamais affiché ; le pseudo public est `display_name` (= `nickname`) ; on
+se connecte avec son adresse e-mail. Métas utilisateur ajoutées :
+
+| Méta | Usage |
+| --- | --- |
+| `yume_discord_id` | Identifiant Discord du compte lié (connexion avec Discord) |
+| `yume_discord_pseudo` | Nom d'utilisateur Discord au moment de la liaison (affichage dans Mon compte) |
+| `yume_discord_lie_le` | Date de la liaison |
+| `_yume_compte_sans_mdp` | Compte créé avec Discord dont le titulaire ne connaît pas de mot de passe (retirée dès qu'il en définit un) |
+| `yume_avis_pseudo_vu` | Conseil « choisissez un pseudo différent de votre identifiant » fermé (comptes d'avant 2.5.0) |
+
+Aucun jeton Discord n'est stocké, ni avatar. Recommandations et rattrapage n'ont ni table ni méta :
+caches (transients) et options de version (`yume_reco_version`, `yume_reco_attente`,
+`yume_rattrapage_version`).
 
 ## Rôles et capacités
 
@@ -119,6 +136,10 @@ largeur) ; pour les visiteurs, `localStorage` uniquement.
 | `PUT /moi/notes/{oeuvre}` | lecteur | Note |
 | `GET /statistiques/resume`, `/statistiques/trafic`, `/statistiques/oeuvres`, `/statistiques/oeuvres/{oeuvre}` | équipe (`yume_voir_statistiques`) | Statistiques d'audience (agrégats) |
 | `GET /statistiques/oeuvres/{oeuvre}/lecteurs` | gérant (`yume_voir_lecteurs`) | Favoris et suiveurs d'une œuvre : pseudo, date, fréquence d'alerte |
+| `POST /chapitres/{chapitre}/coquilles` | lecteur | Signaler une coquille (2.5.0) |
+| `GET /recommandations/{oeuvre}` | public | « Si vous avez aimé… » (2.5.0) |
+| `GET /moi/recommandations`, `GET /moi/rattrapage` | lecteur | « Pour vous » et nouveaux chapitres depuis la dernière lecture (2.5.0) |
+| `GET /discord/retour` | public | Retour de la connexion avec Discord (2.5.0) |
 
 Authentification : cookie + nonce WordPress pour le front ; **mots de passe d'application** pour les
 intégrations (Yume-Trad, bot Discord).

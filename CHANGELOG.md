@@ -2,6 +2,38 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.8 — 2026-10-19
+
+- Lecteurs, intégration : e-mail « choisissez votre mot de passe » sans l'identifiant généré, connexion Discord sans écran d'autorisation répété (prompt=none, filtre yume_discord_prompt), doublon de pseudo avec « & » détecté, démo Playground (4 œuvres, favoris croisés, rattrapage, coquilles), contrat, guide de l'équipe et mise en service Discord
+
+## 2.5.0-dev.7 — 2026-10-19
+
+- Lecteurs, lot L2 : connexion avec Discord (OAuth2 + PKCE, création et liaison de compte, administrateurs exclus ; inactif tant que l'application Discord n'est pas configurée)
+
+## 2.5.0-dev.6 — 2026-10-19
+
+- Lecteurs, lot L1 : signaler une coquille (bouton sur sélection dans le lecteur, vue équipe Corrections, Discord équipe, lecteur remercié quand c'est corrigé)
+
+## 2.5.0-dev.5 — 2026-10-19
+
+- Lecteurs, intégration : les tests de la page Mon compte comptent les rubriques du module social seulement (Pour vous et À rattraper coupées)
+
+## 2.5.0-dev.4 — 2026-10-19
+
+- Lecteurs, lot L3 : recommandations « Si vous avez aimé… » (fiche œuvre, rubrique Pour vous)
+
+## 2.5.0-dev.3 — 2026-10-19
+
+- Lecteurs, lot L5 : rattrapage des nouveaux chapitres (accueil et Mon compte, lecteurs connectés)
+
+## 2.5.0-dev.2 — 2026-10-19
+
+- Lecteurs, lot L6 : pseudo public distinct de l'identifiant (inscription par pseudo public et e-mail, identifiant généré, connexion par e-mail, avis aux anciens comptes, registration_errors rétabli)
+
+## 2.5.0-dev.1 — 2026-10-19
+
+- Lecteurs, lot 0 : socle des comptes (création de compte unique, points d'extension du compte et des formulaires, RGPD, réglage secret, alerte inscriptions fermées)
+
 ## 2.4.0 — 2026-10-19
 
 - Yume Novel 2.4.0 : statistiques d'audience dans l'espace équipe (menu Site → Statistiques). Toute l'équipe voit le trafic Jetpack (vues, visiteurs, contenus, référents, recherches, pays), les chiffres par œuvre (favoris, suiveurs alertés, lecteurs, chapitres lus estimés, listes), les classements et les chiffres des lecteurs, sur 7, 30 ou 90 jours ou 12 mois ; les gérants et administrateurs voient aussi la liste des lecteurs qui suivent chaque œuvre (pseudo, date, alertes), avec export CSV journalisé. Historique quotidien à partir de l'installation. Guide de l'équipe : « Statistiques d'audience ».

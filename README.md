@@ -10,6 +10,9 @@ l'ancien contenu le même jour). La version courante est la première entrée de
 [CHANGELOG.md](CHANGELOG.md). Le thème `yume` et le plugin `yume-core` sont complets
 (bibliothèque, lecteur en ligne généré depuis le DOCX, planning public, espace équipe, publication
 par glisser-déposer, comptes lecteurs, migration de l'ancien site), testés sur SQLite et MariaDB.
+En cours (2.5.0, non publié) : fonctionnalités lecteurs — signalement des coquilles, connexion avec
+Discord, recommandations « Si vous avez aimé… », nouveaux chapitres depuis la dernière lecture,
+pseudo public distinct de l'identifiant de connexion.
 Le site se met à jour depuis les **releases GitHub** : chaque version stable est taguée `vX.Y.Z`
 depuis `main` après le « Go » explicite de l'équipe, pour **chaque** version ; aucun tag `v*`
 sans ce Go. Décisions et jalons : [docs/journal-des-decisions.md](docs/journal-des-decisions.md).
@@ -29,8 +32,8 @@ sans ce Go. Décisions et jalons : [docs/journal-des-decisions.md](docs/journal-
 | [docs/06-contrat-technique.md](docs/06-contrat-technique.md) | Contrat technique partagé : types, métadonnées, blocs, routes, rôles, pages |
 | [docs/mise-en-production.md](docs/mise-en-production.md) | Liste de contrôle de mise en production : comptes et 2FA, Jetpack, sauvegardes, `wp-config.php`, réglages GitHub |
 | [docs/tester-en-local.md](docs/tester-en-local.md) | Lancer le site sur son ordinateur (Playground, environnement PHP, préproduction) |
-| [docs/guide-equipe.md](docs/guide-equipe.md) | Guide de l'équipe : se connecter, espace équipe, planning et rappels, publier un tome, corriger un chapitre, œuvres et glossaires, modération des commentaires, statistiques d'audience, indicateurs et santé du site, réglages, questions fréquentes |
-| [docs/guide-equipe/Guide-equipe-Yume-Novel.docx](docs/guide-equipe/Guide-equipe-Yume-Novel.docx) | Guide de l'équipe en Word, à distribuer : procédures pas à pas avec captures (planning, œuvres, nouveau tome, fichier Word, ajouter des chapitres, terminer et modifier un tome, état des tomes et des œuvres, lecteurs, statistiques d'audience, questions fréquentes). Source : [docs/guide-equipe/procedures.md](docs/guide-equipe/procedures.md), mise à jour : [tools/guide/README.md](tools/guide/README.md) |
+| [docs/guide-equipe.md](docs/guide-equipe.md) | Guide de l'équipe : se connecter, espace équipe, planning et rappels, publier un tome, corriger un chapitre, coquilles signalées par les lecteurs, œuvres et glossaires, modération des commentaires, statistiques d'audience, indicateurs et santé du site, réglages, connexion Discord, questions fréquentes |
+| [docs/guide-equipe/Guide-equipe-Yume-Novel.docx](docs/guide-equipe/Guide-equipe-Yume-Novel.docx) | Guide de l'équipe en Word, à distribuer : procédures pas à pas avec captures (planning, œuvres, nouveau tome, fichier Word, ajouter des chapitres, terminer et modifier un tome, état des tomes et des œuvres, lecteurs, statistiques d'audience, coquilles signalées, questions fréquentes). Source : [docs/guide-equipe/procedures.md](docs/guide-equipe/procedures.md), mise à jour : [tools/guide/README.md](tools/guide/README.md) |
 | [docs/guide-developpeur.md](docs/guide-developpeur.md) | Guide développeur : modules, tests, CI, release |
 | [docs/journal-des-decisions.md](docs/journal-des-decisions.md) | Journal daté des décisions et des jalons (plan, Go, releases) et décisions en attente |
 | [docs/glossaire.md](docs/glossaire.md) | Glossaire des œuvres : format YAML de Yume-Trad, page publique, espace équipe, envoi direct par l'application (API) |

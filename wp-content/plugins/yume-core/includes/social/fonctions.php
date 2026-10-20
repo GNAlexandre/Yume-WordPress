@@ -738,7 +738,7 @@ function url_courante(): string {
 		$hote .= ':' . $port;
 	}
 	$url = $hote . $uri;
-	return remove_query_arg( array( 'yn-msg', 'yn-email', '_wpnonce', 'yn-identifiant', 'yn-minutes' ), $url );
+	return remove_query_arg( array( 'yn-msg', 'yn-email', '_wpnonce', 'yn-identifiant', 'yn-minutes', 'yn-discord' ), $url );
 }
 
 /**
@@ -763,14 +763,16 @@ function messages(): array {
 		'inscription-ok'           => array( 'succes', __( 'Demande enregistrée ! Consultez votre boîte mail : si cette adresse n’était pas déjà inscrite, un lien vous permet de choisir votre mot de passe.', 'yume-core' ) ),
 		'inscriptions-fermees'     => array( 'erreur', __( 'Les inscriptions sont fermées pour le moment.', 'yume-core' ) ),
 		'inscription-refusee'      => array( 'erreur', __( 'L’inscription n’a pas pu aboutir. Réessayez dans quelques instants.', 'yume-core' ) ),
-		'pseudo-invalide'          => array( 'erreur', __( 'Choisissez un pseudo de 3 à 40 caractères : lettres, chiffres, espaces, points, tirets et tirets bas.', 'yume-core' ) ),
+		'pseudo-invalide'          => array( 'erreur', __( 'Choisissez un pseudo de 2 à 40 caractères, sans balise ni caractère spécial invisible.', 'yume-core' ) ),
 		'pseudo-pris'              => array( 'erreur', __( 'Ce pseudo est déjà utilisé.', 'yume-core' ) ),
+		'pseudo-email'             => array( 'erreur', __( 'Le pseudo est public : il ne peut pas être une adresse e-mail ni contenir « @ ».', 'yume-core' ) ),
+		'pseudo-reserve'           => array( 'erreur', __( 'Ce pseudo est réservé. Choisissez-en un autre.', 'yume-core' ) ),
 		'email-invalide'           => array( 'erreur', __( 'Adresse e-mail invalide.', 'yume-core' ) ),
 		'email-pris'               => array( 'erreur', __( 'Cette adresse e-mail est déjà associée à un compte.', 'yume-core' ) ),
 		'trop-de-tentatives'       => array( 'erreur', __( 'Trop de tentatives depuis votre connexion. Réessayez dans une heure.', 'yume-core' ) ),
 		'formulaire-expire'        => array( 'erreur', __( 'Le formulaire a expiré. Rechargez la page et recommencez.', 'yume-core' ) ),
 		'oubli-envoye'             => array( 'succes', __( 'Si un compte correspond, un e-mail de réinitialisation vient d’être envoyé.', 'yume-core' ) ),
-		'oubli-vide'               => array( 'erreur', __( 'Indiquez votre pseudo ou votre adresse e-mail.', 'yume-core' ) ),
+		'oubli-vide'               => array( 'erreur', __( 'Indiquez votre adresse e-mail ou votre identifiant.', 'yume-core' ) ),
 		'profil-ok'                => array( 'succes', __( 'Profil mis à jour.', 'yume-core' ) ),
 		'pseudo-ok'                => array( 'succes', __( 'Pseudo mis à jour.', 'yume-core' ) ),
 		'email-attente'            => array( 'succes', __( 'Si cette adresse peut être utilisée, un lien de confirmation vient d’y être envoyé. Le changement prendra effet après confirmation.', 'yume-core' ) ),

@@ -3,11 +3,14 @@
  * Formulaires en façade traités par admin-post.php (nonce obligatoire), utilisés sans
  * JavaScript et par la page compte :
  *
- * - visiteurs : inscription (pot de miel, délai minimal, limite par adresse IP, e-mail
- *   standard de WordPress pour choisir son mot de passe, rôle subscriber) et mot de passe oublié ;
- * - membres : profil et sécurité (pseudo, e-mail confirmé par lien, mot de passe), réglages
- *   de lecture, préférences d'alerte, suppression du compte, et repli sans JavaScript des
- *   actions de la fiche œuvre (favori, note, alerte).
+ * - visiteurs : inscription (pot de miel, délai minimal, limite par adresse IP, filtres
+ *   registration_errors des extensions anti-spam, compte créé par creer_compte_lecteur() de
+ *   creation-compte.php : pseudo public saisi, identifiant de connexion généré, connexion par
+ *   l'adresse e-mail, e-mail standard de WordPress pour choisir son mot de passe, rôle
+ *   subscriber) et mot de passe oublié ;
+ * - membres : profil et sécurité (pseudo public, e-mail confirmé par lien, mot de passe), avis
+ *   « pseudo = identifiant » fermé, réglages de lecture, préférences d'alerte, suppression du
+ *   compte, et repli sans JavaScript des actions de la fiche œuvre (favori, note, alerte).
  *
  * @package Yume\Core
  */
@@ -68,6 +71,54 @@ function mot_de_passe_post( string $nom ): string {
 }
 
 /**
+ * Pseudo saisi : texte brut (une balise n'est pas retirée en silence mais refusée par
+ * valider_pseudo()), espaces de toute sorte réduites à une espace simple, sans espace de début
+ * ni de fin.
+ *
+ * @param string $nom Nom du champ.
+ */
+function pseudo_post( string $nom ): string {
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce vérifié par l'appelant ; validé par refus_pseudo().
+	$brut = isset( $_POST[ $nom ] ) && is_string( $_POST[ $nom ] ) ? wp_check_invalid_utf8( (string) wp_unslash( $_POST[ $nom ] ) ) : '';
+	return trim( (string) preg_replace( '/\p{Zs}+/u', ' ', $brut ) );
+}
+
+/**
+ * Pseudo acceptable : valider_pseudo() (longueur, balise, adresse e-mail, mot réservé, déjà
+ * pris), puis inchangé par sanitize_text_field() (le pseudo enregistré est exactement celui
+ * qui a été saisi). Renvoie '' ou le code de message yn-msg du refus.
+ *
+ * @param string $pseudo  Pseudo (pseudo_post()).
+ * @param int    $user_id Compte qui le demande (0 : inscription).
+ */
+function refus_pseudo( string $pseudo, int $user_id = 0 ): string {
+	$valide = valider_pseudo( $pseudo, $user_id );
+	if ( is_wp_error( $valide ) ) {
+		return code_refus_pseudo( $valide );
+	}
+	return sanitize_text_field( $pseudo ) === $pseudo ? '' : 'pseudo-invalide';
+}
+
+/**
+ * Code de message yn-msg d'une erreur de valider_pseudo() : pseudo-pris, pseudo-email,
+ * pseudo-reserve ou pseudo-invalide (vide, longueur, balise).
+ *
+ * @param \WP_Error $erreur Erreur yume_pseudo_invalide (donnée « raison ») ou yume_pseudo_pris.
+ */
+function code_refus_pseudo( \WP_Error $erreur ): string {
+	if ( 'yume_pseudo_pris' === $erreur->get_error_code() ) {
+		return 'pseudo-pris';
+	}
+	$donnees = $erreur->get_error_data();
+	$raison  = is_array( $donnees ) && isset( $donnees['raison'] ) ? (string) $donnees['raison'] : '';
+	$codes   = array(
+		'email'   => 'pseudo-email',
+		'reserve' => 'pseudo-reserve',
+	);
+	return $codes[ $raison ] ?? 'pseudo-invalide';
+}
+
+/**
  * Page où revenir après un formulaire : champ yn_retour (local), sinon référent, sinon $defaut.
  *
  * @param string $defaut URL par défaut.
@@ -103,7 +154,16 @@ function exiger_nonce( string $action, string $retour, string $ancre = '' ): voi
  */
 
 /**
- * Inscription en façade.
+ * Inscription en façade : pseudo public (yn_pseudo) et adresse e-mail (yn_email) ; l'identifiant
+ * de connexion est généré (generer_identifiant(), jamais demandé ni affiché) et le lecteur se
+ * connecte avec son adresse e-mail.
+ *
+ * Avant la création, comme register_new_user() : action register_post et filtre
+ * registration_errors (extensions anti-spam ; identifiant généré et adresse en arguments). Une
+ * erreur ajoutée refuse l'inscription (message générique inscription-refusee). L'action
+ * register_new_user n'est pas émise : le cœur y accroche wp_send_new_user_notifications(), déjà
+ * appelée par creer_compte_lecteur() (e-mails en double) ; user_register (wp_insert_user()) et
+ * yume_lecteur_inscrit restent émises.
  */
 function traiter_inscription(): void {
 	$retour = page_retour( url_connexion() );
@@ -129,43 +189,45 @@ function traiter_inscription(): void {
 		rediriger( $retour, 'inscription-refusee', 'yn-inscription' );
 	}
 
-	$pseudo = sanitize_user( champ_post( 'yn_pseudo' ), true );
+	$pseudo = pseudo_post( 'yn_pseudo' );
 	$email  = sanitize_email( champ_post( 'yn_email' ) );
-	$taille = mb_strlen( $pseudo );
-	if ( $taille < 3 || $taille > 40 || champ_post( 'yn_pseudo' ) !== $pseudo ) {
-		rediriger( $retour, 'pseudo-invalide', 'yn-inscription' );
+	$refus  = refus_pseudo( $pseudo );
+	if ( '' !== $refus ) {
+		rediriger( $retour, $refus, 'yn-inscription' );
 	}
 	if ( ! is_email( $email ) ) {
 		rediriger( $retour, 'email-invalide', 'yn-inscription' );
 	}
 
-	// Pas d'e-mail à l'administrateur pour chaque lecteur inscrit (filtre pour le rétablir).
-	$notifier_admin = static function () {
-		/**
-		 * Faut-il prévenir l'administrateur de chaque inscription en façade ?
-		 *
-		 * @param bool $notifier Défaut : non.
-		 */
-		return (bool) apply_filters( 'yume_notifier_admin_inscription', false );
-	};
-	add_filter( 'wp_send_new_user_notification_to_admin', $notifier_admin );
+	// Protections des autres extensions (anti-spam…), comme register_new_user(). Les nôtres
+	// (erreurs_inscription()) sont déjà appliquées : traitement_facade() évite de compter la
+	// tentative une seconde fois.
+	$identifiant = generer_identifiant();
+	$erreurs     = new \WP_Error();
 	traitement_facade( true );
-	$user_id = register_new_user( $pseudo, $email );
-	traitement_facade( false );
-	remove_filter( 'wp_send_new_user_notification_to_admin', $notifier_admin );
+	try {
+		do_action( 'register_post', $identifiant, $email, $erreurs ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- action du cœur.
+		$erreurs = apply_filters( 'registration_errors', $erreurs, $identifiant, $email ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- filtre du cœur.
+	} finally {
+		traitement_facade( false );
+	}
+	if ( is_wp_error( $erreurs ) && $erreurs->has_errors() ) {
+		rediriger( $retour, 'inscription-refusee', 'yn-inscription' );
+	}
 
+	// E-mail WordPress pour choisir son mot de passe ; administrateur prévenu seulement par le
+	// filtre yume_notifier_admin_inscription.
+	$user_id = creer_compte_lecteur(
+		array(
+			'pseudo'      => $pseudo,
+			'email'       => $email,
+			'identifiant' => $identifiant,
+			'source'      => 'inscription',
+		)
+	);
 	if ( is_wp_error( $user_id ) ) {
-		$codes = $user_id->get_error_codes();
-		if ( in_array( 'username_exists', $codes, true ) ) {
-			rediriger( $retour, 'pseudo-pris', 'yn-inscription' );
-		}
-		if ( array_intersect( array( 'invalid_email', 'empty_email' ), $codes ) ) {
-			rediriger( $retour, 'email-invalide', 'yn-inscription' );
-		}
-		if ( array_intersect( array( 'invalid_username', 'empty_username', 'username_too_long', 'illegal_user_login' ), $codes ) ) {
-			rediriger( $retour, 'pseudo-invalide', 'yn-inscription' );
-		}
-		if ( array( 'email_exists' ) === array_values( array_unique( $codes ) ) ) {
+		$code = $user_id->get_error_code();
+		if ( 'yume_email_pris' === $code ) {
 			// Même réponse qu'une inscription réussie : la page ne révèle pas quelles adresses
 			// sont inscrites. Le titulaire de l'adresse est prévenu (lien « mot de passe oublié »).
 			$titulaire = email_exists( $email );
@@ -174,16 +236,16 @@ function traiter_inscription(): void {
 			}
 			rediriger( $retour, 'inscription-ok', 'yn-connexion' );
 		}
-		rediriger( $retour, 'inscription-refusee', 'yn-inscription' );
+		if ( in_array( $code, array( 'yume_pseudo_invalide', 'yume_pseudo_pris' ), true ) ) {
+			rediriger( $retour, code_refus_pseudo( $user_id ), 'yn-inscription' );
+		}
+		$messages = array(
+			'yume_inscriptions_fermees' => 'inscriptions-fermees',
+			'yume_email_invalide'       => 'email-invalide',
+		);
+		// Identifiant généré refusé ou déjà pris (concurrence), échec de wp_insert_user().
+		rediriger( $retour, $messages[ $code ] ?? 'inscription-refusee', 'yn-inscription' );
 	}
-	$user = new \WP_User( (int) $user_id );
-	$user->set_role( 'subscriber' );
-	/**
-	 * Un lecteur vient de s'inscrire en façade.
-	 *
-	 * @param int $user_id Utilisateur.
-	 */
-	do_action( 'yume_lecteur_inscrit', (int) $user_id );
 	rediriger( $retour, 'inscription-ok', 'yn-connexion' );
 }
 add_action( 'admin_post_nopriv_yume_inscription', __NAMESPACE__ . '\\traiter_inscription' );
@@ -225,26 +287,6 @@ function exiger_connexion(): void {
 		wp_safe_redirect( url_connexion( page_retour( home_url( '/' ) ) ) );
 		exit;
 	}
-}
-
-/**
- * Pseudo déjà porté par un autre compte (nom affiché ou identifiant) ?
- *
- * @param string $pseudo  Pseudo.
- * @param int    $user_id Membre qui le demande.
- */
-function pseudo_pris( string $pseudo, int $user_id ): bool {
-	global $wpdb;
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-	$autre = $wpdb->get_var(
-		$wpdb->prepare(
-			"SELECT ID FROM {$wpdb->users} WHERE ID <> %d AND ( LOWER(display_name) = LOWER(%s) OR LOWER(user_login) = LOWER(%s) ) LIMIT 1",
-			$user_id,
-			$pseudo,
-			$pseudo
-		)
-	);
-	return null !== $autre;
 }
 
 /**
@@ -342,19 +384,17 @@ function traiter_profil(): void {
 	$user     = wp_get_current_user();
 	$codes    = array();
 	$erreurs  = array();
-	$pseudo   = trim( champ_post( 'yn_pseudo' ) );
+	$pseudo   = pseudo_post( 'yn_pseudo' );
 	$email    = sanitize_email( champ_post( 'yn_email' ) );
 	$actuel   = mot_de_passe_post( 'yn_mdp_actuel' );
 	$nouveau  = mot_de_passe_post( 'yn_mdp_nouveau' );
 	$confirme = mot_de_passe_post( 'yn_mdp_confirmation' );
 
-	// Pseudo (nom affiché).
+	// Pseudo public (nom affiché) : mêmes règles qu'à l'inscription (valider_pseudo()).
 	if ( '' !== $pseudo && $pseudo !== $user->display_name ) {
-		$taille = mb_strlen( $pseudo );
-		if ( $taille < 2 || $taille > 40 || wp_strip_all_tags( $pseudo ) !== $pseudo ) {
-			$erreurs[] = 'pseudo-invalide';
-		} elseif ( pseudo_pris( $pseudo, (int) $user->ID ) ) {
-			$erreurs[] = 'pseudo-pris';
+		$refus = refus_pseudo( $pseudo, (int) $user->ID );
+		if ( '' !== $refus ) {
+			$erreurs[] = $refus;
 		} else {
 			wp_update_user(
 				array(
@@ -415,6 +455,19 @@ function traiter_profil(): void {
 	rediriger( $retour, $tous ? $tous : array( 'rien-change' ), 'yn-profil' );
 }
 add_action( 'admin_post_yume_compte_profil', __NAMESPACE__ . '\\traiter_profil' );
+
+/**
+ * Fermeture de l'avis « choisissez un pseudo différent de votre identifiant » (avis_pseudo()) :
+ * mémorisée dans la méta yume_avis_pseudo_vu, rien d'autre ne change.
+ */
+function traiter_avis_pseudo(): void {
+	exiger_connexion();
+	$retour = page_retour( url_compte() );
+	exiger_nonce( 'yume_compte_avis', $retour );
+	update_user_meta( get_current_user_id(), META_AVIS_PSEUDO, time() );
+	rediriger( $retour );
+}
+add_action( 'admin_post_yume_compte_avis', __NAMESPACE__ . '\\traiter_avis_pseudo' );
 
 /**
  * Réglages de lecture depuis la page compte (sans JavaScript).

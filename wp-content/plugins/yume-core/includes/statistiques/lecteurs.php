@@ -7,9 +7,10 @@
  * (display_name), depuis (date d'ajout du favori, ISO 8601 UTC), frequence (immediat, hebdo ou
  * jamais) et equipe (badge « Équipe »). Ni e-mail, ni colonne user_login, ni adresse IP, ni
  * avatar (un Gravatar est une empreinte de l'e-mail). La recherche porte sur le pseudo seulement.
- * Attention : à l'inscription, le pseudo saisi devient aussi l'identifiant de connexion
- * (register_new_user), donc display_name vaut l'identifiant tant que le lecteur n'a pas changé de
- * pseudo dans Mon compte ; c'est le nom déjà affiché publiquement sous ses commentaires.
+ * Depuis 2.5.0, l'identifiant de connexion d'un nouveau compte est généré (yn-xxxxxxxx) et
+ * distinct du pseudo ; pour un compte créé avant, display_name vaut l'identifiant tant que le
+ * lecteur n'a pas changé de pseudo dans Mon compte. Dans les deux cas, c'est le nom déjà affiché
+ * publiquement sous ses commentaires.
  * La jointure interne sur la table des utilisateurs écarte les lignes d'un compte supprimé. Les
  * listes de lecture ne sont jamais nominatives (agrégats seulement, oeuvres.php).
  *

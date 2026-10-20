@@ -8,7 +8,8 @@
  *   yume_tome_publie / yume_chapitre_publie → type « sortie » pour chaque membre qui suit
  *   l'œuvre (favori dont l'alerte n'est pas « jamais »), une seule fois par sortie (méta
  *   _yume_notif_lecteur) ; réponse approuvée à un commentaire d'un membre → type « reponse »
- *   (insertion directement approuvée ou approbation différée par la modération). Un contenu
+ *   (insertion directement approuvée ou approbation différée par la modération) ; signalement de
+ *   coquille marqué corrigé par l'équipe → type « coquille » (module corrections). Un contenu
  *   dépublié retire ses notifications de sortie.
  * - Purge des notifications de plus de 90 jours (filtre yume_notifications_duree) par la tâche
  *   quotidienne yume_notifications_lecteur_purge.
@@ -29,7 +30,7 @@ namespace Yume\Core\Social;
 defined( 'ABSPATH' ) || exit;
 
 /** Types de notification du lecteur. */
-const TYPES_NOTIFICATION = array( 'sortie', 'reponse' );
+const TYPES_NOTIFICATION = array( 'sortie', 'reponse', 'coquille' );
 
 /** Méta de contenu : notifications de sortie déjà créées (date GMT, verrou). */
 const META_NOTIF_SORTIE = '_yume_notif_lecteur';
@@ -78,7 +79,7 @@ function normaliser_notification( array $ligne ): array {
  * Crée une notification pour chaque membre (une seule par membre, type et objet).
  *
  * @param int[]  $user_ids Membres.
- * @param string $type     sortie ou reponse.
+ * @param string $type     sortie, reponse ou coquille.
  * @param int    $objet_id Contenu ou commentaire.
  * @param string $titre    Texte (brut).
  * @param string $url      Adresse.

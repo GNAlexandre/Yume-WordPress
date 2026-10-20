@@ -10,6 +10,10 @@
  * test (equipe / equipe, lecteur / lecteur). Les commentaires sont réservés aux comptes connectés.
  * Pour la vue Statistiques de l'espace équipe : six comptes lecteurs fictifs (sans mot de passe
  * connu), favoris, positions de lecture, listes et 60 jours d'historique quotidien.
+ * Fonctionnalités lecteurs (2.5) : quatre autres œuvres fictives (genres et types croisés, favoris
+ * croisés d'au moins trois comptes : « Si vous avez aimé… » et « Pour vous »), chapitres publiés
+ * après la dernière lecture du compte lecteur (rattrapage) et trois signalements de coquilles
+ * (deux nouveaux, un corrigé).
  *
  * Ce fichier est la source de l'étape runPHP des blueprints (tools/playground/construire.php
  * l'y recopie). Il s'exécute aussi sur un WordPress local :
@@ -159,11 +163,28 @@ $yume_demo_oeuvre  = yume_demo_contenu(
 	)
 );
 
+// Genres de démonstration (taxonomie libre) : créés avec leur nom affiché avant d'être attribués.
+$yume_demo_genres = array(
+	'fantasy'       => 'Fantasy',
+	'drame'         => 'Drame',
+	'mystere'       => 'Mystère',
+	'romance'       => 'Romance',
+	'aventure'      => 'Aventure',
+	'slice-of-life' => 'Slice of life',
+);
+if ( taxonomy_exists( 'yume_genre' ) ) {
+	foreach ( $yume_demo_genres as $yume_demo_slug => $yume_demo_nom ) {
+		if ( ! term_exists( $yume_demo_slug, 'yume_genre' ) ) {
+			wp_insert_term( $yume_demo_nom, 'yume_genre', array( 'slug' => $yume_demo_slug ) );
+		}
+	}
+}
+
 if ( $yume_demo_oeuvre ) {
 	$yume_demo_termes = array(
 		'yume_type'   => 'light-novel',
 		'yume_statut' => 'en-cours',
-		'yume_genre'  => 'fantasy',
+		'yume_genre'  => array( 'fantasy', 'mystere' ),
 	);
 	foreach ( $yume_demo_termes as $yume_demo_taxonomie => $yume_demo_terme ) {
 		if ( taxonomy_exists( $yume_demo_taxonomie ) ) {
@@ -280,6 +301,140 @@ if ( $yume_demo_oeuvre ) {
 		),
 		array( 'yume_oeuvre_id' )
 	);
+}
+
+// Quatre autres œuvres fictives (genres et types croisés) : recommandations « Si vous avez
+// aimé… » de la fiche et rubrique « Pour vous » ; chapitres datés (rattrapage). Chaque chapitre :
+// [ sous-titre, publié il y a N jours, paragraphe ].
+$yume_demo_autres     = array(
+	'les-veilleurs-du-col'              => array(
+		'titre'     => 'Les Veilleurs du Col',
+		'resume'    => 'Au sommet d’un col enneigé, une poignée de gardiens veille sur un passage que nul ne doit franchir.',
+		'type'      => 'light-novel',
+		'statut'    => 'en-cours',
+		'genres'    => array( 'fantasy', 'drame' ),
+		'chapitres' => array(
+			1 => array( 'Le relais de pierre', 30, 'Le relais tenait debout par habitude plus que par miracle. Ilan y monta la garde pour la première fois la nuit du solstice.' ),
+			2 => array( 'La relève', 25, 'Personne ne vint le relever à l’aube. Il attendit, les yeux fixés sur le sentier où la neige effaçait chaque trace.' ),
+			3 => array( 'Les traces dans la neige', 2, 'Des pas remontaient le col, trop légers pour un voyageur, trop réguliers pour une bête.' ),
+			4 => array( 'Le signal', 1, 'Au sommet, le feu d’alarme brûlait déjà. Quelqu’un l’avait allumé avant lui.' ),
+		),
+	),
+	'le-cartographe-des-marees'         => array(
+		'titre'     => 'Le Cartographe des marées',
+		'resume'    => 'Une apprentie cartographe découvre que ses cartes changent avec les marées, et que certaines îles n’existent qu’à marée basse.',
+		'type'      => 'light-novel',
+		'statut'    => 'en-cours',
+		'genres'    => array( 'aventure', 'fantasy', 'mystere' ),
+		'chapitres' => array(
+			1 => array( 'L’encre salée', 40, 'Nami trempa sa plume dans l’encrier et la carte se mit à onduler sous ses doigts, comme une vague qui se retire.' ),
+			2 => array( 'L’île de six heures', 20, 'À marée basse, une île surgit au large du port. À marée haute, elle disparut de la carte et de la mer.' ),
+		),
+	),
+	'sous-le-cerisier-d-hiver'          => array(
+		'titre'     => 'Sous le cerisier d’hiver',
+		'resume'    => 'Chaque hiver, un cerisier fleurit hors saison dans la cour d’un lycée de province. Deux élèves veulent comprendre pourquoi.',
+		'type'      => 'web-novel',
+		'statut'    => 'en-cours',
+		'genres'    => array( 'drame', 'romance', 'slice-of-life' ),
+		'chapitres' => array(
+			1 => array( 'Des fleurs sur la neige', 15, 'Le matin de la rentrée de janvier, les branches du vieux cerisier étaient couvertes de fleurs roses.' ),
+			2 => array( 'Le club de botanique', 8, 'Le club de botanique ne comptait que deux membres, et l’un d’eux ne venait jamais.' ),
+			3 => array( 'La lettre sous l’écorce', 3, 'Entre deux racines, Haru trouva une enveloppe jaunie, adressée à quelqu’un qui portait son nom.' ),
+		),
+	),
+	'la-bibliotheque-aux-sept-horloges' => array(
+		'titre'     => 'La Bibliothèque aux sept horloges',
+		'resume'    => 'Dans une bibliothèque où chaque horloge indique une heure différente, une archiviste range des livres qui n’ont pas encore été écrits.',
+		'type'      => 'light-novel',
+		'statut'    => 'terminee',
+		'genres'    => array( 'mystere', 'slice-of-life' ),
+		'chapitres' => array(
+			1 => array( 'La septième horloge', 50, 'La septième horloge avançait de trois minutes chaque jour. L’archiviste notait l’écart dans un carnet relié de bleu.' ),
+			2 => array( 'Le registre des livres à venir', 45, 'Le registre listait des titres que personne n’avait jamais lus, avec, en face, une date de retour.' ),
+		),
+	),
+);
+$yume_demo_autres_ids = array();
+$yume_demo_autres_ch  = array();
+foreach ( $yume_demo_autres as $yume_demo_slug => $yume_demo_def ) {
+	$yume_demo_id = yume_demo_contenu(
+		array(
+			'post_type'    => 'yume_oeuvre',
+			'post_name'    => $yume_demo_slug,
+			'post_title'   => $yume_demo_def['titre'],
+			'post_status'  => 'publish',
+			'post_excerpt' => $yume_demo_def['resume'],
+			'post_content' => yume_demo_paragraphe( $yume_demo_def['resume'] )
+				. yume_demo_paragraphe( 'Œuvre fictive créée pour la démonstration du site : aucun texte réel n’est reproduit.' ),
+			'meta_input'   => array(
+				'yume_auteur'            => 'Auteur fictif',
+				'yume_statut_vo'         => 'terminee' === $yume_demo_def['statut'] ? 'termine' : 'en_cours',
+				'yume_source_traduction' => 'Texte original de démonstration',
+				'yume_equipe'            => $yume_demo_credits,
+			),
+		)
+	);
+	if ( ! $yume_demo_id ) {
+		continue;
+	}
+	$yume_demo_autres_ids[ $yume_demo_slug ] = $yume_demo_id;
+	foreach ( array(
+		'yume_type'   => $yume_demo_def['type'],
+		'yume_statut' => $yume_demo_def['statut'],
+		'yume_genre'  => $yume_demo_def['genres'],
+	) as $yume_demo_taxonomie => $yume_demo_terme ) {
+		if ( taxonomy_exists( $yume_demo_taxonomie ) ) {
+			wp_set_object_terms( $yume_demo_id, $yume_demo_terme, $yume_demo_taxonomie );
+		}
+	}
+	$yume_demo_tome = yume_demo_contenu(
+		array(
+			'post_type'   => 'yume_tome',
+			'post_name'   => 'tome-1',
+			'post_title'  => $yume_demo_def['titre'] . ' — Tome 1',
+			'post_status' => 'publish',
+			'post_date'   => wp_date( 'Y-m-d H:i:s', time() - 60 * DAY_IN_SECONDS ),
+			'menu_order'  => 1,
+			'meta_input'  => array(
+				'yume_oeuvre_id' => $yume_demo_id,
+				'yume_numero'    => 1,
+				'yume_nature'    => 'tome',
+				'yume_credits'   => $yume_demo_credits,
+				'yume_etape'     => 'publie',
+			),
+		),
+		array( 'yume_oeuvre_id' )
+	);
+	if ( ! $yume_demo_tome ) {
+		continue;
+	}
+	foreach ( $yume_demo_def['chapitres'] as $yume_demo_numero => $yume_demo_chapitre ) {
+		$yume_demo_publie = time() - $yume_demo_chapitre[1] * DAY_IN_SECONDS;
+
+		$yume_demo_autres_ch[ $yume_demo_slug ][ $yume_demo_numero ] = yume_demo_contenu(
+			array(
+				'post_type'     => 'yume_chapitre',
+				'post_name'     => 'chapitre-' . $yume_demo_numero,
+				'post_title'    => 'Chapitre ' . $yume_demo_numero . ' — ' . $yume_demo_chapitre[0],
+				'post_status'   => 'publish',
+				'post_date'     => wp_date( 'Y-m-d H:i:s', $yume_demo_publie ),
+				'post_date_gmt' => gmdate( 'Y-m-d H:i:s', $yume_demo_publie ),
+				'post_content'  => yume_demo_paragraphe( $yume_demo_chapitre[2] )
+					. yume_demo_paragraphe( 'Fin de l’extrait de démonstration', 'yn-center' ),
+				'menu_order'    => $yume_demo_numero,
+				'meta_input'    => array(
+					'yume_tome_id'    => $yume_demo_tome,
+					'yume_oeuvre_id'  => $yume_demo_id,
+					'yume_numero'     => $yume_demo_numero,
+					'yume_sous_titre' => $yume_demo_chapitre[0],
+					'yume_nature'     => 'chapitre',
+					'yume_credits'    => $yume_demo_credits,
+				),
+			),
+			array( 'sans_slug', 'yume_tome_id', 'yume_numero' )
+		);
+	}
 }
 
 // Article d'actualité lié à l'œuvre.
@@ -502,6 +657,132 @@ if ( $yume_demo_oeuvre && function_exists( 'Yume\\Core\\Statistiques\\calculer_j
 	if ( function_exists( 'Yume\\Core\\Social\\recalculer_caches' ) ) {
 		\Yume\Core\Social\recalculer_caches( $yume_demo_oeuvre );
 	}
+}
+
+// Fonctionnalités lecteurs (2.5) : favoris croisés de comptes fictifs sur les autres œuvres
+// (co-favoris d'au moins trois lecteurs : « N lecteurs la suivent aussi »), lecture du compte
+// lecteur arrêtée avant les derniers chapitres des Veilleurs du Col (rattrapage : accueil et Mon
+// compte), signalements de coquilles (un nouveau par lecteur, un corrigé). Relancé : favoris et
+// positions remplacés, signalements jamais dupliqués.
+if ( $yume_demo_oeuvre && $yume_demo_autres_ids && function_exists( 'Yume\\Core\\Social\\table_favoris' ) && function_exists( 'Yume\\Core\\Reader\\table_progression' ) ) {
+	global $wpdb;
+	$yume_demo_jour = static fn( int $jours ): string => gmdate( 'Y-m-d H:i:s', time() - $jours * DAY_IN_SECONDS );
+	$yume_demo_uid  = static function ( string $login ): int {
+		$user = get_user_by( 'login', $login );
+		return $user ? (int) $user->ID : 0;
+	};
+	// Œuvre => comptes qui la suivent (la fiche des Lanternes est suivie par lecteur,
+	// demo-lecteur-1 à 5 et equipe : voir plus haut).
+	$yume_demo_suivis = array(
+		'les-veilleurs-du-col'              => array( 'demo-lecteur-1', 'demo-lecteur-2', 'demo-lecteur-3', 'demo-lecteur-4', 'demo-lecteur-6' ),
+		'le-cartographe-des-marees'         => array( 'demo-lecteur-2', 'demo-lecteur-3', 'demo-lecteur-5', 'equipe' ),
+		'sous-le-cerisier-d-hiver'          => array( 'lecteur', 'demo-lecteur-4', 'demo-lecteur-5', 'demo-lecteur-6' ),
+		'la-bibliotheque-aux-sept-horloges' => array( 'demo-lecteur-1', 'demo-lecteur-6' ),
+	);
+	foreach ( $yume_demo_suivis as $yume_demo_slug => $yume_demo_logins ) {
+		$yume_demo_id = (int) ( $yume_demo_autres_ids[ $yume_demo_slug ] ?? 0 );
+		if ( ! $yume_demo_id ) {
+			continue;
+		}
+		foreach ( $yume_demo_logins as $yume_demo_rang => $yume_demo_login ) {
+			$yume_demo_user_id = $yume_demo_uid( $yume_demo_login );
+			if ( ! $yume_demo_user_id ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->replace(
+				\Yume\Core\Social\table_favoris(),
+				array(
+					'user_id'    => $yume_demo_user_id,
+					'oeuvre_id'  => $yume_demo_id,
+					'frequence'  => 'hebdo',
+					'created_at' => $yume_demo_jour( 3 + 4 * $yume_demo_rang ),
+				),
+				array( '%d', '%d', '%s', '%s' )
+			);
+		}
+		if ( function_exists( 'Yume\\Core\\Social\\recalculer_caches' ) ) {
+			\Yume\Core\Social\recalculer_caches( $yume_demo_id );
+		}
+	}
+
+	// Compte lecteur : chapitre 2 des Veilleurs lu en entier il y a 10 jours ; les chapitres 3 et
+	// 4, publiés depuis, apparaissent dans « Nouveaux chapitres depuis votre dernière lecture ».
+	$yume_demo_lecteur = $yume_demo_uid( 'lecteur' );
+	$yume_demo_ch_veil = $yume_demo_autres_ch['les-veilleurs-du-col'] ?? array();
+	if ( $yume_demo_lecteur && ! empty( $yume_demo_ch_veil[2] ) ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->replace(
+			\Yume\Core\Reader\table_progression(),
+			array(
+				'user_id'     => $yume_demo_lecteur,
+				'oeuvre_id'   => (int) $yume_demo_autres_ids['les-veilleurs-du-col'],
+				'tome_id'     => (int) yume_get_tome_id( (int) $yume_demo_ch_veil[2] ),
+				'chapitre_id' => (int) $yume_demo_ch_veil[2],
+				'paragraphe'  => 0,
+				'pourcentage' => 100,
+				'updated_at'  => $yume_demo_jour( 10 ),
+			),
+			array( '%d', '%d', '%d', '%d', '%d', '%d', '%s' )
+		);
+	}
+
+	// Signalements de coquilles (?vue=corrections) sur les chapitres des Lanternes : deux nouveaux,
+	// un corrigé (paragraphe retouché depuis : pastille « Paragraphe modifié depuis »).
+	if ( function_exists( 'Yume\\Core\\Corrections\\table_prete' ) && \Yume\Core\Corrections\table_prete() ) {
+		$yume_demo_coquilles = array(
+			array( 'demo-lecteur-2', 1, 0, 'Le vent descendait des crêtes en sifflant', 'Il manque une virgule avant « en sifflant », non ?', 'nouveau', 2, '' ),
+			array( 'lecteur', 2, 1, 'Pas sans savoir pourquoi.', 'Espace insécable avant le point final ?', 'nouveau', 1, '' ),
+			array( 'demo-lecteur-3', 1, 5, 'personne n’osait parler de la lumière', '« osais » au lieu de « osait ».', 'corrige', 6, 'Au matin, la place du village était couverte de givre, et personne n’osais parler de la lumière.' ),
+		);
+		$yume_demo_table_coq = \Yume\Core\Corrections\table_coquilles();
+		foreach ( $yume_demo_coquilles as $yume_demo_c ) {
+			$yume_demo_user_id  = $yume_demo_uid( $yume_demo_c[0] );
+			$yume_demo_chapitre = (int) ( $yume_demo_chapitre_ids[ $yume_demo_c[1] ] ?? 0 );
+			if ( ! $yume_demo_user_id || ! $yume_demo_chapitre ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$yume_demo_existe = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$yume_demo_table_coq} WHERE user_id = %d AND chapitre_id = %d AND paragraphe = %d", $yume_demo_user_id, $yume_demo_chapitre, $yume_demo_c[2] ) );
+			if ( $yume_demo_existe ) {
+				continue;
+			}
+			$yume_demo_texte = \Yume\Core\Corrections\texte_paragraphe( $yume_demo_chapitre, $yume_demo_c[2] );
+			$yume_demo_avant = '' !== $yume_demo_c[7] ? $yume_demo_c[7] : $yume_demo_texte;
+			$yume_demo_fait  = 'corrige' === $yume_demo_c[5];
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->insert(
+				$yume_demo_table_coq,
+				array(
+					'chapitre_id' => $yume_demo_chapitre,
+					'tome_id'     => (int) yume_get_tome_id( $yume_demo_chapitre ),
+					'oeuvre_id'   => (int) $yume_demo_oeuvre,
+					'user_id'     => $yume_demo_user_id,
+					'paragraphe'  => $yume_demo_c[2],
+					'extrait'     => $yume_demo_c[3],
+					'contexte'    => $yume_demo_avant,
+					'empreinte'   => \Yume\Core\Corrections\empreinte_paragraphe( $yume_demo_avant ),
+					'commentaire' => $yume_demo_c[4],
+					'statut'      => $yume_demo_c[5],
+					'cree_le'     => $yume_demo_jour( $yume_demo_c[6] ),
+					'traite_le'   => $yume_demo_fait ? $yume_demo_jour( $yume_demo_c[6] - 2 ) : null,
+					'traite_par'  => $yume_demo_fait ? (int) $yume_demo_equipe : 0,
+				)
+			);
+		}
+	}
+
+	// Caches des recommandations et du rattrapage renouvelés (sans attendre la minute de tampon).
+	if ( function_exists( 'Yume\\Core\\Recommandations\\renouveler_version' ) ) {
+		\Yume\Core\Recommandations\renouveler_version();
+	}
+	if ( function_exists( 'Yume\\Core\\Rattrapage\\invalider_tous' ) ) {
+		\Yume\Core\Rattrapage\invalider_tous();
+	}
+}
+
+if ( $yume_demo_oeuvre && function_exists( 'Yume\\Core\\Statistiques\\calculer_jour' ) ) {
+	global $wpdb;
 	// Historique quotidien des 60 derniers jours (la veille comprise), comme la tâche de 03:10.
 	// L'œuvre de démonstration vient d'être publiée : la simulation ne lui donne aucune vue les
 	// jours précédents. Ses vues quotidiennes sont donc inventées (déterministes, en hausse), sauf
@@ -521,7 +802,8 @@ if ( $yume_demo_oeuvre && function_exists( 'Yume\\Core\\Statistiques\\calculer_j
 flush_rewrite_rules( false );
 
 printf(
-	"Démo Yume prête : œuvre %d, %d page(s), comptes equipe / equipe et lecteur / lecteur.\n",
+	"Démo Yume prête : œuvre %d et %d autre(s), %d page(s), comptes equipe / equipe et lecteur / lecteur.\n",
 	(int) $yume_demo_oeuvre,
+	count( $yume_demo_autres_ids ),
 	count( $yume_demo_pages )
 );

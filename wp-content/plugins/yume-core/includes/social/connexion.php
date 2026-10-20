@@ -2,8 +2,10 @@
 /**
  * Connexion en façade sans wp-login.php (page « connexion » ou « compte », bloc yume/account) :
  *
- * - formulaire propre posté vers admin-post.php (action yume_connexion, nonce) : identifiant ou
- *   e-mail, mot de passe, « Se souvenir de moi », redirect_to validé (même site) ;
+ * - formulaire propre posté vers admin-post.php (action yume_connexion, nonce) : adresse e-mail
+ *   ou identifiant (généré depuis 2.5.0 et jamais affiché : les lecteurs se connectent avec leur
+ *   adresse ; avant, le pseudo choisi à l'inscription), mot de passe, « Se souvenir de moi »,
+ *   redirect_to validé (même site) ;
  * - authentification par wp_authenticate() (chaîne authenticate complète : Jetpack Protect et les
  *   autres protections s'appliquent), session ouverte seulement ensuite (wp_set_auth_cookie(),
  *   action wp_login), comme wp_signon() ;
@@ -366,7 +368,7 @@ function formulaire_connexion( string $demandee ): string {
 		. '<input type="hidden" name="yn_origine" value="' . esc_url( remove_query_arg( PARAMS_RETOUR_CONNEXION, url_courante() ) ) . '">'
 		. ( '' !== $demandee ? '<input type="hidden" name="redirect_to" value="' . esc_url( $demandee ) . '">' : '' )
 		. champ_nonce( 'yume_connexion' )
-		. '<p class="yn-account__champ"><label for="yn-identifiant">' . esc_html__( 'Pseudo ou adresse e-mail', 'yume-core' ) . '</label>'
+		. '<p class="yn-account__champ"><label for="yn-identifiant">' . esc_html__( 'Adresse e-mail ou identifiant', 'yume-core' ) . '</label>'
 		. '<input type="text" id="yn-identifiant" name="yn_identifiant" value="' . esc_attr( $saisie ) . '" required autocomplete="username" autocapitalize="none" spellcheck="false"'
 		. ( '' !== $message ? ' aria-describedby="yn-connexion-message"' : '' ) . '></p>'
 		. '<p class="yn-account__champ"><label for="yn-mot-de-passe">' . esc_html__( 'Mot de passe', 'yume-core' ) . '</label>'

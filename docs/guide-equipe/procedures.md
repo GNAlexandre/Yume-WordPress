@@ -28,7 +28,7 @@ L'espace équipe est la partie du site réservée à l'équipe, à l'adresse **y
 - suivre ses tâches et mettre à jour le planning ;
 - créer les œuvres et les tomes ;
 - ajouter les chapitres d'un tome, les programmer et les annoncer ;
-- publier les glossaires et modérer les commentaires ;
+- publier les glossaires, modérer les commentaires et traiter les coquilles signalées par les lecteurs ;
 - suivre l'audience du site et des œuvres (**Statistiques**) ;
 - pour les gérants : gérer les membres et régler le site.
 
@@ -41,7 +41,7 @@ Chaque membre a un rôle. Un rôle se demande à un gérant.
 | Rôle | Peut |
 | --- | --- |
 | **Traducteur**, **Relecteur**, **Graphiste** | Voir l'espace équipe et tout le planning. Mettre à jour l'avancement des tomes dont il est responsable. Envoyer des images. Consulter les statistiques d'audience (chiffres seulement) et exporter le classement des œuvres. |
-| **Éditeur Yume** | Tout ce qui précède, plus : créer et modifier les œuvres et les tomes, ajouter des chapitres, mettre à jour le planning de tous les tomes, publier les glossaires, écrire des actualités, modérer les commentaires. |
+| **Éditeur Yume** | Tout ce qui précède, plus : créer et modifier les œuvres et les tomes, ajouter des chapitres, mettre à jour le planning de tous les tomes, publier les glossaires, écrire des actualités, modérer les commentaires, traiter les coquilles signalées. |
 | **Gérant** | Tout ce qui précède, plus : gérer les membres et leurs rôles, voir les indicateurs et la santé du site, modifier les réglages, voir et exporter la liste des lecteurs qui suivent une œuvre. |
 
 > **À savoir** : chacun ne voit que les menus dont son rôle a besoin. Une entrée absente n'est pas une panne.
@@ -49,12 +49,16 @@ Chaque membre a un rôle. Un rôle se demande à un gérant.
 ## Se connecter
 
 1. Sur le site, cliquez sur **Connexion** en haut à droite (page **yumenovel.fr/connexion/**).
-2. Saisissez votre **Pseudo ou adresse e-mail**, puis votre **Mot de passe**.
+2. Saisissez votre **Adresse e-mail ou identifiant**, puis votre **Mot de passe**.
 3. Sur un appareil personnel, cochez **Se souvenir de moi**.
 4. Cliquez sur **Se connecter**.
 5. Ouvrez l'espace équipe : menu du compte, puis **Espace équipe**. Les traducteurs, relecteurs et graphistes y arrivent directement.
 
 Mot de passe oublié : cliquez sur **Mot de passe oublié ?** sous le formulaire. Un lien arrive par e-mail.
+
+> **Nouveau** : depuis la version 2.5, l'adresse e-mail suffit pour se connecter. Un compte créé sur le site a un **pseudo public** (affiché avec les commentaires) et un identifiant technique qui n'est jamais montré. Les comptes plus anciens gardent leur identifiant (le pseudo choisi à l'inscription), qui marche toujours.
+
+> **À savoir** : quand la connexion Discord sera mise en service, un bouton **Se connecter avec Discord** apparaîtra sous le formulaire. Liez d'abord votre compte dans **Mon compte**, rubrique **Connexion Discord**. Les administrateurs ne peuvent pas l'utiliser : ils passent toujours par la page de connexion WordPress.
 
 > **Attention** : après 5 erreurs en 15 minutes, le formulaire est bloqué 15 minutes. Attendez, ou cliquez sur **Mot de passe oublié ?** pour recevoir un lien.
 
@@ -555,7 +559,7 @@ Pour des coquilles ou des corrections de relecture, sans prévenir les lecteurs.
 
 Le chapitre est remplacé à la même adresse. Ses commentaires et sa date sont gardés. Aucune annonce n'est envoyée.
 
-> **Astuce** : pour une seule coquille, un éditeur peut aussi corriger le texte directement dans l'administration WordPress (fiche du tome, lien **Édition avancée (administration WordPress)**). Traducteurs, relecteurs et graphistes : signalez la coquille à un éditeur sur le Discord de l'équipe.
+> **Astuce** : pour une seule coquille, un éditeur peut aussi corriger le texte directement dans l'administration WordPress (fiche du tome, lien **Édition avancée (administration WordPress)**), ou depuis **Corrections** avec **Corriger dans l'éditeur** (voir « Les coquilles signalées par les lecteurs »). Traducteurs, relecteurs et graphistes : signalez la coquille à un éditeur sur le Discord de l'équipe.
 
 ## Découper soi-même les chapitres
 
@@ -894,6 +898,17 @@ La date programmée compte en priorité ; sinon, c'est la date cible.
 - À droite : la **Prochaine sortie**, quand un chapitre est programmé.
 - La liste des tomes : chaque tome avec sa parution (**À paraître**, **En cours**, **Publié**), **Lire en ligne** et, pour un tome publié, **PDF** et **EPUB**.
 - Les onglets **Actualités** et **Glossaire** apparaissent quand l'œuvre en a.
+- **Si vous avez aimé…** : jusqu'à 4 œuvres proches, après le sommaire des tomes (voir « Les suggestions et les nouveaux chapitres »).
+
+## Les suggestions et les nouveaux chapitres
+
+> **Nouveau** : depuis la version 2.5, le site suggère des œuvres et signale aux lecteurs connectés les chapitres sortis depuis leur dernière lecture. Rien n'est à saisir par l'équipe.
+
+- **Si vous avez aimé…**, sur la fiche d'une œuvre : des œuvres qui partagent ses genres ou son type, ou que suivent les mêmes lecteurs (« 4 lecteurs la suivent aussi », à partir de 3 lecteurs en commun, sans jamais nommer personne). Jamais d'œuvre licenciée. Un lecteur connecté n'y voit pas ses favoris ni ce qu'il lit déjà.
+- **Pour vous**, dans **Mon compte** : des suggestions tirées de ses favoris et de ses lectures, « parce que vous suivez… ».
+- **Nouveaux chapitres depuis votre dernière lecture**, sur l'accueil et dans **Mon compte**, rubrique **À rattraper** : les séries qu'il a commencées et qui ont de nouveaux chapitres, avec **Reprendre** et **Chapitre suivant**. Seulement pour un lecteur connecté.
+
+> **Astuce** : des **genres** bien renseignés sur chaque œuvre donnent de meilleures suggestions. Sans au moins 2 œuvres proches, le bloc n'apparaît pas.
 
 ## La page d'un tome en cours
 
@@ -972,6 +987,47 @@ Sur le site en ligne, les vues et les visiteurs viennent de Jetpack. Sur un site
 
 > **À savoir** : si le site en ligne affiche « Trafic indisponible » ou des vues vides, Jetpack n'y est pas connecté ou ne répond pas : prévenez l'équipe technique. Favoris, lecteurs et classements restent justes.
 
+# Les coquilles signalées par les lecteurs
+
+> **Nouveau** : depuis la version 2.5, les lecteurs signalent une coquille directement dans le chapitre. Les signalements arrivent dans l'espace équipe, menu **Catalogue**, puis **Corrections**.
+
+## Comprendre ce que fait le lecteur
+
+1. Dans un chapitre, le lecteur connecté sélectionne le passage fautif.
+2. Il clique sur **Signaler une coquille**, ajoute s'il veut un **Commentaire (facultatif)**, puis clique sur **Envoyer**.
+3. Le message « Merci ! L'équipe a reçu votre signalement. » s'affiche.
+
+![La fenêtre « Signaler une coquille » dans un chapitre (exemple fictif).](images/Corrections-lecteur.png){largeur=55%}
+
+Au clavier, le lien **Signaler une coquille dans ce chapitre**, sous les boutons du chapitre, ouvre la même fenêtre. Un visiteur non connecté est invité à se connecter. Rien n'apparaît sur un chapitre de manga.
+
+> **À savoir** : le pseudo du lecteur n'est visible que de l'équipe. Chaque signalement est aussi annoncé dans le salon Discord de l'équipe, au plus un message par chapitre toutes les 10 minutes.
+
+## Traiter une coquille
+
+Réservé aux éditeurs et aux gérants. Les autres membres voient la liste, sans les boutons : prévenez un éditeur sur Discord.
+
+1. Dans le menu, ouvrez **Catalogue**, puis **Corrections (N)**. N est le nombre de signalements nouveaux.
+2. Les signalements sont groupés par chapitre. Chacun montre **¶** et le numéro du paragraphe, le passage surligné, le commentaire du lecteur, son pseudo et la date.
+3. Cliquez sur **Voir le paragraphe** : le chapitre s'ouvre dans un nouvel onglet, au bon paragraphe.
+4. Cliquez sur **Corriger dans l'éditeur**, corrigez le texte, puis **Mettre à jour**.
+5. Revenez sur **Corrections** et cliquez sur **Corrigé**. Le lecteur reçoit une notification : « Votre signalement sur … a été corrigé, merci ! ».
+
+![La liste « Corrections signalées par les lecteurs » (signalements fictifs).](images/Corrections-equipe.png){largeur=80%}
+
+Ce n'est pas une faute (choix de traduction, style voulu) ? Cliquez sur **Rejeté** : le lecteur n'est pas prévenu. **Rouvrir** remet un signalement traité dans les nouveaux.
+
+> **Astuce** : plusieurs lecteurs ont signalé la même coquille ? Après correction, **Tout marquer corrigé**, en tête du chapitre, traite tous ses signalements nouveaux d'un coup.
+
+> **À savoir** : la pastille **Paragraphe modifié depuis** signale que le paragraphe a changé depuis le signalement (déjà corrigé, ou texte remplacé). Vérifiez, puis cliquez sur **Corrigé**. Rien n'est clôturé tout seul.
+
+## Retrouver les signalements traités
+
+1. Sous **Statut**, choisissez **Corrigés**, **Rejetés** ou **Tous**. Vous pouvez aussi choisir une **Œuvre** et un **Tome**.
+2. Cliquez sur **Filtrer**.
+
+> **À savoir** : l'entrée **Corrections** n'apparaît dans le menu qu'après le premier signalement reçu. Les signalements traités sont effacés au bout de 180 jours.
+
 # Glossaires, actualités et commentaires
 
 ## Publier le glossaire d'une œuvre
@@ -1002,7 +1058,7 @@ Pour chaque commentaire :
 
 > **À savoir** : au 3ᵉ signalement, un commentaire est masqué en attendant votre décision. Un commentaire d'un membre de l'équipe n'est jamais masqué tout seul.
 
-> **Astuce** : un commentaire signale une coquille ? Corrigez le chapitre (voir « Corriger un chapitre déjà en ligne »), répondez « Corrigé, merci ! », puis approuvez ou supprimez le commentaire.
+> **Astuce** : un commentaire signale une coquille ? Corrigez le chapitre (voir « Corriger un chapitre déjà en ligne »), répondez « Corrigé, merci ! », puis approuvez ou supprimez le commentaire. La prochaine fois, le lecteur peut utiliser **Signaler une coquille** dans le chapitre.
 
 # Questions fréquentes
 
@@ -1022,6 +1078,10 @@ Pour chaque commentaire :
 | Je ne vois pas la liste des lecteurs d'une œuvre dans **Statistiques**. | Elle est réservée aux gérants et aux administrateurs. Les chiffres restent visibles pour toute l'équipe. |
 | Les courbes d'une œuvre sont presque vides. | L'historique jour par jour a commencé à l'installation des statistiques : il se remplit chaque nuit. |
 | J'ai oublié mon mot de passe. | Lien **Mot de passe oublié ?** sur la page de connexion. |
+| Un lecteur ne retrouve pas son identifiant. | Qu'il se connecte avec son **adresse e-mail**. Depuis la version 2.5, l'identifiant d'un nouveau compte n'est jamais montré. Mot de passe perdu : **Mot de passe oublié ?** avec la même adresse. |
+| Je ne vois pas **Corrections** dans le menu. | L'entrée apparaît au premier signalement de coquille reçu. |
+| Je vois les coquilles mais pas les boutons **Corrigé** et **Rejeté**. | Ils sont réservés aux éditeurs et aux gérants. Prévenez un éditeur sur Discord. |
+| Une fiche d'œuvre n'affiche pas **Si vous avez aimé…**. | Il faut au moins 2 œuvres proches. Complétez les genres de l'œuvre. |
 
 # En cas de problème
 
@@ -1030,7 +1090,7 @@ Pour chaque commentaire :
 | Problème | Qui contacter |
 | --- | --- |
 | Un rôle à changer, un accès qui manque, un tome à attribuer | Un **gérant** |
-| Une coquille, un chapitre à corriger ou à publier | Un **éditeur Yume** |
+| Une coquille (aussi dans **Corrections**), un chapitre à corriger ou à publier | Un **éditeur Yume** |
 | Une page cassée, un bouton qui ne répond plus, un message d'erreur | L'**équipe technique**, sur le Discord de l'équipe |
 | Un compte bloqué, un changement d'adresse e-mail | Un **administrateur** (via un gérant) |
 

@@ -33,7 +33,8 @@ function reference_oeuvre( int $oeuvre_id ): array {
 }
 
 /**
- * Toutes les données personnelles d'un membre (export du compte, GET /moi/export).
+ * Toutes les données personnelles d'un membre (export du compte, GET /moi/export), complétées
+ * par les modules (filtre yume_donnees_personnelles).
  *
  * @param int $user_id Utilisateur.
  * @return array<string,mixed>
@@ -106,7 +107,7 @@ function donnees_personnelles( int $user_id ): array {
 	$reglages = function_exists( '\Yume\Core\Reader\reglages_enregistres' ) ? \Yume\Core\Reader\reglages_enregistres( $user_id ) : null;
 	$attente  = get_user_meta( $user_id, META_EMAIL_ATTENTE, true );
 
-	return array(
+	$donnees = array(
 		'format'              => 'yume-export-1',
 		'genere_le'           => gmdate( 'c' ),
 		'site'                => home_url( '/' ),
@@ -129,11 +130,21 @@ function donnees_personnelles( int $user_id ): array {
 		'notifications'       => donnees_notifications( $user_id ),
 		'notifications_push'  => donnees_push( $user_id ),
 	);
+	/**
+	 * Filtre l'export JSON des données d'un membre (GET /moi/export) : un module y ajoute sa
+	 * clé (jamais de secret ni de jeton) sans modifier les clés existantes.
+	 *
+	 * @param array<string,mixed> $donnees Données exportées.
+	 * @param int                 $user_id Membre.
+	 */
+	$filtrees = apply_filters( 'yume_donnees_personnelles', $donnees, $user_id );
+	return is_array( $filtrees ) ? $filtrees : $donnees;
 }
 
 /**
  * Efface les données du module lecteurs et lecture d'un membre (favoris, notes, listes,
- * notifications, abonnements push, positions, réglages, préférences), sans supprimer le compte.
+ * notifications, abonnements push, positions, réglages, préférences), sans supprimer le compte,
+ * puis émet yume_effacer_donnees pour les autres modules.
  *
  * @param int $user_id Utilisateur.
  * @return int Nombre d'éléments supprimés.
@@ -154,6 +165,13 @@ function effacer_donnees( int $user_id ): int {
 			++$n;
 		}
 	}
+	/**
+	 * Les données du module lecteurs d'un membre viennent d'être effacées (outil d'effacement
+	 * de WordPress ou suppression du compte) : un module efface ou anonymise les siennes.
+	 *
+	 * @param int $user_id Membre.
+	 */
+	do_action( 'yume_effacer_donnees', $user_id );
 	return $n;
 }
 

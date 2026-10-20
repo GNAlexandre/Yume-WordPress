@@ -5,8 +5,9 @@
  * après connexion vers la page d'origine ou le compte, liens d'inscription et de mot de passe
  * oublié vers la façade, formulaires d'inscription et de mot de passe oublié du cœur
  * (wp-login.php) protégés comme ceux de la façade (SEC-02) et confirmation d'un changement
- * d'adresse e-mail (avis à l'ancienne adresse et autres sessions fermées, SEC-11). La connexion
- * en façade (sans wp-login.php) est dans connexion.php.
+ * d'adresse e-mail (avis à l'ancienne adresse et autres sessions fermées, SEC-11), méta
+ * _yume_compte_sans_mdp retirée dès que le titulaire définit un mot de passe. La connexion en
+ * façade (sans wp-login.php) est dans connexion.php.
  *
  * @package Yume\Core
  */
@@ -96,9 +97,11 @@ function url_inscription( $url ): string {
 add_filter( 'register_url', __NAMESPACE__ . '\\url_inscription' );
 
 /**
- * Formulaire en façade en cours de traitement (traiter_inscription(), traiter_oubli()) ? Ses
- * protections sont alors déjà appliquées : erreurs_inscription() et limiter_oubli() ne
- * comptent pas la tentative une seconde fois.
+ * Formulaire en façade en cours de traitement ? Ses protections (limite par adresse IP, pot de
+ * miel, jeton horodaté) sont alors déjà appliquées : erreurs_inscription() (filtre
+ * registration_errors, que traiter_inscription() applique elle-même avant de créer le compte,
+ * pour les extensions anti-spam) et limiter_oubli() (retrieve_password() appelée par
+ * traiter_oubli()) ne comptent pas la tentative une seconde fois.
  *
  * @param bool|null $actif Nouvel état (null : lecture seule).
  */
@@ -378,3 +381,65 @@ function mots_de_passe_application( $disponible, $user = null ): bool {
 	return (bool) $disponible;
 }
 add_filter( 'wp_is_application_passwords_available_for_user', __NAMESPACE__ . '\\mots_de_passe_application', 10, 2 );
+
+/*
+ * -----------------------------------------------------------------------------
+ * Compte créé sans mot de passe connu (_yume_compte_sans_mdp)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Le titulaire a défini un mot de passe : la méta _yume_compte_sans_mdp (compte créé via
+ * Discord, compte_sans_mot_de_passe()) est retirée.
+ *
+ * @param int $user_id Compte.
+ */
+function retirer_compte_sans_mdp( int $user_id ): void {
+	if ( compte_sans_mot_de_passe( $user_id ) ) {
+		delete_user_meta( $user_id, META_COMPTE_SANS_MDP );
+	}
+}
+
+/**
+ * Action wp_set_password (wp_set_password(), réinitialisation, et wp_update_user() avec un
+ * nouveau mot de passe dans les versions récentes de WordPress). À la création d'un compte,
+ * wp_insert_user() l'émet avant d'enregistrer les métas : la méta posée par
+ * creer_compte_lecteur() n'est donc pas retirée.
+ *
+ * @param string $mot_de_passe Mot de passe (inutilisé).
+ * @param int    $user_id      Compte.
+ */
+function mot_de_passe_defini( $mot_de_passe, $user_id = 0 ): void {
+	retirer_compte_sans_mdp( (int) $user_id );
+}
+add_action( 'wp_set_password', __NAMESPACE__ . '\\mot_de_passe_defini', 10, 2 );
+
+/**
+ * Action after_password_reset (lien « Mot de passe oublié », e-mail de choix du mot de passe).
+ *
+ * @param \WP_User $user Compte.
+ */
+function mot_de_passe_reinitialise( $user ): void {
+	if ( $user instanceof \WP_User ) {
+		retirer_compte_sans_mdp( (int) $user->ID );
+	}
+}
+add_action( 'after_password_reset', __NAMESPACE__ . '\\mot_de_passe_reinitialise' );
+
+/**
+ * Action profile_update : mot de passe changé par wp_update_user() (page compte, wp-admin),
+ * reconnu à son empreinte modifiée.
+ *
+ * @param int           $user_id Compte.
+ * @param \WP_User|null $ancien  Compte avant la mise à jour.
+ */
+function profil_mot_de_passe( $user_id, $ancien = null ): void {
+	if ( ! $ancien instanceof \WP_User ) {
+		return;
+	}
+	$compte = get_userdata( (int) $user_id );
+	if ( $compte && (string) $compte->user_pass !== (string) $ancien->user_pass ) {
+		retirer_compte_sans_mdp( (int) $user_id );
+	}
+}
+add_action( 'profile_update', __NAMESPACE__ . '\\profil_mot_de_passe', 10, 2 );

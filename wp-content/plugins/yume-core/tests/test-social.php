@@ -844,7 +844,7 @@ yume_test(
 );
 
 yume_test(
-	'inscription en façade : compte subscriber, pot de miel, délai, limite par IP',
+	'inscription en façade : pseudo public saisi, identifiant généré, compte subscriber, pot de miel, délai, limite par IP',
 	function () {
 		update_option( 'users_can_register', 1 );
 		$ip_avant               = $_SERVER['REMOTE_ADDR'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sauvegarde puis restauration telle quelle.
@@ -854,14 +854,20 @@ yume_test(
 			'_yn_nonce'   => wp_create_nonce( 'yume_inscription' ),
 			'yn_jeton'    => yume_ts_jeton( 30 ),
 			'yn_retour'   => home_url( '/connexion/' ),
-			'yn_pseudo'   => 'lecteur' . wp_rand( 1000, 9999 ),
+			'yn_pseudo'   => 'Éloïse des Brumes ' . wp_rand( 1000, 9999 ),
 			'yn_email'    => 'nouveau' . wp_rand( 1000, 99999 ) . '@example.test',
 			'yn_site_web' => '',
 		);
 		$url                    = yume_ts_post( $base, static fn() => yume_ts_redirection( 'Yume\Core\Social\traiter_inscription' ) );
 		yume_assert_contains( 'yn-msg=inscription-ok', $url );
-		$user = get_user_by( 'login', $base['yn_pseudo'] );
+		// Compte retrouvé par son adresse : l'identifiant de connexion est généré, le pseudo saisi
+		// (espaces et accents compris) est le nom affiché.
+		$user = get_user_by( 'email', $base['yn_email'] );
 		yume_assert_true( $user instanceof WP_User );
+		yume_assert_same( 1, preg_match( '/^yn-[a-z0-9]{8}$/', $user->user_login ), 'identifiant généré' );
+		yume_assert_same( $base['yn_pseudo'], $user->display_name );
+		yume_assert_same( $base['yn_pseudo'], $user->nickname );
+		yume_assert_false( get_user_by( 'login', $base['yn_pseudo'] ), 'le pseudo n’est pas l’identifiant' );
 		yume_assert_same( array( 'subscriber' ), array_values( $user->roles ) );
 
 		$pot = yume_ts_post(
@@ -876,7 +882,7 @@ yume_test(
 			static fn() => yume_ts_redirection( 'Yume\Core\Social\traiter_inscription' )
 		);
 		yume_assert_contains( 'inscription-refusee', $pot );
-		yume_assert_false( get_user_by( 'login', 'robot1' ) );
+		yume_assert_false( get_user_by( 'email', 'robot1@example.test' ) );
 
 		$vite = yume_ts_post(
 			array_merge(
@@ -1198,9 +1204,18 @@ yume_test(
 		$s = yume_ts_oeuvre( 1 );
 		$u = yume_ts_membre();
 		ajouter_favori( $u, $s['oeuvre'] );
+		// Rubriques ajoutées par les autres modules (Pour vous, À rattraper) coupées : on compte
+		// celles du module social.
+		add_filter( 'yume_recommandations_actives', '__return_false' );
+		add_filter( 'yume_rattrapage_actif', '__return_false' );
 		wp_set_current_user( $u );
-		$html = yume_render_block( 'yume/account' );
-		wp_set_current_user( 0 );
+		try {
+			$html = yume_render_block( 'yume/account' );
+		} finally {
+			wp_set_current_user( 0 );
+			remove_filter( 'yume_recommandations_actives', '__return_false' );
+			remove_filter( 'yume_rattrapage_actif', '__return_false' );
+		}
 		// Dix rubriques depuis le lot P3-D (Mes listes, Notifications).
 		foreach ( array( 'yn-lecture', 'yn-stats', 'yn-favoris', 'yn-listes', 'yn-notifications', 'yn-notes', 'yn-reglages', 'yn-alertes', 'yn-profil', 'yn-donnees' ) as $ancre ) {
 			yume_assert_contains( 'id="' . $ancre . '"', $html );

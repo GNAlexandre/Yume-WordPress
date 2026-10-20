@@ -1,0 +1,30 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "yume/rattrapage",
+	"title": "Nouveaux chapitres depuis votre dernière lecture",
+	"category": "yume",
+	"icon": "update",
+	"description": "Séries commencées par le lecteur connecté où des chapitres publiés restent à lire : « Reprendre » et « Chapitre suivant ». Rien pour un visiteur ni quand tout est lu (la section disparaît).",
+	"keywords": [ "rattrapage", "nouveaux chapitres", "lecture", "accueil" ],
+	"textdomain": "yume-core",
+	"attributes": {
+		"count": {
+			"type": "number",
+			"default": 6,
+			"label": "Nombre de séries"
+		},
+		"layout": {
+			"type": "string",
+			"enum": [ "section", "carte" ],
+			"default": "section",
+			"label": "Disposition"
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	},
+	"render": "file:./render.php",
+	"editorStyle": "yume-rattrapage"
+}

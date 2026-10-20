@@ -1,0 +1,61 @@
+/*
+ * Connexion avec Discord (module discord) : bouton aux couleurs de la charte Discord (#5865f2,
+ * texte blanc : contraste 4,6:1), séparateur « ou ». Chargé seulement quand un bouton est rendu.
+ */
+
+.yn-discord {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-block: 16px;
+}
+
+.yn-discord__formulaire {
+	margin: 0;
+}
+
+.yn-btn--discord,
+a.yn-btn--discord {
+	background: #5865f2;
+	border-color: #5865f2;
+	color: #fff;
+	white-space: normal;
+}
+
+.yn-btn--discord:hover,
+a.yn-btn--discord:hover {
+	background: #4752c4;
+	border-color: #4752c4;
+	color: #fff;
+}
+
+.yn-discord--connexion .yn-btn--discord,
+.yn-discord--inscription .yn-btn--discord {
+	width: 100%;
+	min-height: 44px;
+}
+
+.yn-discord__ou {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 0;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 13px;
+}
+
+.yn-discord__ou::before,
+.yn-discord__ou::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--wp--preset--color--bordure);
+}
+
+.yn-discord__message {
+	margin: 0;
+}
+
+.yn-discord--compte > * + * {
+	margin-block-start: 12px;
+}
