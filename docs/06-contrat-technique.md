@@ -406,7 +406,7 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `discord_connexion` | `false` | discord (lot L2) : bouton « Se connecter avec Discord » (section « Connexion Discord » `discord_connexion`, ajoutée par L2) |
 | `discord_inscription` | `true` | discord : création d'un compte au premier passage (sous réserve de `inscriptions_ouvertes()`) |
 | `discord_client_id` | `''` | discord : *Client ID* de l'application Discord (type `text`, verrouillé par la constante `YUME_DISCORD_CLIENT_ID`) |
-| `discord_client_secret` | `''` | discord : *Client Secret* (type **`secret`** ; verrouillé et ignoré si la constante `YUME_DISCORD_CLIENT_SECRET` existe — recommandé : constante dans `wp-config.php`, le réglage n'est qu'un repli). Les quatre champs Discord sont aussi dans la vue « Réglages » de l'espace équipe (capacité `yume_reglages` : gérants et administrateurs) ; le secret n'y est jamais réaffiché |
+| `discord_client_secret` | `''` | discord : *Client Secret* (type **`secret`** ; saisi dans les réglages, cas normal sur WordPress.com où `wp-config.php` n'est pas modifiable ; verrouillé et ignoré si la constante `YUME_DISCORD_CLIENT_SECRET` existe). Les quatre champs Discord sont aussi dans la vue « Réglages » de l'espace équipe (capacité `yume_reglages` : gérants et administrateurs) ; le secret n'y est jamais réaffiché |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
@@ -1390,7 +1390,7 @@ Messages : `Social\messages()` n'a pas de filtre ; le module affiche les siens d
 **Réglages** (section `discord_connexion` « Connexion Discord », §6) : `discord_connexion`,
 `discord_inscription`, `discord_client_id` (constante `YUME_DISCORD_CLIENT_ID`), `discord_client_secret`
 (type `secret`, constante `YUME_DISCORD_CLIENT_SECRET` prioritaire). Test *Santé du site* `yume_discord`
-(activé sans secret ; secret en base plutôt qu'en constante). Redirect URI à déclarer **exactement**
+(activé sans Client ID ou sans secret ; un secret saisi dans les réglages n'est pas signalé). Redirect URI à déclarer **exactement**
 sur le portail Discord : `https://yumenovel.fr/wp-json/yume/v1/discord/retour` (`url_retour()`).
 
 **RGPD** : métas `yume_discord_id`, `yume_discord_pseudo` (username à la liaison), `yume_discord_lie_le`

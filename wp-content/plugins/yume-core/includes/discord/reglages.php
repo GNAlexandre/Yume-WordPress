@@ -85,7 +85,7 @@ function champs_reglages( $champs ) {
 		'section'     => SECTION_REGLAGES,
 		'default'     => '',
 		'verrouille'  => verrou( 'YUME_DISCORD_CLIENT_SECRET' ),
-		'description' => __( 'Recommandé : la constante YUME_DISCORD_CLIENT_SECRET dans wp-config.php, qui remplace ce réglage (il n’est qu’un repli).', 'yume-core' ),
+		'description' => __( 'Clé secrète de l’onglet OAuth2 du portail Discord (« Réinitialiser la clé secrète »). Collez-la ici puis enregistrez : elle n’est jamais réaffichée ; laissez le champ vide pour garder la valeur enregistrée. Une constante YUME_DISCORD_CLIENT_SECRET dans wp-config.php, si ce fichier est modifiable, remplace ce réglage.', 'yume-core' ),
 	);
 	return $champs;
 }
@@ -113,8 +113,8 @@ function resultat_sante( string $statut, string $libelle, string $description ):
 }
 
 /**
- * Test yume_discord : connexion activée mais incomplète, secret enregistré en base plutôt que
- * dans wp-config.php.
+ * Test yume_discord : connexion activée mais incomplète. Le secret enregistré dans les réglages est
+ * le cas normal sur WordPress.com (wp-config.php n'y est pas modifiable) : il n'est pas signalé.
  */
 function test_sante(): array {
 	$active = reglage_booleen( 'discord_connexion', false );
@@ -122,18 +122,11 @@ function test_sante(): array {
 		return resultat_sante(
 			'recommended',
 			__( 'Connexion Discord activée mais incomplète', 'yume-core' ),
-			__( 'La connexion avec Discord est activée sans Client ID ou sans Client Secret : aucun bouton n’est affiché. Renseignez-les dans Yume → Réglages (Connexion Discord) ou dans wp-config.php.', 'yume-core' )
-		);
-	}
-	if ( '' !== reglage_texte( 'discord_client_secret' ) && '' === constante( 'YUME_DISCORD_CLIENT_SECRET' ) ) {
-		return resultat_sante(
-			'recommended',
-			__( 'Secret Discord enregistré dans la base de données', 'yume-core' ),
-			__( 'Le Client Secret Discord est enregistré dans les réglages. Il est préférable de le définir par la constante YUME_DISCORD_CLIENT_SECRET dans wp-config.php (hors de la base et de ses sauvegardes), puis de vider le réglage.', 'yume-core' )
+			__( 'La connexion avec Discord est activée sans Client ID ou sans Client Secret : aucun bouton n’est affiché. Renseignez-les dans Yume → Réglages (Connexion Discord) ou dans la vue Réglages de l’espace équipe.', 'yume-core' )
 		);
 	}
 	return $active
-		? resultat_sante( 'good', __( 'Connexion Discord configurée', 'yume-core' ), __( 'Les lecteurs peuvent se connecter avec Discord ; le Client Secret est défini dans wp-config.php.', 'yume-core' ) )
+		? resultat_sante( 'good', __( 'Connexion Discord configurée', 'yume-core' ), __( 'Les lecteurs peuvent se connecter avec Discord.', 'yume-core' ) )
 		: resultat_sante( 'good', __( 'Connexion Discord désactivée', 'yume-core' ), __( 'La connexion avec Discord est configurée mais désactivée (Yume → Réglages).', 'yume-core' ) );
 }
 
