@@ -2,6 +2,12 @@
 /**
  * Rattrapage : calcul, cache et rendu (bloc yume/rattrapage, rubrique du compte).
  *
+ * Bloc de l'accueil « Reprendre la lecture » (2.5.1) : la dernière lecture du membre en première
+ * carte (même position que yume/resume-reading, même si la série est à jour), puis les séries à
+ * rattraper sans elle, NOMBRE_BLOC cartes au plus. Le bloc note la lecture affichée
+ * (noter_reprise_affichee()) : le bandeau yume/resume-reading du bas de l'accueil, rendu ensuite,
+ * ne la répète pas (filtre yume_resume_reading_afficher) et montre son repli « Communauté ».
+ *
  * Calcul (rattrapage()) : pour chaque ligne de progression du membre (œuvre publiée, chapitre
  * de la position encore publié dans un tome publié), l'ordre de lecture vient de
  * Reader\plan_de_lecture() (deux requêtes agrégées pour toutes les séries) ; les « restants »
@@ -39,6 +45,9 @@ const LIMITE_COMPTE = 12;
 /** Cartes au plus dans le bloc (attribut count). */
 const LIMITE_BLOC = 12;
 
+/** Cartes du bloc par défaut (attribut count) : une rangée de trois sur ordinateur. */
+const NOMBRE_BLOC = 3;
+
 /** Séries examinées au plus (les plus récemment lues) : borne du calcul. */
 const SERIES_MAX = 100;
 
@@ -46,7 +55,7 @@ const SERIES_MAX = 100;
 const ANCRE = 'yn-rattrapage';
 
 /** Version des fichiers statiques (style du bloc). */
-const VERSION_STYLE = '1';
+const VERSION_STYLE = '2';
 
 /*
  * -----------------------------------------------------------------------------
@@ -224,6 +233,129 @@ function rattrapage( int $user_id, int $limite = 6 ): array {
 		'oeuvres' => array_slice( $donnees['oeuvres'], 0, max( 1, min( LIMITE_MAX, $limite ) ) ),
 	);
 }
+
+/**
+ * Dernière lecture du membre : sa position la plus récente encore lisible, enrichie par
+ * Reader\enrichir_ligne() (la même que yume/resume-reading), ou null.
+ *
+ * @param int $user_id Membre.
+ */
+function derniere_lecture( int $user_id ): ?array {
+	if ( ! function_exists( '\Yume\Core\Reader\enrichir_ligne' ) ) {
+		return null;
+	}
+	foreach ( lignes_membre( $user_id ) as $ligne ) {
+		$position = \Yume\Core\Reader\enrichir_ligne( $ligne );
+		if ( $position ) {
+			return $position;
+		}
+	}
+	return null;
+}
+
+/**
+ * Cartes du bloc de l'accueil : la dernière lecture (avec sa ligne de rattrapage quand la série a
+ * des chapitres à lire), puis les autres séries à rattraper, $nombre cartes au plus en tout.
+ *
+ * @param int $user_id Membre (0 : rien).
+ * @param int $nombre  Cartes au plus (1 à LIMITE_BLOC).
+ * @return array{reprise:array{position:array,ligne:?array}|null,oeuvres:array<int,array>,autres:int}
+ *         autres : séries à rattraper non affichées (hors dernière lecture).
+ */
+function donnees_accueil( int $user_id, int $nombre = NOMBRE_BLOC ): array {
+	$resultat = array(
+		'reprise' => null,
+		'oeuvres' => array(),
+		'autres'  => 0,
+	);
+	if ( $user_id <= 0 || ! actif() ) {
+		return $resultat;
+	}
+	$nombre   = max( 1, min( LIMITE_BLOC, $nombre ) );
+	$position = derniere_lecture( $user_id );
+	$donnees  = donnees_membre( $user_id );
+	$suivie   = null;
+	$autres   = array();
+	foreach ( $donnees['oeuvres'] as $ligne ) {
+		if ( $position && (int) $ligne['oeuvre_id'] === (int) $position['oeuvre_id'] ) {
+			$suivie = $ligne;
+			continue;
+		}
+		$autres[] = $ligne;
+	}
+	if ( $position ) {
+		$resultat['reprise'] = array(
+			'position' => $position,
+			'ligne'    => $suivie,
+		);
+	}
+	$resultat['oeuvres'] = array_slice( $autres, 0, max( 0, $nombre - ( $position ? 1 : 0 ) ) );
+	$resultat['autres']  = max( 0, (int) $donnees['total'] - ( $suivie ? 1 : 0 ) - count( $resultat['oeuvres'] ) );
+	return $resultat;
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * Dernière lecture affichée (bandeau de l'accueil)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Registre de la requête : membre => œuvre de la dernière lecture affichée par le bloc.
+ *
+ * @return array<int,int>
+ */
+function &registre_reprises(): array {
+	static $registre = array();
+	return $registre;
+}
+
+/**
+ * Note que le bloc vient d'afficher la dernière lecture de ce membre.
+ *
+ * @param int $user_id   Membre.
+ * @param int $oeuvre_id Œuvre de la dernière lecture.
+ */
+function noter_reprise_affichee( int $user_id, int $oeuvre_id ): void {
+	$registre             = &registre_reprises();
+	$registre[ $user_id ] = $oeuvre_id;
+}
+
+/**
+ * Œuvre de la dernière lecture déjà affichée pour ce membre pendant la requête (0 : aucune).
+ *
+ * @param int $user_id Membre.
+ */
+function reprise_affichee( int $user_id ): int {
+	return (int) ( registre_reprises()[ $user_id ] ?? 0 );
+}
+
+/**
+ * Vide le registre (tests, rendus successifs dans une même requête).
+ */
+function oublier_reprises(): void {
+	$registre = &registre_reprises();
+	$registre = array();
+}
+
+/**
+ * Filtre yume_resume_reading_afficher : en « bandeau », pas de reprise déjà montrée par le bloc
+ * (même membre, même œuvre). Le bloc yume/resume-reading ne rend alors rien et le bandeau de
+ * l'accueil montre son repli « Communauté ». Jamais appliqué à un visiteur (pas de position).
+ *
+ * @param mixed  $afficher Afficher la reprise (vrai).
+ * @param mixed  $position Position du membre (Reader\enrichir_ligne()).
+ * @param string $layout   bandeau | carte.
+ * @return mixed
+ */
+function filtre_resume( $afficher, $position = null, $layout = '' ) {
+	if ( ! $afficher || 'bandeau' !== $layout || ! is_array( $position ) ) {
+		return $afficher;
+	}
+	$oeuvre_id = reprise_affichee( get_current_user_id() );
+	return ! ( $oeuvre_id > 0 && (int) ( $position['oeuvre_id'] ?? 0 ) === $oeuvre_id );
+}
+add_filter( 'yume_resume_reading_afficher', __NAMESPACE__ . '\\filtre_resume', 10, 3 );
 
 /**
  * Seuil (pourcentage) à partir duquel le chapitre courant compte comme lu.
@@ -497,11 +629,13 @@ function enregistrer_bloc(): void {
 add_action( 'init', __NAMESPACE__ . '\\enregistrer_bloc' );
 
 /**
- * Adresse de la rubrique « Reprendre la lecture » du compte.
+ * Adresse d'une rubrique du compte (« Reprendre la lecture » : yn-lecture par défaut).
+ *
+ * @param string $ancre Ancre de la rubrique.
  */
-function url_lectures(): string {
+function url_lectures( string $ancre = 'yn-lecture' ): string {
 	$compte = function_exists( '\Yume\Core\Social\url_compte' ) ? \Yume\Core\Social\url_compte() : ( function_exists( 'yume_url_page' ) ? yume_url_page( 'compte' ) : home_url( '/compte/' ) );
-	return $compte . '#yn-lecture';
+	return $compte . '#' . $ancre;
 }
 
 /**
@@ -532,7 +666,8 @@ function couverture( int $chapitre_id, string $titre ): string {
 }
 
 /**
- * Date courte du dernier chapitre publié : « 18 oct. » (année ajoutée si elle diffère).
+ * Date courte du dernier chapitre publié, au format du site : « 18 oct. », « 2 sept. 2025 »
+ * (année ajoutée si elle diffère ; Library\date_courte(), mois abrégés en minuscules).
  *
  * @param string $iso Date ISO 8601.
  */
@@ -541,22 +676,29 @@ function date_courte( string $iso ): string {
 	if ( ! $ts ) {
 		return '';
 	}
-	$format = wp_date( 'Y', $ts ) === wp_date( 'Y' ) ? 'j M' : 'j M Y';
-	return '<time datetime="' . esc_attr( $iso ) . '">' . esc_html( (string) wp_date( $format, $ts ) ) . '</time>';
+	$annee = wp_date( 'Y', $ts ) !== wp_date( 'Y' );
+	$texte = function_exists( '\Yume\Core\Library\date_courte' )
+		? \Yume\Core\Library\date_courte( (int) $ts, $annee )
+		: (string) wp_date( $annee ? 'd/m/Y' : 'd/m', $ts );
+	return '<time datetime="' . esc_attr( $iso ) . '">' . esc_html( $texte ) . '</time>';
 }
 
 /**
  * Ligne d'avancement : « Tome 2 · 3 nouveaux chapitres », « Tome 3 commence · 12 chapitres à
  * lire » (HTML échappé).
  *
- * @param array  $ligne  Ligne du rattrapage.
- * @param string $layout section | carte (carte : « … depuis votre dernière lecture »).
+ * @param array  $ligne         Ligne du rattrapage.
+ * @param string $layout        section | carte (carte : « … depuis votre dernière lecture »).
+ * @param bool   $tome_nouveau  Tome seulement quand il commence (carte de la dernière lecture,
+ *                              dont la position nomme déjà le tome).
  */
-function texte_avancement( array $ligne, string $layout ): string {
+function texte_avancement( array $ligne, string $layout, bool $tome_nouveau = false ): string {
 	$tome = (string) ( $ligne['tome']['libelle'] ?? '' );
 	if ( '' !== $tome && ! empty( $ligne['tome']['commence'] ) ) {
 		/* translators: %s : tome ou arc (« Tome 3 »). */
 		$tome = sprintf( __( '%s commence', 'yume-core' ), $tome );
+	} elseif ( $tome_nouveau ) {
+		$tome = '';
 	}
 	$nouveaux = (int) $ligne['nouveaux_depuis'];
 	if ( $nouveaux > 0 ) {
@@ -593,40 +735,94 @@ function texte_reprise( array $reprise ): string {
 }
 
 /**
- * Carte d'une série à rattraper.
+ * Bouton « Chapitre suivant → » d'une ligne (vide sans chapitre suivant).
+ *
+ * @param array $ligne Ligne du rattrapage.
+ */
+function bouton_suivant( array $ligne ): string {
+	if ( empty( $ligne['suivant']['url'] ) ) {
+		return '';
+	}
+	return '<a class="yn-btn yn-rattrapage__suivant" href="' . esc_url( (string) $ligne['suivant']['url'] ) . '">'
+		. esc_html__( 'Chapitre suivant', 'yume-core' ) . ' <span aria-hidden="true">→</span>'
+		. '<span class="yn-visually-hidden"> : ' . esc_html( (string) $ligne['titre'] . ', ' . (string) $ligne['suivant']['titre'] ) . '</span></a>';
+}
+
+/**
+ * Ligne « dernier publié le 18 oct. » (vide sans date).
+ *
+ * @param array $ligne Ligne du rattrapage.
+ */
+function ligne_date( array $ligne ): string {
+	$date = date_courte( (string) ( $ligne['dernier_publie_le'] ?? '' ) );
+	/* translators: %s : date du dernier chapitre publié (balise time). */
+	return '' !== $date ? '<p class="yn-rattrapage__date yn-muted">' . sprintf( esc_html__( 'dernier publié le %s', 'yume-core' ), $date ) . '</p>' : '';
+}
+
+/**
+ * Carte d'une série à rattraper : couverture et texte, puis les boutons sur toute la largeur.
  *
  * @param array  $ligne  Ligne du rattrapage.
  * @param string $layout section | carte.
  */
 function rendu_carte( array $ligne, string $layout ): string {
 	$titre   = (string) $ligne['titre'];
-	$date    = date_courte( (string) $ligne['dernier_publie_le'] );
-	$cache   = '<span class="yn-visually-hidden"> : ' . esc_html( $titre ) . '</span>';
 	$actions = '<a class="yn-btn yn-btn--primary yn-rattrapage__reprendre" href="' . esc_url( (string) $ligne['reprise']['url'] ) . '">'
-		. esc_html( texte_reprise( (array) $ligne['reprise'] ) ) . $cache . '</a>';
-	if ( ! empty( $ligne['suivant']['url'] ) ) {
-		$actions .= '<a class="yn-btn yn-rattrapage__suivant" href="' . esc_url( (string) $ligne['suivant']['url'] ) . '">'
-			. esc_html__( 'Chapitre suivant', 'yume-core' ) . ' <span aria-hidden="true">→</span>'
-			. '<span class="yn-visually-hidden"> : ' . esc_html( $titre . ', ' . (string) $ligne['suivant']['titre'] ) . '</span></a>';
-	}
+		. esc_html( texte_reprise( (array) $ligne['reprise'] ) ) . '<span class="yn-visually-hidden"> : ' . esc_html( $titre ) . '</span></a>'
+		. bouton_suivant( $ligne );
 	return '<li class="yn-rattrapage__item" data-yn-oeuvre="' . esc_attr( (string) (int) $ligne['oeuvre_id'] ) . '">'
 		. couverture( (int) $ligne['prochain']['id'], $titre )
 		. '<div class="yn-rattrapage__corps">'
 		. '<h3 class="yn-rattrapage__oeuvre"><a href="' . esc_url( (string) $ligne['url'] ) . '">' . esc_html( $titre ) . '</a></h3>'
 		. '<p class="yn-rattrapage__avancement">' . texte_avancement( $ligne, $layout ) . '</p>'
-		/* translators: %s : date du dernier chapitre publié (balise time). */
-		. ( '' !== $date ? '<p class="yn-rattrapage__date yn-muted">' . sprintf( esc_html__( 'dernier publié le %s', 'yume-core' ), $date ) . '</p>' : '' )
+		. ligne_date( $ligne )
+		. '</div>'
 		. '<p class="yn-rattrapage__actions">' . $actions . '</p>'
-		. '</div></li>';
+		. '</li>';
+}
+
+/**
+ * Carte de la dernière lecture (bloc de l'accueil) : « Tome 4 · chapitre 27 · 81 % du
+ * chapitre », barre de lecture, bouton « Continuer » ; quand la série a des chapitres après la
+ * position, « 3 nouveaux chapitres » (ou « N chapitres à lire »), la date et « Chapitre suivant ».
+ *
+ * @param array      $position Position (Reader\enrichir_ligne()).
+ * @param array|null $ligne    Ligne du rattrapage de la même œuvre, ou null (série à jour).
+ */
+function rendu_carte_reprise( array $position, ?array $ligne ): string {
+	$titre       = (string) $position['oeuvre'];
+	$pourcentage = max( 0, min( 100, (int) $position['pourcentage'] ) );
+	/* translators: %s : pourcentage lu du chapitre en cours. */
+	$part   = sprintf( __( '%s %% du chapitre', 'yume-core' ), (string) $pourcentage );
+	$detail = implode( ' · ', array_filter( array( (string) $position['tome'], mb_strtolower( (string) $position['chapitre'] ), $part ), 'strlen' ) );
+	$suite  = $ligne && ! empty( $ligne['suivant']['url'] );
+	$html   = '<li class="yn-rattrapage__item yn-rattrapage__item--reprise" data-yn-oeuvre="' . esc_attr( (string) (int) $position['oeuvre_id'] ) . '" data-yn-reprise>'
+		. couverture( (int) $position['chapitre_id'], $titre )
+		. '<div class="yn-rattrapage__corps">'
+		. '<p class="yn-label yn-rattrapage__surtitre">' . esc_html__( 'Dernière lecture', 'yume-core' ) . '</p>'
+		. '<h3 class="yn-rattrapage__oeuvre"><a href="' . esc_url( (string) get_permalink( (int) $position['oeuvre_id'] ) ) . '">' . esc_html( $titre ) . '</a></h3>'
+		. '<p class="yn-rattrapage__position">' . esc_html( $detail ) . '</p>'
+		. '<span class="yn-bar yn-rattrapage__barre" aria-hidden="true"><span style="--v:' . esc_attr( (string) $pourcentage ) . '%"></span></span>';
+	if ( $suite ) {
+		$html .= '<p class="yn-rattrapage__avancement">' . texte_avancement( $ligne, 'section', true ) . '</p>' . ligne_date( $ligne );
+	}
+	$html .= '</div><p class="yn-rattrapage__actions">'
+		. '<a class="yn-btn yn-btn--primary yn-rattrapage__continuer" href="' . esc_url( (string) $position['url_reprise'] ) . '">' . esc_html__( 'Continuer', 'yume-core' )
+		. '<span class="yn-visually-hidden"> : ' . esc_html( '' !== (string) $position['titre'] ? (string) $position['titre'] : $titre ) . '</span></a>'
+		. ( $suite ? bouton_suivant( $ligne ) : '' )
+		. '</p></li>';
+	return $html;
 }
 
 /**
  * Liste de cartes, partagée par le bloc et la rubrique du compte ; charge la feuille de style.
  *
- * @param array  $lignes Lignes du rattrapage (oeuvres de rattrapage()).
- * @param string $layout section (accueil) | carte (compte, carte isolée).
+ * @param array  $lignes  Lignes du rattrapage (oeuvres de rattrapage()).
+ * @param string $layout  section (accueil) | carte (compte, carte isolée).
+ * @param array  $reprise Carte de la dernière lecture en tête (bloc de l'accueil) :
+ *                        {position, ligne} de donnees_accueil() ; vide : aucune.
  */
-function rendu_cartes( array $lignes, string $layout ): string {
+function rendu_cartes( array $lignes, string $layout, array $reprise = array() ): string {
 	$layout = 'carte' === $layout ? 'carte' : 'section';
 	$items  = '';
 	$ids    = array();
@@ -636,10 +832,17 @@ function rendu_cartes( array $lignes, string $layout ): string {
 			$ids[] = (int) ( $ligne['tome']['id'] ?? 0 );
 		}
 	}
+	$position = isset( $reprise['position']['oeuvre_id'], $reprise['position']['chapitre_id'] ) ? (array) $reprise['position'] : array();
+	if ( $position ) {
+		$ids[] = (int) $position['chapitre_id'];
+	}
 	if ( ! $ids ) {
 		return '';
 	}
 	_prime_post_caches( array_values( array_unique( array_filter( $ids ) ) ), false, true );
+	if ( $position ) {
+		$items .= rendu_carte_reprise( $position, is_array( $reprise['ligne'] ?? null ) ? $reprise['ligne'] : null );
+	}
 	foreach ( $lignes as $ligne ) {
 		if ( is_array( $ligne ) && isset( $ligne['oeuvre_id'], $ligne['prochain']['id'] ) ) {
 			$items .= rendu_carte( $ligne, $layout );
@@ -650,10 +853,12 @@ function rendu_cartes( array $lignes, string $layout ): string {
 }
 
 /**
- * Rendu du bloc yume/rattrapage. Visiteur, rattrapage coupé ou rien à rattraper : chaîne vide
- * (la section de l'accueil disparaît ; aucune donnée ni gabarit dans une page anonyme).
+ * Rendu du bloc yume/rattrapage, « Reprendre la lecture » : la dernière lecture du membre puis
+ * ses séries à rattraper (donnees_accueil()). Visiteur, rattrapage coupé ou aucune lecture :
+ * chaîne vide (la section de l'accueil disparaît ; aucune donnée ni gabarit dans une page
+ * anonyme). La dernière lecture affichée est notée pour le bandeau du bas de l'accueil.
  *
- * @param array $attributes Attributs : count (1 à LIMITE_BLOC, 6), layout (section | carte).
+ * @param array $attributes Attributs : count (1 à LIMITE_BLOC, NOMBRE_BLOC), layout (section | carte).
  */
 function rendu_bloc( array $attributes = array() ): string {
 	$user_id = get_current_user_id();
@@ -661,26 +866,35 @@ function rendu_bloc( array $attributes = array() ): string {
 		return '';
 	}
 	$layout  = 'carte' === ( $attributes['layout'] ?? '' ) ? 'carte' : 'section';
-	$nombre  = isset( $attributes['count'] ) && is_numeric( $attributes['count'] ) ? (int) $attributes['count'] : 6;
-	$nombre  = max( 1, min( LIMITE_BLOC, $nombre ) );
-	$donnees = rattrapage( $user_id, $nombre );
-	$cartes  = $donnees['oeuvres'] ? rendu_cartes( $donnees['oeuvres'], $layout ) : '';
+	$nombre  = isset( $attributes['count'] ) && is_numeric( $attributes['count'] ) ? (int) $attributes['count'] : NOMBRE_BLOC;
+	$donnees = donnees_accueil( $user_id, $nombre );
+	$cartes  = rendu_cartes( $donnees['oeuvres'], $layout, (array) $donnees['reprise'] );
 	if ( '' === $cartes ) {
 		if ( apercu_editeur() ) {
 			return '<div ' . attributs_racine( 'yn-rattrapage yn-apercu-editeur' ) . '><p class="yn-muted">'
-				. esc_html__( 'Nouveaux chapitres depuis votre dernière lecture : affiché pour un lecteur connecté qui a des chapitres à rattraper (rien pour les visiteurs).', 'yume-core' )
+				. esc_html__( 'Reprendre la lecture : dernière lecture et nouveaux chapitres, affichés pour un lecteur connecté qui a commencé une série (rien pour les visiteurs).', 'yume-core' )
 				. '</p></div>';
 		}
 		return '';
 	}
+	if ( $donnees['reprise'] ) {
+		noter_reprise_affichee( $user_id, (int) $donnees['reprise']['position']['oeuvre_id'] );
+	}
 	$id_titre = wp_unique_id( 'yn-rattrapage-titre-' );
-	$titre    = __( 'Nouveaux chapitres depuis votre dernière lecture', 'yume-core' );
+	$titre    = __( 'Reprendre la lecture', 'yume-core' );
 	$classe   = 'yn-rattrapage yn-rattrapage--' . $layout . ( 'carte' === $layout ? ' yn-card' : ' yn-section' );
+	$plus     = '';
+	if ( $donnees['autres'] > 0 ) {
+		$autres = (int) $donnees['autres'];
+		/* translators: %d : nombre de séries à rattraper non affichées. */
+		$plus = '<p class="yn-rattrapage__plus"><a href="' . esc_url( url_lectures( ANCRE ) ) . '">' . esc_html( sprintf( _n( 'Et %d autre série à rattraper', 'Et %d autres séries à rattraper', $autres, 'yume-core' ), $autres ) ) . ' <span aria-hidden="true">→</span></a></p>';
+	}
 	return '<section ' . attributs_racine( $classe, array( 'aria-labelledby' => $id_titre ) ) . '>'
 		. '<div class="yn-rattrapage__tete">'
 		. '<h2 class="' . ( 'carte' === $layout ? 'yn-rattrapage__titre' : 'yn-section__titre yn-rattrapage__titre' ) . '" id="' . esc_attr( $id_titre ) . '">' . esc_html( $titre ) . '</h2>'
 		. '<p class="yn-section__lien yn-rattrapage__lien"><a href="' . esc_url( url_lectures() ) . '">' . esc_html__( 'Toutes mes lectures', 'yume-core' ) . ' <span aria-hidden="true">→</span></a></p>'
 		. '</div>'
 		. $cartes
+		. $plus
 		. '</section>';
 }

@@ -2,9 +2,10 @@
 /**
  * Tests du module rattrapage (lot L5) : calcul des chapitres à rattraper (position, seuil de
  * 90 %, nouveaux depuis la dernière lecture, tri, tome qui commence, brouillons et œuvres
- * dépubliées ignorés), cache par membre et invalidation, bloc yume/rattrapage (visiteur : chaîne
- * vide stricte ; membre : cartes), modèle de l'accueil, rubrique « À rattraper » du compte et
- * route GET /yume/v1/moi/rattrapage.
+ * dépubliées ignorés), cache par membre et invalidation, bloc yume/rattrapage « Reprendre la
+ * lecture » (visiteur : chaîne vide stricte ; membre : dernière lecture puis séries à rattraper,
+ * 3 cartes au plus ; bandeau du bas de l'accueil en repli « Communauté »), dates au format du
+ * site, modèle de l'accueil, rubrique « À rattraper » du compte et route GET /yume/v1/moi/rattrapage.
  *
  * Lancement : tools/localenv/test.sh rattrapage
  *
@@ -13,8 +14,12 @@
 
 defined( 'ABSPATH' ) || exit;
 
+use function Yume\Core\Rattrapage\date_courte;
+use function Yume\Core\Rattrapage\donnees_accueil;
 use function Yume\Core\Rattrapage\invalider_tous;
+use function Yume\Core\Rattrapage\oublier_reprises;
 use function Yume\Core\Rattrapage\rattrapage;
+use function Yume\Core\Rattrapage\reprise_affichee;
 use function Yume\Core\Rattrapage\rendu_cartes;
 use function Yume\Core\Rattrapage\version;
 use function Yume\Core\Reader\enregistrer_progression;
@@ -478,61 +483,255 @@ yume_test(
  * -----------------------------------------------------------------------------
  */
 
+/**
+ * Première carte (li) d'un rendu du bloc.
+ *
+ * @param string $html Rendu.
+ */
+function yume_rat_premiere_carte( string $html ): string {
+	$debut = strpos( $html, '<li ' );
+	$fin   = strpos( $html, '</li>' );
+	return false === $debut || false === $fin ? '' : substr( $html, $debut, $fin - $debut + 5 );
+}
+
 yume_test(
-	'bloc : chaîne vide stricte pour un visiteur (cache de page), rien pour un membre sans rattrapage',
+	'bloc : chaîne vide stricte pour un visiteur (cache de page), rien pour un membre sans lecture',
 	function () {
 		$j = yume_rat_jeu();
+		oublier_reprises();
 		wp_dequeue_style( 'yume-rattrapage' );
 		yume_assert_true( WP_Block_Type_Registry::get_instance()->is_registered( 'yume/rattrapage' ) );
 		yume_assert_same( '', yume_rat_bloc( 0 ) );
 		yume_assert_same( '', yume_rat_bloc( 0, array( 'layout' => 'carte' ) ) );
-		yume_assert_same( '', do_blocks( '<!-- wp:yume/rattrapage {"count":6,"layout":"section","align":"wide"} /-->' ), 'visiteur, dans un modèle' );
+		yume_assert_same( '', do_blocks( '<!-- wp:yume/rattrapage {"count":3,"layout":"section","align":"wide"} /-->' ), 'visiteur, dans un modèle' );
 		yume_assert_false( wp_style_is( 'yume-rattrapage', 'enqueued' ), 'aucune feuille de style pour un visiteur' );
-		yume_assert_same( '', yume_rat_bloc( yume_factory_user() ), 'membre sans lecture' );
-		$a_jour = yume_factory_user();
-		yume_rat_position( $a_jour, $j['b']['chapitres'][1][1], 0, 100, '2026-01-10 09:00:00' );
-		yume_assert_same( '', yume_rat_bloc( $a_jour ), 'membre à jour : la section disparaît' );
+		yume_assert_same( 0, reprise_affichee( 0 ), 'rien de noté pour un visiteur' );
+		$sans = yume_factory_user();
+		yume_assert_same( '', yume_rat_bloc( $sans ), 'membre sans lecture' );
+		yume_assert_same( 0, reprise_affichee( $sans ) );
+		yume_assert_same(
+			array(
+				'reprise' => null,
+				'oeuvres' => array(),
+				'autres'  => 0,
+			),
+			donnees_accueil( $sans )
+		);
 	}
 );
 
 yume_test(
-	'bloc : membre → section de l’accueil, cartes « Reprendre » et « Chapitre suivant », lien vers ses lectures',
+	'bloc : membre à jour → une seule carte, sa dernière lecture (« Continuer »), sans « Chapitre suivant »',
 	function () {
+		$j      = yume_rat_jeu();
+		$a_jour = yume_factory_user();
+		yume_rat_position( $a_jour, $j['b']['chapitres'][1][1], 4, 100, '2026-01-10 09:00:00' );
+		$html = yume_rat_bloc( $a_jour );
+		wp_dequeue_style( 'yume-rattrapage' );
+		yume_assert_contains( 'Reprendre la lecture</h2>', $html );
+		yume_assert_same( 1, substr_count( $html, '<li class="yn-rattrapage__item' ) );
+		yume_assert_contains( 'yn-rattrapage__item--reprise" data-yn-oeuvre="' . $j['b']['oeuvre'] . '" data-yn-reprise', $html );
+		yume_assert_contains( '<p class="yn-label yn-rattrapage__surtitre">Dernière lecture</p>', $html );
+		yume_assert_contains( 'Tome 1 · chapitre 2 · 100 % du chapitre', $html );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $j['b']['chapitres'][1][1] ) . '#yn-p-5' ) . '">Continuer', $html );
+		yume_assert_contains( '--v:100%', $html );
+		yume_assert_not_contains( 'yn-rattrapage__suivant', $html );
+		yume_assert_not_contains( 'yn-rattrapage__avancement', $html, 'série à jour : pas de compte de chapitres' );
+		yume_assert_not_contains( 'yn-rattrapage__plus', $html );
+		yume_assert_same( $j['b']['oeuvre'], reprise_affichee( $a_jour ), 'lecture notée pour le bandeau' );
+	}
+);
+
+yume_test(
+	'bloc : membre → « Reprendre la lecture », dernière lecture en tête (nouveaux chapitres, « Chapitre suivant »), puis séries à rattraper sans doublon',
+	function () {
+		oublier_reprises();
 		$j    = yume_rat_jeu( 41 );
 		$a    = $j['a'];
+		$c    = $j['c'];
 		$html = yume_rat_bloc( $j['u'], array( 'align' => 'wide' ) );
 		wp_dequeue_style( 'yume-rattrapage' );
 		yume_assert_contains( '<section class="', $html );
 		yume_assert_contains( 'yn-rattrapage yn-rattrapage--section yn-section', $html );
 		yume_assert_contains( 'alignwide', $html );
-		yume_assert_contains( 'Nouveaux chapitres depuis votre dernière lecture</h2>', $html );
+		yume_assert_contains( 'Reprendre la lecture</h2>', $html );
+		yume_assert_not_contains( 'Nouveaux chapitres depuis votre dernière lecture', $html );
 		yume_assert_contains( 'Toutes mes lectures', $html );
 		yume_assert_contains( '#yn-lecture"', $html );
-		yume_assert_same( 2, substr_count( $html, '<li class="yn-rattrapage__item"' ) );
-		yume_assert_true( strpos( $html, 'data-yn-oeuvre="' . $j['c']['oeuvre'] . '"' ) < strpos( $html, 'data-yn-oeuvre="' . $a['oeuvre'] . '"' ), 'tri conservé' );
+		yume_assert_same( 2, substr_count( $html, '<li class="yn-rattrapage__item' ), 'C (dernière lecture) et A ; B à jour' );
+		yume_assert_same( 1, substr_count( $html, 'data-yn-oeuvre="' . $c['oeuvre'] . '"' ), 'série de la dernière lecture non répétée' );
+		yume_assert_same( 1, substr_count( $html, 'data-yn-reprise' ) );
+
+		// Première carte : C, lue le plus récemment (chapitre 2 du tome 1 à 95 %), tome 2 publié depuis.
+		$premiere = yume_rat_premiere_carte( $html );
+		yume_assert_contains( 'data-yn-oeuvre="' . $c['oeuvre'] . '" data-yn-reprise', $premiere );
+		yume_assert_contains( 'Tome 1 · chapitre 2 · 95 % du chapitre', $premiere );
+		yume_assert_contains( 'Tome 2 commence · <strong class="yn-rattrapage__nombre">2 nouveaux chapitres</strong>', $premiere );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $c['chapitres'][1][1] ) ) . '">Continuer', $premiere );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $c['chapitres'][2][0] ) ) . '">Chapitre suivant', $premiere );
+		yume_assert_contains( 'dernier publié le <time datetime="', $premiere );
+
+		// Puis A, carte de rattrapage habituelle.
+		yume_assert_true( strpos( $html, 'data-yn-oeuvre="' . $c['oeuvre'] . '"' ) < strpos( $html, 'data-yn-oeuvre="' . $a['oeuvre'] . '"' ), 'dernière lecture en tête' );
 		yume_assert_contains( 'Tome 1 · <strong class="yn-rattrapage__nombre">2 nouveaux chapitres</strong>', $html );
-		yume_assert_contains( 'Tome 2 commence · <strong class="yn-rattrapage__nombre">2 nouveaux chapitres</strong>', $html );
 		yume_assert_not_contains( 'depuis votre dernière lecture</p>', $html, 'forme courte sur l’accueil' );
 		yume_assert_contains( 'Reprendre (chapitre 2, 41 %)', $html );
 		yume_assert_contains( 'href="' . esc_url( get_permalink( $a['chapitres'][1][1] ) . '#yn-p-6' ) . '"', $html );
 		yume_assert_contains( 'href="' . esc_url( get_permalink( $a['chapitres'][1][2] ) ) . '">Chapitre suivant', $html );
-		yume_assert_contains( 'dernier publié le <time datetime="', $html );
 		yume_assert_same( 1, substr_count( $html, '<h2' ) );
 		yume_assert_same( 2, substr_count( $html, '<h3' ) );
+		yume_assert_same( 2, substr_count( $html, '<p class="yn-rattrapage__actions">' ), 'boutons hors du texte, sur toute la largeur de la carte' );
+		yume_assert_not_contains( 'yn-rattrapage__plus', $html, 'rien de plus à rattraper' );
+		yume_assert_same( $c['oeuvre'], reprise_affichee( $j['u'] ) );
 
 		// count et disposition « carte ».
 		$carte = yume_rat_bloc(
 			$j['u'],
 			array(
-				'count'  => 1,
+				'count'  => 2,
 				'layout' => 'carte',
 			)
 		);
 		yume_assert_contains( 'yn-rattrapage--carte yn-card', $carte );
-		yume_assert_same( 1, substr_count( $carte, '<li class="yn-rattrapage__item"' ) );
+		yume_assert_same( 2, substr_count( $carte, '<li class="yn-rattrapage__item' ) );
 		yume_assert_contains( 'nouveaux chapitres</strong> depuis votre dernière lecture', $carte );
+		yume_assert_same( 1, substr_count( yume_rat_bloc( $j['u'], array( 'count' => 1 ) ), '<li class="yn-rattrapage__item' ), 'count 1 : la dernière lecture seule' );
 		yume_assert_true( wp_style_is( 'yume-rattrapage', 'enqueued' ), 'feuille de style chargée pour le membre' );
 		wp_dequeue_style( 'yume-rattrapage' );
+		oublier_reprises();
+	}
+);
+
+yume_test(
+	'bloc : 3 cartes au plus (dernière lecture + 2 séries à rattraper, les plus récentes), lien vers les autres',
+	function () {
+		$u      = yume_factory_user();
+		$series = array();
+		foreach ( array( '2026-01-01', '2026-03-01', '2026-02-01', '2026-04-01', '2026-01-15' ) as $n => $debut ) {
+			$series[ $n ] = yume_rat_serie( array( 1 => 3 ), $debut );
+			yume_rat_position( $u, $series[ $n ]['chapitres'][1][0], 0, 100, '2025-12-31 00:00:00' );
+		}
+		// Dernière lecture : dernier chapitre publié, en cours (81 %) : rien après la position.
+		$recente = yume_rat_serie( array( 4 => 2 ), '2026-01-01', 'Mikadono' );
+		yume_rat_position( $u, $recente['chapitres'][4][1], 3, 81, '2026-05-01 10:00:00' );
+
+		$donnees = donnees_accueil( $u );
+		yume_assert_same( $recente['oeuvre'], $donnees['reprise']['position']['oeuvre_id'] );
+		yume_assert_same( $recente['oeuvre'], $donnees['reprise']['ligne']['oeuvre_id'], 'chapitre courant sous 90 % : encore dans le rattrapage' );
+		yume_assert_same( array( $series[3]['oeuvre'], $series[1]['oeuvre'] ), array_column( $donnees['oeuvres'], 'oeuvre_id' ) );
+		yume_assert_same( 3, $donnees['autres'] );
+
+		$html = yume_rat_bloc( $u, array( 'count' => 3 ) );
+		wp_dequeue_style( 'yume-rattrapage' );
+		yume_assert_same( 3, substr_count( $html, '<li class="yn-rattrapage__item' ) );
+		yume_assert_same( 1, substr_count( $html, 'data-yn-oeuvre="' . $recente['oeuvre'] . '"' ) );
+		$premiere = yume_rat_premiere_carte( $html );
+		yume_assert_contains( 'data-yn-oeuvre="' . $recente['oeuvre'] . '" data-yn-reprise', $premiere );
+		yume_assert_contains( 'Tome 4 · chapitre 2 · 81 % du chapitre', $premiere );
+		yume_assert_contains( '>Continuer<span class="yn-visually-hidden"> : Mikadono · Tome 4 · Chapitre 2</span>', $premiere );
+		yume_assert_not_contains( 'Chapitre suivant', $premiere, 'aucun chapitre après la position' );
+		yume_assert_not_contains( 'yn-rattrapage__avancement', $premiere );
+		yume_assert_true( strpos( $html, 'data-yn-oeuvre="' . $series[3]['oeuvre'] . '"' ) < strpos( $html, 'data-yn-oeuvre="' . $series[1]['oeuvre'] . '"' ), 'tri du rattrapage conservé' );
+		yume_assert_not_contains( 'data-yn-oeuvre="' . $series[2]['oeuvre'] . '"', $html );
+		yume_assert_contains( '<p class="yn-rattrapage__plus"><a href="' . esc_url( \Yume\Core\Rattrapage\url_lectures( 'yn-rattrapage' ) ) . '">Et 3 autres séries à rattraper', $html );
+
+		// Bloc réglé plus haut : la grille passe à la ligne (le défaut reste 3).
+		yume_assert_same( 6, substr_count( yume_rat_bloc( $u, array( 'count' => 12 ) ), '<li class="yn-rattrapage__item' ) );
+		yume_assert_same( 3, substr_count( yume_rat_bloc( $u ), '<li class="yn-rattrapage__item' ), 'défaut : 3' );
+		wp_dequeue_style( 'yume-rattrapage' );
+
+		// Mon compte → À rattraper inchangé : toutes les séries (12 au plus), dernière lecture comprise.
+		wp_set_current_user( $u );
+		$compte = \Yume\Core\Social\compte_connecte();
+		wp_set_current_user( 0 );
+		wp_dequeue_style( 'yume-rattrapage' );
+		$section = substr( $compte, (int) strpos( $compte, 'id="yn-rattrapage"' ) );
+		$section = substr( $section, 0, (int) strpos( $section, '</section>' ) );
+		yume_assert_same( 6, substr_count( $section, '<li class="yn-rattrapage__item"' ) );
+		yume_assert_not_contains( 'data-yn-reprise', $section );
+		oublier_reprises();
+	}
+);
+
+yume_test(
+	'accueil : le bandeau du bas ne répète pas la dernière lecture du membre (repli « Communauté » + Discord) ; visiteur inchangé',
+	function () {
+		$theme = get_theme_root() . '/yume';
+		if ( ! is_dir( $theme ) ) {
+			return;
+		}
+		$accueil = (string) file_get_contents( $theme . '/templates/front-page.html' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
+		$debut   = strpos( $accueil, '<!-- wp:group {"tagName":"section","align":"wide","className":"yn-card yn-bandeau-reprise"' );
+		$fin     = strpos( $accueil, '<!-- /wp:group -->', (int) strpos( $accueil, '<!-- /wp:buttons --></section>', (int) $debut ) );
+		yume_assert_true( false !== $debut && false !== $fin, 'bandeau présent dans le modèle' );
+		$bandeau = substr( $accueil, (int) $debut, (int) $fin - (int) $debut + strlen( '<!-- /wp:group -->' ) );
+		$bloc    = '<!-- wp:yume/rattrapage {"count":3,"layout":"section","align":"wide"} /-->';
+		$rendre  = static function ( int $user_id, string $contenu ): string {
+			wp_set_current_user( $user_id );
+			try {
+				return do_blocks( $contenu );
+			} finally {
+				wp_set_current_user( 0 );
+			}
+		};
+		oublier_reprises();
+		$j = yume_rat_jeu( 41 );
+
+		// Membre : le bloc du haut affiche la dernière lecture, le bandeau montre son repli.
+		$page = $rendre( $j['u'], $bloc . "\n\n" . $bandeau );
+		wp_dequeue_style( 'yume-rattrapage' );
+		yume_assert_same( 1, substr_count( $page, '>Continuer<' ), 'une seule reprise sur la page' );
+		yume_assert_contains( 'yn-rattrapage__item--reprise', $page );
+		yume_assert_not_contains( 'yn-resume', $page, 'ni reprise ni gabarit visiteur dans le bandeau' );
+		yume_assert_contains( 'yn-bandeau-reprise__repli', $page );
+		yume_assert_contains( 'Discutez des sorties avec l’équipe et les autres lecteurs', $page );
+		yume_assert_contains( 'Rejoindre le Discord', $page );
+
+		// Même membre sans le bloc du haut (autre page, rattrapage coupé) : le bandeau reprend.
+		oublier_reprises();
+		$seul = $rendre( $j['u'], $bandeau );
+		yume_assert_contains( 'yn-resume yn-resume--bandeau', $seul );
+		yume_assert_contains( 'Tome 1 · chapitre 2 · 95 % du chapitre', $seul );
+		add_filter( 'yume_rattrapage_actif', '__return_false' );
+		try {
+			$coupe = $rendre( $j['u'], $bloc . $bandeau );
+		} finally {
+			remove_filter( 'yume_rattrapage_actif', '__return_false' );
+		}
+		yume_assert_contains( 'yn-resume yn-resume--bandeau', $coupe, 'rattrapage coupé : bandeau d’avant' );
+
+		// La carte « Reprendre la lecture » (layout carte) et un autre membre ne sont pas concernés.
+		$rendre( $j['u'], $bloc );
+		wp_dequeue_style( 'yume-rattrapage' );
+		wp_set_current_user( $j['u'] );
+		$carte = yume_render_block( 'yume/resume-reading', array( 'layout' => 'carte' ) );
+		wp_set_current_user( 0 );
+		yume_assert_contains( 'yn-resume yn-resume--carte', $carte );
+		$autre = yume_factory_user();
+		yume_rat_position( $autre, $j['a']['chapitres'][1][1], 0, 30, '2026-01-04 18:00:00' );
+		yume_assert_contains( 'yn-resume yn-resume--bandeau', $rendre( $autre, $bandeau ) );
+
+		// Visiteur : bloc du haut vide, bandeau rendu côté client (gabarit masqué), rien de personnel.
+		oublier_reprises();
+		$visiteur = $rendre( 0, $bloc . $bandeau );
+		yume_assert_not_contains( 'yn-rattrapage', $visiteur );
+		yume_assert_contains( 'data-yn-resume="bandeau" hidden', $visiteur );
+		yume_assert_contains( 'Rejoindre le Discord', $visiteur );
+		yume_assert_not_contains( get_the_title( $j['c']['oeuvre'] ), $visiteur );
+		oublier_reprises();
+	}
+);
+
+yume_test(
+	'dates : format du site (« 18 oct. », « 2 sept. 2025 »), jamais d’abréviation anglaise capitalisée',
+	function () {
+		$annee = (int) wp_date( 'Y' );
+		yume_assert_same( '<time datetime="' . $annee . '-10-18T12:00:00+00:00">18 oct.</time>', date_courte( $annee . '-10-18T12:00:00+00:00' ) );
+		yume_assert_same( '<time datetime="' . $annee . '-08-01T12:00:00+00:00">1 août</time>', date_courte( $annee . '-08-01T12:00:00+00:00' ) );
+		$avant = $annee - 1;
+		yume_assert_same( '<time datetime="' . $avant . '-09-02T12:00:00+00:00">2 sept. ' . $avant . '</time>', date_courte( $avant . '-09-02T12:00:00+00:00' ), 'année ajoutée' );
+		yume_assert_same( '', date_courte( '' ) );
+		yume_assert_same( '', date_courte( 'pas une date' ) );
 	}
 );
 
@@ -585,7 +784,7 @@ yume_test(
 );
 
 yume_test(
-	'accueil : bloc yume/rattrapage entre « Dernières sorties » et le Planning',
+	'accueil : bloc yume/rattrapage (3 cartes) entre « Dernières sorties » et le Planning, bandeau en bas',
 	function () {
 		$theme = get_theme_root() . '/yume';
 		if ( ! is_dir( $theme ) ) {
@@ -593,11 +792,14 @@ yume_test(
 		}
 		$accueil    = (string) file_get_contents( $theme . '/templates/front-page.html' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- fichier local.
 		$sorties    = strpos( $accueil, '<!-- wp:yume/latest-releases' );
-		$rattrapage = strpos( $accueil, '<!-- wp:yume/rattrapage {"count":6,"layout":"section","align":"wide"} /-->' );
+		$rattrapage = strpos( $accueil, '<!-- wp:yume/rattrapage {"count":3,"layout":"section","align":"wide"} /-->' );
 		$planning   = strpos( $accueil, '<!-- wp:yume/planning-accueil' );
 		yume_assert_true( false !== $sorties && false !== $rattrapage && false !== $planning, 'trois blocs présents' );
 		yume_assert_true( $sorties < $rattrapage && $rattrapage < $planning, 'ordre : sorties, rattrapage, planning' );
 		yume_assert_same( 1, substr_count( $accueil, 'wp:yume/rattrapage' ) );
+		$bandeau = strpos( $accueil, '<!-- wp:yume/resume-reading {"layout":"bandeau"} /-->' );
+		yume_assert_true( false !== $bandeau && $rattrapage < $bandeau, 'bandeau rendu après le bloc du haut' );
+		yume_assert_contains( 'yn-lien-discord', $accueil );
 	}
 );
 
