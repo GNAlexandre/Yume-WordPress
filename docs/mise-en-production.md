@@ -390,23 +390,20 @@ inscriptions des lecteurs sont fermées ») et Discord ne connecte que des compt
 - [ ] Aucun **bot**, aucune permission de serveur, aucune autre option : le site ne demande que les
       scopes `identify` et `email`.
 
-### 12.2 Secret dans `wp-config.php` par SFTP
+### 12.2 Client ID et secret dans les réglages
 
-Même accès qu'au §6. Au-dessus de `/* That's all, stop editing! */` :
+`wp-config.php` n'est pas modifiable sur WordPress.com : les deux valeurs se saisissent dans les
+réglages, depuis *Yume → Réglages*, section **Connexion Discord**, ou depuis la vue **Réglages** de
+l'espace équipe (gérants et administrateurs).
 
-```php
-// Yume : connexion avec Discord (le secret n'est jamais enregistré en base ni réaffiché).
-define( 'YUME_DISCORD_CLIENT_SECRET', 'collez-ici-le-client-secret' );
-// Facultatif : Client ID figé (sinon il se saisit dans Yume → Réglages).
-define( 'YUME_DISCORD_CLIENT_ID', '123456789012345678' );
-```
-
-- [ ] Enregistrer, recharger *Yume → Réglages* : le champ **Client Secret Discord** affiche « Défini
-      par la constante YUME_DISCORD_CLIENT_SECRET (wp-config.php). », sans la valeur.
-- [ ] Repli sans SFTP : saisir le secret dans le champ **Client Secret Discord** (type mot de passe,
-      jamais réaffiché ; vide = valeur conservée). *Santé du site* le signale alors (« Secret Discord
-      enregistré dans la base de données ») : passer à la constante dès que possible, puis vider le
-      réglage par programme.
+- [ ] **Client ID Discord** : coller l'identifiant du client (onglet OAuth2 du portail).
+- [ ] **Client Secret Discord** : coller la clé secrète (champ de type mot de passe). Elle est
+      enregistrée dans les réglages du site et **jamais réaffichée** ; l'aide indique seulement
+      « Une valeur est enregistrée ». Laisser le champ vide en enregistrant d'autres réglages garde la
+      valeur. Pour la changer : *Réinitialiser la clé secrète* sur Discord, puis coller la nouvelle.
+- [ ] Facultatif, si un jour `wp-config.php` devient modifiable : les constantes
+      `YUME_DISCORD_CLIENT_SECRET` et `YUME_DISCORD_CLIENT_ID` remplacent les réglages (le champ affiche
+      alors « Défini par la constante … »).
 
 ### 12.3 Activer
 
@@ -432,7 +429,7 @@ define( 'YUME_DISCORD_CLIENT_ID', '123456789012345678' );
 - [ ] **Identifiants du client dans le corps** : `client_id` et `client_secret` sont envoyés dans le
       corps du `POST /oauth2/token` (pas d'en-tête `Authorization: Basic`). Discord accepte les deux
       formes ; en cas de refus `invalid_client`, vérifier d'abord le secret (Reset Secret puis
-      nouvelle constante), puis signaler à l'équipe technique.
+      nouveau secret collé dans les réglages), puis signaler à l'équipe technique.
 - [ ] **Cache** : l'adresse `/wp-json/yume/v1/discord/retour` ne doit pas être mise en cache
       (réponse 302 avec les en-têtes de `nocache_headers()` : `Cache-Control: no-cache, …` et
       `Expires` passé ; `curl -sI "https://yumenovel.fr/wp-json/yume/v1/discord/retour?state=x&code=y"`

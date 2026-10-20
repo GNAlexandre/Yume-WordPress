@@ -378,7 +378,8 @@ yume_test(
 		yume_assert_contains( Discord\url_retour(), $champs['discord_client_id']['description'], 'adresse de retour affichée' );
 		yume_assert_same( '112233445566778899', call_user_func( $champs['discord_client_id']['sanitize'], ' 1122 3344-5566778899 ' ) );
 
-		// Santé : rien sans configuration ; activé sans secret, secret en base → recommandé.
+		// Santé : rien sans configuration ; activé sans secret → recommandé ; secret saisi dans les
+		// réglages (cas normal sur WordPress.com) → bon, et jamais réaffiché.
 		$tests = apply_filters( 'site_status_tests', array( 'direct' => array() ) );
 		yume_assert_false( isset( $tests['direct']['yume_discord'] ), 'aucun test Santé sans configuration' );
 		yume_td_configurer( array( 'discord_client_secret' => '' ) );
@@ -388,7 +389,7 @@ yume_test(
 		yume_assert_same( 'recommended', $resultat['status'] );
 		yume_assert_same( 'yume_discord', $resultat['test'] );
 		yume_td_configurer();
-		yume_assert_same( 'recommended', Discord\test_sante()['status'], 'secret en base plutôt qu’en constante' );
+		yume_assert_same( 'good', Discord\test_sante()['status'], 'secret saisi dans les réglages : configuration complète' );
 		yume_assert_not_contains( 'secret-de-test', wp_json_encode( Discord\test_sante() ) );
 	}
 );

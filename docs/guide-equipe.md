@@ -1135,6 +1135,10 @@ sur `/connexion/`), et chacun peut lier son compte Discord dans *Mon compte → 
 Le site ne reçoit de Discord que l'identifiant, le nom et l'adresse e-mail **vérifiée** ; jamais de
 mot de passe, et rien n'est publié sur Discord.
 
+- **Mise en service** : l'identifiant (Client ID) et la clé secrète (Client Secret) de l'application
+  Discord se collent dans *Yume → Réglages → Connexion Discord*, ou dans la vue **Réglages** de
+  l'espace équipe pour un gérant. La clé secrète n'est jamais réaffichée ; pour la changer, la
+  réinitialiser sur le portail Discord puis coller la nouvelle. Procédure : `docs/mise-en-production.md` §12.
 - **Administrateurs exclus** : ils se connectent toujours par la page de connexion WordPress
   (validation en deux étapes). Les autres membres de l'équipe peuvent l'utiliser après avoir lié leur
   compte.

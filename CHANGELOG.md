@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.0-dev.9 — 2026-10-20
+
+- Connexion Discord : Client ID et Client Secret saisis dans les réglages (Yume → Réglages ou Réglages de l'espace équipe), cas normal sur WordPress.com où wp-config.php n'est pas modifiable ; Santé du site ne le signale plus
+
 ## 2.5.0-dev.8 — 2026-10-19
 
 - Lecteurs, intégration : e-mail « choisissez votre mot de passe » sans l'identifiant généré, connexion Discord sans écran d'autorisation répété (prompt=none, filtre yume_discord_prompt), doublon de pseudo avec « & » détecté, démo Playground (4 œuvres, favoris croisés, rattrapage, coquilles), contrat, guide de l'équipe et mise en service Discord
