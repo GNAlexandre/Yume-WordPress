@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.6.0-dev.6 — 2026-10-24
+
+- Guide de l'équipe : section Comptes inscrits (liste, filtres, fiche, Ajouter à l'équipe, export, RGPD)
+
 ## 2.6.0-dev.5 — 2026-10-24
 
 - Comptes inscrits : modèle de données, guide du développeur, recette de mise en production (§13, texte Confidentialité), journal des décisions, démo Playground (activité et source des comptes fictifs)
