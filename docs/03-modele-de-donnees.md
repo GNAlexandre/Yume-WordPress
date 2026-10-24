@@ -112,6 +112,22 @@ Aucun jeton Discord n'est stocké, ni avatar. Recommandations et rattrapage n'on
 caches (transients) et options de version (`yume_reco_version`, `yume_reco_attente`,
 `yume_rattrapage_version`).
 
+Comptes inscrits (2.6.0, module `comptes`, contrat §8 septies) : pas de table, deux métas
+utilisateur et trois options.
+
+| Donnée | Usage |
+| --- | --- |
+| méta `yume_derniere_activite` | Jour (`'Y-m-d'`, heure du site) de la dernière activité : connexion, lecture enregistrée, favori, commentaire, coquille signalée, passage connecté sur le site. Écrite au plus une fois par jour ; jamais d'heure, d'adresse IP ni de navigateur. Amorcée une fois depuis la dernière position de lecture. |
+| méta `yume_source_inscription` | `inscription` (formulaire du site) ou `discord`, posée à la création du compte en façade. Absente pour les comptes antérieurs : la source est alors **déduite** à l'affichage (Discord lié, identifiant `yn-…`), rien n'est enregistré. |
+| option `yume_comptes_journal` | Journal des consultations de fiches et des exports (200 dernières entrées : qui, quand, quoi), non autochargée. |
+| option `yume_comptes_activite_amorcee` | Amorçage de la dernière activité déjà fait. |
+| option `yume_comptes_activite_depuis` | Jour de début du relevé (« relevé depuis le … » dans la vue). |
+
+Les deux métas suivent l'export et l'effacement RGPD du compte ; la désinstallation les conserve,
+sauf purge (`YUME_UNINSTALL_PURGE`), qui retire métas, journal et options avec les autres données
+`yume_*`. Indicateurs en cache 5 minutes (transient
+`yume_comptes_indicateurs`, vidé à l'inscription, à la suppression et au changement de rôle).
+
 ## Rôles et capacités
 
 | Rôle | Capacités clés |

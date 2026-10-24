@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.6.0-dev.5 — 2026-10-24
+
+- Comptes inscrits : modèle de données, guide du développeur, recette de mise en production (§13, texte Confidentialité), journal des décisions, démo Playground (activité et source des comptes fictifs)
+
 ## 2.6.0-dev.4 — 2026-10-24
 
 - Comptes inscrits, lot D : export CSV journalisé (sans e-mail ; avec e-mail pour les administrateurs) et RGPD (dernière activité et source dans l'export et l'effacement)

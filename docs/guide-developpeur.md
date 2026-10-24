@@ -12,9 +12,9 @@ modification.
 wp-content/plugins/yume-core/     plugin métier
   yume-core.php                   en-tête, version, chargement des modules (socle)
   includes/<module>/module.php    un dossier par module : core, import, publication, planning,
-                                  reader, social, library, statistiques, corrections, discord,
-                                  recommandations, rattrapage, glossaire, mangadex, wordend,
-                                  migration, updater
+                                  reader, social, library, statistiques, comptes, corrections,
+                                  discord, recommandations, rattrapage, glossaire, mangadex,
+                                  wordend, migration, updater
   includes/blocks-support.php     enregistrement des blocs dynamiques (socle)
   lib/plugin-update-checker/      bibliothèque de mises à jour vendorisée (MIT, voir lib/README.md)
   tests/                          mini-framework de test + tests/test-<module>.php (non livrés)
@@ -87,6 +87,13 @@ public distinct de l'identifiant, connexion par e-mail), `corrections` (coquille
 échoue si un fichier exécuté avant lui (ordre alphabétique) déclenche `rest_api_init` (le réglage
 `yume_reglages` est alors déclaré et filtre le HTML) : appelez les rappels REST directement, ou vérifiez
 la suite complète.
+
+Comptes inscrits (2.6.0) : `comptes-activite` (socle : dernière activité, source d'inscription,
+journal), `comptes-donnees` (requêtes groupées de la liste, indicateurs, fiche), `comptes-vue`,
+`comptes-fiche` et `comptes-export` (CSV, RGPD). « Maintenant » est figé par le filtre
+`yume_comptes_maintenant` ; la vue se teste sur des données injectées par `yume_comptes_vue_donnees`.
+Ne déclenchez jamais `do_action( 'yume_core_install' )` dans un test : appelez directement
+`Yume\Core\Comptes\amorcer_activite()`.
 
 `tests/runner.php` (exécuté par `wp eval-file`) charge `tests/test-*.php` ; chaque test est déclaré
 avec `yume_test( 'libellé', function () { … } )` et utilise les assertions de `tests/helpers.php`
