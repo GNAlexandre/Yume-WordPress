@@ -418,7 +418,8 @@ function compte_designe( string $saisie ): ?\WP_User {
 
 /**
  * Traite un formulaire de la page « Membres et rôles » : op = role (changer le rôle), retrait
- * (retour au rôle Lecteur) ou ajout (compte existant, par pseudo, e-mail, identifiant ou nom Discord).
+ * (retour au rôle Lecteur) ou ajout (compte existant, par pseudo, e-mail, identifiant ou nom
+ * Discord ; ou, champ « compte » vide, par son numéro user_id, depuis la fiche d'un compte).
  *
  * @param array $post    Données POST (brutes, avec slashes).
  * @param int   $user_id Utilisateur qui agit.
@@ -449,7 +450,17 @@ function traiter_formulaire_membres( array $post, int $user_id ): array {
 	$roles = roles_equipe_attribuables();
 	$role  = is_scalar( $post['role'] ?? null ) ? sanitize_key( (string) $post['role'] ) : '';
 	if ( 'ajout' === $op ) {
-		$comptes = comptes_designes( is_scalar( $post['compte'] ?? null ) ? sanitize_text_field( wp_unslash( (string) $post['compte'] ) ) : '' );
+		$saisie = is_scalar( $post['compte'] ?? null ) ? sanitize_text_field( wp_unslash( (string) $post['compte'] ) ) : '';
+		if ( '' === trim( $saisie ) && $cible > 0 ) {
+			// Compte désigné par son numéro (fiche de la vue « Comptes inscrits ») : mêmes contrôles.
+			$compte = get_userdata( $cible );
+			if ( ! $compte instanceof \WP_User ) {
+				return $erreur( __( 'Ce compte n’existe plus.', 'yume-core' ) );
+			}
+			$comptes = array( $compte );
+		} else {
+			$comptes = comptes_designes( $saisie );
+		}
 		if ( count( $comptes ) > 1 ) {
 			return $erreur( __( 'Plusieurs comptes portent ce pseudo : saisissez plutôt l’adresse e-mail du compte.', 'yume-core' ) );
 		}
@@ -502,15 +513,23 @@ function traiter_formulaire_membres( array $post, int $user_id ): array {
 }
 
 /**
- * Formulaire de la page « Membres et rôles » (admin-post.php, action yume_equipe_membres).
+ * Formulaire de la page « Membres et rôles » (admin-post.php, action yume_equipe_membres). Le
+ * champ facultatif yn_retour (fiche de la vue « Comptes inscrits », par exemple) désigne la page
+ * où revenir : accepté seulement s'il reste sur le site (wp_validate_redirect()), sinon retour à
+ * la page « Membres et rôles ». Son ancre éventuelle est remplacée par celle du formulaire.
  */
 function admin_post_membres(): void {
 	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce vérifié dans traiter_formulaire_membres().
 	$retour = traiter_formulaire_membres( $_POST, get_current_user_id() );
 	retour_formulaire( get_current_user_id(), $retour );
-	$page = url_page_membres();
-	$page = '' !== $page ? $page : yume_url_page( 'equipe' );
-	$page = remove_query_arg( array( 'yume_membres' ), $page );
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- adresse de retour seulement, validée ci-dessous.
+	$demande = isset( $_POST['yn_retour'] ) && is_string( $_POST['yn_retour'] ) ? esc_url_raw( wp_unslash( $_POST['yn_retour'] ) ) : '';
+	$page    = '' !== $demande ? wp_validate_redirect( $demande, '' ) : '';
+	if ( '' === $page ) {
+		$page = url_page_membres();
+		$page = '' !== $page ? $page : yume_url_page( 'equipe' );
+	}
+	$page = remove_query_arg( array( 'yume_membres' ), (string) strtok( $page, '#' ) );
 	wp_safe_redirect( add_query_arg( 'yume_membres', 'ok' === $retour['type'] ? 'ok' : 'erreur', $page ) . '#' . $retour['cible'] );
 	exit;
 }

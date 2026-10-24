@@ -1501,3 +1501,124 @@ yume_te_test(
 		yume_assert_same( $avant, get_option( $roles->role_key ) );
 	}
 );
+
+yume_te_test(
+	'Ajouter un membre par son numéro de compte (user_id, champ « compte » vide) : mêmes contrôles',
+	function () {
+		$gerant  = yume_te_membre( 'yume_gerant', 'Hikari' );
+		$autre_g = yume_te_membre( 'yume_gerant', 'Ren' );
+		$trad    = yume_te_membre( 'yume_traducteur', 'Calumi' );
+		$lec     = yume_te_membre( 'subscriber', 'Kaede' );
+		$ajouter = static function ( int $user_id, string $role = 'yume_traducteur', string $compte = '' ) use ( $gerant ): array {
+			return \Yume\Core\Planning\traiter_formulaire_membres(
+				array(
+					'op'          => 'ajout',
+					'_yume_nonce' => wp_create_nonce( 'yume_membres_ajout' ),
+					'user_id'     => (string) $user_id,
+					'compte'      => $compte,
+					'role'        => $role,
+				),
+				$gerant
+			);
+		};
+		wp_set_current_user( $gerant );
+		try {
+			// Rôle non attribuable depuis l'espace équipe : refusé, rien ne change.
+			$r = $ajouter( $lec, 'administrator' );
+			yume_assert_same( 'erreur', $r['type'] );
+			yume_assert_same( array( 'subscriber' ), array_values( get_userdata( $lec )->roles ) );
+			// Déjà dans l'équipe.
+			$r = $ajouter( $trad );
+			yume_assert_same( 'erreur', $r['type'] );
+			yume_assert_contains( 'déjà partie', $r['message'] );
+			// Un gérant n'est pas modifiable ; un compte inexistant est signalé.
+			yume_assert_same( 'erreur', $ajouter( $autre_g )['type'] );
+			$r = $ajouter( 987654321 );
+			yume_assert_same( 'erreur', $r['type'] );
+			yume_assert_contains( 'n’existe plus', $r['message'] );
+			// Nonce d'un autre formulaire : refusé.
+			$r = \Yume\Core\Planning\traiter_formulaire_membres(
+				array(
+					'op'          => 'ajout',
+					'_yume_nonce' => wp_create_nonce( 'yume_membres_' . $lec ),
+					'user_id'     => (string) $lec,
+					'role'        => 'yume_traducteur',
+				),
+				$gerant
+			);
+			yume_assert_same( 'erreur', $r['type'] );
+			// Lecteur : ajouté.
+			$r = $ajouter( $lec );
+			yume_assert_same( 'ok', $r['type'], $r['message'] );
+			yume_assert_same( 'yn-ajouter-membre-form', $r['cible'] );
+			yume_assert_same( array( 'yume_traducteur' ), array_values( get_userdata( $lec )->roles ) );
+			// Un champ « compte » rempli prime sur user_id.
+			$lec2 = yume_te_membre( 'subscriber', 'Mio' );
+			$r    = $ajouter( $lec2, 'yume_relecteur', 'Personne inconnue' );
+			yume_assert_same( 'erreur', $r['type'] );
+			yume_assert_same( array( 'subscriber' ), array_values( get_userdata( $lec2 )->roles ) );
+		} finally {
+			wp_set_current_user( 0 );
+		}
+	}
+);
+
+yume_te_test(
+	'Membres et rôles : yn_retour suivi s’il reste sur le site, refusé sinon (retour à la page Membres et rôles)',
+	function () {
+		$gerant   = yume_te_membre( 'yume_gerant', 'Hikari' );
+		$lec      = yume_te_membre( 'subscriber', 'Kaede' );
+		$redirige = static function ( string $retour ) use ( $lec ): string {
+			$_POST  = wp_slash(
+				array(
+					'action'      => 'yume_equipe_membres',
+					'op'          => 'ajout',
+					'_yume_nonce' => wp_create_nonce( 'yume_membres_ajout' ),
+					'user_id'     => (string) $lec,
+					'compte'      => '',
+					'role'        => 'yume_traducteur',
+					'yn_retour'   => $retour,
+				)
+			);
+			$filtre = static function ( $url ) {
+				throw new RuntimeException( (string) $url, 302 );
+			};
+			add_filter( 'wp_redirect', $filtre, 1 );
+			try {
+				\Yume\Core\Planning\admin_post_membres();
+			} catch ( RuntimeException $e ) {
+				if ( 302 !== $e->getCode() ) {
+					throw $e;
+				}
+				return $e->getMessage();
+			} finally {
+				remove_filter( 'wp_redirect', $filtre, 1 );
+				$_POST = array();
+			}
+			return '';
+		};
+		wp_set_current_user( $gerant );
+		try {
+			$membres = \Yume\Core\Planning\url_page_membres();
+			$membres = '' !== $membres ? $membres : yume_url_page( 'equipe' );
+			foreach ( array( 'https://pirate.example/vol?x=1', '//pirate.example/', 'javascript:alert(1)' ) as $hors_site ) {
+				$url = $redirige( $hors_site );
+				yume_assert_true( 0 === strpos( $url, $membres ), $hors_site . ' → ' . $url );
+				yume_assert_not_contains( 'pirate.example', $url );
+				get_userdata( $lec )->set_role( 'subscriber' );
+				clean_user_cache( $lec );
+			}
+			// Fiche d'un compte : retour sur la fiche, ancre du formulaire.
+			$fiche = url_vue_equipe( 'comptes', array( 'compte' => $lec ) );
+			$url   = $redirige( $fiche . '#ailleurs' );
+			yume_assert_true( 0 === strpos( $url, $fiche ), $url );
+			yume_assert_contains( 'yume_membres=ok', $url );
+			yume_assert_same( 1, substr_count( $url, '#' ) );
+			yume_assert_true( str_ends_with( $url, '#yn-ajouter-membre-form' ), $url );
+			yume_assert_same( array( 'yume_traducteur' ), array_values( get_userdata( $lec )->roles ) );
+			yume_assert_same( 'ok', retour_formulaire( $gerant )['type'] ?? '', 'message conservé pour la fiche' );
+		} finally {
+			wp_set_current_user( 0 );
+		}
+	}
+);
