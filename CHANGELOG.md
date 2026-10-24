@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.6.0-dev.3 — 2026-10-24
+
+- Comptes inscrits, lot C : fiche d'un compte (identité, lecture, favoris, listes, notes, commentaires, coquilles, notifications, Ajouter à l'équipe, consultation journalisée)
+
 ## 2.6.0-dev.2 — 2026-10-24
 
 - Comptes inscrits, lot A : données (liste filtrée, triée et paginée en requêtes groupées, indicateurs, fiche complète, lecture estimée par lot)
