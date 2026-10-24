@@ -983,8 +983,11 @@ signalé, jusqu'à votre décision. Vos réponses portent un badge **Équipe** �
   encore responsable de tomes en cours est signalé sur sa ligne (nombre et liste des tomes) avec un
   lien **Voir ses tomes dans le planning** (planning complet filtré sur lui) : le retrait ou le
   changement de rôle reste possible, mais il ne le décharge pas de ces tomes. **Ajouter un
-  membre** : la personne crée d'abord son compte de lecteur sur le site, puis vous saisissez son
-  identifiant ou son e-mail et choisissez son rôle. Les comptes administrateurs et gérants, et le
+  membre** : la personne crée d'abord son compte de lecteur sur le site (formulaire ou « Créer un
+  compte avec Discord »), puis vous saisissez son **pseudo public**, son **adresse e-mail** ou son
+  **nom Discord** (« @pseudo ») et choisissez son rôle. Depuis la 2.5.0, l'identifiant de connexion
+  est généré (`yn-…`) et la personne ne le connaît pas : demandez-lui plutôt son pseudo. Si deux
+  anciens comptes portent le même pseudo, utilisez l'adresse e-mail. Les comptes administrateurs et gérants, et le
   vôtre, ne sont modifiables que par un administrateur ; l'administrateur a pour cela un lien
   **Modifier dans l'administration** sur la ligne de ces comptes. Un gérant change **seulement les
   rôles** : il ne crée pas de compte et ne modifie ni le mot de passe, ni l'e-mail, ni le profil d'un

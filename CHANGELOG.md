@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.5.2-dev.1 — 2026-10-24
+
+- Équipe, Ajouter un membre : un compte se retrouve aussi par son pseudo public ou son nom Discord (les comptes créés depuis la 2.5.0, par le formulaire ou par Discord, ont un identifiant généré inconnu de leur titulaire) ; pseudo en double signalé
+
 ## 2.5.1 — 2026-10-20
 
 - Yume Novel 2.5.1 : accueil allégé pour les lecteurs connectés. « Reprendre la lecture » et « Nouveaux chapitres depuis votre dernière lecture » ne font plus qu'un seul bloc de 3 cartes (dernière lecture en premier avec « Continuer », puis les séries avec de nouveaux chapitres) ; le bandeau du bas ne répète plus la lecture et garde « Rejoindre le Discord ». Dates au format du site (« 18 oct. »), boutons des cartes alignés.

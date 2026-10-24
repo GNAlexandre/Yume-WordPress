@@ -250,7 +250,7 @@ function formulaire_ajout_membre( array $roles, ?array $retour ): string {
 	$html .= champ_saisie(
 		'yn-membre-compte',
 		'compte',
-		__( 'Identifiant ou e-mail du compte', 'yume-core' ),
+		__( 'Pseudo, e-mail ou nom Discord du compte', 'yume-core' ),
 		'',
 		'text',
 		array(
@@ -261,7 +261,7 @@ function formulaire_ajout_membre( array $roles, ?array $retour ): string {
 	);
 	$html .= champ_select( 'yn-membre-role', 'role', __( 'Rôle dans l’équipe', 'yume-core' ), $roles, (string) array_key_first( $roles ) );
 	$html .= '<p class="yn-team__action"><button type="submit" class="yn-btn yn-btn--primary">' . esc_html__( 'Ajouter à l’équipe', 'yume-core' ) . '</button></p>';
-	$html .= '</div><p class="yn-muted">' . esc_html__( 'Le compte doit déjà exister : la personne s’inscrit comme lecteur sur le site, puis vous l’ajoutez ici.', 'yume-core' ) . '</p>';
+	$html .= '</div><p class="yn-muted">' . esc_html__( 'Le compte doit déjà exister : la personne s’inscrit comme lecteur sur le site (formulaire ou Discord), puis vous l’ajoutez ici avec son pseudo public, son adresse e-mail ou son nom Discord.', 'yume-core' ) . '</p>';
 	return $html . zone_retour( $retour ) . '</form>';
 }
 
@@ -342,25 +342,83 @@ function rendu_team_members(): string {
  */
 
 /**
- * Compte désigné par son identifiant ou son e-mail.
+ * Comptes désignés par une saisie : adresse e-mail, identifiant de connexion, pseudo public
+ * (display_name, casse ignorée) ou nom d'utilisateur Discord lié (« @pseudo » accepté). Depuis la
+ * 2.5.0, l'identifiant des nouveaux comptes est généré (yn-xxxxxxxx) et inconnu du titulaire : le
+ * pseudo et le nom Discord sont donc les désignations naturelles. Sans doublon, dans cet ordre.
  *
- * @param string $saisie Identifiant ou e-mail.
+ * @param string $saisie Pseudo, e-mail, identifiant ou nom Discord.
+ * @return \WP_User[]
  */
-function compte_designe( string $saisie ): ?\WP_User {
+function comptes_designes( string $saisie ): array {
 	$saisie = trim( $saisie );
 	if ( '' === $saisie ) {
-		return null;
+		return array();
 	}
-	$compte = is_email( $saisie ) ? get_user_by( 'email', $saisie ) : false;
-	if ( ! $compte ) {
-		$compte = get_user_by( 'login', sanitize_user( $saisie ) );
+	$trouves = array();
+	$ajouter = static function ( $compte ) use ( &$trouves ): void {
+		if ( $compte instanceof \WP_User && ! isset( $trouves[ $compte->ID ] ) ) {
+			$trouves[ $compte->ID ] = $compte;
+		}
+	};
+	if ( is_email( $saisie ) ) {
+		$ajouter( get_user_by( 'email', $saisie ) );
+		if ( $trouves ) {
+			return array_values( $trouves );
+		}
 	}
-	return $compte instanceof \WP_User ? $compte : null;
+	$ajouter( get_user_by( 'login', sanitize_user( $saisie ) ) );
+	if ( $trouves ) {
+		return array_values( $trouves );
+	}
+	// Pseudo public : forme saisie et forme encodée (« & » est enregistré « &amp; » par le cœur).
+	$pseudos = array_unique( array( $saisie, esc_html( $saisie ) ) );
+	foreach ( $pseudos as $pseudo ) {
+		foreach ( get_users(
+			array(
+				'search'         => $pseudo,
+				'search_columns' => array( 'display_name' ),
+				'number'         => 5,
+			)
+		) as $compte ) {
+			if ( 0 === strcasecmp( (string) $compte->display_name, $pseudo ) ) {
+				$ajouter( $compte );
+			}
+		}
+	}
+	if ( $trouves ) {
+		return array_values( $trouves );
+	}
+	// Nom d'utilisateur Discord lié (méta yume_discord_pseudo, module discord).
+	$discord = ltrim( $saisie, '@' );
+	if ( '' !== $discord ) {
+		foreach ( get_users(
+			array(
+				'meta_key'   => 'yume_discord_pseudo', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- recherche ponctuelle d'un gérant.
+				'meta_value' => $discord, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- idem.
+				'number'     => 5,
+			)
+		) as $compte ) {
+			$ajouter( $compte );
+		}
+	}
+	return array_values( $trouves );
+}
+
+/**
+ * Compte désigné sans ambiguïté par une saisie (voir comptes_designes()) : null si aucun compte ou
+ * si plusieurs comptes correspondent.
+ *
+ * @param string $saisie Pseudo, e-mail, identifiant ou nom Discord.
+ */
+function compte_designe( string $saisie ): ?\WP_User {
+	$comptes = comptes_designes( $saisie );
+	return 1 === count( $comptes ) ? $comptes[0] : null;
 }
 
 /**
  * Traite un formulaire de la page « Membres et rôles » : op = role (changer le rôle), retrait
- * (retour au rôle Lecteur) ou ajout (compte existant, par identifiant ou e-mail).
+ * (retour au rôle Lecteur) ou ajout (compte existant, par pseudo, e-mail, identifiant ou nom Discord).
  *
  * @param array $post    Données POST (brutes, avec slashes).
  * @param int   $user_id Utilisateur qui agit.
@@ -391,9 +449,13 @@ function traiter_formulaire_membres( array $post, int $user_id ): array {
 	$roles = roles_equipe_attribuables();
 	$role  = is_scalar( $post['role'] ?? null ) ? sanitize_key( (string) $post['role'] ) : '';
 	if ( 'ajout' === $op ) {
-		$compte = compte_designe( is_scalar( $post['compte'] ?? null ) ? sanitize_text_field( wp_unslash( (string) $post['compte'] ) ) : '' );
+		$comptes = comptes_designes( is_scalar( $post['compte'] ?? null ) ? sanitize_text_field( wp_unslash( (string) $post['compte'] ) ) : '' );
+		if ( count( $comptes ) > 1 ) {
+			return $erreur( __( 'Plusieurs comptes portent ce pseudo : saisissez plutôt l’adresse e-mail du compte.', 'yume-core' ) );
+		}
+		$compte = $comptes[0] ?? null;
 		if ( ! $compte ) {
-			return $erreur( __( 'Aucun compte ne correspond à cet identifiant ou à cet e-mail.', 'yume-core' ) );
+			return $erreur( __( 'Aucun compte ne correspond à ce pseudo, cet e-mail, cet identifiant ou ce nom Discord. Vérifiez que la personne a bien créé son compte sur le site (formulaire ou « Créer un compte avec Discord »).', 'yume-core' ) );
 		}
 		if ( user_can( $compte, 'yume_voir_equipe' ) ) {
 			/* translators: %s : pseudo */

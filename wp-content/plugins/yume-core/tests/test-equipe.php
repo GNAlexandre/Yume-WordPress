@@ -1387,6 +1387,84 @@ yume_te_test(
 );
 
 yume_te_test(
+	'Ajouter un membre : compte à identifiant généré (inscription ou Discord) retrouvé par pseudo, e-mail ou nom Discord',
+	function () {
+		$gerant  = yume_te_membre( 'yume_gerant', 'Hikari' );
+		$suffixe = wp_rand( 1000, 9999 );
+		// Comptes créés comme depuis la 2.5.0 : identifiant généré yn-xxxxxxxx, pseudo public distinct.
+		$discord = \Yume\Core\Social\creer_compte_lecteur(
+			array(
+				'pseudo'   => 'Sora des Brumes ' . $suffixe,
+				'email'    => 'sora' . $suffixe . '@example.org',
+				'source'   => 'equipe',
+				'notifier' => false,
+				'meta'     => array( 'yume_discord_pseudo' => 'sora_discord' . $suffixe ),
+			)
+		);
+		$form    = \Yume\Core\Social\creer_compte_lecteur(
+			array(
+				'pseudo'   => 'Tom & Jerry ' . $suffixe,
+				'email'    => 'tom' . $suffixe . '@example.org',
+				'source'   => 'equipe',
+				'notifier' => false,
+			)
+		);
+		yume_assert_true( is_int( $discord ) && is_int( $form ), 'comptes créés' );
+		yume_assert_true( 1 === preg_match( '/^yn-[a-z0-9]{8}$/', get_userdata( $discord )->user_login ), 'identifiant généré' );
+		$ajouter = static function ( string $saisie ) use ( $gerant ): array {
+			return \Yume\Core\Planning\traiter_formulaire_membres(
+				array(
+					'op'          => 'ajout',
+					'_yume_nonce' => wp_create_nonce( 'yume_membres_ajout' ),
+					'compte'      => $saisie,
+					'role'        => 'yume_traducteur',
+				),
+				$gerant
+			);
+		};
+		wp_set_current_user( $gerant );
+		try {
+			// Par pseudo public, casse ignorée.
+			$r = $ajouter( strtoupper( 'Sora des Brumes ' . $suffixe ) );
+			yume_assert_same( 'ok', $r['type'], $r['message'] );
+			yume_assert_same( array( 'yume_traducteur' ), array_values( get_userdata( $discord )->roles ) );
+			get_userdata( $discord )->set_role( 'subscriber' );
+			clean_user_cache( $discord );
+			// Par nom Discord, avec ou sans « @ ».
+			$r = $ajouter( '@sora_discord' . $suffixe );
+			yume_assert_same( 'ok', $r['type'], $r['message'] );
+			// Pseudo contenant « & » (enregistré « &amp; »).
+			$r = $ajouter( 'Tom & Jerry ' . $suffixe );
+			yume_assert_same( 'ok', $r['type'], $r['message'] );
+			yume_assert_same( array( 'yume_traducteur' ), array_values( get_userdata( $form )->roles ) );
+			// Inconnu : message explicite.
+			$r = $ajouter( 'Personne ' . $suffixe );
+			yume_assert_same( 'erreur', $r['type'] );
+			yume_assert_contains( 'pseudo', $r['message'] );
+			// Deux anciens comptes au même pseudo : ambiguïté signalée, rien n'est modifié.
+			$a = yume_te_membre( 'subscriber', 'Doublon ' . $suffixe );
+			$b = wp_insert_user(
+				array(
+					'user_login'   => 'doublon-b-' . $suffixe,
+					'user_pass'    => wp_generate_password(),
+					'user_email'   => 'doublon-b' . $suffixe . '@example.org',
+					'display_name' => 'Doublon ' . $suffixe,
+					'role'         => 'subscriber',
+				)
+			);
+			yume_assert_same( 2, count( \Yume\Core\Planning\comptes_designes( 'Doublon ' . $suffixe ) ) );
+			$r = $ajouter( 'Doublon ' . $suffixe );
+			yume_assert_same( 'erreur', $r['type'] );
+			yume_assert_contains( 'Plusieurs comptes', $r['message'] );
+			yume_assert_same( array( 'subscriber' ), array_values( get_userdata( $a )->roles ) );
+			yume_assert_same( array( 'subscriber' ), array_values( get_userdata( $b )->roles ) );
+		} finally {
+			wp_set_current_user( 0 );
+		}
+	}
+);
+
+yume_te_test(
 	'SEC-03 : un site existant perd create_users et edit_users du gérant à la mise à jour (yume_core_roles)',
 	function () {
 		$roles = wp_roles();
