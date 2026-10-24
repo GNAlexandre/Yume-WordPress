@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.6.0-dev.7 — 2026-10-24
+
+- Comptes inscrits, lot B : vue liste dans le menu Équipe (indicateurs, recherche, filtres, tri, tableau paginé, export, journal des consultations)
+
 ## 2.6.0-dev.6 — 2026-10-24
 
 - Guide de l'équipe : section Comptes inscrits (liste, filtres, fiche, Ajouter à l'équipe, export, RGPD)
