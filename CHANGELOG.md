@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.6.0 — 2026-10-24
+
+- Yume Novel 2.6.0 : comptes inscrits dans l'espace équipe. Nouvelle vue « Comptes inscrits » (menu Équipe, gérants et administrateurs) : indicateurs, recherche par pseudo, nom Discord ou e-mail, filtres (rôle, source, Discord, activité, inscription), tri, fiche de chaque compte (identité, lecture, favoris, listes, notes, commentaires, coquilles, notifications) avec « Ajouter à l'équipe », export CSV journalisé (avec e-mail pour les administrateurs seulement), dernier jour d'activité relevé sans heure ni adresse IP. « Ajouter un membre » retrouve aussi un compte par son pseudo public ou son nom Discord (comptes créés depuis la 2.5.0, par le formulaire ou par Discord).
+
 ## 2.6.0-dev.8 — 2026-10-24
 
 - Comptes inscrits : guide Word (chapitre, captures, question fréquente), marges des cartes de la fiche

@@ -10,8 +10,6 @@ l'ancien contenu le même jour). La version courante est la première entrée de
 [CHANGELOG.md](CHANGELOG.md). Le thème `yume` et le plugin `yume-core` sont complets
 (bibliothèque, lecteur en ligne généré depuis le DOCX, planning public, espace équipe, publication
 par glisser-déposer, comptes lecteurs, migration de l'ancien site), testés sur SQLite et MariaDB.
-En cours (2.6.0, non publié) : vue « Comptes inscrits » de l'espace équipe (liste des comptes,
-fiche d'un compte avec ses statistiques de lecture, « Ajouter à l'équipe », export CSV journalisé).
 Le site se met à jour depuis les **releases GitHub** : chaque version stable est taguée `vX.Y.Z`
 depuis `main` après le « Go » explicite de l'équipe, pour **chaque** version ; aucun tag `v*`
 sans ce Go. Décisions et jalons : [docs/journal-des-decisions.md](docs/journal-des-decisions.md).
