@@ -63,6 +63,7 @@ Historique des Go et des releases : `journal-des-decisions.md`.
 | `includes/discord/`, `tests/test-discord.php` | **discord** (lot L2 : connexion et création de compte avec Discord, liaison depuis Mon compte ; §8 quinquies) |
 | `includes/recommandations/`, `tests/test-recommandations.php` | **recommandations** (lot L3 : « Si vous avez aimé… » sur la fiche d'une œuvre et rubrique « Pour vous » ; §8 sexies) |
 | `includes/rattrapage/`, `tests/test-rattrapage.php` | **rattrapage** (lot L5 : « Nouveaux chapitres depuis votre dernière lecture » ; accueil « Reprendre la lecture » depuis 2.5.1, et Mon compte ; §8 sexies) |
+| `includes/comptes/`, `tests/test-comptes*.php` | **comptes** (2.6.0 : vue « Comptes inscrits » de l'espace équipe, fiche d'un compte, export CSV journalisé, méta de dernière activité et source d'inscription ; §8 septies) |
 | `wp-content/themes/yume/` | **thème** |
 
 Chaque module range ses fichiers statiques dans `includes/<module>/assets/` et ses blocs dans
@@ -1570,6 +1571,155 @@ function derniere_lecture( int $user_id ): ?array;   // position enrichie la plu
 function noter_reprise_affichee( int $user_id, int $oeuvre_id ): void;  function reprise_affichee( int $user_id ): int;
 ```
 
+## 8 septies. Comptes inscrits (module comptes, 2.6.0)
+
+Contrat figé par le lot 0 (socle : `includes/comptes/{module,fonctions,activite}.php`,
+`tests/test-comptes-activite.php`) ; lots A à D en parallèle, un propriétaire par fichier :
+`donnees.php` + `tests/test-comptes-donnees.php` (A), `equipe.php` + `assets/comptes.css` +
+`tests/test-comptes-vue.php` (B), `fiche.php` + `tests/test-comptes-fiche.php` (C), `export.php` +
+`rgpd.php` + `tests/test-comptes-export.php` (D). Espace de noms `Yume\Core\Comptes` ; module déclaré
+dans `YUME_CORE_MODULES` après `rattrapage`. `module.php` charge `fonctions`, `activite`, `donnees`,
+`equipe`, `fiche`, `export`, `rgpd` dans cet ordre, **chaque fichier seulement s'il existe**
+(`is_readable`). Les autres modules (`Planning\*`, `Social\*`, `Reader\*`, `Discord\*`,
+`Statistiques\*`, `Corrections\*`) ne sont appelés que dans des callbacks, gardés par
+`function_exists`. **Pas de REST.**
+
+**Vue** « Comptes inscrits » `?vue=comptes` (filtre `yume_vues_equipe` priorité 10, clé `comptes`,
+groupe `equipe`, après « Membres et rôles »), capacité `yume_voir_lecteurs` (gérants et
+administrateurs ; **aucune capacité nouvelle**) ; accès direct sans droit → encart « Réservé aux
+gérants ». Fiche `?vue=comptes&compte=ID`. Pagination par `pg` (`Planning\pagination_vue()`). Liste
+sans e-mail ; e-mail sur la fiche seulement, si `list_users` (`peut_voir_email()`), lu par la vue
+(`get_userdata()->user_email`), jamais dans `fiche_compte()`. Jamais : adresse IP, mot de passe ou
+empreinte, identifiant de connexion généré, endpoint/clés push, réglages de lecture (`yume_reglages`),
+nom ou contenu d'une liste privée, jetons. Requêtes : `INNER JOIN users` partout (compte supprimé
+absent), SQL compatible SQLite et MariaDB (CASE WHEN / COALESCE seulement, dates calculées en PHP).
+
+**Formulaire « Ajouter à l'équipe »** de la fiche (lot C) : `POST admin-post.php`, `action=yume_equipe_membres`,
+`op=ajout`, `user_id=ID`, champ `compte` absent ou vide, `role` (`Planning\roles_equipe_attribuables()`),
+nonce `yume_membres_ajout` dans `_yume_nonce`, `yn_retour` = adresse de la fiche. Depuis le lot 0,
+`Planning\traiter_formulaire_membres()` accepte `user_id` quand `compte` est vide (mêmes contrôles :
+nonce, `yume_gerer_equipe`, déjà membre, `peut_gerer_membre()`, rôle attribuable ; compte inexistant →
+« Ce compte n'existe plus. ») ; un `compte` non vide prime. La cible du retour reste
+`yn-ajouter-membre-form`. `Planning\admin_post_membres()` suit `yn_retour` s'il passe
+`wp_validate_redirect()` (sinon, comme avant, page « Membres et rôles ») : ancre éventuelle retirée,
+`yume_membres=ok|erreur` ajouté, puis `#yn-ajouter-membre-form` ; le message est relu par
+`Planning\retour_formulaire( $uid )` (transient, à afficher avec `zone_retour()`).
+
+**Dernière activité** (lot 0, `activite.php`) : méta `yume_derniere_activite` = jour `'Y-m-d'` à
+l'heure du site (`wp_date`), écrite au plus une fois par jour, jamais vers une date plus ancienne ;
+jamais d'heure, d'IP ni d'agent. Déclencheurs : `wp_login`, `yume_progression_enregistree`,
+`yume_favori_ajoute`, `comment_post` (auteur = compte connecté), `yume_coquille_signalee` (compte
+non nul), filet `init` priorité 999 pour un compte connecté sur une page du site (`requete_de_page()` :
+ni administration, ni REST — constante ou adresse `rest_get_url_prefix()` / `?rest_route` —, ni Ajax,
+cron, WP-CLI, XML-RPC ; méta lue dans le cache du compte courant). Amorçage unique
+`amorcer_activite()` sur `yume_core_install` et filet `init` priorité 100 si `yume_comptes_activite_amorcee`
+manque : pour chaque compte ayant une position de lecture, jour (heure du site, borné à aujourd'hui) de
+`MAX(progression.updated_at)` si la méta est absente ou plus ancienne ; `yume_comptes_activite_depuis`
+(jour courant, début du relevé) posée si absente ; table des positions non prête → rien d'amorcé,
+nouvel essai plus tard. Affichage « inconnue — relevée depuis {OPTION_DEPUIS} ».
+
+**Source d'inscription** (lot 0) : méta `yume_source_inscription` posée par l'écouteur de
+`yume_lecteur_inscrit` (priorité 5). Anciens comptes : `source_compte()` déduit sans rien écrire
+(Discord lié **et** sans mot de passe → `discord` ; identifiant généré `yn-xxxxxxxx` → `inscription` ;
+`deduite` = vrai), sinon `inconnue` avec `deduite` = **faux** (comme un compte inexistant).
+
+**Journal des consultations** : option `yume_comptes_journal` (non autoloadée), 200 entrées au plus,
+la plus récente en tête : `{quand: int (horodatage), acteur: int, compte: int (0 pour un export), action:
+string (fiche | export | export_email), nb: int, contexte: array}` ; `contexte` ne garde que des valeurs
+scalaires (clés `sanitize_key`, texte assaini coupé à 200 caractères, 20 clés au plus). Journalisés :
+chaque fiche consultée (lot C, `journaliser( 'fiche', $acteur, $id )` + action
+`yume_comptes_fiche_consultee`), chaque export (lot D, `export`, ou `export_email` pour `email=1`).
+`<details>` « Dernières consultations » de la vue visible des administrateurs (`manage_options`).
+
+**Export CSV** (lot D) : `admin-post.php?action=yume_comptes_export` + filtres de la liste + nonce
+`yume_comptes_export`, capacité `yume_voir_lecteurs`, colonnes de la liste (sans e-mail), toutes les
+pages (garde-fou), `nocache_headers()`, cellules par `Planning\cellule_csv()` ; `email=1` réservé à
+`manage_options`. **RGPD** (lot D) : clés `activite` et `source_inscription` dans l'export
+(`yume_donnees_personnelles`), métas effacées sur `yume_effacer_donnees`.
+
+```php
+namespace Yume\Core\Comptes;
+const CAPACITE = 'yume_voir_lecteurs';  const VUE_CLE = 'comptes';  const VUE_STYLE = 'yume-comptes';
+const META_ACTIVITE = 'yume_derniere_activite';   // 'Y-m-d' heure du site
+const META_SOURCE   = 'yume_source_inscription';  // inscription|discord|equipe
+const OPTION_JOURNAL = 'yume_comptes_journal';     // 200 entrées, non autoloadée
+const OPTION_AMORCAGE = 'yume_comptes_activite_amorcee';   // horodatage de l'amorçage
+const OPTION_DEPUIS = 'yume_comptes_activite_depuis';      // 'Y-m-d', début du relevé
+const JOURNAL_MAX = 200; const COMPTES_PAR_PAGE = 50; const COMPTES_PAGE_MAX = 100;
+const RECHERCHE_MIN = 2; const RECHERCHE_MAX = 60;
+const SOURCES = array( 'inscription', 'discord', 'equipe' );
+const ACTIVITES = array( '7', '30', '90', 'inactifs', 'inconnue' );
+const TRIS = array( 'inscription', 'pseudo', 'activite', 'lecture', 'favoris', 'commentaires' );
+
+// fonctions.php (lot 0)
+function peut_voir_comptes( int $user_id = 0 ): bool;      // user_can( CAPACITE ) ; 0 = compte courant
+function peut_voir_email( int $user_id = 0 ): bool;        // user_can( 'list_users' ) ; 0 = compte courant
+function url_comptes( array $args = array() ): string;     // url_vue_equipe( VUE_CLE, args ) : clés de args_comptes() normalisées, défauts omis, page → pg, cases → '1' ; autres clés (compte…) transmises
+function vue_donnees( string $fonction, array $args = array() ); // filtre yume_comptes_vue_donnees( $pre, $fonction, $args ) ; false = absente (null) ; sinon call_user_func si function_exists
+function args_comptes( array $args ): array;               // {q, role, source, discord, activite, inscrits, sans_lecture, sans_mdp, tri, ordre, page, limite}
+function libelles_sources(): array;                        // inscription => 'Formulaire du site', discord => 'Discord', equipe => 'Équipe', inconnue => 'Inconnue'
+function libelles_roles(): array;                          // tous, lecteurs, equipe, puis slug => nom traduit de chaque rôle (choix du filtre Rôle)
+function journaliser( string $action, int $acteur, int $compte_id, int $nb = 0, array $contexte = array() ): void;
+function journal_recent( int $max = 20 ): array;           // plus récente en tête, 1 à JOURNAL_MAX
+function maintenant(): int;                                // filtre yume_comptes_maintenant
+function ordre_par_defaut( string $tri ): string;          // asc pour pseudo, desc sinon
+function parametre( array $args, string $cle ): string;    // valeur scalaire en chaîne ('' sinon)
+function contexte_journal( array $contexte ): array;       // assainissement du contexte du journal
+
+// activite.php (lot 0)
+function jour_site( int $ts = 0 ): string;                 // 'Y-m-d' heure du site ; 0 = maintenant()
+function jour_valide( $jour ): bool;
+function noter_activite( int $user_id, int $ts = 0 ): bool; // filtre yume_comptes_noter_activite( bool, $user_id ) ; vrai si écrit
+function derniere_activite( int $user_id ): string;        // 'Y-m-d' ou ''
+function amorcer_activite(): int;                          // comptes écrits ; 0 si déjà fait
+function noter_source( int $user_id, string $source ): void;
+function source_compte( int $user_id ): array;             // {source: inscription|discord|equipe|inconnue, deduite: bool}
+function requete_de_page(): bool;
+// Écouteurs : activite_connexion(), activite_membre(), activite_commentaire(), activite_coquille(),
+// filet_activite(), filet_amorcage(), source_inscription().
+
+// donnees.php (lot A)
+function lister_comptes( array $args ): array;            // $args passés par args_comptes()
+//  → {total, page, pages, limite, args, comptes: [ {id, pseudo, roles:string[], role:string(libellé), equipe:bool,
+//      inscrit_le:string(ISO 8601 UTC), source:string, source_deduite:bool, discord:string('' ou pseudo), sans_mdp:bool,
+//      activite:string('Y-m-d' ou ''), derniere_lecture:string(ISO ou ''), chapitres_lus:int, series:int,
+//      favoris:int, suiveurs:int(alertes ≠ jamais), commentaires:int} ]}   — jamais user_login ni user_email
+function indicateurs(): array;   // {comptes, lecteurs, equipe, nouveaux_30j, actifs_30j, discord, sans_mdp, activite_depuis:string} ; transient 5 min yume_comptes_indicateurs
+function fiche_compte( int $user_id ): ?array;
+//  → null si inexistant ; sinon {identite:{id, pseudo, roles, role, equipe, inscrit_le, source, source_deduite, discord:{pseudo, lie_le}|null,
+//      sans_mdp, pseudo_est_identifiant, activite, email_disponible:bool}, lecture: statistiques_lecture() + {derniere:{oeuvre_id,titre,chapitre_id,chapitre,url,le}|null, series_detail:[…]},
+//      favoris:[{oeuvre_id,titre,url,frequence,depuis}], alertes:{sorties,hebdo,commentaires}, listes:{personnelles:int, privees:int, oeuvres_privees:int,
+//      publiques:[{nom,url,nb}], systeme:{a_lire,en_cours,termine}}, notes:{nb, moyenne, lignes:[{oeuvre_id,titre,note,le}]},
+//      commentaires:{total, approuves, attente, spam, derniers:[{id,sur,url,date,statut,extrait}]}, coquilles:{total, par_statut:{nouveau,corrige,rejete}, dernieres:[…]},
+//      notifications:{non_lues,total,push:int}}
+//  L'e-mail n'est PAS dans fiche_compte() : la vue le lit (get_userdata()->user_email) si peut_voir_email().
+function lectures_par_compte( array $user_ids ): array;   // user_id => {chapitres_lus, minutes, series, derniere(GMT)} ; 2 requêtes + plan_de_lecture() une fois
+function compter_comptes( array $args ): int;
+
+// fiche.php (lot C)
+function rendu_fiche( array $etat ): string;               // appelé par equipe.php si function_exists
+function formulaire_ajout_equipe( \WP_User $compte, ?array $retour = null ): string;
+
+// export.php (lot D)
+const ACTION_EXPORT = 'yume_comptes_export'; const NONCE_EXPORT = 'yume_comptes_export';
+function url_export( array $args ): string;
+function csv_comptes( array $resultat, bool $avec_email = false ): string;
+function traiter_export( array $get, int $user_id ); // array{nom, csv, lignes}|WP_Error (401/403/400)
+```
+
+Hooks : filtres `yume_comptes_vue_donnees( $pre, string $fonction, array $args )`,
+`yume_comptes_maintenant( int $ts )`, `yume_comptes_noter_activite( bool $noter, int $user_id )` ;
+action `yume_comptes_fiche_consultee( int $compte_id, int $acteur )` (lot C).
+
+`args_comptes()` (données attendues déjà désechappées) : `q` assaini (`sanitize_text_field`), vide
+sous `RECHERCHE_MIN` caractères, coupé à `RECHERCHE_MAX` ; `role` `tous` (défaut) | `lecteurs` |
+`equipe` | slug d'un rôle existant ; `source` `toutes` (défaut) | `inscription` | `discord` | `equipe` |
+`inconnue` ; `discord` `tous` | `lie` | `non` ; `activite` `toutes` | `ACTIVITES` ; `inscrits` `tout` |
+`7` | `30` | `90` | `365` (chaînes) ; `sans_lecture`, `sans_mdp` booléens (`1`, `on`, `true`, `oui`) ;
+`tri` (`TRIS`, `inscription` par défaut) ; `ordre` `asc` | `desc` (défaut `ordre_par_defaut()`) ; `page`
+≥ 1 (clé `pg` acceptée) ; `limite` 1 à `COMPTES_PAGE_MAX` (`COMPTES_PAR_PAGE` par défaut). Valeur
+inconnue → défaut.
+
 ## 9. Contenu d'un chapitre (import → stockage → rendu)
 
 Le contenu est stocké en **blocs Gutenberg** (modifiable dans l'éditeur) avec ces classes :
@@ -1832,6 +1982,14 @@ connu de son titulaire, `Social\compte_sans_mot_de_passe()`, §7), `yume_discord
 « choisissez un pseudo différent de votre identifiant » fermé). Toutes couvertes par la désinstallation
 (`LIKE 'yume_%'` / `'_yume_%'`). Les lots L2, L3 et L5 n'ont pas de table (métas, transients et options
 de version).
+
+Module comptes (2.6.0, §8 septies) : métas utilisateur `yume_derniere_activite` (jour `'Y-m-d'` de
+dernière activité, heure du site, sans heure ni IP) et `yume_source_inscription` (`inscription`,
+`discord` ou `equipe`, posée à la création du compte) ; options `yume_comptes_journal` (journal des
+consultations et exports, 200 entrées, non autoloadée), `yume_comptes_activite_amorcee` (horodatage de
+l'amorçage unique) et `yume_comptes_activite_depuis` (`'Y-m-d'`, début du relevé de l'activité) ;
+transient `yume_comptes_indicateurs` (5 min, lot A). Pas de table ; toutes couvertes par la
+désinstallation (`yume_%`).
 
 Méta utilisateur du profil public (`includes/social/profil-public.php`, PAGE-04, membres de l'équipe
 seulement, rubrique « Profil public » de la page compte, formulaire `admin-post.php?action=yume_compte_profil_public`

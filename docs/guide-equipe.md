@@ -372,6 +372,59 @@ lecteurs fictifs, leurs favoris (sur cinq œuvres fictives), positions de lectur
 *Corrections*) ; le compte `equipe` voit les chiffres, le compte `admin` voit aussi la
 liste nominative.
 
+### Comptes inscrits (`/equipe/?vue=comptes`, gérants et administrateurs, depuis 2.6)
+
+Entrée **Comptes inscrits** du menu **Équipe**. Réservée aux **gérants et administrateurs**
+(capacité `yume_voir_lecteurs`, la même que la liste nominative des Statistiques) : les autres
+membres ne voient pas l'entrée. Tout s'affiche sans JavaScript.
+
+**En haut, les indicateurs** : comptes, lecteurs, équipe, nouveaux comptes sur 30 jours (lien vers
+les statistiques des lecteurs), actifs sur 30 jours, comptes liés à Discord (dont ceux **sans mot de
+passe** : créés avec Discord, ils ne se connectent que par Discord).
+
+**La liste** (50 comptes par page) : pseudo, rôle (pastille **Équipe** pour les membres), date
+d'inscription, **source** (*Formulaire du site* ou *Discord* ; « (déduite) » pour les comptes créés avant la
+2.6, dont la source n'a pas été enregistrée), Discord lié ou non, **dernière activité**, séries
+suivies, chapitres lus (estimation), favoris (entre parenthèses : ceux dont le lecteur reçoit les
+alertes), commentaires.
+
+- **Rechercher** : pseudo, nom Discord, ou adresse e-mail **complète** (2 caractères au moins) ;
+- **Filtres rapides** et **Autres filtres** : rôle, source, Discord lié ou non, activité (actifs 7,
+  30 ou 90 jours, inactifs depuis 90 jours, inconnue), période d'inscription, comptes sans aucune
+  lecture, comptes sans mot de passe ; **Trier par** inscription, pseudo, activité, lecture,
+  favoris ou commentaires, puis **Filtrer** (**Réinitialiser** remet tout à zéro).
+
+**Dernière activité** : le **jour** de la dernière connexion, lecture, mise en favori, commentaire ou
+coquille signalée — jamais l'heure, ni l'adresse IP. Le relevé a commencé à l'installation de la
+2.6 (« relevé depuis le … » en bas de la vue) ; avant, on a repris le jour de la dernière lecture.
+Un compte sans lecture ni visite depuis affiche « inconnue ».
+
+**La fiche d'un compte** (clic sur un pseudo) : identité (pseudo, rôle, **adresse e-mail**,
+inscription et source, liaison Discord, mot de passe défini ou non, dernière activité), lecture
+(séries suivies, en cours, à jour, chapitres lus et temps estimé, dernière position, détail par
+œuvre), favoris et alertes, listes de lecture (les listes **privées** ne sont comptées, jamais
+montrées), notes, commentaires (lien **Modérer ses commentaires**), coquilles signalées, notifications.
+L'administrateur a en plus **Modifier dans l'administration**.
+
+**Ajouter à l'équipe** (fiche d'un lecteur) : choisissez le rôle (Traducteur, Relecteur,
+Graphiste, Éditeur Yume) puis **Ajouter à l'équipe** : c'est la même opération que dans *Membres et
+rôles*, sans avoir à saisir le pseudo. Le compte garde son pseudo, sa lecture et ses favoris ; un
+compte créé avec Discord s'ajoute comme les autres.
+
+**Export CSV** (UTF-8, séparateur `;`) : **Exporter la liste (CSV)** exporte les comptes filtrés,
+toutes pages comprises, **sans adresse e-mail**. **Exporter avec e-mail** est réservé aux
+**administrateurs**. Chaque fiche consultée et chaque export sont **journalisés** (qui, quand,
+quoi ; les 200 derniers) ; l'administrateur voit ce journal en bas de la vue
+(**Dernières consultations**).
+
+**RGPD** : ces données ne sortent pas de l'équipe (pas de copie sur Discord, fichiers exportés à
+supprimer après usage). La dernière activité et la source d'inscription font partie de l'export et
+de l'effacement des données d'un compte (*Mon compte*). Le texte à ajouter à la page
+*Confidentialité* est dans `docs/mise-en-production.md` §13.
+
+**Démonstration** (Playground) : les comptes fictifs ont une activité et une source (Sakura_Lit et
+Hoshi liés à un Discord fictif, Aoi « inconnue ») ; le compte `admin` voit la vue complète.
+
 ### Réglages (`/equipe/?vue=reglages`, gérants et administrateurs)
 
 L'entrée **Réglages** du menu affiche tous les réglages du site dans l'espace équipe, sans passer
@@ -983,10 +1036,14 @@ signalé, jusqu'à votre décision. Vos réponses portent un badge **Équipe** �
   encore responsable de tomes en cours est signalé sur sa ligne (nombre et liste des tomes) avec un
   lien **Voir ses tomes dans le planning** (planning complet filtré sur lui) : le retrait ou le
   changement de rôle reste possible, mais il ne le décharge pas de ces tomes. **Ajouter un
-  membre** : la personne crée d'abord son compte de lecteur sur le site, puis vous saisissez son
-  identifiant ou son e-mail et choisissez son rôle. Les comptes administrateurs et gérants, et le
+  membre** : la personne crée d'abord son compte de lecteur sur le site (formulaire ou « Créer un
+  compte avec Discord »), puis vous saisissez son **pseudo public**, son **adresse e-mail** ou son
+  **nom Discord** (« @pseudo ») et choisissez son rôle. Depuis la 2.5.0, l'identifiant de connexion
+  est généré (`yn-…`) et la personne ne le connaît pas : demandez-lui plutôt son pseudo. Si deux
+  anciens comptes portent le même pseudo, utilisez l'adresse e-mail. Les comptes administrateurs et gérants, et le
   vôtre, ne sont modifiables que par un administrateur ; l'administrateur a pour cela un lien
-  **Modifier dans l'administration** sur la ligne de ces comptes. Un gérant change **seulement les
+  **Modifier dans l'administration** sur la ligne de ces comptes. On peut aussi ajouter un lecteur depuis sa fiche
+  dans **Comptes inscrits** (bouton **Ajouter à l'équipe**, voir la section 3). Un gérant change **seulement les
   rôles** : il ne crée pas de compte et ne modifie ni le mot de passe, ni l'e-mail, ni le profil d'un
   autre membre ou lecteur (*Comptes* dans l'administration ne sert qu'à consulter la liste et à
   changer un rôle). Un membre qui a perdu son mot de passe utilise « Mot de passe oublié ? » sur la

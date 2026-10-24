@@ -14,6 +14,8 @@
  * croisés d'au moins trois comptes : « Si vous avez aimé… » et « Pour vous »), chapitres publiés
  * après la dernière lecture du compte lecteur (rattrapage) et trois signalements de coquilles
  * (deux nouveaux, un corrigé).
+ * Comptes inscrits (2.6) : dernier jour d'activité et source d'inscription des comptes fictifs
+ * (deux liés à un compte Discord fictif).
  *
  * Ce fichier est la source de l'étape runPHP des blueprints (tools/playground/construire.php
  * l'y recopie). Il s'exécute aussi sur un WordPress local :
@@ -797,6 +799,43 @@ if ( $yume_demo_oeuvre && function_exists( 'Yume\\Core\\Statistiques\\calculer_j
 	}
 	\Yume\Core\Statistiques\cache_vider();
 	update_option( \Yume\Core\Statistiques\OPTION_DERNIER_JOUR, wp_date( 'Y-m-d', time() - DAY_IN_SECONDS ), false );
+}
+
+// Comptes inscrits (2.6, ?vue=comptes) : dernier jour d'activité et source d'inscription des
+// comptes fictifs (Sakura_Lit et Hoshi créés avec Discord, liaison fictive ; les autres par le
+// formulaire ; Aoi jamais revenu : activité inconnue), relevé commencé il y a 60 jours.
+if ( function_exists( 'Yume\\Core\\Comptes\\noter_source' ) ) {
+	// Identifiant => [ dernière activité il y a N jours (-1 : inconnue), source, pseudo Discord ].
+	$yume_demo_comptes = array(
+		'lecteur'        => array( 0, 'inscription', '' ),
+		'demo-lecteur-1' => array( 2, 'discord', 'sakura_lit' ),
+		'demo-lecteur-2' => array( 12, 'inscription', '' ),
+		'demo-lecteur-3' => array( 40, 'inscription', '' ),
+		'demo-lecteur-4' => array( 1, 'discord', 'hoshi.reads' ),
+		'demo-lecteur-5' => array( -1, 'inscription', '' ),
+		'demo-lecteur-6' => array( 1, 'inscription', '' ),
+	);
+	foreach ( $yume_demo_comptes as $yume_demo_login => $yume_demo_c ) {
+		$yume_demo_user = get_user_by( 'login', $yume_demo_login );
+		if ( ! $yume_demo_user ) {
+			continue;
+		}
+		$yume_demo_uid = (int) $yume_demo_user->ID;
+		\Yume\Core\Comptes\noter_source( $yume_demo_uid, $yume_demo_c[1] );
+		if ( $yume_demo_c[0] >= 0 ) {
+			update_user_meta( $yume_demo_uid, \Yume\Core\Comptes\META_ACTIVITE, wp_date( 'Y-m-d', time() - $yume_demo_c[0] * DAY_IN_SECONDS ) );
+		} else {
+			delete_user_meta( $yume_demo_uid, \Yume\Core\Comptes\META_ACTIVITE );
+		}
+		if ( '' !== $yume_demo_c[2] ) {
+			update_user_meta( $yume_demo_uid, 'yume_discord_id', (string) ( 100000000000000000 + $yume_demo_uid ) );
+			update_user_meta( $yume_demo_uid, 'yume_discord_pseudo', $yume_demo_c[2] );
+			update_user_meta( $yume_demo_uid, 'yume_discord_lie_le', gmdate( 'Y-m-d H:i:s', strtotime( (string) $yume_demo_user->user_registered . ' UTC' ) ) );
+		}
+	}
+	update_option( \Yume\Core\Comptes\OPTION_DEPUIS, wp_date( 'Y-m-d', time() - 60 * DAY_IN_SECONDS ) );
+	update_option( \Yume\Core\Comptes\OPTION_AMORCAGE, time() );
+	delete_transient( 'yume_comptes_indicateurs' );
 }
 
 flush_rewrite_rules( false );

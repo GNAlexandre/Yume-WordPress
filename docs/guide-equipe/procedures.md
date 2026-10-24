@@ -42,7 +42,7 @@ Chaque membre a un rôle. Un rôle se demande à un gérant.
 | --- | --- |
 | **Traducteur**, **Relecteur**, **Graphiste** | Voir l'espace équipe et tout le planning. Mettre à jour l'avancement des tomes dont il est responsable. Envoyer des images. Consulter les statistiques d'audience (chiffres seulement) et exporter le classement des œuvres. |
 | **Éditeur Yume** | Tout ce qui précède, plus : créer et modifier les œuvres et les tomes, ajouter des chapitres, mettre à jour le planning de tous les tomes, publier les glossaires, écrire des actualités, modérer les commentaires, traiter les coquilles signalées. |
-| **Gérant** | Tout ce qui précède, plus : gérer les membres et leurs rôles, voir les indicateurs et la santé du site, modifier les réglages, voir et exporter la liste des lecteurs qui suivent une œuvre. |
+| **Gérant** | Tout ce qui précède, plus : gérer les membres et leurs rôles, voir les indicateurs et la santé du site, modifier les réglages, voir et exporter la liste des lecteurs qui suivent une œuvre, consulter les comptes inscrits et les ajouter à l'équipe. |
 
 > **À savoir** : chacun ne voit que les menus dont son rôle a besoin. Une entrée absente n'est pas une panne.
 
@@ -990,6 +990,56 @@ Sur le site en ligne, les vues et les visiteurs viennent de Jetpack. Sur un site
 
 > **À savoir** : si le site en ligne affiche « Trafic indisponible » ou des vues vides, Jetpack n'y est pas connecté ou ne répond pas : prévenez l'équipe technique. Favoris, lecteurs et classements restent justes.
 
+# Les comptes inscrits (gérants)
+
+Le menu **Équipe**, puis **Comptes inscrits**, liste tous les comptes du site : lecteurs et membres de l'équipe. Réservé aux gérants et aux administrateurs : les autres membres ne voient pas l'entrée.
+
+| Mot | Ce qu'il veut dire |
+| --- | --- |
+| **Source** | Comment le compte a été créé : **Formulaire du site** ou **Discord**. « (déduite) » pour les comptes plus anciens que la fonction |
+| **Dernière activité** | Le jour de la dernière connexion, lecture, mise en favori, commentaire ou coquille signalée. Jamais l'heure ni l'adresse IP. « inconnue » : rien depuis le début du relevé |
+| **Chap. lus (est.)** | Estimation tirée de la position de lecture, comme dans les statistiques |
+| **Favoris** | Nombre de favoris ; entre parenthèses, ceux dont le lecteur reçoit les alertes |
+| **Sans mdp** | Compte créé avec Discord, sans mot de passe : il ne se connecte que par Discord |
+
+## Trouver un compte
+
+1. Dans le menu, ouvrez **Équipe**, puis **Comptes inscrits**.
+2. Dans **Rechercher**, tapez au moins 2 caractères du pseudo ou du nom Discord, ou l'adresse e-mail **complète**.
+3. Au besoin, choisissez un **Rôle**, une **Source**, **Discord**, une **Activité**, une période d'inscription (**Inscrits**), **Trier par** et l'**Ordre**, puis cliquez sur **Filtrer**. **Réinitialiser** efface les filtres.
+4. Les **Filtres rapides** (**Discord**, **Équipe**, **Actifs 7 j**) appliquent un filtre en un clic.
+
+![La liste des comptes inscrits (comptes fictifs).](images/Comptes-liste.png){largeur=80%}
+
+## Consulter la fiche d'un compte
+
+1. Cliquez sur le pseudo dans la liste.
+2. La fiche affiche l'identité (dont l'**adresse e-mail**), la lecture (séries suivies, chapitres lus, dernière position), les favoris et alertes, les listes de lecture, les notes, les commentaires, les coquilles signalées et les notifications.
+3. **← Comptes inscrits** ramène à la liste, avec les mêmes filtres.
+
+![La fiche d'un compte (données fictives).](images/Comptes-fiche.png){largeur=80%}
+
+> **À savoir** : les listes de lecture **privées** sont comptées, jamais montrées. Chaque fiche consultée est enregistrée (qui, quand, quel compte).
+
+## Ajouter un lecteur à l'équipe
+
+1. Ouvrez la fiche du compte (procédure précédente).
+2. Dans **Ajouter à l'équipe**, choisissez le **Rôle dans l'équipe** (**Traducteur**, **Relecteur**, **Graphiste** ou **Éditeur Yume**).
+3. Cliquez sur **Ajouter à l'équipe**. Un message confirme l'ajout ; le rôle se change ensuite dans **Membres et rôles**.
+
+Un compte créé avec Discord s'ajoute comme les autres. Le compte garde son pseudo, ses favoris et sa lecture.
+
+> **Astuce** : dans **Membres et rôles**, **Ajouter un membre** accepte aussi le pseudo, l'adresse e-mail ou le nom Discord du compte.
+
+## Exporter la liste
+
+1. Filtrez la liste si besoin (procédure « Trouver un compte »).
+2. Cliquez sur **Exporter la liste (CSV)** : le fichier contient tous les comptes filtrés, toutes pages comprises, **sans adresse e-mail**. Il s'ouvre dans Excel ou LibreOffice.
+
+**Exporter avec e-mail** est réservé aux administrateurs.
+
+> **Attention** : ce sont des données personnelles. Ne les recopiez pas sur Discord ni ailleurs. Chaque export est enregistré : gardez le fichier pour un usage interne et supprimez-le après usage.
+
 # Les coquilles signalées par les lecteurs
 
 > **Nouveau** : depuis la version 2.5, les lecteurs signalent une coquille directement dans le chapitre. Les signalements arrivent dans l'espace équipe, menu **Catalogue**, puis **Corrections**.
@@ -1079,6 +1129,7 @@ Pour chaque commentaire :
 | Le tome publié n'apparaît pas sur le site. | Il est encore en brouillon ou programmé. Vérifiez son statut dans **Tous les tomes** (filtre **Statut**). |
 | Un lecteur ne reçoit pas les alertes. | Il doit avoir l'œuvre en favori, avec une alerte active (page **Mon compte**). |
 | Je ne vois pas la liste des lecteurs d'une œuvre dans **Statistiques**. | Elle est réservée aux gérants et aux administrateurs. Les chiffres restent visibles pour toute l'équipe. |
+| « Aucun compte ne correspond » quand j'ajoute un membre. | La personne doit d'abord créer son compte sur le site (formulaire ou « Créer un compte avec Discord »). Saisissez ensuite son pseudo, son adresse e-mail ou son nom Discord, ou ajoutez-la depuis sa fiche dans **Comptes inscrits**. |
 | Les courbes d'une œuvre sont presque vides. | L'historique jour par jour a commencé à l'installation des statistiques : il se remplit chaque nuit. |
 | J'ai oublié mon mot de passe. | Lien **Mot de passe oublié ?** sur la page de connexion. |
 | Un lecteur ne retrouve pas son identifiant. | Qu'il se connecte avec son **adresse e-mail**. Depuis la version 2.5, l'identifiant d'un nouveau compte n'est jamais montré. Mot de passe perdu : **Mot de passe oublié ?** avec la même adresse. |

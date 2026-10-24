@@ -1,0 +1,405 @@
+/**
+ * Espace équipe, vue « Comptes inscrits » (?vue=comptes) — compléments de kpi.css (tableau
+ * défilant), couleurs par variables du thème uniquement (--wp--preset--color--*) : Nuit, Papier
+ * et Sépia sans règle supplémentaire. Chargée par includes/comptes/equipe.php quand la vue est
+ * rendue (handle yume-comptes).
+ */
+
+.yn-team--comptes .yn-team__principal {
+	gap: 20px;
+}
+
+.yn-comptes__presentation {
+	max-width: 70ch;
+	margin-top: -10px;
+	font-size: 14px;
+}
+
+/* Indicateurs : six cartes, autant par ligne que la largeur le permet. */
+.yn-comptes__chiffres {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 12px;
+}
+
+.yn-comptes__chiffre {
+	padding: 14px 16px;
+}
+
+.yn-comptes__detail {
+	font-size: 12px;
+}
+
+/* Filtres (formulaire GET). */
+.yn-comptes__filtres {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 16px 18px;
+}
+
+.yn-comptes__recherche {
+	max-width: 520px;
+}
+
+.yn-comptes__aide {
+	font-size: 12px;
+}
+
+.yn-comptes__champs {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 12px 14px;
+	align-items: end;
+}
+
+.yn-comptes__ligne {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px 20px;
+}
+
+.yn-comptes__cases {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yn-comptes__ligne .yn-team__action {
+	align-items: center;
+	gap: 16px;
+}
+
+.yn-comptes__reinitialiser {
+	font-size: 14px;
+}
+
+/* Filtres rapides : liens présentés en boutons ; le filtre courant est mis en avant. */
+.yn-comptes__rapides {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	padding-top: 12px;
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-team .yn-comptes__rapides ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.yn-team a.yn-comptes__rapide {
+	display: inline-flex;
+	align-items: center;
+	box-sizing: border-box;
+	min-height: 36px;
+	padding: 0 14px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: var(--yn-radius);
+	color: var(--wp--preset--color--texte);
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.yn-team a.yn-comptes__rapide:hover {
+	background: var(--wp--preset--color--selection);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-team a.yn-comptes__rapide[aria-current="true"] {
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-team a.yn-comptes__rapide:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+/* Résumé et export. */
+.yn-comptes__barre {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+}
+
+.yn-comptes__resume {
+	font-size: 14px;
+}
+
+.yn-comptes__exports {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* Tableau : défilement horizontal sur petit écran (yn-kpi__defile), cellules sur une ligne.
+ * position: relative : les textes réservés aux lecteurs d'écran (position absolue) restent dans
+ * la zone défilante au lieu d'élargir la page. */
+.yn-team--comptes .yn-kpi__defile {
+	position: relative;
+}
+
+.yn-comptes__tableau {
+	padding: 6px 10px;
+}
+
+.yn-comptes__table {
+	font-size: 14px;
+}
+
+.yn-comptes__table th,
+.yn-comptes__table td {
+	padding-inline: 8px;
+	white-space: nowrap;
+}
+
+.yn-comptes__table thead th {
+	/* En-têtes sur deux lignes au besoin : les colonnes suivent la largeur des valeurs. */
+	white-space: normal;
+	vertical-align: bottom;
+	font-family: var(--wp--preset--font-family--mono);
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.yn-comptes__table tbody th {
+	font-weight: 400;
+}
+
+.yn-comptes__table tbody tr:last-child > * {
+	border-bottom: 0;
+}
+
+.yn-team a.yn-comptes__pseudo {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+}
+
+.yn-team a.yn-comptes__pseudo:hover {
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-team .yn-comptes__table .yn-comptes__badge {
+	display: inline-block;
+	/* max-width en % (.yn-team .yn-chip) annulerait la largeur de la pastille dans le calcul du
+	 * tableau : elle déborderait sur la colonne suivante. */
+	max-width: none;
+	min-height: 0;
+	white-space: nowrap;
+	margin-left: 4px;
+	padding: 1px 8px;
+	font-size: 11px;
+	line-height: 16px;
+	vertical-align: middle;
+}
+
+.yn-comptes__badge--equipe {
+	border-color: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-comptes__badge--discord {
+	border-color: var(--wp--preset--color--accent-2);
+	color: var(--wp--preset--color--accent-2);
+}
+
+.yn-comptes__note {
+	font-size: 13px;
+}
+
+/* Journal des consultations (administrateurs). */
+.yn-comptes__journal {
+	padding: 12px 18px;
+}
+
+.yn-comptes__journal summary {
+	color: var(--wp--preset--color--texte-fort);
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.yn-comptes__journal summary:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-comptes__journal[open] summary {
+	margin-bottom: 10px;
+}
+
+/* Fiche d'un compte (?vue=comptes&compte=ID), rendue par fiche.php (lot C). */
+.yn-team--comptes .yn-comptes__fiche {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.yn-team--comptes .yn-comptes__fiche-retour {
+	margin: 0;
+	font-size: 0.875rem;
+}
+
+.yn-team--comptes .yn-comptes__fiche-resume {
+	margin: 0.25rem 0 0;
+	font-size: 0.875rem;
+}
+
+.yn-team--comptes .yn-comptes__fiche-haut {
+	display: grid;
+	grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.yn-team--comptes .yn-comptes__fiche-duo {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+	gap: 1rem;
+	align-items: start;
+}
+
+.yn-team--comptes .yn-comptes__fiche-grille {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+	gap: 1rem;
+	align-items: start;
+}
+
+.yn-team--comptes .yn-comptes__fiche-section {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+	min-width: 0;
+	padding: 16px 18px;
+}
+
+.yn-team--comptes .yn-comptes__fiche-section p {
+	margin: 0;
+}
+
+.yn-team--comptes .yn-comptes__fiche-titre {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	font-size: 1.125rem;
+}
+
+.yn-team--comptes .yn-comptes__fiche-actions {
+	border-color: var(--wp--preset--color--accent);
+}
+
+.yn-team--comptes .yn-comptes__fiche-identite {
+	display: grid;
+	grid-template-columns: 150px minmax(0, 1fr);
+	gap: 0.5rem 0.9rem;
+	margin: 0;
+	font-size: 0.875rem;
+}
+
+.yn-team--comptes .yn-comptes__fiche-identite dt {
+	color: var(--wp--preset--color--texte-faible);
+}
+
+.yn-team--comptes .yn-comptes__fiche-identite dd {
+	margin: 0;
+	color: var(--wp--preset--color--texte-fort);
+	overflow-wrap: anywhere;
+}
+
+.yn-team--comptes .yn-comptes__fiche-chiffres {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+	gap: 0.75rem;
+	margin: 0;
+}
+
+.yn-team--comptes .yn-comptes__fiche-chiffres dd {
+	margin: 0;
+}
+
+.yn-team--comptes .yn-comptes__fiche-valeur {
+	color: var(--wp--preset--color--texte-fort);
+	font-family: var(--wp--preset--font-family--titres, inherit);
+	font-size: 1.375rem;
+	font-weight: 800;
+}
+
+.yn-team--comptes .yn-comptes__fiche-derniere,
+.yn-team--comptes .yn-comptes__fiche-liste {
+	font-size: 0.875rem;
+}
+
+.yn-team--comptes .yn-comptes__fiche-liste {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	margin: 0;
+	padding-left: 1.1rem;
+}
+
+.yn-team--comptes .yn-comptes__fiche-note,
+.yn-team--comptes .yn-comptes__fiche-lien,
+.yn-team--comptes .yn-comptes__fiche-pied {
+	font-size: 0.8125rem;
+}
+
+.yn-team--comptes .yn-comptes__fiche-ajout {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+@media (max-width: 782px) {
+	.yn-team--comptes .yn-comptes__fiche-haut {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.yn-team--comptes .yn-comptes__fiche-identite {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.15rem;
+	}
+
+	.yn-team--comptes .yn-comptes__fiche-identite dd {
+		margin-bottom: 0.4rem;
+	}
+}
+
+@media (max-width: 699.98px) {
+	.yn-comptes__chiffres {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.yn-comptes__champs {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.yn-comptes__ligne .yn-team__action {
+		width: 100%;
+	}
+
+	.yn-comptes__ligne .yn-team__action .yn-btn {
+		flex: 1 1 auto;
+	}
+
+	.yn-comptes__exports,
+	.yn-comptes__barre .yn-btn {
+		width: 100%;
+	}
+}

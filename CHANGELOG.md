@@ -2,6 +2,42 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.6.0-dev.8 — 2026-10-24
+
+- Comptes inscrits : guide Word (chapitre, captures, question fréquente), marges des cartes de la fiche
+
+## 2.6.0-dev.7 — 2026-10-24
+
+- Comptes inscrits, lot B : vue liste dans le menu Équipe (indicateurs, recherche, filtres, tri, tableau paginé, export, journal des consultations)
+
+## 2.6.0-dev.6 — 2026-10-24
+
+- Guide de l'équipe : section Comptes inscrits (liste, filtres, fiche, Ajouter à l'équipe, export, RGPD)
+
+## 2.6.0-dev.5 — 2026-10-24
+
+- Comptes inscrits : modèle de données, guide du développeur, recette de mise en production (§13, texte Confidentialité), journal des décisions, démo Playground (activité et source des comptes fictifs)
+
+## 2.6.0-dev.4 — 2026-10-24
+
+- Comptes inscrits, lot D : export CSV journalisé (sans e-mail ; avec e-mail pour les administrateurs) et RGPD (dernière activité et source dans l'export et l'effacement)
+
+## 2.6.0-dev.3 — 2026-10-24
+
+- Comptes inscrits, lot C : fiche d'un compte (identité, lecture, favoris, listes, notes, commentaires, coquilles, notifications, Ajouter à l'équipe, consultation journalisée)
+
+## 2.6.0-dev.2 — 2026-10-24
+
+- Comptes inscrits, lot A : données (liste filtrée, triée et paginée en requêtes groupées, indicateurs, fiche complète, lecture estimée par lot)
+
+## 2.6.0-dev.1 — 2026-10-24
+
+- Comptes inscrits, lot 0 : socle (méta de dernière activité au jour près, source d'inscription, journal des consultations, ajout à l'équipe par compte)
+
+## 2.5.2-dev.1 — 2026-10-24
+
+- Équipe, Ajouter un membre : un compte se retrouve aussi par son pseudo public ou son nom Discord (les comptes créés depuis la 2.5.0, par le formulaire ou par Discord, ont un identifiant généré inconnu de leur titulaire) ; pseudo en double signalé
+
 ## 2.5.1 — 2026-10-20
 
 - Yume Novel 2.5.1 : accueil allégé pour les lecteurs connectés. « Reprendre la lecture » et « Nouveaux chapitres depuis votre dernière lecture » ne font plus qu'un seul bloc de 3 cartes (dernière lecture en premier avec « Continuer », puis les séries avec de nouveaux chapitres) ; le bandeau du bas ne répète plus la lecture et garde « Rejoindre le Discord ». Dates au format du site (« 18 oct. »), boutons des cartes alignés.

@@ -446,3 +446,34 @@ l'espace équipe (gérants et administrateurs).
 - [ ] Page *Confidentialité* : la mention de la connexion Discord (et des signalements de coquilles,
       des recommandations) est en ligne une fois validée par l'équipe (décision en attente,
       `docs/journal-des-decisions.md`).
+
+## 13. Comptes inscrits : vérifications après la mise en production (2.6.0)
+
+Rien à configurer : la vue **Équipe → Comptes inscrits** apparaît pour les gérants et les
+administrateurs dès l'installation. À vérifier sur yumenovel.fr, connecté en **administrateur**
+puis en **gérant** :
+
+- [ ] **Accès** : la vue s'ouvre pour un gérant et un administrateur ; un traducteur ne voit pas
+      l'entrée du menu et `/equipe/?vue=comptes` lui est refusé.
+- [ ] **Dernière activité** : le pied de la vue indique « relevé depuis le … » (jour de
+      l'installation) ; les comptes qui ont une position de lecture ont un jour amorcé, les autres
+      « inconnue » jusqu'à leur prochaine visite connectée.
+- [ ] **Source** : un compte créé après l'installation porte « Formulaire » ou « Discord » ; les
+      anciens portent la mention « (déduite) ».
+- [ ] **E-mail** : absent de la liste et de l'export standard ; visible sur la fiche ; l'export
+      **avec e-mail** n'est proposé qu'à l'administrateur.
+- [ ] **Journal** : consulter une fiche puis exporter ajoute deux lignes au journal (visible de
+      l'administrateur).
+- [ ] **Ajouter à l'équipe** depuis la fiche d'un lecteur créé avec Discord : il apparaît dans
+      *Membres et rôles* avec le rôle choisi.
+- [ ] **Cache** : la vue n'est jamais servie depuis le cache de page (espace équipe connecté).
+
+**Page Confidentialité** (texte prêt à coller par un administrateur, *Réglages → Confidentialité*,
+après validation de l'équipe) :
+
+> L'équipe de gestion du site (gérants et administrateurs) peut consulter la liste des comptes
+> inscrits et, pour chaque compte, le pseudo, l'adresse e-mail, la date d'inscription, le mode
+> d'inscription (formulaire ou Discord), le jour de dernière activité sur le site, les séries
+> suivies, la position de lecture, les favoris, les notes, les listes publiques, les commentaires et
+> les signalements de coquilles, afin d'animer la communauté et de gérer l'équipe. Aucune adresse IP
+> n'est conservée à cette fin. Ces consultations et les exports sont journalisés.
