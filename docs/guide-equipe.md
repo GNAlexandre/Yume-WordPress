@@ -383,7 +383,7 @@ les statistiques des lecteurs), actifs sur 30 jours, comptes liés à Discord (d
 passe** : créés avec Discord, ils ne se connectent que par Discord).
 
 **La liste** (50 comptes par page) : pseudo, rôle (pastille **Équipe** pour les membres), date
-d'inscription, **source** (*Formulaire* ou *Discord* ; « (déduite) » pour les comptes créés avant la
+d'inscription, **source** (*Formulaire du site* ou *Discord* ; « (déduite) » pour les comptes créés avant la
 2.6, dont la source n'a pas été enregistrée), Discord lié ou non, **dernière activité**, séries
 suivies, chapitres lus (estimation), favoris (entre parenthèses : ceux dont le lecteur reçoit les
 alertes), commentaires.
@@ -401,9 +401,9 @@ Un compte sans lecture ni visite depuis affiche « inconnue ».
 
 **La fiche d'un compte** (clic sur un pseudo) : identité (pseudo, rôle, **adresse e-mail**,
 inscription et source, liaison Discord, mot de passe défini ou non, dernière activité), lecture
-(séries suivies, en cours, à jour, chapitres lus et temps estimés, dernière position, détail par
+(séries suivies, en cours, à jour, chapitres lus et temps estimé, dernière position, détail par
 œuvre), favoris et alertes, listes de lecture (les listes **privées** ne sont comptées, jamais
-montrées), notes, commentaires (lien **Modérer**), coquilles signalées, notifications.
+montrées), notes, commentaires (lien **Modérer ses commentaires**), coquilles signalées, notifications.
 L'administrateur a en plus **Modifier dans l'administration**.
 
 **Ajouter à l'équipe** (fiche d'un lecteur) : choisissez le rôle (Traducteur, Relecteur,

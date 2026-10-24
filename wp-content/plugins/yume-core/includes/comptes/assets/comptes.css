@@ -288,6 +288,7 @@
 	flex-direction: column;
 	gap: 0.6rem;
 	min-width: 0;
+	padding: 16px 18px;
 }
 
 .yn-team--comptes .yn-comptes__fiche-section p {

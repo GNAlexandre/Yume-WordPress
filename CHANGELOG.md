@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.6.0-dev.8 — 2026-10-24
+
+- Comptes inscrits : guide Word (chapitre, captures, question fréquente), marges des cartes de la fiche
+
 ## 2.6.0-dev.7 — 2026-10-24
 
 - Comptes inscrits, lot B : vue liste dans le menu Équipe (indicateurs, recherche, filtres, tri, tableau paginé, export, journal des consultations)
