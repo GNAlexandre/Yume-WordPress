@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.2-dev.1 — 2026-10-30
+
+- Arbre décoratif sur les chapitres : dans la marge libre à droite de la colonne de lecture (mesurée par yume.js, jamais sous le texte, masqué sous 160 px de marge), à pleine opacité
+
 ## 2.7.1 — 2026-10-30
 
 - Tests : serie-a-venir demande au calendrier le mois de la date cible du tome (échec de la CI en fin de mois) ; comptes-fiche compare la moyenne des notes au format de la langue active (« 4,5 » en fr_FR, « 4.5 » sans fichiers de langue)

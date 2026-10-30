@@ -1103,7 +1103,7 @@ Sur ordinateur, l'arbre de la saison (celui du logo) est posé en fond de page, 
 2. Cochez ou décochez **Arbre décoratif**, juste après **Décors animés** (case cochée par défaut).
 3. Cliquez sur **Enregistrer les réglages**.
 
-> **À savoir** : l'arbre n'apparaît jamais sur un écran de moins de 1 024 pixels de large (téléphone, tablette en portrait), dans un chapitre, sur la page des illustrations d'un tome, dans l'espace équipe, dans le formulaire de publication ni dans l'administration. Il disparaît aussi pour un lecteur qui a demandé plus de contraste (réglage de l'appareil, ou **Contraste renforcé** dans un chapitre), pour un lecteur en thème **Sépia** et à l'impression.
+> **À savoir** : l'arbre n'apparaît jamais sur un écran de moins de 1 024 pixels de large (téléphone, tablette en portrait), sur la page des illustrations d'un tome, dans l'espace équipe, dans le formulaire de publication ni dans l'administration. Il disparaît aussi pour un lecteur qui a demandé plus de contraste (réglage de l'appareil, ou **Contraste renforcé** dans un chapitre), pour un lecteur en thème **Sépia** et à l'impression. Dans un chapitre, il reste dans la marge à droite du texte, sans jamais passer dessous.
 
 > **À savoir** : en Automne, aucun arbre ne s'affiche tant que son image n'a pas été livrée avec une mise à jour du site.
 

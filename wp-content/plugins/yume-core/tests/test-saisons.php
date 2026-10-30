@@ -522,7 +522,7 @@ function yume_tsa_rendu_sprite( string $saison, callable $requete ): array {
 }
 
 yume_test(
-	'Thème : arbre décoratif sur l’accueil (saison forcée, fichier présent), absent sur un chapitre, l’espace équipe, réglage coupé ou fichier manquant',
+	'Thème : arbre décoratif sur l’accueil (saison forcée, fichier présent), cantonné à la marge sur un chapitre, absent de l’espace équipe, réglage coupé ou fichier manquant',
 	function () {
 		if ( ! function_exists( 'yume_theme_afficher_sprite' ) ) {
 			return; // Thème Yume inactif.
@@ -546,7 +546,8 @@ yume_test(
 		}
 		yume_assert_same( array( 'yn-sprite-actif' ), $rendu['classes'] );
 
-		// Chapitre (et lecteur MangaDex, qui s'affiche dans le chapitre) : aucun arbre.
+		// Chapitre (et lecteur MangaDex, qui s'affiche dans le chapitre) : arbre présent, cantonné à
+		// la marge de la colonne de lecture par la classe yn-sprite--lecture.
 		$chapitre = yume_factory_post(
 			array(
 				'post_type'   => 'yume_chapitre',
@@ -566,8 +567,8 @@ yume_test(
 				);
 			}
 		);
-		yume_assert_same( '', $rendu['html'], 'chapitre' );
-		yume_assert_same( array(), $rendu['classes'], 'chapitre : pas de classe' );
+		yume_assert_contains( '<div class="yn-sprite yn-sprite--lecture" aria-hidden="true" style="', $rendu['html'], 'chapitre : arbre dans la marge' );
+		yume_assert_same( array( 'yn-sprite-actif' ), $rendu['classes'], 'chapitre : classe du body' );
 
 		// Espace équipe : pages enregistrées sous les clés publier et equipe (autres slugs).
 		$publier          = yume_factory_post(

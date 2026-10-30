@@ -95,9 +95,10 @@ arbre-<slug>[-2x].{avif,webp}`, 900 et 1 400 px de haut ; cahier des charges et 
 [docs/08-sprites-saisonniers.md](../docs/08-sprites-saisonniers.md)). Hauteur `min(78vh, 880px)`.
 Sous 1 900 px de large, il passe sous la colonne de contenu en **filigrane à 30 %** (le texte courant
 garde 4,5:1) ; au-delà, il est affiché à 90 % dans la marge libre, sans passer sous le texte. Jamais
-sous 1 024 px (image non téléchargée), sur les pages de lecture, dans l'espace équipe, pour qui
+sous 1 024 px (image non téléchargée), sur la page Illustrations, dans l'espace équipe, pour qui
 demande plus de contraste, ni à l'impression ; case **Arbre décoratif** dans les réglages. Les six arbres
-sont livrés (`assets/img/sprites/arbre-<slug>[-2x].{webp,avif}`).
+sont livrés (`assets/img/sprites/arbre-<slug>[-2x].{webp,avif}`). Dans un chapitre, l'arbre reste dans la
+marge libre à droite de la colonne de lecture (mesurée par `yume.js`), à pleine opacité, jamais sous le texte.
 
 Règles des variantes :
 

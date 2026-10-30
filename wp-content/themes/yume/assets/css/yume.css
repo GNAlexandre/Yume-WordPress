@@ -288,6 +288,8 @@ html[data-yn-saison="noel"][data-yn-theme="papier"]:not([data-yn-contraste]) {
  * 30 % (le texte courant garde 4,5:1 sur le pire pixel de chaque arbre, en Nuit comme en Papier).
  * Au-delà, opacité 0,9, mais la boîte est limitée à la marge libre à droite de la grille large
  * (1 344 px) : l'arbre, calé sur sa hauteur, est rogné à gauche plutôt que de passer sous le texte.
+ * Sur un chapitre (yn-sprite--lecture), même principe à toute largeur, mesuré sur la colonne de
+ * lecture réelle (yume.js).
  * Retiré pour qui demande plus de contraste (préférence système ou contraste renforcé du lecteur),
  * sous le thème Sépia (confort de lecture, jamais touché par la saison), en couleurs forcées et à
  * l'impression (section 14).
@@ -331,6 +333,24 @@ html[data-yn-saison="noel"][data-yn-theme="papier"]:not([data-yn-contraste]) {
 	.yn-sprite {
 		width: min(calc(min(78vh, 880px) * 0.67), calc((100vw - 1344px) / 2 - 16px));
 		opacity: 0.9;
+	}
+}
+
+/*
+ * Chapitre (lecture en ligne) : l'arbre reste dans la marge libre à droite de la colonne de
+ * lecture, à pleine opacité, jamais sous le texte. La marge est mesurée par yume.js
+ * (--yn-marge-lecture, recalculée au redimensionnement et quand le panneau de lecture change la
+ * largeur de colonne) ; sans JavaScript, colonne de 760 px supposée. Sous 160 px de marge, yume.js
+ * pose yn-sprite--cache.
+ */
+@media (min-width: 1024px) {
+	.yn-sprite.yn-sprite--lecture {
+		width: min(calc(min(78vh, 880px) * 0.67), var(--yn-marge-lecture, calc((100vw - 760px) / 2 - 24px)));
+		opacity: 0.9;
+	}
+
+	.yn-sprite.yn-sprite--cache {
+		display: none;
 	}
 }
 
