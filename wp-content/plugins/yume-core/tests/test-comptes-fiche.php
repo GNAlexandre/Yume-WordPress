@@ -311,7 +311,7 @@ yume_test(
 				'<a href="https://exemple.test/listes/abc/">« Mes coups de cœur »</a>',
 				'(7 œuvres)',
 				'2 listes privées (14 œuvres) : contenu non consultable.',
-				'Notes (2 · moyenne 4,5)',
+				'Notes (2 · moyenne ' . number_format_i18n( 4.5, 1 ) . ')', // « 4,5 » en fr_FR, « 4.5 » sans fichiers de langue.
 				'Les Lanternes de Brume-Haute : 5/5 · 20 oct. 2026',
 				'Commentaires (12)',
 				'11 approuvés · 1 en attente',
