@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.0 — 2026-10-30
+
+- Yume Novel 2.7.0 : thèmes saisonniers. Le site change d'habillage selon la période (Printemps, Été, Automne, Hiver, Halloween en octobre, Noël en décembre) : un seul thème, une variante par saison programmée depuis Réglages → Thème saisonnier (calendrier à six lignes, fêtes prioritaires, mode manuel ou thème de base, aperçu ?yn-saison réservé aux gérants, vérification chaque nuit et purge des caches). Palettes Nuit et Papier par saison (Sépia et encres inchangés), logo d'en-tête et arbre décoratif en fond de page par saison, décors légers dans l'en-tête, assets versionnés par empreinte de fichier. Guide de l'équipe, contrat technique et design mis à jour (docs/07 et docs/08).
+
 ## 2.7.0-dev.5 — 2026-10-30
 
 - Thèmes saisonniers : arbre décoratif d'automne (les six sprites sont livrés)
