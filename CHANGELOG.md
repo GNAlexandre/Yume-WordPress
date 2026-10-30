@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.0-dev.5 — 2026-10-30
+
+- Thèmes saisonniers : arbre décoratif d'automne (les six sprites sont livrés)
+
 ## 2.7.0-dev.4 — 2026-10-30
 
 - Thèmes saisonniers : arbre décoratif en fond de page (sprites printemps, été, Halloween, hiver, Noël en WebP et AVIF, filigrane à 30 % sous 1 900 px, marge libre au-delà, jamais sur les chapitres, l'espace équipe, Sépia, le contraste renforcé ni sous 1 024 px ; réglage Arbre décoratif). L'arbre d'automne reste à déposer.

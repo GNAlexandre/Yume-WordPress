@@ -5,9 +5,8 @@ changent les couleurs, le logo et quelques particules dans l'en-tête ; pour don
 site, un **arbre décoratif** (celui du logo de chaque saison) est posé en fond, sur le côté de la page.
 
 Les images sont générées par un modèle d'image (GPT) à partir des six logos, avec les consignes du §2,
-puis intégrées dans le thème selon le §3. **Intégré en 2.7.0** (lot D) avec cinq arbres sur six :
-l'arbre d'automne reste à déposer (§3, « Reste à faire ») ; tant qu'il manque, aucun arbre n'est
-affiché en automne.
+puis intégrées dans le thème selon le §3. **Intégré en 2.7.0** (lot D) : les six arbres sont livrés
+(l'automne en dernier, 2.7.0-dev.5).
 
 ## 1. Principe retenu
 
@@ -96,8 +95,8 @@ secondaire (`texte-faible`) qui passent sur une branche descendent nettement plu
 pour un lien en Papier) : c'est la limite du filigrane sous la colonne de contenu ; la case de réglage
 permet de couper l'arbre sans release. Au-delà de 1 900 px, l'arbre ne passe plus sous le texte.
 
-**Reste à faire.** Déposer `arbre-automne` : convertir le PNG reçu avec les mêmes réglages (rognage,
-900 et 1 400 px de haut, WebP et AVIF) dans `assets/img/sprites/` ; aucun code à changer.
+**Arbre d'automne** : reçu et converti avec les mêmes réglages (WebP 1x 120 Ko, AVIF 1x 100 Ko, 2x 253 / 184 Ko) ;
+le thème affiche tout arbre dont le fichier 1x existe, sans changement de code.
 
 ## 4. Décisions (2026-10-30)
 

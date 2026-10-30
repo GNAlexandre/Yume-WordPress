@@ -1201,9 +1201,7 @@ bien visible dans la marge de droite, sans passer sous le texte. Il **n'apparaî
 - dans les chapitres (lecteur MangaDex compris) ni sur la page « Illustrations » d'un tome ;
 - dans l'espace équipe et le formulaire de publication, ni dans l'administration ;
 - pour un lecteur qui a demandé plus de contraste (réglage du système, ou **Contraste renforcé**
-  dans un chapitre), pour un lecteur en thème **Sépia**, ni à l'impression ;
-- en Automne tant que l'image de l'arbre d'automne n'a pas été livrée (elle arrive avec une mise à
-  jour du site).
+  dans un chapitre), pour un lecteur en thème **Sépia**, ni à l'impression.
 
 Il ne gêne pas les clics et est ignoré des lecteurs d'écran. Décochez la case puis **Enregistrer
 les réglages** pour le retirer de tout le site, sans attendre de mise à jour.
