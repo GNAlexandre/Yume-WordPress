@@ -431,7 +431,8 @@ L'entrée **Réglages** du menu affiche tous les réglages du site dans l'espace
 par l'administration : *Site et réseaux*, *Planning et rappels*, *Annonces et notifications*
 (webhooks Discord, e-mails aux lecteurs, modèle d'annonce, notifications navigateur),
 *Partenaires*, *Recrutement*, *Lecteurs* (signalement des coquilles, §6 bis), *Connexion Discord*
-(§8 ; le Client Secret n'est jamais réaffiché) (et *Mises à jour* pour l'administrateur seulement ;
+(§8 ; le Client Secret n'est jamais réaffiché), *Thème saisonnier* (habillage du site selon la
+saison, depuis 2.7 : §8, « Thème saisonnier ») (et *Mises à jour* pour l'administrateur seulement ;
 voir la section 8 pour le détail). Modifiez ce qu'il faut puis cliquez sur **Enregistrer les réglages** (un seul bouton en
 bas de page) : un message en haut de la vue confirme l'enregistrement ou liste ce qui a été
 refusé (par exemple un partenaire sans lien valide, ou un lien qui n'est pas un webhook Discord ;
@@ -1062,6 +1063,8 @@ signalé, jusqu'à votre décision. Vos réponses portent un badge **Équipe** �
   - *Partenaires* : la section « Nos partenaires » de l'accueil (voir ci-dessous) ;
   - *Recrutement* : la page « Rejoindre l'équipe » : introduction, postes ouverts ou fermés, lien du
     test de traduction, consigne pour postuler (voir ci-dessous) ;
+  - *Thème saisonnier* : couleurs, logo et décors du site selon la saison, Halloween et Noël (voir
+    « Thème saisonnier » ci-dessous) ;
   - *Mises à jour* : section réservée aux administrateurs (invisible pour les gérants).
 - Le lien **Contact** du menu ouvre le **Discord** de Yume (lien d'invitation réglé dans *Site et
   réseaux*).
@@ -1119,6 +1122,105 @@ mentions « Poste à pourvoir » de la page « L'équipe ») se règle dans *Ré
 
 Le site ne recueille aucune candidature : tout passe par le Discord (ticket dans le salon
 « tickets »), où l'équipe répond directement.
+
+### Thème saisonnier (depuis 2.7)
+
+Le site change d'habillage selon la période de l'année : **Printemps**, **Été**, **Automne**,
+**Hiver**, et deux fêtes qui passent avant la saison : **Halloween** (octobre) et **Noël**
+(décembre). Tout se règle dans *Réglages → Thème saisonnier* (vue **Réglages** de l'espace équipe,
+ou *Yume → Réglages* dans l'administration), par les gérants et les administrateurs. Procédure pas
+à pas : guide Word, chapitre « Le thème saisonnier (gérants) ».
+
+**Ce que voient les lecteurs**
+
+- Chaque thème a sa **palette de couleurs** et son **logo** dans l'en-tête. Le Printemps garde les
+  couleurs habituelles du site (« Crépuscule sakura ») : seul le logo change.
+- Le lecteur choisit toujours son thème **Nuit** ou **Papier** (bascule de l'en-tête) : la saison
+  s'applique aux deux, en version sombre ou claire.
+- Le thème **Sépia** (confort de lecture) ne change jamais de couleurs.
+- Sans saison (**thème de base**), le site a ses couleurs habituelles et le logo du site réglé dans
+  WordPress.
+- Quelques **décors animés** légers traversent la bande d'en-tête : pétales au printemps, feuilles en
+  automne, flocons en hiver et à Noël, chauves-souris à Halloween, rien en été.
+- Sur ordinateur, l'**arbre de la saison** (celui du logo) est posé en fond de page, en bas à droite,
+  derrière le contenu (voir **Arbre décoratif** ci-dessous).
+
+**Les trois modes** (liste **Pilotage du thème**)
+
+- **Selon le calendrier** (par défaut) : le thème suit le tableau des dates.
+- **Thème choisi ci-dessous** : le thème choisi dans la liste **Thème choisi** (**Thème de base** ou l'un des
+  six) reste en place toute l'année ; les dates sont ignorées.
+- **Thème de base toute l'année** : aucune saison.
+
+**Le calendrier** : une ligne par thème, colonnes **Thème**, **Du (JJ/MM)**, **Au (JJ/MM)**,
+**Actif**, et un lien **Aperçu**. Dates par défaut :
+
+| Thème (ordre de priorité) | Du | Au |
+| --- | --- | --- |
+| Noël | 01/12 | 31/12 |
+| Halloween | 01/10 | 31/10 |
+| Printemps | 20/03 | 20/06 |
+| Été | 21/06 | 21/09 |
+| Automne | 22/09 | 20/12 |
+| Hiver | 21/12 | 19/03 |
+
+- **Modifier les dates** : format « JJ/MM », sans année (les dates valent chaque année), heure de
+  Paris. Les deux dates sont **incluses** : « du 01/10 au 31/10 » couvre tout octobre. Une période
+  peut passer le Nouvel An (début après la fin, comme l'Hiver du 21/12 au 19/03). Une date mal
+  écrite est refusée : la ligne garde son ancienne date et le message en haut de la vue le signale.
+- **Priorité des fêtes** : les lignes sont lues dans l'ordre du tableau, fêtes en tête ; la
+  **première ligne active** qui contient la date du jour l'emporte. En octobre, Halloween passe donc
+  avant l'Automne ; en décembre, Noël passe avant l'Automne puis l'Hiver ; le 1er janvier, l'Hiver
+  reprend. Un jour qu'aucune ligne active ne couvre : thème de base.
+- **Désactiver une ligne** : décochez **Actif**. Sans la ligne Halloween, octobre reste en Automne.
+  Les six lignes sont fixes : on ne peut ni en ajouter, ni en supprimer, ni changer leur ordre.
+- Sous le tableau, une ligne résume la situation, par exemple « Aujourd'hui : *Automne*
+  (calendrier) — prochain changement : *Noël* le 01/12 ».
+
+**Aperçu sans rien changer pour les lecteurs** : le lien **Aperçu** d'une ligne, ou le paramètre
+`?yn-saison=<thème>` ajouté à l'adresse de n'importe quelle page du site (`&yn-saison=…` si l'adresse
+contient déjà un `?`), affiche cette page avec le thème voulu. Valeurs : `printemps`, `ete`,
+`automne`, `hiver`, `halloween`, `noel`, et `aucun` pour le thème de base. L'aperçu est réservé aux
+gérants et aux administrateurs **connectés** : pour tout autre visiteur, le paramètre est ignoré.
+La page d'aperçu n'est jamais gardée en cache.
+
+**Décors animés** : la case **Décors animés** de la section les coupe pour tout le site (cochée par défaut). Ils ne
+s'affichent jamais sur un appareil réglé pour réduire les animations (préférence du système « réduire
+les animations »), ni pour un lecteur qui a coché **Réduire les animations** dans un chapitre (bouton
+⚙ **Paramètres** → **Accessibilité**, réglage propre à l'appareil). Sans JavaScript, aucun décor. Ils
+restent dans la bande d'en-tête, ne gênent pas les clics et sont ignorés des lecteurs d'écran.
+
+**Arbre décoratif** : la case **Arbre décoratif** de la section (cochée par défaut, juste après
+**Décors animés**) affiche l'arbre de la saison en fond de page, calé en bas à droite de la fenêtre,
+derrière le contenu. Il est **en filigrane** (très pâle) sur la plupart des écrans d'ordinateur, où il
+passe sous la colonne de texte ; sur les très grands écrans (1 900 pixels de large et plus), il est
+bien visible dans la marge de droite, sans passer sous le texte. Il **n'apparaît pas** :
+
+- sur les écrans de moins de 1 024 pixels de large (téléphones, tablettes en portrait) : l'image
+  n'est même pas téléchargée ;
+- dans les chapitres (lecteur MangaDex compris) ni sur la page « Illustrations » d'un tome ;
+- dans l'espace équipe et le formulaire de publication, ni dans l'administration ;
+- pour un lecteur qui a demandé plus de contraste (réglage du système, ou **Contraste renforcé**
+  dans un chapitre), pour un lecteur en thème **Sépia**, ni à l'impression.
+
+Il ne gêne pas les clics et est ignoré des lecteurs d'écran. Décochez la case puis **Enregistrer
+les réglages** pour le retirer de tout le site, sans attendre de mise à jour.
+
+**Quand le changement se voit**
+
+- Le thème du jour est calculé à chaque page, à l'heure de Paris : il change à minuit le jour du
+  début d'une période.
+- Le changement est vérifié chaque nuit à **00:05**, et aussitôt quand un enregistrement des
+  réglages change le thème du jour. Le site vide alors le cache des pages de l'hébergeur (accueil,
+  bibliothèque, planning, actualités, pages du site, listes d'œuvres) ; les autres pages expirent
+  d'elles-mêmes.
+- Un visiteur peut donc voir l'ancienne version **5 minutes au plus** : recharger la page suffit.
+
+**Remplacer un logo** : les logos saisonniers sont des fichiers du thème
+(`assets/img/saisons/<thème>.webp`, 320 px de large), pas des images de la médiathèque. Pour en
+changer, envoyez le nouveau visuel à Alexandre : il arrive sur le site avec une mise à jour (release).
+Le logo du site réglé dans WordPress ne sert qu'au thème de base : le changer ne modifie aucun logo
+saisonnier.
 
 ### Recherche dans le texte des chapitres
 
@@ -1249,4 +1351,7 @@ prévenez l'équipe technique sur Discord avec l'adresse de la page et une captu
 | *Statistiques* affiche « Trafic indisponible » ou des vues vides sur le site en ligne | Jetpack n'est pas connecté ou ne répond pas : prévenez l'équipe technique (favoris, lecteurs et classements restent justes). |
 | Un lecteur demande combien il a lu | *Mon compte* → **Mes statistiques** : tomes terminés, chapitres lus, temps de lecture estimé, séries en cours et badge « À jour » par série (d'après sa position de lecture, en étant connecté). |
 | Un lecteur ne retrouve pas une œuvre dans « En cours » ou « Terminé » | Le classement automatique suit sa position de lecture en étant connecté ; il a pu le couper dans *Mon compte → Mes listes*. Il peut toujours ranger l'œuvre à la main avec **Ajouter à une liste** sur la fiche. |
+| Le site est encore en Halloween le 2 novembre | La ligne Halloween s'arrête le 31/10 : le 1er novembre, le site passe en Automne. Vérifiez *Réglages → Thème saisonnier* : mode **Thème choisi ci-dessous** réglé sur Halloween, ou dates de la ligne Halloween modifiées. Sinon, rechargez la page. |
+| Je veux garder le thème de base | *Réglages → Thème saisonnier* → **Thème de base toute l'année**, puis **Enregistrer les réglages**. Le calendrier est conservé pour plus tard. |
+| Je vois l'ancien thème alors que la date est passée | Rechargez la page (Ctrl + F5 sur ordinateur) : une copie en cache peut rester 5 minutes au plus. La ligne « Aujourd'hui : … » sous le calendrier (*Réglages → Thème saisonnier*) donne le thème attendu. |
 | Un lecteur ne reçoit pas les notifications du navigateur | Elles s'activent appareil par appareil dans *Mon compte → Notifications* ; le navigateur doit les autoriser pour le site. Elles arrivent quelques minutes après la sortie (envoi planifié). Sa cloche, elle, se met à jour dans tous les cas. |

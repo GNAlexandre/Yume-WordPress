@@ -153,7 +153,7 @@ function champ_reglage_equipe( array $champ ): string {
 	$valeur   = yume_setting( $cle );
 	$desc     = (string) ( $champ['description'] ?? '' );
 	$aide_id  = $id . '-aide';
-	$large    = in_array( $type, array( 'textarea', 'checkboxes', 'media', 'partenaires' ), true );
+	$large    = in_array( $type, array( 'textarea', 'checkboxes', 'media', 'partenaires', 'saisons' ), true );
 	$classe   = 'yn-team__champ yn-reglages__champ' . ( $large ? ' yn-reglages__champ--large' : '' );
 	$decrit   = static function ( string $texte ) use ( $aide_id ): string {
 		return '' !== $texte ? ' aria-describedby="' . esc_attr( $aide_id ) . '"' : '';
@@ -213,6 +213,9 @@ function champ_reglage_equipe( array $champ ): string {
 
 		case 'partenaires':
 			return champ_partenaires_equipe( $id, $nom, $valeur, $libelle, $desc );
+
+		case 'saisons':
+			return champ_saisons_equipe( $champ, $id, $nom, $valeur, $desc );
 
 		case 'secret':
 			// Jamais réaffiché (type de champ du socle, includes/core/settings.php).
@@ -297,6 +300,54 @@ function champ_partenaires_equipe( string $id, string $nom, $valeur, string $lib
 		$html .= '</div></details>';
 	}
 	return $html . '</div>';
+}
+
+/**
+ * Calendrier des thèmes saisonniers (type de champ saisons, module saisons) : même table et mêmes
+ * noms de champs que la page d'administration (\Yume\Core\Core\champ_saisons()), dans
+ * l'habillage de l'espace équipe, puis la phrase d'état.
+ *
+ * @param array<string,mixed> $champ   Champ.
+ * @param string              $id      Préfixe des ID.
+ * @param string              $nom     Attribut name du réglage.
+ * @param mixed               $valeur  Valeur enregistrée.
+ * @param string              $desc    Description.
+ */
+function champ_saisons_equipe( array $champ, string $id, string $nom, $valeur, string $desc ): string {
+	$donnees  = \Yume\Core\Core\donnees_champ_saisons( $champ, $valeur );
+	$colonnes = \Yume\Core\Core\colonnes_champ_saisons();
+	$aide_id  = $id . '-aide';
+	$titre_id = $id . '-titre';
+	$html     = '<div class="yn-reglages__champ yn-reglages__champ--large yn-reglages__saisons" role="group" aria-labelledby="' . esc_attr( $titre_id ) . '"' . ( '' !== $desc ? ' aria-describedby="' . esc_attr( $aide_id ) . '"' : '' ) . '>';
+	$html    .= '<p class="yn-label" id="' . esc_attr( $titre_id ) . '">' . esc_html( (string) $champ['label'] ) . '</p>';
+	$html    .= '<div class="yn-reglages__defilement"><table class="yn-reglages__table"><caption class="yn-visually-hidden">' . esc_html( (string) $champ['label'] ) . '</caption><thead><tr>';
+	foreach ( $colonnes as $titre ) {
+		$html .= '<th scope="col">' . esc_html( $titre ) . '</th>';
+	}
+	$html .= '</tr></thead><tbody>';
+	foreach ( $donnees['lignes'] as $ligne ) {
+		$base  = $id . '-' . $ligne['theme'];
+		$name  = $nom . '[' . $ligne['theme'] . ']';
+		$html .= '<tr><th scope="row">' . esc_html( $ligne['nom'] ) . '</th>';
+		foreach ( array( 'debut', 'fin' ) as $borne ) {
+			$html .= '<td><label class="yn-visually-hidden" for="' . esc_attr( $base . '-' . $borne ) . '">' . esc_html( \Yume\Core\Core\libelle_date_saison( $borne, $ligne['nom'] ) ) . '</label>';
+			$html .= '<input type="text" id="' . esc_attr( $base . '-' . $borne ) . '" name="' . esc_attr( $name . '[' . $borne . ']' ) . '" value="' . esc_attr( $ligne[ $borne ] ) . '" size="5" maxlength="5" placeholder="' . esc_attr__( 'JJ/MM', 'yume-core' ) . '" pattern="[0-9]{1,2}/[0-9]{1,2}" autocomplete="off" spellcheck="false"></td>';
+		}
+		$html .= '<td><input type="hidden" name="' . esc_attr( $name . '[actif]' ) . '" value="0">';
+		/* translators: %s : thème */
+		$html .= '<label class="yn-team__case yn-reglages__case" for="' . esc_attr( $base . '-actif' ) . '"><input type="checkbox" id="' . esc_attr( $base . '-actif' ) . '" name="' . esc_attr( $name . '[actif]' ) . '" value="1"' . checked( $ligne['actif'], true, false ) . '><span class="yn-visually-hidden">' . esc_html( sprintf( __( 'Activer « %s »', 'yume-core' ), $ligne['nom'] ) ) . '</span></label></td>';
+		$html .= '<td>';
+		if ( '' !== $ligne['apercu'] ) {
+			/* translators: %s : thème */
+			$html .= '<a href="' . esc_url( $ligne['apercu'] ) . '" target="_blank" rel="noopener">' . esc_html( $colonnes['apercu'] ) . '<span class="yn-visually-hidden"> ' . esc_html( sprintf( __( 'du thème « %s » (nouvel onglet)', 'yume-core' ), $ligne['nom'] ) ) . '</span></a>';
+		}
+		$html .= '</td></tr>';
+	}
+	$html .= '</tbody></table></div>';
+	if ( '' !== $donnees['etat'] ) {
+		$html .= '<p class="yn-reglages__etat"><strong>' . esc_html( $donnees['etat'] ) . '</strong></p>';
+	}
+	return $html . aide_reglage( $aide_id, $desc ) . '</div>';
 }
 
 /*

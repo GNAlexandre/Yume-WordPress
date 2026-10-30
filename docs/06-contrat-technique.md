@@ -64,6 +64,7 @@ Historique des Go et des releases : `journal-des-decisions.md`.
 | `includes/recommandations/`, `tests/test-recommandations.php` | **recommandations** (lot L3 : « Si vous avez aimé… » sur la fiche d'une œuvre et rubrique « Pour vous » ; §8 sexies) |
 | `includes/rattrapage/`, `tests/test-rattrapage.php` | **rattrapage** (lot L5 : « Nouveaux chapitres depuis votre dernière lecture » ; accueil « Reprendre la lecture » depuis 2.5.1, et Mon compte ; §8 sexies) |
 | `includes/comptes/`, `tests/test-comptes*.php` | **comptes** (2.6.0 : vue « Comptes inscrits » de l'espace équipe, fiche d'un compte, export CSV journalisé, méta de dernière activité et source d'inscription ; §8 septies) |
+| `includes/saisons/`, `tests/test-saisons.php` | **saisons** (2.7.0 : thème saisonnier — réglages et type de champ `saisons`, résolution du calendrier, API `yume_saison*`, tâche quotidienne, purge des caches, aperçu `?yn-saison` ; §6, §7, §8, §15 ; cahier des charges `docs/07-themes-saisonniers.md`). Le rendu du type `saisons` vit dans `includes/core/settings.php` et `includes/planning/reglages-equipe.php` |
 | `wp-content/themes/yume/` | **thème** |
 
 Chaque module range ses fichiers statiques dans `includes/<module>/assets/` et ses blocs dans
@@ -408,10 +409,15 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `discord_inscription` | `true` | discord : création d'un compte au premier passage (sous réserve de `inscriptions_ouvertes()`) |
 | `discord_client_id` | `''` | discord : *Client ID* de l'application Discord (type `text`, verrouillé par la constante `YUME_DISCORD_CLIENT_ID`) |
 | `discord_client_secret` | `''` | discord : *Client Secret* (type **`secret`** ; saisi dans les réglages, cas normal sur WordPress.com où `wp-config.php` n'est pas modifiable ; verrouillé et ignoré si la constante `YUME_DISCORD_CLIENT_SECRET` existe). Les quatre champs Discord sont aussi dans la vue « Réglages » de l'espace équipe (capacité `yume_reglages` : gérants et administrateurs) ; le secret n'y est jamais réaffiché |
+| `saison_mode` | `'auto'` | saisons (2.7.0) : mode de pilotage du thème saisonnier, type `select` — `auto` « Selon le calendrier », `manuel` « Thème choisi ci-dessous », `aucun` « Thème de base toute l'année » (section « Thème saisonnier » `saisons`, ajoutée par `yume_reglages_sections` ; aussi dans la vue « Réglages » de l'espace équipe, capacité `yume_reglages`) |
+| `saison_manuelle` | `''` | saisons : thème forcé quand `saison_mode` = `manuel`, type `select` — `''` « Thème de base » et les six slugs (§15) |
+| `saison_calendrier` | les six lignes du calendrier par défaut (`docs/07-themes-saisonniers.md` §3) | saisons : programmation, type de champ **`saisons`** (ci-dessous) ; lecture résolue par `yume_saison_calendrier()` (§7) |
+| `saison_decor` | `true` | saisons, thème : décors animés légers dans la bande d'en-tête (§15) ; jamais avec `prefers-reduced-motion` ni `yn.a11y.animations = 'reduites'` (§14) |
+| `saison_sprite` | `true` | saisons, thème : **Arbre décoratif** de la saison en fond de page, à droite, en filigrane (§15) ; jamais sur les pages de lecture, dans l'espace équipe, sous le thème Sépia ni sous 1 024 px de large (`docs/08-sprites-saisonniers.md`) |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
-`yume_reglages_champs` (types en plus : `checkboxes`, `secret` ; clés facultatives `default`, `min`, `max`,
+`yume_reglages_champs` (types en plus : `checkboxes`, `secret`, `saisons` ; clés facultatives `default`, `min`, `max`,
 `step`, `placeholder`, `sanitize`) et des sections via `yume_reglages_sections` (tableau de `array( 'key', 'label', 'type' => text|url|number|checkbox|select|media|textarea, 'section', 'options', 'description' )`).
 
 **Type de champ `secret`** (depuis 2.5.0, lot 0) : pour une clé d'API ou un secret OAuth. Affiché
@@ -426,6 +432,19 @@ constante … »), jamais la valeur. L'option `yume_reglages` n'est pas exposée
 (`show_in_rest` faux) ; un secret se lit par `yume_setting()` côté serveur seulement et ne doit
 jamais être écrit dans une page, un attribut `data-*`, une réponse REST ou un journal. Aucun moyen
 d'effacer un secret depuis le formulaire : passer par une constante ou par programme.
+
+**Type de champ `saisons`** (depuis 2.7.0, module saisons) : pour `saison_calendrier`. Valeur :
+liste de six lignes `{theme, debut, fin, actif}` — `theme` = slug (§15), `debut` et `fin` au format
+« JJ/MM » sans année (bornes incluses, fuseau du site `wp_timezone()` ; `debut` > `fin` = période à
+cheval sur le Nouvel An, valide), `actif` booléen. Les six lignes sont fixes, dans l'ordre de
+priorité `noel`, `halloween`, `printemps`, `ete`, `automne`, `hiver` (les fêtes avant les saisons) :
+ni ajout, ni suppression, ni changement d'ordre. Rendu dans `Core\afficher_champ()` (*Yume →
+Réglages*) et dans `Planning\champ_reglage_equipe()` (vue « Réglages » de l'espace équipe) : une
+table, une ligne par thème, colonnes « Thème », « Du (JJ/MM) », « Au (JJ/MM) », « Actif », et un lien
+« Aperçu » par ligne (aperçu `?yn-saison`, §7) ; sous la table, « Aujourd'hui : *Automne*
+(calendrier) — prochain changement : *Noël* le 01/12 ». Assainissement
+`Saisons\assainir_calendrier()` : date invalide → valeur précédente de la ligne et avertissement
+`add_settings_error` ; ligne inconnue ignorée ; ordre de priorité figé.
 
 `partenaires` (section *Partenaires*, type de champ `partenaires`) : liste ordonnée d'au plus 8
 (`MAX_PARTENAIRES`) `{nom, url, description, logo: int (pièce jointe) | string (URL http(s)) | '',
@@ -793,6 +812,28 @@ l'anonymisation des commentaires, avant `wp_delete_user()` qui émet `deleted_us
 plus ses propres exportateur et effaceur WordPress (`yume-core-coquilles`, `yume-core-discord`) et
 écoute `deleted_user` pour une suppression faite dans wp-admin.
 
+**saisons** (`includes/saisons/api.php`, depuis 2.7.0 ; cahier des charges `docs/07-themes-saisonniers.md`) :
+
+```php
+yume_saisons(): array;                 // slug => ['nom' => 'Automne', 'type' => 'saison'|'fete', 'logo' => 'automne.webp']
+yume_saison_active(): string;          // slug actif pour la requête courante ('' = thème de base) ; filtre final yume_saison_active
+yume_saison_calendrier(): array;       // les six lignes {theme, debut, fin, actif} résolues (réglage saison_calendrier fusionné avec les défauts)
+yume_saison_pour_date( DateTimeInterface $date, ?array $calendrier = null ): string; // première ligne active qui contient la date, '' sinon
+yume_saison_nom( string $slug ): string;                                             // « Automne » ; '' → « Thème de base »
+```
+
+- **Résolution** (`yume_saison_active()`) : aperçu `?yn-saison=<slug|aucun>` (honoré seulement pour
+  un compte ayant `yume_reglages`, ignoré sinon) > `saison_mode` (`aucun` → `''`, `manuel` →
+  `saison_manuelle`) > calendrier à la date courante (`yume_saison_pour_date()`, heure du site).
+  Résultat mémorisé pour la requête, puis filtre `yume_saison_active`.
+- **Calendrier** (`yume_saison_pour_date()`) : la **première ligne active** dont la période contient
+  la date gagne (fêtes avant saisons) ; aucune ligne → `''`. `$calendrier` null =
+  `yume_saison_calendrier()`.
+- **Aperçu** : sur n'importe quelle page de façade ; quand le paramètre est honoré, la page n'entre
+  jamais dans le cache de page (`batcache_cancel()` appelé explicitement, s'il existe).
+- Le thème n'appelle ces fonctions que derrière `function_exists( 'yume_saison_active' )` : sans le
+  plugin, il affiche le thème de base.
+
 **import** : `Yume\Core\Import\Docx_Converter::convert_file( string $path, array $options = array() ): Yume\Core\Import\Result`
 et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces classes n'utilisent
 **aucune** fonction WordPress (réutilisées par l'outil en ligne de commande). Voir §9.
@@ -814,6 +855,7 @@ et `Yume\Core\Import\Epub_Converter::convert_file(...)` (même résultat) ; ces 
 | `yume_coquille_signalee` | `int $id, int $chapitre_id, int $user_id` | corrections (`signaler_coquille()`, §8 quater) | corrections (Discord équipe) |
 | `yume_coquille_traitee` | `int $id, string $statut, int $user_id` | corrections (`changer_statut()`) | corrections (notification du lecteur à « corrigé ») |
 | `yume_discord_lie` / `yume_discord_delie` / `yume_discord_compte_cree` | `int $user_id, string $discord_id` / `int $user_id` / `int $user_id` | discord (§8 quinquies) | — |
+| `yume_saison_changee` | `string $nouvelle, string $ancienne` (slugs, `''` = thème de base) | saisons (2.7.0), quand la saison calculée diffère de l'option `yume_saison_courante` : vérifié à l'enregistrement des réglages et par la tâche quotidienne `yume_saisons_quotidien` (ci-dessous) | saisons (purge des caches de page) ; plus tard planning (annonce Discord, hors périmètre de la 2.7.0) |
 
 Filtres du lot planning/modération : `yume_rappels_plafond` (int, semaines de retard au-delà
 desquelles un tome ne reçoit plus de rappel, défaut 8, 0 = sans plafond : il reste dans le
@@ -1003,6 +1045,17 @@ chapitres à un tome », champ caché `mode=chapitres`, `Service::MODE_CHAPITRES
 
 `yume_glossaire_importe( int $oeuvre_id, int $version_id )` (module glossaire) : un glossaire vient
 d'être importé (nouvelle version en ligne) ; pas émis pour une simulation ni un envoi « inchangé ».
+
+**Thème saisonnier** (module saisons, 2.7.0, `docs/07-themes-saisonniers.md` §5 et §7) : l'option
+`yume_saison_courante` garde la dernière saison calculée (slug, `''` = thème de base). La tâche cron
+quotidienne **`yume_saisons_quotidien`** (00:05 heure du site) et l'enregistrement des réglages
+recalculent la saison (mode et calendrier, sans aperçu) ; si elle diffère de l'option,
+`yume_saison_changee( $nouvelle, $ancienne )` est émise. Le module y accroche la **purge des caches** :
+`batcache_clear_url()` (si la fonction existe) sur l'accueil, la bibliothèque, le planning, les
+actualités, les pages `yume_pages` (§11) et les archives d'œuvres, puis `wp_cache_flush()` ; les autres
+pages expirent naturellement (5 min sur WordPress.com). L'attribut `data-yn-saison` étant calculé à
+chaque requête, la tâche ne sert qu'à émettre l'événement et à purger : un visiteur peut voir
+l'ancienne saison jusqu'à 5 minutes après minuit.
 
 ## 8 bis. MangaDex : synchronisation et proxy des pages (module mangadex, depuis 2.3.0)
 
@@ -2089,7 +2142,7 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 | `yn.theme` | `nuit` \| `papier` \| `sepia` | thème (bascule d'en-tête) et lecture (panneau) |
 | `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
 | `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
-| `yn.a11y` | `{contraste: bool, animations: 'systeme'\|'reduites'}` (appareil seulement, jamais envoyé au compte) | lecture (panneau Paramètres, script d'initialisation) |
+| `yn.a11y` | `{contraste: bool, animations: 'systeme'\|'reduites'}` (appareil seulement, jamais envoyé au compte) | lecture (panneau Paramètres, script d'initialisation) ; lu aussi par le thème (`animations` = `reduites` coupe les décors saisonniers, §15) |
 | `yn.manga` | `{mode: 'defilement'\|'page', qualite: 'data-saver'\|'data'}` (appareil seulement ; défaut défilement, économie de données) | lecteur des chapitres MangaDex (`includes/mangadex/assets/manga.js`, §8 bis) |
 | `yn.wordend` | `{meilleur: int, parties: int, maj: 'YYYY-MM-DD', volume: 0…1, muet: bool}` (meilleur score et réglages du son du jeu caché, appareil seulement) | wordend |
 
@@ -2166,7 +2219,8 @@ compte (`blocks/auth-links/view.js`, attribut `data-yn-push` : clé, URL et port
 empreintes des abonnements du membre).
 
 Attribut `html[data-yn-theme]` = `nuit` (défaut) \| `papier` \| `sepia`, posé avant le premier rendu
-par un script en ligne du thème (pas de flash). Variables du lecteur, posées sur `.yn-reader` :
+par un script en ligne du thème (pas de flash). Deuxième dimension, indépendante, posée par le serveur
+(PHP) : `html[data-yn-saison]` (thème saisonnier, §15). Variables du lecteur, posées sur `.yn-reader` :
 `--yn-size` (px), `--yn-lh`, `--yn-font`, `--yn-width` (ch), `--yn-bg-alpha`.
 
 ## 15. Design tokens (thème, `theme.json`)
@@ -2185,6 +2239,77 @@ Papier : `fond` #fdf8fa · `bande` #f6eef3 · `carte` #ffffff · `filet` #e8d9e2
 Sépia : comme Papier avec `fond` #f4ead9, `bande` #efe2cc, `carte` #fbf4e6, `filet` #e2d3b8, `texte` et `texte-fort` #3a2233, `texte-faible` #6b5443, `accent` #a8356a, `accent-2` #93501f, `succes` #286c51, `avertissement` #85541a.
 Variables de thème supplémentaires : `--yn-accent-survol`, `--yn-degrade-couverture`, `--yn-voile-image`.
 Feuilles : `themes/yume/assets/css/yume.css` et `assets/css/reader.css` (chargées en façade et dans l'éditeur).
+
+**Versionnement des assets du thème** (depuis 2.7.0) : `yume_theme_version_fichier( string $relatif )`
+(`inc/assets.php`) ajoute **toujours** à la version du thème l'empreinte du fichier, sa date de
+modification (`filemtime`) en hexadécimal : `2.7.0-1a2b3c4d` (avant 2.7.0 : empreinte en
+développement local seulement). Toute modification d'un fichier change son URL (`?ver=`), même sans
+montée de version. Même règle pour les logos saisonniers (`?v=`).
+
+**Thèmes saisonniers** (depuis 2.7.0, `themes/yume/inc/saisons.php` ; cahier des charges
+`docs/07-themes-saisonniers.md`) : une variante du thème « Crépuscule sakura », pas un autre thème
+WordPress.
+
+- **Slugs** (figés) : `printemps`, `ete`, `automne`, `hiver` (saisons), `halloween`, `noel` (fêtes) ;
+  `''` = thème de base. Saison active : `yume_saison_active()` (§7).
+- **Attribut** `<html data-yn-theme="nuit|papier|sepia" data-yn-saison="<slug>">` : `data-yn-saison`
+  posé par PHP (filtre `language_attributes`, après le thème de couleurs), **absent** sans saison
+  active. Classe de `body` : `yn-saison-<slug>`. Couleur `theme-color` par saison. Tout derrière
+  `function_exists( 'yume_saison_active' )`.
+- **Variables redéfinies** (section « 1 bis. Thèmes saisonniers » de `yume.css`) : pour chaque saison
+  sauf `printemps`, `html[data-yn-saison="s"][data-yn-theme="nuit"]:not([data-yn-contraste])` (Nuit) et
+  `html[data-yn-saison="s"][data-yn-theme="papier"]:not([data-yn-contraste])` (Papier ; `:not([data-yn-contraste])` :
+  le contraste renforcé du lecteur l'emporte toujours sur la saison) redéfinissent **seulement** `fond`, `bande`, `carte`, `filet`, `bordure`, `accent`,
+  `accent-texte`, `accent-2`, `selection`, `--yn-accent-survol` et `--yn-degrade-couverture`. Les encres
+  (`texte`, `texte-fort`, `texte-faible`) et les couleurs d'état ne changent pas. **Sépia inchangé**
+  (thème de confort de lecture). **Printemps = base** : aucune variable redéfinie, seul le logo change.
+- **Contrastes** mesurés : 4,5:1 pour `texte` sur `fond`, `bande` et `carte` ; 3:1 pour `bordure` et
+  pour `accent` sur `fond` ; 4,5:1 pour `accent-texte` sur `accent`.
+
+| Saison | Nuit : fond / bande / carte / filet / bordure / accent / accent-texte / accent-2 / selection | Papier : fond / bande / carte / filet / bordure / accent / accent-texte / accent-2 / selection |
+| --- | --- | --- |
+| `ete` (ciel et mer) | #0f1f33 / #142a44 / #1b3556 / #2f4f78 / #6f93c2 / #7fd3ff / #0b1b2c / #ffd27a / #1f3f66 | #f3f9fd / #e6f2fb / #ffffff / #cfe3f2 / #5a86b0 / #0f6fb3 / #ffffff / #985f19 / #e3f0fa |
+| `automne` (érables) | #221410 / #2d1a14 / #3a231b / #5a3a2c / #a8705a / #ff9c4a / #2a1208 / #ffd08a / #4a2b20 | #fdf6ef / #f8ebdd / #ffffff / #ecd7c3 / #9a6a4a / #ae4e19 / #ffffff / #8a5a14 / #f7e6d6 |
+| `halloween` (nuit violette, citrouille) | #170f26 / #211537 / #2b1b47 / #4a3270 / #8a66b8 / #ff9a3c / #1b0f2a / #c9a3ff / #3a2360 | #fbf5ff / #f3e8fb / #ffffff / #e3d3f0 / #7b5aa3 / #b24a0b / #ffffff / #6a3fb0 / #f1e4f9 |
+| `hiver` (neige, glace) | #141c2b / #1b2537 / #243247 / #3b4d68 / #7f98b8 / #bfe3ff / #0f1b2a / #e8d9c4 / #2c3d57 | #f6f9fc / #e9f0f7 / #ffffff / #d6e1ec / #647e98 / #2f6ea5 / #ffffff / #7a6248 / #e6eef6 |
+| `noel` (sapin, or, houx) | #10211a / #162b22 / #1e3a2e / #335a48 / #7fae93 / #f7c56b / #1b2a1f / #ff9c9c / #2a4d3b | #f6fbf7 / #e7f3ea / #ffffff / #cfe4d5 / #4f7f62 / #b32d2d / #ffffff / #8a6414 / #e4f1e8 |
+
+`--yn-accent-survol` (Nuit / Papier) : été #ace2ff / #0b5386 · automne #ffbf89 / #823a13 · halloween #ffbd80 / #863808 ·
+hiver #d5edff / #23527c · noël #fad99f / #862222. `--yn-degrade-couverture` (160deg, 0 % / 55 % / 140 %, identique en Nuit
+et en Papier) : été #2f5f8f / #1b3556 / #0f6fb3 · automne #7a3a1e / #3a231b / #b7521a · halloween #4a2a70 / #2b1b47 / #c2500c ·
+hiver #4a6280 / #243247 / #7fa6cc · noël #2f5a46 / #1e3a2e / #b32d2d. `theme-color` = `bande` du thème actif.
+Les blocs `.yn-fond-clair` / `.yn-fond-sombre` (contenus migrés) gardent les palettes de base : l'accent y reste
+rose sakura en toute saison. Contrôle : 200 mesures de contraste, aucune sous le seuil (accent et accent-2 tiennent
+aussi 4,5:1 comme couleur de texte sur `fond`, `bande` et `carte`).
+
+- **Logos** : `assets/img/saisons/<slug>.webp` (six fichiers WebP de 320 px de large ;
+  `printemps.webp` = logo actuel du site), servis par le filtre `get_custom_logo` : même balise
+  `<a><img>` que WordPress, `src` = fichier du thème versionné (`?v=`), `alt` = nom du site,
+  dimensions 44 px comme le bloc `site-logo` de l'en-tête. Thème de base : `custom_logo` du
+  personnalisateur.
+- **Décors** : `assets/js/saisons.js` et `yume.css` : quelques particules SVG en CSS (pétales au
+  printemps, feuilles en automne, flocons en hiver et à Noël, chauves-souris à Halloween, rien en été)
+  dans la bande d'en-tête seulement, `pointer-events: none`, `aria-hidden`, 12 éléments au plus ;
+  coupés par `@media (prefers-reduced-motion: reduce)`, par `yn.a11y.animations = 'reduites'` (§14) et
+  par le réglage `saison_decor` (§6). Sans JavaScript : rien.
+- **Arbre décoratif** (`docs/08-sprites-saisonniers.md`) : élément `<div class="yn-sprite" aria-hidden="true">`
+  imprimé sur `wp_body_open` par `inc/saisons.php`, avec la classe `yn-sprite-actif` sur `<body>` ; son
+  attribut `style` porte `--yn-sprite-1x` (WebP 1x) et `--yn-sprite` (`image-set()` : AVIF puis WebP,
+  1x et 2x, `type()`), URL versionnées (`?v=`). Fichiers `assets/img/sprites/arbre-<slug>.{avif,webp}`
+  (900 px de haut) et `arbre-<slug>-2x.{avif,webp}` (1 400 px). Imprimé seulement si une saison est
+  active, si `saison_sprite` est vrai (§6), hors chapitre (`single-yume_chapitre`, lecteur MangaDex
+  compris), page « Illustrations » d'un tome, pages `equipe`, `publier` et `membres` (§11) et
+  administration, et si le fichier WebP 1x de la saison existe (sinon rien, pas de 404). Règles
+  d'affichage (`yume.css`, section 1 bis) : `background-image` déclaré seulement dans
+  `@media (min-width: 1024px)` (rien de téléchargé en dessous) ; `position: fixed; right: 0; bottom: 0;
+  z-index: 0`, hauteur `min(78vh, 880px)`, largeur 0,67 × hauteur, fondu vers la gauche (`mask-image`) ;
+  opacité **0,3** sous 1 900 px de large (filigrane sous la colonne de contenu), **0,9** au-delà avec une
+  largeur limitée à la marge libre à droite de la grille large ; `body.yn-sprite-actif .wp-site-blocks`
+  en `position: relative; z-index: 1` (le contenu passe au-dessus) ; retiré par
+  `@media (prefers-contrast: more)`, `html[data-yn-contraste]`, `forced-colors` et l'impression.
+- **Caches** : une bascule de saison n'exige aucun nouveau fichier (palettes dans `yume.css`, l'attribut
+  HTML suffit ; pages de lecture « réseau d'abord » dans le service worker, §14) ; purge du cache de
+  page sur `yume_saison_changee` (§8).
 
 Familles (slug → `var(--wp--preset--font-family--<slug>)`) : `titres` Outfit · `corps` Nunito Sans ·
 `mono` IBM Plex Mono · `lecture` Literata. Polices **auto-hébergées** dans le thème (woff2).

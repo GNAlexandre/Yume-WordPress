@@ -2,6 +2,7 @@
  * Thème Yume — interface « Crépuscule sakura ».
  *
  * 1. Variables, thèmes Papier et Sépia
+ * 1 bis. Thèmes saisonniers (palettes, arbre décoratif)
  * 2. Base (sélection, focus, formulaires)
  * 3. Classes utilitaires partagées (contrat §15)
  * 4. Styles de blocs du thème (is-style-*)
@@ -17,7 +18,7 @@
  * 14. Préférences d'accessibilité et impression
  *
  * Les couleurs passent toujours par les variables --wp--preset--color--* (theme.json) :
- * les thèmes Papier et Sépia se contentent de les redéfinir.
+ * les thèmes Papier et Sépia et les thèmes saisonniers se contentent de les redéfinir.
  */
 
 /* ==========================================================================
@@ -112,6 +113,236 @@ html[data-yn-theme="sepia"] .yn-fond-sombre {
 	--yn-accent-survol: #f8c4da;
 	color: var(--wp--preset--color--texte);
 	color-scheme: dark;
+}
+
+/* ==========================================================================
+   1 bis. Thèmes saisonniers (palettes, arbre décoratif)
+   ==========================================================================
+   Variante du site posée par le serveur (inc/saisons.php, docs/07-themes-saisonniers.md) :
+   html[data-yn-saison="ete|automne|hiver|halloween|noel"], indépendante du thème de couleurs
+   choisi par le lecteur. Chaque saison redéfinit, pour Nuit et pour Papier, seulement les
+   surfaces et les accents (fond, bande, carte, filet, bordure, accent, accent-texte, accent-2,
+   selection, --yn-accent-survol, --yn-degrade-couverture) ; les encres (texte, texte-fort,
+   texte-faible) et les couleurs d'état ne changent pas. Printemps est la palette de base
+   (seul le logo change) ; Sépia, thème de confort de lecture, ne change jamais ; le contraste
+   renforcé du lecteur (html[data-yn-contraste]) l'emporte sur la saison.
+   Contrastes mesurés (WCAG) : texte et texte-faible 4,5:1 sur fond, bande et carte ; accent et
+   accent-2 4,5:1 sur ces trois surfaces (liens, Ko-fi) ; accent-texte 4,5:1 sur l'accent et sur
+   --yn-accent-survol ; bordure 3:1 sur fond et carte. Les blocs .yn-fond-clair / .yn-fond-sombre
+   (section 1) gardent les palettes Papier / Nuit de base, lisibles sur leur fond en toute saison.
+   Couleurs de bande reprises par la meta theme-color : inc/saisons.php et assets/js/yume.js. */
+
+/* Été : ciel et mer. */
+html[data-yn-saison="ete"][data-yn-theme="nuit"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #0f1f33;
+	--wp--preset--color--bande: #142a44;
+	--wp--preset--color--carte: #1b3556;
+	--wp--preset--color--filet: #2f4f78;
+	--wp--preset--color--bordure: #6f93c2;
+	--wp--preset--color--accent: #7fd3ff;
+	--wp--preset--color--accent-texte: #0b1b2c;
+	--wp--preset--color--accent-2: #ffd27a;
+	--wp--preset--color--selection: #1f3f66;
+	--yn-accent-survol: #ace2ff;
+	--yn-degrade-couverture: linear-gradient(160deg, #2f5f8f 0%, #1b3556 55%, #0f6fb3 140%);
+}
+
+html[data-yn-saison="ete"][data-yn-theme="papier"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #f3f9fd;
+	--wp--preset--color--bande: #e6f2fb;
+	--wp--preset--color--carte: #ffffff;
+	--wp--preset--color--filet: #cfe3f2;
+	--wp--preset--color--bordure: #5a86b0;
+	--wp--preset--color--accent: #0f6fb3;
+	--wp--preset--color--accent-texte: #ffffff;
+	--wp--preset--color--accent-2: #985f19;
+	--wp--preset--color--selection: #e3f0fa;
+	--yn-accent-survol: #0b5386;
+	--yn-degrade-couverture: linear-gradient(160deg, #2f5f8f 0%, #1b3556 55%, #0f6fb3 140%);
+}
+
+/* Automne : érables. */
+html[data-yn-saison="automne"][data-yn-theme="nuit"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #221410;
+	--wp--preset--color--bande: #2d1a14;
+	--wp--preset--color--carte: #3a231b;
+	--wp--preset--color--filet: #5a3a2c;
+	--wp--preset--color--bordure: #a8705a;
+	--wp--preset--color--accent: #ff9c4a;
+	--wp--preset--color--accent-texte: #2a1208;
+	--wp--preset--color--accent-2: #ffd08a;
+	--wp--preset--color--selection: #4a2b20;
+	--yn-accent-survol: #ffbf89;
+	--yn-degrade-couverture: linear-gradient(160deg, #7a3a1e 0%, #3a231b 55%, #b7521a 140%);
+}
+
+html[data-yn-saison="automne"][data-yn-theme="papier"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #fdf6ef;
+	--wp--preset--color--bande: #f8ebdd;
+	--wp--preset--color--carte: #ffffff;
+	--wp--preset--color--filet: #ecd7c3;
+	--wp--preset--color--bordure: #9a6a4a;
+	--wp--preset--color--accent: #ae4e19;
+	--wp--preset--color--accent-texte: #ffffff;
+	--wp--preset--color--accent-2: #8a5a14;
+	--wp--preset--color--selection: #f7e6d6;
+	--yn-accent-survol: #823a13;
+	--yn-degrade-couverture: linear-gradient(160deg, #7a3a1e 0%, #3a231b 55%, #b7521a 140%);
+}
+
+/* Halloween : nuit violette, citrouille. */
+html[data-yn-saison="halloween"][data-yn-theme="nuit"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #170f26;
+	--wp--preset--color--bande: #211537;
+	--wp--preset--color--carte: #2b1b47;
+	--wp--preset--color--filet: #4a3270;
+	--wp--preset--color--bordure: #8a66b8;
+	--wp--preset--color--accent: #ff9a3c;
+	--wp--preset--color--accent-texte: #1b0f2a;
+	--wp--preset--color--accent-2: #c9a3ff;
+	--wp--preset--color--selection: #3a2360;
+	--yn-accent-survol: #ffbd80;
+	--yn-degrade-couverture: linear-gradient(160deg, #4a2a70 0%, #2b1b47 55%, #c2500c 140%);
+}
+
+html[data-yn-saison="halloween"][data-yn-theme="papier"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #fbf5ff;
+	--wp--preset--color--bande: #f3e8fb;
+	--wp--preset--color--carte: #ffffff;
+	--wp--preset--color--filet: #e3d3f0;
+	--wp--preset--color--bordure: #7b5aa3;
+	--wp--preset--color--accent: #b24a0b;
+	--wp--preset--color--accent-texte: #ffffff;
+	--wp--preset--color--accent-2: #6a3fb0;
+	--wp--preset--color--selection: #f1e4f9;
+	--yn-accent-survol: #863808;
+	--yn-degrade-couverture: linear-gradient(160deg, #4a2a70 0%, #2b1b47 55%, #c2500c 140%);
+}
+
+/* Hiver : neige, glace. */
+html[data-yn-saison="hiver"][data-yn-theme="nuit"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #141c2b;
+	--wp--preset--color--bande: #1b2537;
+	--wp--preset--color--carte: #243247;
+	--wp--preset--color--filet: #3b4d68;
+	--wp--preset--color--bordure: #7f98b8;
+	--wp--preset--color--accent: #bfe3ff;
+	--wp--preset--color--accent-texte: #0f1b2a;
+	--wp--preset--color--accent-2: #e8d9c4;
+	--wp--preset--color--selection: #2c3d57;
+	--yn-accent-survol: #d5edff;
+	--yn-degrade-couverture: linear-gradient(160deg, #4a6280 0%, #243247 55%, #7fa6cc 140%);
+}
+
+html[data-yn-saison="hiver"][data-yn-theme="papier"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #f6f9fc;
+	--wp--preset--color--bande: #e9f0f7;
+	--wp--preset--color--carte: #ffffff;
+	--wp--preset--color--filet: #d6e1ec;
+	--wp--preset--color--bordure: #647e98;
+	--wp--preset--color--accent: #2f6ea5;
+	--wp--preset--color--accent-texte: #ffffff;
+	--wp--preset--color--accent-2: #7a6248;
+	--wp--preset--color--selection: #e6eef6;
+	--yn-accent-survol: #23527c;
+	--yn-degrade-couverture: linear-gradient(160deg, #4a6280 0%, #243247 55%, #7fa6cc 140%);
+}
+
+/* Noël : sapin, or, houx. */
+html[data-yn-saison="noel"][data-yn-theme="nuit"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #10211a;
+	--wp--preset--color--bande: #162b22;
+	--wp--preset--color--carte: #1e3a2e;
+	--wp--preset--color--filet: #335a48;
+	--wp--preset--color--bordure: #7fae93;
+	--wp--preset--color--accent: #f7c56b;
+	--wp--preset--color--accent-texte: #1b2a1f;
+	--wp--preset--color--accent-2: #ff9c9c;
+	--wp--preset--color--selection: #2a4d3b;
+	--yn-accent-survol: #fad99f;
+	--yn-degrade-couverture: linear-gradient(160deg, #2f5a46 0%, #1e3a2e 55%, #b32d2d 140%);
+}
+
+html[data-yn-saison="noel"][data-yn-theme="papier"]:not([data-yn-contraste]) {
+	--wp--preset--color--fond: #f6fbf7;
+	--wp--preset--color--bande: #e7f3ea;
+	--wp--preset--color--carte: #ffffff;
+	--wp--preset--color--filet: #cfe4d5;
+	--wp--preset--color--bordure: #4f7f62;
+	--wp--preset--color--accent: #b32d2d;
+	--wp--preset--color--accent-texte: #ffffff;
+	--wp--preset--color--accent-2: #8a6414;
+	--wp--preset--color--selection: #e4f1e8;
+	--yn-accent-survol: #862222;
+	--yn-degrade-couverture: linear-gradient(160deg, #2f5a46 0%, #1e3a2e 55%, #b32d2d 140%);
+}
+
+/*
+ * Arbre décoratif (docs/08-sprites-saisonniers.md) : div.yn-sprite posé par inc/saisons.php
+ * juste après <body>, seulement si une saison est active, que le réglage saison_sprite est actif,
+ * hors pages de lecture et espace équipe ; ses images sont dans deux variables de son attribut
+ * style (--yn-sprite-1x : WebP ; --yn-sprite : image-set() AVIF puis WebP, 1x et 2x).
+ * L'image n'est déclarée qu'au-delà de 1 024 px de large : en dessous, rien n'est téléchargé.
+ * Fixé en bas à droite, derrière le contenu (.wp-site-blocks passe au-dessus, body.yn-sprite-actif),
+ * fondu vers la gauche. Sous 1 900 px de large, il passe sous la colonne de contenu : filigrane à
+ * 30 % (le texte courant garde 4,5:1 sur le pire pixel de chaque arbre, en Nuit comme en Papier).
+ * Au-delà, opacité 0,9, mais la boîte est limitée à la marge libre à droite de la grille large
+ * (1 344 px) : l'arbre, calé sur sa hauteur, est rogné à gauche plutôt que de passer sous le texte.
+ * Retiré pour qui demande plus de contraste (préférence système ou contraste renforcé du lecteur),
+ * sous le thème Sépia (confort de lecture, jamais touché par la saison), en couleurs forcées et à
+ * l'impression (section 14).
+ */
+.yn-sprite {
+	display: none;
+}
+
+@media (min-width: 1024px) {
+	.yn-sprite {
+		display: block;
+		position: fixed;
+		right: 0;
+		bottom: 0;
+		z-index: 0;
+		height: min(78vh, 880px);
+		width: calc(min(78vh, 880px) * 0.67);
+		background-image: var(--yn-sprite-1x);
+		background-repeat: no-repeat;
+		background-position: right bottom;
+		background-size: auto 100%;
+		opacity: 0.3;
+		pointer-events: none;
+		-webkit-mask-image: linear-gradient(to left, #000 55%, transparent 100%);
+		mask-image: linear-gradient(to left, #000 55%, transparent 100%);
+	}
+
+	@supports (background-image: image-set(url("data:,") type("image/webp") 1x)) {
+		.yn-sprite {
+			background-image: var(--yn-sprite);
+		}
+	}
+
+	.yn-sprite-actif .wp-site-blocks {
+		position: relative;
+		z-index: 1;
+	}
+}
+
+@media (min-width: 1900px) {
+	.yn-sprite {
+		width: min(calc(min(78vh, 880px) * 0.67), calc((100vw - 1344px) / 2 - 16px));
+		opacity: 0.9;
+	}
+}
+
+@media (prefers-contrast: more) {
+	.yn-sprite {
+		display: none !important;
+	}
+}
+
+html[data-yn-contraste] .yn-sprite,
+html[data-yn-theme="sepia"] .yn-sprite {
+	display: none !important;
 }
 
 /* ==========================================================================
@@ -597,6 +828,14 @@ hr.yn-scene-break::before {
 	height: 44px;
 	border-radius: 50%;
 	object-fit: cover;
+}
+
+/* Logo saisonnier (inc/saisons.php) : visuel détouré et non carré, affiché en entier sur 44 px de haut. */
+.yn-header__logo img.yn-logo-saison {
+	width: auto;
+	height: 44px;
+	border-radius: 0;
+	object-fit: contain;
 }
 
 .yn-header__titre {
@@ -1095,8 +1334,182 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 		height: 40px;
 	}
 
+	/* Petit écran : même encombrement que le logo de base (40 × 40), le visuel y tient en entier. */
+	.yn-header__logo img.yn-logo-saison {
+		width: 40px;
+		height: 40px;
+	}
+
 	.yn-header__titre {
 		font-size: 19px;
+	}
+}
+
+/*
+ * Décors saisonniers (assets/js/saisons.js) : au plus 12 particules décoratives dans la bande
+ * d'en-tête (pétales, feuilles, flocons, chauves-souris), sous le contenu de la bande, sans
+ * effet sur la mise en page (position absolue, débordement coupé) ni sur les clics.
+ * Coupés par prefers-reduced-motion, par l'option « Réduire les animations » du lecteur et en
+ * contraste forcé ; sans JavaScript, rien n'est ajouté.
+ */
+.yn-header.yn-avec-decor,
+.yn-header.yn-avec-decor > :not(.yn-decor) {
+	position: relative;
+}
+
+.yn-decor {
+	--yn-decor-couleur: #f6b9d3;
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	pointer-events: none;
+	contain: strict;
+}
+
+.yn-decor__p {
+	position: absolute;
+	top: -24px;
+	left: 50%;
+	width: var(--yn-decor-taille, 12px);
+	height: var(--yn-decor-taille, 12px);
+	background: var(--yn-decor-couleur);
+	opacity: 0.75;
+	will-change: transform;
+	animation: yn-decor-chute var(--yn-decor-duree, 12s) linear var(--yn-decor-delai, 0s) infinite;
+}
+
+/* Pétale de cerisier. */
+.yn-decor--petale .yn-decor__p {
+	height: calc(var(--yn-decor-taille, 12px) * 0.7);
+	border-radius: 100% 0 100% 0;
+}
+
+/* Feuille d'érable, flocon, chauve-souris : silhouettes SVG en masque, teintées par --yn-decor-couleur. */
+.yn-decor--feuille .yn-decor__p {
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1l2 4.5 2.6-1.2-.8 5 3.7-1.8-1 3.4 3.5 1-4.6 3.3.9 2.7-4.8-.9.3 4H12.2l.3-4-4.8.9.9-2.7L4 11.9l3.5-1-1-3.4 3.7 1.8-.8-5L12 5.5z'/%3E%3Cpath d='M11.6 18h.8v5h-.8z'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1l2 4.5 2.6-1.2-.8 5 3.7-1.8-1 3.4 3.5 1-4.6 3.3.9 2.7-4.8-.9.3 4H12.2l.3-4-4.8.9.9-2.7L4 11.9l3.5-1-1-3.4 3.7 1.8-.8-5L12 5.5z'/%3E%3Cpath d='M11.6 18h.8v5h-.8z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.yn-decor--flocon .yn-decor__p {
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M12 2v20M3.3 7l17.4 10M3.3 17l17.4-10M9.5 3.5 12 6l2.5-2.5M9.5 20.5 12 18l2.5 2.5'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M12 2v20M3.3 7l17.4 10M3.3 17l17.4-10M9.5 3.5 12 6l2.5-2.5M9.5 20.5 12 18l2.5 2.5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.yn-decor--chauve-souris .yn-decor__p {
+	top: var(--yn-decor-hauteur, 30%);
+	left: -40px;
+	width: calc(var(--yn-decor-taille, 12px) * 2.2);
+	height: calc(var(--yn-decor-taille, 12px) * 1.1);
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 16'%3E%3Cpath d='M16 5c.8 0 1.3-.9 1.5-2 .4.9.7 1.7 1.2 2.4C21 3.6 26 3.2 32 5.5c-2.3.9-3.6 3-3.6 5.4-1.4-1.2-3.6-1.3-5-.2-1.2-1.3-3.2-1.4-4.6-.1-1 .8-1.9 2.2-2.8 3.9-.9-1.7-1.8-3.1-2.8-3.9-1.4-1.3-3.4-1.2-4.6.1-1.4-1.1-3.6-1-5 .2C3.6 8.5 2.3 6.4 0 5.5 6 3.2 11 3.6 13.3 5.4c.5-.7.8-1.5 1.2-2.4.2 1.1.7 2 1.5 2z'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 16'%3E%3Cpath d='M16 5c.8 0 1.3-.9 1.5-2 .4.9.7 1.7 1.2 2.4C21 3.6 26 3.2 32 5.5c-2.3.9-3.6 3-3.6 5.4-1.4-1.2-3.6-1.3-5-.2-1.2-1.3-3.2-1.4-4.6-.1-1 .8-1.9 2.2-2.8 3.9-.9-1.7-1.8-3.1-2.8-3.9-1.4-1.3-3.4-1.2-4.6.1-1.4-1.1-3.6-1-5 .2C3.6 8.5 2.3 6.4 0 5.5 6 3.2 11 3.6 13.3 5.4c.5-.7.8-1.5 1.2-2.4.2 1.1.7 2 1.5 2z'/%3E%3C/svg%3E") center / contain no-repeat;
+	animation-name: yn-decor-vol;
+}
+
+/* Teintes par saison, pour les bandes sombres (Nuit) puis claires (Papier, Sépia). */
+html[data-yn-saison="automne"] .yn-decor {
+	--yn-decor-couleur: #ff9c4a;
+}
+
+html[data-yn-saison="automne"] .yn-decor__p:nth-child(3n + 1) {
+	--yn-decor-couleur: #e8643a;
+}
+
+html[data-yn-saison="automne"] .yn-decor__p:nth-child(3n + 2) {
+	--yn-decor-couleur: #f2c14e;
+}
+
+html[data-yn-saison="hiver"] .yn-decor,
+html[data-yn-saison="noel"] .yn-decor {
+	--yn-decor-couleur: #ffffff;
+}
+
+html[data-yn-saison="halloween"] .yn-decor {
+	--yn-decor-couleur: #c9a3ff;
+}
+
+html[data-yn-theme="papier"] .yn-decor,
+html[data-yn-theme="sepia"] .yn-decor {
+	--yn-decor-couleur: #e48db4;
+}
+
+html[data-yn-theme="papier"][data-yn-saison="automne"] .yn-decor,
+html[data-yn-theme="sepia"][data-yn-saison="automne"] .yn-decor {
+	--yn-decor-couleur: #d9772f;
+}
+
+html[data-yn-theme="papier"][data-yn-saison="automne"] .yn-decor__p:nth-child(3n + 1),
+html[data-yn-theme="sepia"][data-yn-saison="automne"] .yn-decor__p:nth-child(3n + 1) {
+	--yn-decor-couleur: #b7521a;
+}
+
+html[data-yn-theme="papier"][data-yn-saison="automne"] .yn-decor__p:nth-child(3n + 2),
+html[data-yn-theme="sepia"][data-yn-saison="automne"] .yn-decor__p:nth-child(3n + 2) {
+	--yn-decor-couleur: #c9952a;
+}
+
+html[data-yn-theme="papier"][data-yn-saison="hiver"] .yn-decor,
+html[data-yn-theme="sepia"][data-yn-saison="hiver"] .yn-decor,
+html[data-yn-theme="papier"][data-yn-saison="noel"] .yn-decor,
+html[data-yn-theme="sepia"][data-yn-saison="noel"] .yn-decor {
+	--yn-decor-couleur: #8fb0cf;
+}
+
+html[data-yn-theme="papier"][data-yn-saison="halloween"] .yn-decor,
+html[data-yn-theme="sepia"][data-yn-saison="halloween"] .yn-decor {
+	--yn-decor-couleur: #4a2a70;
+}
+
+/* Chute (pétales, feuilles, flocons) : descente lente, dérive latérale, légère rotation. */
+@keyframes yn-decor-chute {
+	0% {
+		transform: translate3d(0, 0, 0) rotate(0deg);
+	}
+
+	50% {
+		transform: translate3d(calc(var(--yn-decor-derive, 24px) * -0.6), 56px, 0) rotate(calc(var(--yn-decor-rotation, 180deg) * 0.5));
+	}
+
+	100% {
+		transform: translate3d(var(--yn-decor-derive, 24px), 116px, 0) rotate(var(--yn-decor-rotation, 180deg));
+	}
+}
+
+/* Vol (chauves-souris) : traversée de la bande de gauche à droite en ondulant. */
+@keyframes yn-decor-vol {
+	0% {
+		transform: translate3d(0, 0, 0) rotate(-6deg);
+	}
+
+	25% {
+		transform: translate3d(25vw, -8px, 0) rotate(5deg);
+	}
+
+	50% {
+		transform: translate3d(50vw, 4px, 0) rotate(-4deg);
+	}
+
+	75% {
+		transform: translate3d(75vw, -6px, 0) rotate(6deg);
+	}
+
+	100% {
+		transform: translate3d(calc(100vw + 80px), 0, 0) rotate(-6deg);
+	}
+}
+
+html[data-yn-animations="reduites"] .yn-decor {
+	display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yn-decor {
+		display: none;
+	}
+}
+
+@media (forced-colors: active) {
+	.yn-decor {
+		display: none;
 	}
 }
 
@@ -2157,6 +2570,10 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 }
 
 @media (forced-colors: active) {
+	.yn-sprite {
+		display: none !important;
+	}
+
 	.yn-btn,
 	.yn-chip,
 	.yn-card,
@@ -2172,6 +2589,7 @@ html:not(.yn-js) .yn-header .yn-nav .has-child:is(:hover, :focus-within) > .wp-b
 }
 
 @media print {
+	.yn-sprite,
 	.yn-site-header,
 	.wp-site-blocks > footer,
 	.yn-commentaires .comment-respond,

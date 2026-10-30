@@ -1040,6 +1040,75 @@ Un compte créé avec Discord s'ajoute comme les autres. Le compte garde son pse
 
 > **Attention** : ce sont des données personnelles. Ne les recopiez pas sur Discord ni ailleurs. Chaque export est enregistré : gardez le fichier pour un usage interne et supprimez-le après usage.
 
+# Le thème saisonnier (gérants)
+
+> **Nouveau** : depuis la version 2.7, le site change d'habillage selon la saison : couleurs, logo et petits décors animés dans l'en-tête. Deux fêtes passent avant la saison : Halloween en octobre et Noël en décembre.
+
+Les lecteurs gardent le choix entre les thèmes **Nuit** et **Papier** : la saison s'applique aux deux. Le thème **Sépia**, fait pour le confort de lecture, ne change jamais de couleurs. Le Printemps garde les couleurs habituelles du site : seul le logo change.
+
+| Thème | Période par défaut | Décor animé |
+| --- | --- | --- |
+| **Noël** | du 01/12 au 31/12 | flocons |
+| **Halloween** | du 01/10 au 31/10 | chauves-souris |
+| **Printemps** | du 20/03 au 20/06 | pétales |
+| **Été** | du 21/06 au 21/09 | aucun |
+| **Automne** | du 22/09 au 20/12 | feuilles |
+| **Hiver** | du 21/12 au 19/03 | flocons |
+
+## Programmer le thème du site selon la saison
+
+Réservé aux gérants et aux administrateurs.
+
+1. Dans le menu **Site**, ouvrez **Réglages**, section **Thème saisonnier**.
+2. Choisissez **Selon le calendrier** (le choix par défaut).
+3. Dans le tableau, chaque ligne est un thème. Saisissez ses dates dans **Du (JJ/MM)** et **Au (JJ/MM)**, par exemple `01/10` et `31/10`. Les deux dates sont comprises.
+4. Pour ne plus utiliser un thème, décochez **Actif** sur sa ligne.
+5. Cliquez sur **Aperçu**, au bout d'une ligne, pour voir le site avec ce thème. Vous seul le voyez : rien ne change pour les lecteurs.
+6. Cliquez sur **Enregistrer les réglages**, en bas de la page.
+7. Lisez le message en haut de la page, puis la ligne sous le tableau, par exemple « Aujourd'hui : Automne (calendrier) — prochain changement : Noël le 01/12 ».
+
+> **À savoir** : les lignes sont lues dans l'ordre du tableau, fêtes en tête. La première ligne active qui contient la date du jour l'emporte : en octobre, Halloween passe avant l'Automne. Un jour qu'aucune ligne active ne couvre, le site garde son thème de base.
+
+> **Astuce** : une période peut passer le Nouvel An. Exemple : l'Hiver, du 21/12 au 19/03.
+
+> **Attention** : une date mal écrite est refusée. La ligne garde son ancienne date et le message en haut de la page le signale. On ne peut ni ajouter, ni supprimer, ni déplacer une ligne.
+
+> **À savoir** : le thème change à minuit, heure de Paris, le jour du début. Le site vide les pages en cache chaque nuit à 00:05, et tout de suite quand l'enregistrement change le thème du jour. Un visiteur peut voir l'ancienne version 5 minutes au plus : qu'il recharge la page.
+
+## Garder un seul thème toute l'année
+
+1. Dans le menu **Site**, ouvrez **Réglages**, section **Thème saisonnier**.
+2. Choisissez :
+   - **Thème choisi ci-dessous**, puis le thème voulu dans la liste (**Thème de base** ou l'un des six thèmes) : il reste en place, quelles que soient les dates ;
+   - ou **Thème de base toute l'année** : les couleurs et le logo habituels du site, sans saison.
+3. Cliquez sur **Enregistrer les réglages**.
+
+Le calendrier est conservé. Pour le retrouver, choisissez de nouveau **Selon le calendrier**.
+
+## Voir un thème sur n'importe quelle page
+
+Réservé aux gérants et aux administrateurs connectés.
+
+1. Ouvrez la page du site à vérifier (accueil, fiche d'une œuvre, chapitre…).
+2. Ajoutez à la fin de son adresse `?yn-saison=` suivi du thème : `printemps`, `ete`, `automne`, `hiver`, `halloween` ou `noel` (`aucun` pour le thème de base). Exemple : **yumenovel.fr/?yn-saison=noel**. Si l'adresse contient déjà un `?`, écrivez `&yn-saison=` à la place.
+3. Appuyez sur **Entrée** : la page s'affiche avec ce thème, pour vous seul.
+
+> **À savoir** : les décors animés se coupent pour tout le site dans la même section (case cochée par défaut). Ils ne s'affichent jamais sur un appareil réglé pour réduire les animations, ni pour un lecteur qui a coché **Réduire les animations** dans un chapitre (**Paramètres**, puis **Accessibilité**).
+
+## Afficher ou retirer l'arbre décoratif
+
+Sur ordinateur, l'arbre de la saison (celui du logo) est posé en fond de page, en bas à droite, derrière le contenu. Il est très pâle sur la plupart des écrans, où il passe sous le texte ; sur les très grands écrans, il est bien visible dans la marge de droite.
+
+1. Dans le menu **Site**, ouvrez **Réglages**, section **Thème saisonnier**.
+2. Cochez ou décochez **Arbre décoratif**, juste après **Décors animés** (case cochée par défaut).
+3. Cliquez sur **Enregistrer les réglages**.
+
+> **À savoir** : l'arbre n'apparaît jamais sur un écran de moins de 1 024 pixels de large (téléphone, tablette en portrait), dans un chapitre, sur la page des illustrations d'un tome, dans l'espace équipe, dans le formulaire de publication ni dans l'administration. Il disparaît aussi pour un lecteur qui a demandé plus de contraste (réglage de l'appareil, ou **Contraste renforcé** dans un chapitre), pour un lecteur en thème **Sépia** et à l'impression.
+
+> **À savoir** : en Automne, aucun arbre ne s'affiche tant que son image n'a pas été livrée avec une mise à jour du site.
+
+> **À savoir** : les logos des saisons sont des fichiers du site, pas des images de la médiathèque. Pour en changer, envoyez le nouveau visuel à l'équipe technique : il arrive avec une mise à jour du site.
+
 # Les coquilles signalées par les lecteurs
 
 > **Nouveau** : depuis la version 2.5, les lecteurs signalent une coquille directement dans le chapitre. Les signalements arrivent dans l'espace équipe, menu **Catalogue**, puis **Corrections**.
@@ -1136,6 +1205,7 @@ Pour chaque commentaire :
 | Je ne vois pas **Corrections** dans le menu. | L'entrée apparaît au premier signalement de coquille reçu. |
 | Je vois les coquilles mais pas les boutons **Corrigé** et **Rejeté**. | Ils sont réservés aux éditeurs et aux gérants. Prévenez un éditeur sur Discord. |
 | Une fiche d'œuvre n'affiche pas **Si vous avez aimé…**. | Il faut au moins 2 œuvres proches. Complétez les genres de l'œuvre. |
+| Le site garde l'ancien thème alors que la date est passée. | Rechargez la page : une copie en cache peut rester 5 minutes au plus. Dans **Réglages**, section **Thème saisonnier**, la ligne « Aujourd'hui : … » donne le thème attendu. Voir « Programmer le thème du site selon la saison ». |
 
 # En cas de problème
 

@@ -2,6 +2,30 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.0 — 2026-10-30
+
+- Yume Novel 2.7.0 : thèmes saisonniers. Le site change d'habillage selon la période (Printemps, Été, Automne, Hiver, Halloween en octobre, Noël en décembre) : un seul thème, une variante par saison programmée depuis Réglages → Thème saisonnier (calendrier à six lignes, fêtes prioritaires, mode manuel ou thème de base, aperçu ?yn-saison réservé aux gérants, vérification chaque nuit et purge des caches). Palettes Nuit et Papier par saison (Sépia et encres inchangés), logo d'en-tête et arbre décoratif en fond de page par saison, décors légers dans l'en-tête, assets versionnés par empreinte de fichier. Guide de l'équipe, contrat technique et design mis à jour (docs/07 et docs/08).
+
+## 2.7.0-dev.5 — 2026-10-30
+
+- Thèmes saisonniers : arbre décoratif d'automne (les six sprites sont livrés)
+
+## 2.7.0-dev.4 — 2026-10-30
+
+- Thèmes saisonniers : arbre décoratif en fond de page (sprites printemps, été, Halloween, hiver, Noël en WebP et AVIF, filigrane à 30 % sous 1 900 px, marge libre au-delà, jamais sur les chapitres, l'espace équipe, Sépia, le contraste renforcé ni sous 1 024 px ; réglage Arbre décoratif). L'arbre d'automne reste à déposer.
+
+## 2.7.0-dev.3 — 2026-10-30
+
+- Thèmes saisonniers : cahier des charges des sprites (arbre décoratif en fond de page, images à générer) et plan d'intégration (docs/08)
+
+## 2.7.0-dev.2 — 2026-10-30
+
+- Thèmes saisonniers : vrai logo de Noël (noel.webp, 320×263) à la place de la copie d'hiver.webp
+
+## 2.7.0-dev.1 — 2026-10-30
+
+- Thèmes saisonniers : module saisons (réglages Pilotage du thème / Thème choisi / Calendrier / Décors animés, type de champ saisons, API yume_saison_*, aperçu ?yn-saison, tâche quotidienne, événement yume_saison_changee et purge des caches), variantes du thème (attribut data-yn-saison, palettes Été / Automne / Halloween / Hiver / Noël en Nuit et Papier, logo saisonnier, décors légers, theme-color), assets versionnés par empreinte de fichier, documentation et guide de l'équipe. noel.webp est provisoirement une copie d'hiver.webp.
+
 ## 2.6.0 — 2026-10-24
 
 - Yume Novel 2.6.0 : comptes inscrits dans l'espace équipe. Nouvelle vue « Comptes inscrits » (menu Équipe, gérants et administrateurs) : indicateurs, recherche par pseudo, nom Discord ou e-mail, filtres (rôle, source, Discord, activité, inscription), tri, fiche de chaque compte (identité, lecture, favoris, listes, notes, commentaires, coquilles, notifications) avec « Ajouter à l'équipe », export CSV journalisé (avec e-mail pour les administrateurs seulement), dernier jour d'activité relevé sans heure ni adresse IP. « Ajouter un membre » retrouve aussi un compte par son pseudo public ou son nom Discord (comptes créés depuis la 2.5.0, par le formulaire ou par Discord).

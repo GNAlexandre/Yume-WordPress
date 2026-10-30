@@ -3,7 +3,7 @@ Contributors: yumenovel
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 2.6.0
+Stable tag: 2.7.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,11 @@ Thème bloc (édition complète du site) de yumenovel.fr, fan-traductions franç
 
 * Thème Nuit par défaut, thèmes Papier et Sépia (html[data-yn-theme]) appliqués avant le premier
   rendu à partir de localStorage['yn.theme'] ; bouton de bascule dans l'en-tête.
+* Thèmes saisonniers (Printemps, Été, Automne, Hiver, Halloween, Noël) : variante choisie par
+  l'extension Yume Core (html[data-yn-saison], classe body.yn-saison-<slug>), palettes Nuit et
+  Papier propres à chaque saison (Sépia inchangé, Printemps = palette de base), logo saisonnier
+  (assets/img/saisons/), couleur theme-color et décors légers dans l'en-tête (assets/js/saisons.js,
+  coupés si le lecteur réduit les animations). Sans l'extension : thème de base.
 * Typographie de lecture pilotée par les variables --yn-size, --yn-lh, --yn-font, --yn-width et
   --yn-bg-alpha (réglages du lecteur de l'extension Yume Core).
 * Classes utilitaires partagées avec l'extension : .yn-btn, .yn-chip, .yn-card, .yn-cover, .yn-label,
@@ -39,6 +44,9 @@ SIL Open Font License 1.1 (texte complet dans assets/fonts/<famille>/OFL.txt) :
 Fichiers issus des paquets @fontsource (version 5.3.0).
 
 == Changelog ==
+
+= 2.7.0 =
+* Thèmes saisonniers (palettes, logos, theme-color, décors de l'en-tête) ; les feuilles, scripts et logos du thème portent l'empreinte du fichier dans leur version (?ver=2.7.0-<date hexadécimale>).
 
 = 2.6.0 =
 * Première version du thème bloc Yume v2.
