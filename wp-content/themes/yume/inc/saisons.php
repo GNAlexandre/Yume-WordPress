@@ -8,7 +8,10 @@
  * - logo saisonnier : fichier du thème assets/img/saisons/<slug>.webp à la place du logo du
  *   personnalisateur (filtre get_custom_logo, utilisé par le bloc core/site-logo de l'en-tête) ;
  * - couleur de l'interface du navigateur (meta theme-color) : bande Nuit de la saison ;
- * - décors légers de l'en-tête (assets/js/saisons.js), si le réglage saison_decor est actif.
+ * - décors légers de l'en-tête (assets/js/saisons.js), si le réglage saison_decor est actif ;
+ * - arbre décoratif en fond de page (div.yn-sprite, assets/img/sprites/arbre-<slug>[-2x].{avif,webp}),
+ *   si le réglage saison_sprite est actif, hors pages de lecture et espace équipe
+ *   (docs/08-sprites-saisonniers.md).
  *
  * Le thème reste autonome : la saison vient de yume_saison_active(), appelée derrière un
  * function_exists(). Sans l'extension, il n'y a aucune saison et le rendu est celui du thème de base.
@@ -209,3 +212,123 @@ function yume_theme_charger_decors(): void {
 	);
 }
 add_action( 'wp_enqueue_scripts', 'yume_theme_charger_decors', 21 );
+
+/**
+ * La page courante est-elle exclue de l'arbre décoratif ? Pages de lecture (chapitre, y compris
+ * le lecteur MangaDex qui s'affiche dans le chapitre ; page « Illustrations » d'un tome), espace
+ * équipe (pages equipe, publier et membres de l'option yume_pages, ou à ces slugs) et
+ * administration.
+ *
+ * @return bool
+ */
+function yume_theme_page_sans_sprite(): bool {
+	if ( is_admin() || is_singular( 'yume_chapitre' ) ) {
+		return true;
+	}
+	if ( function_exists( 'yume_est_page_illustrations' ) && yume_est_page_illustrations() ) {
+		return true;
+	}
+	if ( ! is_page() ) {
+		return false;
+	}
+	$page = get_queried_object();
+	if ( ! $page instanceof WP_Post ) {
+		return false;
+	}
+	$cles  = array( 'equipe', 'publier', 'membres' );
+	$pages = get_option( 'yume_pages', array() );
+	foreach ( $cles as $cle ) {
+		if ( is_array( $pages ) && ! empty( $pages[ $cle ] ) && (int) $pages[ $cle ] === (int) $page->ID ) {
+			return true;
+		}
+	}
+	return in_array( $page->post_name, $cles, true );
+}
+
+/**
+ * Le fichier d'un arbre existe-t-il dans le thème ? Résultat mémorisé pour la requête
+ * (l'arbre d'automne peut manquer : aucun élément n'est alors affiché, donc aucune requête 404).
+ *
+ * @param string $relatif Chemin relatif au thème.
+ * @return bool
+ */
+function yume_theme_fichier_sprite_existe( string $relatif ): bool {
+	static $connus = array();
+	if ( ! array_key_exists( $relatif, $connus ) ) {
+		$connus[ $relatif ] = file_exists( get_theme_file_path( $relatif ) );
+	}
+	return $connus[ $relatif ];
+}
+
+/**
+ * Valeur de l'attribut style du div.yn-sprite pour la requête courante : deux variables CSS,
+ * --yn-sprite-1x (WebP 1x, repli des navigateurs sans image-set() typé) et --yn-sprite
+ * (image-set() : AVIF puis WebP, 1x et 2x). Les images ne sont chargées que par la règle
+ * background-image de yume.css, déclarée seulement au-delà de 1 024 px de large.
+ *
+ * Chaîne vide (aucun arbre) sans saison, si le réglage saison_sprite est désactivé, sur une page
+ * exclue (yume_theme_page_sans_sprite) ou si le fichier WebP 1x de la saison manque.
+ *
+ * @return string
+ */
+function yume_theme_style_sprite(): string {
+	$saison = yume_theme_saison();
+	if ( '' === $saison ) {
+		return '';
+	}
+	$actif = function_exists( 'yume_setting' ) ? yume_setting( 'saison_sprite', true ) : true;
+	if ( ! $actif || yume_theme_page_sans_sprite() ) {
+		return '';
+	}
+	$base = 'assets/img/sprites/arbre-' . $saison;
+	if ( ! yume_theme_fichier_sprite_existe( $base . '.webp' ) ) {
+		return '';
+	}
+	$url = static function ( string $relatif ): string {
+		return esc_url_raw( add_query_arg( 'v', yume_theme_version_fichier( $relatif ), get_theme_file_uri( $relatif ) ) );
+	};
+
+	$sources  = array();
+	$densites = array(
+		''    => '1x',
+		'-2x' => '2x',
+	);
+	foreach ( array( 'avif', 'webp' ) as $format ) {
+		foreach ( $densites as $suffixe => $densite ) {
+			$relatif = $base . $suffixe . '.' . $format;
+			if ( yume_theme_fichier_sprite_existe( $relatif ) ) {
+				$sources[] = sprintf( 'url("%1$s") type("image/%2$s") %3$s', $url( $relatif ), $format, $densite );
+			}
+		}
+	}
+	return sprintf( '--yn-sprite-1x: url("%1$s"); --yn-sprite: image-set(%2$s)', $url( $base . '.webp' ), implode( ', ', $sources ) );
+}
+
+/**
+ * Classe yn-sprite-actif sur la balise <body> quand l'arbre est affiché : le contenu
+ * (.wp-site-blocks) passe alors au-dessus de lui (yume.css, section 1 bis).
+ *
+ * @param string[] $classes Classes du body.
+ * @return string[]
+ */
+function yume_theme_classe_sprite( $classes ) {
+	if ( ! is_array( $classes ) || '' === yume_theme_style_sprite() ) {
+		return $classes;
+	}
+	$classes[] = 'yn-sprite-actif';
+	return $classes;
+}
+add_filter( 'body_class', 'yume_theme_classe_sprite' );
+
+/**
+ * Arbre décoratif de la saison, juste après l'ouverture de <body> (wp_body_open, appelé par le
+ * canevas des thèmes blocs) : élément vide et décoratif (aria-hidden), mis en forme par yume.css.
+ */
+function yume_theme_afficher_sprite(): void {
+	$style = yume_theme_style_sprite();
+	if ( '' === $style ) {
+		return;
+	}
+	printf( '<div class="yn-sprite" aria-hidden="true" style="%s"></div>' . "\n", esc_attr( $style ) );
+}
+add_action( 'wp_body_open', 'yume_theme_afficher_sprite' );

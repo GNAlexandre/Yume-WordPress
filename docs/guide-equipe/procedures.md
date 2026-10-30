@@ -1095,6 +1095,18 @@ Réservé aux gérants et aux administrateurs connectés.
 
 > **À savoir** : les décors animés se coupent pour tout le site dans la même section (case cochée par défaut). Ils ne s'affichent jamais sur un appareil réglé pour réduire les animations, ni pour un lecteur qui a coché **Réduire les animations** dans un chapitre (**Paramètres**, puis **Accessibilité**).
 
+## Afficher ou retirer l'arbre décoratif
+
+Sur ordinateur, l'arbre de la saison (celui du logo) est posé en fond de page, en bas à droite, derrière le contenu. Il est très pâle sur la plupart des écrans, où il passe sous le texte ; sur les très grands écrans, il est bien visible dans la marge de droite.
+
+1. Dans le menu **Site**, ouvrez **Réglages**, section **Thème saisonnier**.
+2. Cochez ou décochez **Arbre décoratif**, juste après **Décors animés** (case cochée par défaut).
+3. Cliquez sur **Enregistrer les réglages**.
+
+> **À savoir** : l'arbre n'apparaît jamais sur un écran de moins de 1 024 pixels de large (téléphone, tablette en portrait), dans un chapitre, sur la page des illustrations d'un tome, dans l'espace équipe, dans le formulaire de publication ni dans l'administration. Il disparaît aussi pour un lecteur qui a demandé plus de contraste (réglage de l'appareil, ou **Contraste renforcé** dans un chapitre), pour un lecteur en thème **Sépia** et à l'impression.
+
+> **À savoir** : en Automne, aucun arbre ne s'affiche tant que son image n'a pas été livrée avec une mise à jour du site.
+
 > **À savoir** : les logos des saisons sont des fichiers du site, pas des images de la médiathèque. Pour en changer, envoyez le nouveau visuel à l'équipe technique : il arrive avec une mise à jour du site.
 
 # Les coquilles signalées par les lecteurs

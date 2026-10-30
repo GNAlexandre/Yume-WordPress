@@ -5,8 +5,9 @@ changent les couleurs, le logo et quelques particules dans l'en-tête ; pour don
 site, un **arbre décoratif** (celui du logo de chaque saison) est posé en fond, sur le côté de la page.
 
 Les images sont générées par un modèle d'image (GPT) à partir des six logos, avec les consignes du §2,
-puis intégrées dans le thème selon le §3. Rien n'est implémenté tant que les six images ne sont pas
-validées.
+puis intégrées dans le thème selon le §3. **Intégré en 2.7.0** (lot D) avec cinq arbres sur six :
+l'arbre d'automne reste à déposer (§3, « Reste à faire ») ; tant qu'il manque, aucun arbre n'est
+affiché en automne.
 
 ## 1. Principe retenu
 
@@ -14,11 +15,11 @@ validées.
 | --- | --- | --- |
 | Emplacement | **Côté droit**, calé en bas de la fenêtre (`position: fixed; right: 0; bottom: 0`), derrière le contenu | Le logo place l'arbre à droite ; une seule image par saison (le côté gauche, s'il est voulu plus tard, est un miroir CSS `scaleX(-1)`). |
 | Une image par saison | 6 fichiers, **fond transparent**, même style aquarelle que les logos | Pas de variante Nuit / Papier : la couleur de la page passe derrière l'arbre grâce à la transparence ; un léger voile CSS adapte l'intensité. |
-| Taille affichée | hauteur `min(78vh, 880px)`, largeur ≈ 0,55 × hauteur, soit **≈ 320 à 480 px de large** | Assez présent pour se voir, assez étroit pour ne pas manger la colonne de lecture. |
-| Fondu | `mask-image` : fondu vers la gauche (vers le contenu) et vers le haut ; opacité 0,9 quand la marge libre dépasse 300 px, 0,35 (filigrane) sinon | La grille large fait 1344 px : sur un écran de 1440 px, l'arbre passe forcément sous le contenu ; il devient alors un filigrane qui ne gêne pas la lecture. |
+| Taille affichée | hauteur `min(78vh, 880px)`, boîte de 0,67 × hauteur (l'arbre rogné fait ≈ 0,62 × hauteur), soit **≈ 340 à 550 px de large** | Assez présent pour se voir, assez étroit pour ne pas manger la colonne de lecture. |
+| Fondu | `mask-image` : fondu vers la gauche (vers le contenu) ; **filigrane à 30 %** sous 1 900 px de large, **0,9** au-delà, la boîte étant alors limitée à la marge libre à droite de la grille large (l'arbre est rogné à gauche plutôt que de passer sous le texte) | La grille large fait 1344 px : sur un écran de 1440 px, l'arbre passe forcément sous le contenu ; il devient alors un filigrane qui ne gêne pas la lecture. Le haut de l'arbre se termine par des branches : pas de fondu vertical. |
 | Écrans étroits | **aucun sprite sous 1024 px** (`@media`) : l'image n'est même pas téléchargée | Bande passante mobile et lisibilité. |
-| Pages de lecture | **aucun sprite sur un chapitre** (`single-yume_chapitre`) ni dans l'espace équipe | Confort de lecture ; cohérent avec le thème Sépia inchangé. |
-| Accessibilité | élément décoratif pur (`aria-hidden`, `pointer-events: none`), aucun mouvement (image fixe, les particules restent dans l'en-tête) ; retiré avec `prefers-contrast: more` et avec le contraste renforcé du lecteur (`data-yn-contraste`) | Un fond illustré sous du texte baisse le contraste perçu : on le retire pour qui demande plus de contraste. |
+| Pages de lecture | **aucun sprite sur un chapitre** (`single-yume_chapitre`, lecteur MangaDex compris), sur la page « Illustrations » d'un tome, ni dans l'espace équipe (pages `equipe`, `publier`, `membres`) | Confort de lecture ; cohérent avec le thème Sépia inchangé (l'arbre est aussi retiré sous Sépia, quelle que soit la page). |
+| Accessibilité | élément décoratif pur (`aria-hidden`, `pointer-events: none`), aucun mouvement (image fixe, les particules restent dans l'en-tête) ; retiré avec `prefers-contrast: more`, avec le contraste renforcé du lecteur (`data-yn-contraste`), en couleurs forcées et à l'impression | Un fond illustré sous du texte baisse le contraste perçu : on le retire pour qui demande plus de contraste. |
 | Réglage | case **Arbre décoratif** dans *Réglages → Thème saisonnier* (`saison_sprite`, défaut vrai), à côté de **Décors animés** | Même logique que les particules : l'équipe peut couper sans release. |
 | Cache | fichiers versionnés par empreinte (`?v=`), comme les logos | Un visuel remplacé est vu immédiatement. |
 
@@ -76,25 +77,34 @@ images : logo Noël et `arbre-hiver.png`) afin que la silhouette soit identique.
 - [ ] Les six silhouettes se ressemblent (même arbre).
 - [ ] Fichier PNG, 1024 × 1536 au moins, nommé `arbre-<slug>.png`.
 
-## 3. Plan d'intégration (après réception des images)
+## 3. Intégration (réalisée en 2.7.0, lot D)
 
-| Étape | Contenu | Fichiers | Vérification |
+| Étape | Réalisé | Fichiers | Vérification |
 | --- | --- | --- | --- |
-| 1. Conversion | Rognage des marges transparentes, deux tailles (hauteur 900 et 1 400 px pour les écrans haute densité), WebP qualité 82 et AVIF, cible ≤ 120 Ko par fichier affiché | `wp-content/themes/yume/assets/img/sprites/arbre-<slug>[-2x].{webp,avif}` | poids, transparence |
-| 2. Réglage | Champ `saison_sprite` (checkbox, défaut vrai, libellé **Arbre décoratif**, section Thème saisonnier) | `includes/saisons/reglages.php`, contrat §6 | `test-saisons` |
-| 3. Thème | Élément `<div class="yn-sprite" aria-hidden="true">` injecté par PHP après l'en-tête (pas de JavaScript : image chargée par `background-image` dans `@media (min-width: 1024px)`, `image-set()` WebP/AVIF et densité) ; `position: fixed; right: 0; bottom: 0; z-index: 0; pointer-events: none` ; `mask-image` (fondu gauche et haut) ; opacité 0,9 au-delà de 1 900 px de large, 0,35 en dessous ; absent sur `single-yume_chapitre`, l'espace équipe, l'administration, et si `data-yn-contraste` ou `prefers-contrast: more` | `inc/saisons.php`, `assets/css/yume.css` | captures 1024 / 1280 / 1440 / 1920 en Nuit et Papier, pour chaque saison ; aucun débordement horizontal ; contraste du texte mesuré sur une zone traversée par le filigrane (≥ 4,5:1 conservé grâce à l'opacité 0,35) |
-| 4. Contenu au-dessus | `.wp-site-blocks > *` en `position: relative; z-index: 1` pour que tout le contenu passe au-dessus du sprite | `assets/css/yume.css` | rendu CI inchangé sans saison |
-| 5. Documentation | Guide de l'équipe (case **Arbre décoratif**), contrat §15, design/README, ce document | `docs/*`, `design/README.md` | DOCX régénéré |
-| 6. Version | `2.7.0-dev.N`, CHANGELOG | `tools/build/version.php` | CI |
+| 1. Conversion | Marges transparentes rognées (alpha > 4), deux tailles : hauteur 900 px (1x) et 1 400 px (2x) ; WebP (méthode 6, alpha qualité 40 à 60, qualité 70 à 82 selon le poids) et AVIF (qualité 55, servi en premier). Poids 1x : WebP 96 à 124 Ko, AVIF 65 à 99 Ko ; 2x : WebP 180 à 245 Ko, AVIF 120 à 171 Ko | `wp-content/themes/yume/assets/img/sprites/arbre-<slug>[-2x].{webp,avif}` (embarqués par `tools/build/zip.sh`) | poids, transparence (contrôle sur fond Nuit et Papier) |
+| 2. Réglage | Case **Arbre décoratif** (`saison_sprite`, défaut vrai) dans *Réglages → Thème saisonnier*, après **Décors animés** | `includes/saisons/reglages.php`, contrat §6 | `test-saisons` |
+| 3. Thème | `<div class="yn-sprite" aria-hidden="true">` imprimé sur `wp_body_open` (canevas des thèmes blocs) avec deux variables CSS dans son attribut `style` : `--yn-sprite-1x` (WebP 1x, repli) et `--yn-sprite` (`image-set()` AVIF puis WebP, 1x et 2x, avec `type()`), URL versionnées (`?v=`, `yume_theme_version_fichier()`). Rien n'est imprimé sans saison, si `saison_sprite` est faux, sur une page exclue ou si le fichier WebP 1x de la saison manque (`file_exists` mémorisé pour la requête : pas de 404). `background-image` déclaré seulement dans `@media (min-width: 1024px)` ; opacité 0,3 sous 1 900 px, 0,9 au-delà (boîte limitée à la marge libre) ; retiré par `prefers-contrast: more`, `html[data-yn-contraste]`, `forced-colors` et l'impression. Pas de JavaScript | `inc/saisons.php`, `assets/css/yume.css` (section 1 bis) | captures 1024 / 1440 / 1920 (printemps et Halloween en Nuit, Noël et hiver en Papier), chapitre à 1440, accueil à 390 sans requête vers `assets/img/sprites` ; aucun débordement horizontal ; contraste mesuré (ci-dessous) |
+| 4. Contenu au-dessus | `body.yn-sprite-actif .wp-site-blocks { position: relative; z-index: 1 }`, seulement au-delà de 1 024 px et seulement quand l'arbre est affiché : l'empilement interne (en-tête `z-index: 50`, sous-menus, menu mobile, suggestions de recherche) est inchangé, les pages sans arbre aussi | `assets/css/yume.css` | sous-menu ouvert à 1440, menu mobile ouvert à 1024 : identiques ; rendu CI inchangé sans saison |
+| 5. Documentation | Guide de l'équipe (case **Arbre décoratif**), contrat §6 et §15, design/README, ce document | `docs/*`, `design/README.md` | DOCX régénéré |
+| 6. Version | à faire par l'intégrateur (`2.7.0-dev.N`, CHANGELOG) | `tools/build/version.php` | CI |
 
-Charge estimée : une demi-journée une fois les images reçues. Risque principal : lisibilité du texte
-qui passe sur le filigrane ; parade prévue : opacité basse et fondu vers le contenu, et la case de
-réglage pour couper sans release.
+**Contraste.** Le texte courant (`texte` sur `fond`) garde au moins 4,5:1 sur le **pire pixel** des cinq
+arbres livrés, composés à l'opacité du filigrane sur le fond de la saison : 4,97:1 au plus bas (Noël
+Nuit, neige), 6,4:1 en Papier. À 0,35 (valeur prévue), Noël, hiver et été en Nuit tombaient à 4,2-4,3:1 :
+l'opacité a été ramenée à **0,3**. Les liens (`accent`, 5:1 seulement sur `fond` en Papier) et le texte
+secondaire (`texte-faible`) qui passent sur une branche descendent nettement plus bas (jusqu'à 2,4:1
+pour un lien en Papier) : c'est la limite du filigrane sous la colonne de contenu ; la case de réglage
+permet de couper l'arbre sans release. Au-delà de 1 900 px, l'arbre ne passe plus sous le texte.
 
-## 4. Points à valider
+**Reste à faire.** Déposer `arbre-automne` : convertir le PNG reçu avec les mêmes réglages (rognage,
+900 et 1 400 px de haut, WebP et AVIF) dans `assets/img/sprites/` ; aucun code à changer.
 
-1. Côté **droit** (comme dans le logo) : d'accord, ou plutôt à gauche, ou les deux (miroir) ?
-2. Sous 1 900 px de large, l'arbre devient un **filigrane** à 35 % derrière le contenu ; alternative :
-   le masquer complètement tant que la marge libre est inférieure à sa largeur (il ne se verrait alors
-   que sur les très grands écrans).
-3. Pas de sprite sur les **chapitres** (lecture) : à confirmer.
+## 4. Décisions (2026-10-30)
+
+1. Arbre **à droite** (comme dans le logo), calé en bas de la fenêtre, derrière le contenu.
+2. **Filigrane** sous 1 900 px de large (prévu à 35 %, ramené à 30 % pour le contraste du texte),
+   **90 %** au-delà ; rien sous 1 024 px (image non téléchargée).
+3. **Aucun arbre** sur les pages de lecture (chapitres, lecteur MangaDex, illustrations d'un tome),
+   dans l'espace équipe et le formulaire de publication, ni dans l'administration.
+4. Retiré pour qui demande plus de contraste (`prefers-contrast: more`, contraste renforcé du lecteur).
+5. Case **Arbre décoratif** (`saison_sprite`, défaut vrai) après **Décors animés**.

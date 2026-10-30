@@ -413,6 +413,7 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `saison_manuelle` | `''` | saisons : thème forcé quand `saison_mode` = `manuel`, type `select` — `''` « Thème de base » et les six slugs (§15) |
 | `saison_calendrier` | les six lignes du calendrier par défaut (`docs/07-themes-saisonniers.md` §3) | saisons : programmation, type de champ **`saisons`** (ci-dessous) ; lecture résolue par `yume_saison_calendrier()` (§7) |
 | `saison_decor` | `true` | saisons, thème : décors animés légers dans la bande d'en-tête (§15) ; jamais avec `prefers-reduced-motion` ni `yn.a11y.animations = 'reduites'` (§14) |
+| `saison_sprite` | `true` | saisons, thème : **Arbre décoratif** de la saison en fond de page, à droite, en filigrane (§15) ; jamais sur les pages de lecture, dans l'espace équipe, sous le thème Sépia ni sous 1 024 px de large (`docs/08-sprites-saisonniers.md`) |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
@@ -2291,6 +2292,21 @@ aussi 4,5:1 comme couleur de texte sur `fond`, `bande` et `carte`).
   dans la bande d'en-tête seulement, `pointer-events: none`, `aria-hidden`, 12 éléments au plus ;
   coupés par `@media (prefers-reduced-motion: reduce)`, par `yn.a11y.animations = 'reduites'` (§14) et
   par le réglage `saison_decor` (§6). Sans JavaScript : rien.
+- **Arbre décoratif** (`docs/08-sprites-saisonniers.md`) : élément `<div class="yn-sprite" aria-hidden="true">`
+  imprimé sur `wp_body_open` par `inc/saisons.php`, avec la classe `yn-sprite-actif` sur `<body>` ; son
+  attribut `style` porte `--yn-sprite-1x` (WebP 1x) et `--yn-sprite` (`image-set()` : AVIF puis WebP,
+  1x et 2x, `type()`), URL versionnées (`?v=`). Fichiers `assets/img/sprites/arbre-<slug>.{avif,webp}`
+  (900 px de haut) et `arbre-<slug>-2x.{avif,webp}` (1 400 px). Imprimé seulement si une saison est
+  active, si `saison_sprite` est vrai (§6), hors chapitre (`single-yume_chapitre`, lecteur MangaDex
+  compris), page « Illustrations » d'un tome, pages `equipe`, `publier` et `membres` (§11) et
+  administration, et si le fichier WebP 1x de la saison existe (sinon rien, pas de 404). Règles
+  d'affichage (`yume.css`, section 1 bis) : `background-image` déclaré seulement dans
+  `@media (min-width: 1024px)` (rien de téléchargé en dessous) ; `position: fixed; right: 0; bottom: 0;
+  z-index: 0`, hauteur `min(78vh, 880px)`, largeur 0,67 × hauteur, fondu vers la gauche (`mask-image`) ;
+  opacité **0,3** sous 1 900 px de large (filigrane sous la colonne de contenu), **0,9** au-delà avec une
+  largeur limitée à la marge libre à droite de la grille large ; `body.yn-sprite-actif .wp-site-blocks`
+  en `position: relative; z-index: 1` (le contenu passe au-dessus) ; retiré par
+  `@media (prefers-contrast: more)`, `html[data-yn-contraste]`, `forced-colors` et l'impression.
 - **Caches** : une bascule de saison n'exige aucun nouveau fichier (palettes dans `yume.css`, l'attribut
   HTML suffit ; pages de lecture « réseau d'abord » dans le service worker, §14) ; purge du cache de
   page sur `yume_saison_changee` (§8).

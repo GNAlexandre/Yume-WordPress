@@ -2,7 +2,7 @@
  * Thème Yume — interface « Crépuscule sakura ».
  *
  * 1. Variables, thèmes Papier et Sépia
- * 1 bis. Thèmes saisonniers (palettes)
+ * 1 bis. Thèmes saisonniers (palettes, arbre décoratif)
  * 2. Base (sélection, focus, formulaires)
  * 3. Classes utilitaires partagées (contrat §15)
  * 4. Styles de blocs du thème (is-style-*)
@@ -116,7 +116,7 @@ html[data-yn-theme="sepia"] .yn-fond-sombre {
 }
 
 /* ==========================================================================
-   1 bis. Thèmes saisonniers (palettes)
+   1 bis. Thèmes saisonniers (palettes, arbre décoratif)
    ==========================================================================
    Variante du site posée par le serveur (inc/saisons.php, docs/07-themes-saisonniers.md) :
    html[data-yn-saison="ete|automne|hiver|halloween|noel"], indépendante du thème de couleurs
@@ -275,6 +275,74 @@ html[data-yn-saison="noel"][data-yn-theme="papier"]:not([data-yn-contraste]) {
 	--wp--preset--color--selection: #e4f1e8;
 	--yn-accent-survol: #862222;
 	--yn-degrade-couverture: linear-gradient(160deg, #2f5a46 0%, #1e3a2e 55%, #b32d2d 140%);
+}
+
+/*
+ * Arbre décoratif (docs/08-sprites-saisonniers.md) : div.yn-sprite posé par inc/saisons.php
+ * juste après <body>, seulement si une saison est active, que le réglage saison_sprite est actif,
+ * hors pages de lecture et espace équipe ; ses images sont dans deux variables de son attribut
+ * style (--yn-sprite-1x : WebP ; --yn-sprite : image-set() AVIF puis WebP, 1x et 2x).
+ * L'image n'est déclarée qu'au-delà de 1 024 px de large : en dessous, rien n'est téléchargé.
+ * Fixé en bas à droite, derrière le contenu (.wp-site-blocks passe au-dessus, body.yn-sprite-actif),
+ * fondu vers la gauche. Sous 1 900 px de large, il passe sous la colonne de contenu : filigrane à
+ * 30 % (le texte courant garde 4,5:1 sur le pire pixel de chaque arbre, en Nuit comme en Papier).
+ * Au-delà, opacité 0,9, mais la boîte est limitée à la marge libre à droite de la grille large
+ * (1 344 px) : l'arbre, calé sur sa hauteur, est rogné à gauche plutôt que de passer sous le texte.
+ * Retiré pour qui demande plus de contraste (préférence système ou contraste renforcé du lecteur),
+ * sous le thème Sépia (confort de lecture, jamais touché par la saison), en couleurs forcées et à
+ * l'impression (section 14).
+ */
+.yn-sprite {
+	display: none;
+}
+
+@media (min-width: 1024px) {
+	.yn-sprite {
+		display: block;
+		position: fixed;
+		right: 0;
+		bottom: 0;
+		z-index: 0;
+		height: min(78vh, 880px);
+		width: calc(min(78vh, 880px) * 0.67);
+		background-image: var(--yn-sprite-1x);
+		background-repeat: no-repeat;
+		background-position: right bottom;
+		background-size: auto 100%;
+		opacity: 0.3;
+		pointer-events: none;
+		-webkit-mask-image: linear-gradient(to left, #000 55%, transparent 100%);
+		mask-image: linear-gradient(to left, #000 55%, transparent 100%);
+	}
+
+	@supports (background-image: image-set(url("data:,") type("image/webp") 1x)) {
+		.yn-sprite {
+			background-image: var(--yn-sprite);
+		}
+	}
+
+	.yn-sprite-actif .wp-site-blocks {
+		position: relative;
+		z-index: 1;
+	}
+}
+
+@media (min-width: 1900px) {
+	.yn-sprite {
+		width: min(calc(min(78vh, 880px) * 0.67), calc((100vw - 1344px) / 2 - 16px));
+		opacity: 0.9;
+	}
+}
+
+@media (prefers-contrast: more) {
+	.yn-sprite {
+		display: none !important;
+	}
+}
+
+html[data-yn-contraste] .yn-sprite,
+html[data-yn-theme="sepia"] .yn-sprite {
+	display: none !important;
 }
 
 /* ==========================================================================
@@ -2502,6 +2570,10 @@ html[data-yn-animations="reduites"] .yn-decor {
 }
 
 @media (forced-colors: active) {
+	.yn-sprite {
+		display: none !important;
+	}
+
 	.yn-btn,
 	.yn-chip,
 	.yn-card,
@@ -2517,6 +2589,7 @@ html[data-yn-animations="reduites"] .yn-decor {
 }
 
 @media print {
+	.yn-sprite,
 	.yn-site-header,
 	.wp-site-blocks > footer,
 	.yn-commentaires .comment-respond,

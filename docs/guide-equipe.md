@@ -1142,6 +1142,8 @@ ou *Yume → Réglages* dans l'administration), par les gérants et les administ
   WordPress.
 - Quelques **décors animés** légers traversent la bande d'en-tête : pétales au printemps, feuilles en
   automne, flocons en hiver et à Noël, chauves-souris à Halloween, rien en été.
+- Sur ordinateur, l'**arbre de la saison** (celui du logo) est posé en fond de page, en bas à droite,
+  derrière le contenu (voir **Arbre décoratif** ci-dessous).
 
 **Les trois modes** (liste **Pilotage du thème**)
 
@@ -1187,6 +1189,24 @@ s'affichent jamais sur un appareil réglé pour réduire les animations (préfé
 les animations »), ni pour un lecteur qui a coché **Réduire les animations** dans un chapitre (bouton
 ⚙ **Paramètres** → **Accessibilité**, réglage propre à l'appareil). Sans JavaScript, aucun décor. Ils
 restent dans la bande d'en-tête, ne gênent pas les clics et sont ignorés des lecteurs d'écran.
+
+**Arbre décoratif** : la case **Arbre décoratif** de la section (cochée par défaut, juste après
+**Décors animés**) affiche l'arbre de la saison en fond de page, calé en bas à droite de la fenêtre,
+derrière le contenu. Il est **en filigrane** (très pâle) sur la plupart des écrans d'ordinateur, où il
+passe sous la colonne de texte ; sur les très grands écrans (1 900 pixels de large et plus), il est
+bien visible dans la marge de droite, sans passer sous le texte. Il **n'apparaît pas** :
+
+- sur les écrans de moins de 1 024 pixels de large (téléphones, tablettes en portrait) : l'image
+  n'est même pas téléchargée ;
+- dans les chapitres (lecteur MangaDex compris) ni sur la page « Illustrations » d'un tome ;
+- dans l'espace équipe et le formulaire de publication, ni dans l'administration ;
+- pour un lecteur qui a demandé plus de contraste (réglage du système, ou **Contraste renforcé**
+  dans un chapitre), pour un lecteur en thème **Sépia**, ni à l'impression ;
+- en Automne tant que l'image de l'arbre d'automne n'a pas été livrée (elle arrive avec une mise à
+  jour du site).
+
+Il ne gêne pas les clics et est ignoré des lecteurs d'écran. Décochez la case puis **Enregistrer
+les réglages** pour le retirer de tout le site, sans attendre de mise à jour.
 
 **Quand le changement se voit**
 

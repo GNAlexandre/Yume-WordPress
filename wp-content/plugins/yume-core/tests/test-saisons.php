@@ -6,7 +6,8 @@
  * (refusé à un anonyme ou à un lecteur, accepté avec yume_reglages, page exclue du cache),
  * mémoire par requête et filtre final, assainissement du calendrier, événement
  * yume_saison_changee et purge, phrase d'état, rendu du type de champ saisons (administration et
- * espace équipe), tâche planifiée quotidienne.
+ * espace équipe), tâche planifiée quotidienne, réglage saison_sprite et arbre décoratif du thème
+ * (docs/08-sprites-saisonniers.md).
  *
  * Lancement : tools/localenv/test.sh saisons
  *
@@ -453,6 +454,178 @@ yume_test(
 		// Sans callback, le core conserve la valeur précédente.
 		unset( $champ['sanitize'] );
 		yume_assert_same( array( 'x' ), \Yume\Core\Core\assainir_champ( $champ, array( 'ete' => array() ), array( 'x' ) ) );
+	}
+);
+
+yume_test(
+	'Réglage saison_sprite : case « Arbre décoratif » après « Décors animés », défaut vrai, assainie en booléen',
+	function () {
+		$champs = \Yume\Core\Core\champs_reglages();
+		$cles   = array_column( $champs, 'key' );
+		$index  = array_search( 'saison_sprite', $cles, true );
+		yume_assert_true( false !== $index, 'champ déclaré' );
+		yume_assert_same( array_search( 'saison_decor', $cles, true ) + 1, $index, 'juste après saison_decor' );
+		$champ = $champs[ $index ];
+		yume_assert_same( 'checkbox', $champ['type'] );
+		yume_assert_same( 'saisons', $champ['section'] );
+		yume_assert_same( true, $champ['default'] );
+		yume_assert_true( '' !== (string) $champ['label'] && '' !== (string) $champ['description'], 'libellé et description' );
+		yume_assert_same( true, \Yume\Core\Core\defauts_reglages()['saison_sprite'] );
+
+		$reglages = get_option( 'yume_reglages', array() );
+		$reglages = is_array( $reglages ) ? $reglages : array();
+		unset( $reglages['saison_sprite'] );
+		update_option( 'yume_reglages', $reglages );
+		yume_assert_same( true, yume_setting( 'saison_sprite' ), 'réglage absent → défaut vrai' );
+
+		yume_assert_same( false, \Yume\Core\Core\assainir_champ( $champ, '0', true ) );
+		yume_assert_same( true, \Yume\Core\Core\assainir_champ( $champ, '1', false ) );
+		$sortie = \Yume\Core\Core\assainir_reglages( array( '_formulaire' => 1 ) );
+		yume_assert_same( false, $sortie['saison_sprite'], 'case décochée dans le formulaire → faux' );
+		$sortie = \Yume\Core\Core\assainir_reglages( array( 'saison_sprite' => 'oui' ) );
+		yume_assert_same( true, $sortie['saison_sprite'] );
+	}
+);
+
+/**
+ * Sortie de wp_body_open (arbre décoratif du thème) pour une requête principale donnée, avec la
+ * saison forcée par le filtre yume_saison_active ; requête, saison et réglages remis en place.
+ *
+ * @param string   $saison  Saison forcée.
+ * @param callable $requete Construit la requête principale (WP_Query).
+ * @return array{html:string,classes:string[]} Sortie de wp_body_open et classes du body.
+ */
+function yume_tsa_rendu_sprite( string $saison, callable $requete ): array {
+	global $wp_query, $wp_the_query;
+	$sauve  = array( $wp_query, $wp_the_query );
+	$forcer = static function () use ( $saison ) {
+		return $saison;
+	};
+	add_filter( 'yume_saison_active', $forcer );
+	reinitialiser();
+	try {
+		// phpcs:disable WordPress.WP.GlobalVariablesOverride.Prohibited -- remises en place dans le finally.
+		$wp_query     = $requete();
+		$wp_the_query = $wp_query;
+		// phpcs:enable
+		ob_start();
+		yume_theme_afficher_sprite();
+		return array(
+			'html'    => (string) ob_get_clean(),
+			'classes' => yume_theme_classe_sprite( array() ),
+		);
+	} finally {
+		list( $wp_query, $wp_the_query ) = $sauve; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- remise en place.
+		remove_filter( 'yume_saison_active', $forcer );
+		reinitialiser();
+	}
+}
+
+yume_test(
+	'Thème : arbre décoratif sur l’accueil (saison forcée, fichier présent), absent sur un chapitre, l’espace équipe, réglage coupé ou fichier manquant',
+	function () {
+		if ( ! function_exists( 'yume_theme_afficher_sprite' ) ) {
+			return; // Thème Yume inactif.
+		}
+		yume_assert_true( has_action( 'wp_body_open', 'yume_theme_afficher_sprite' ) > 0, 'accroché à wp_body_open' );
+		yume_tsa_reglages( array( 'saison_sprite' => true ) );
+		$accueil = static function () {
+			$requete          = new WP_Query();
+			$requete->is_home = true;
+			return $requete;
+		};
+
+		$rendu = yume_tsa_rendu_sprite( 'hiver', $accueil );
+		yume_assert_contains( '<div class="yn-sprite" aria-hidden="true" style="', $rendu['html'] );
+		yume_assert_contains( 'assets/img/sprites/arbre-hiver.webp?v=', $rendu['html'] );
+		yume_assert_contains( 'arbre-hiver-2x.webp?v=', $rendu['html'] );
+		yume_assert_contains( '--yn-sprite: image-set(', $rendu['html'] );
+		yume_assert_contains( 'type(&quot;image/webp&quot;) 2x', $rendu['html'] );
+		if ( file_exists( get_theme_file_path( 'assets/img/sprites/arbre-hiver.avif' ) ) ) {
+			yume_assert_true( strpos( $rendu['html'], 'arbre-hiver.avif' ) < strpos( $rendu['html'], 'image/webp' ), 'AVIF avant WebP' );
+		}
+		yume_assert_same( array( 'yn-sprite-actif' ), $rendu['classes'] );
+
+		// Chapitre (et lecteur MangaDex, qui s'affiche dans le chapitre) : aucun arbre.
+		$chapitre = yume_factory_post(
+			array(
+				'post_type'   => 'yume_chapitre',
+				'post_status' => 'publish',
+				'post_title'  => 'Chapitre sans arbre',
+			)
+		);
+		$rendu    = yume_tsa_rendu_sprite(
+			'hiver',
+			static function () use ( $chapitre ) {
+				return new WP_Query(
+					array(
+						'p'           => $chapitre,
+						'post_type'   => 'yume_chapitre',
+						'post_status' => 'any',
+					)
+				);
+			}
+		);
+		yume_assert_same( '', $rendu['html'], 'chapitre' );
+		yume_assert_same( array(), $rendu['classes'], 'chapitre : pas de classe' );
+
+		// Espace équipe : pages enregistrées sous les clés publier et equipe (autres slugs).
+		$publier          = yume_factory_post(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'Publier',
+				'post_name'   => 'publier-test-sprite',
+			)
+		);
+		$equipe           = yume_factory_post(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'Équipe',
+				'post_name'   => 'equipe-test-sprite',
+			)
+		);
+		$publique         = yume_factory_post(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'À propos',
+				'post_name'   => 'a-propos-test-sprite',
+			)
+		);
+		$pages            = get_option( 'yume_pages', array() );
+		$pages            = is_array( $pages ) ? $pages : array();
+		$pages['publier'] = $publier;
+		$pages['equipe']  = $equipe;
+		update_option( 'yume_pages', $pages );
+		$page = static function ( int $id ) {
+			return static function () use ( $id ) {
+				return new WP_Query( array( 'page_id' => $id ) );
+			};
+		};
+		yume_assert_same( '', yume_tsa_rendu_sprite( 'hiver', $page( $publier ) )['html'], 'publier' );
+		yume_assert_same( '', yume_tsa_rendu_sprite( 'hiver', $page( $equipe ) )['html'], 'équipe' );
+		yume_assert_contains( 'class="yn-sprite"', yume_tsa_rendu_sprite( 'hiver', $page( $publique ) )['html'], 'page publique' );
+
+		// Réglage coupé.
+		yume_tsa_reglages( array( 'saison_sprite' => false ) );
+		yume_assert_same( '', yume_tsa_rendu_sprite( 'hiver', $accueil )['html'], 'réglage faux' );
+		yume_tsa_reglages( array( 'saison_sprite' => true ) );
+
+		// Sans saison : rien.
+		yume_assert_same( '', yume_tsa_rendu_sprite( '', $accueil )['html'], 'thème de base' );
+
+		// Fichier manquant (l'arbre d'automne n'est pas encore livré) : aucun élément, donc aucun 404.
+		$manquantes = array_filter(
+			array_keys( yume_saisons() ),
+			static function ( string $slug ): bool {
+				return ! file_exists( get_theme_file_path( 'assets/img/sprites/arbre-' . $slug . '.webp' ) );
+			}
+		);
+		foreach ( $manquantes as $slug ) {
+			yume_assert_same( '', yume_tsa_rendu_sprite( $slug, $accueil )['html'], "fichier manquant : $slug" );
+		}
 	}
 );
 

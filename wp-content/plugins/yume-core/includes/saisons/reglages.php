@@ -28,7 +28,7 @@ function sections_reglages( $sections ) {
 add_filter( 'yume_reglages_sections', __NAMESPACE__ . '\\sections_reglages' );
 
 /**
- * Champs de la section : mode, thème forcé, calendrier (type saisons), décors.
+ * Champs de la section : mode, thème forcé, calendrier (type saisons), décors, arbre décoratif.
  *
  * @param mixed $champs Champs.
  * @return array
@@ -79,6 +79,14 @@ function champs_reglages( $champs ) {
 		'section'     => SECTION_REGLAGES,
 		'default'     => true,
 		'description' => __( 'Quelques décors légers dans l’en-tête (pétales, feuilles, flocons…), jamais pour les lecteurs qui réduisent les animations.', 'yume-core' ),
+	);
+	$champs[] = array(
+		'key'         => 'saison_sprite',
+		'label'       => __( 'Arbre décoratif', 'yume-core' ),
+		'type'        => 'checkbox',
+		'section'     => SECTION_REGLAGES,
+		'default'     => true,
+		'description' => __( 'Arbre de la saison en fond de page, à droite, en filigrane ; jamais sur les chapitres ni sous 1 024 px.', 'yume-core' ),
 	);
 	return $champs;
 }

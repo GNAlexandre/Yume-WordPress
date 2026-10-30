@@ -88,6 +88,17 @@ feuilles en automne, flocons en hiver et à Noël, chauves-souris à Halloween, 
 par la préférence système « réduire les animations », par l'option **Réduire les animations** du
 lecteur et par le réglage du site. Sans JavaScript : aucun décor.
 
+**Arbre décoratif** : l'arbre du logo de chaque saison, seul (sans cercle, livre ni texte), en
+aquarelle sur fond transparent, est posé en fond de page, calé en bas à droite de la fenêtre,
+derrière le contenu, avec un fondu vers la gauche (`wp-content/themes/yume/assets/img/sprites/
+arbre-<slug>[-2x].{avif,webp}`, 900 et 1 400 px de haut ; cahier des charges et intégration :
+[docs/08-sprites-saisonniers.md](../docs/08-sprites-saisonniers.md)). Hauteur `min(78vh, 880px)`.
+Sous 1 900 px de large, il passe sous la colonne de contenu en **filigrane à 30 %** (le texte courant
+garde 4,5:1) ; au-delà, il est affiché à 90 % dans la marge libre, sans passer sous le texte. Jamais
+sous 1 024 px (image non téléchargée), sur les pages de lecture, dans l'espace équipe, pour qui
+demande plus de contraste, ni à l'impression ; case **Arbre décoratif** dans les réglages. L'arbre
+d'automne reste à livrer : en attendant, l'automne n'a pas d'arbre.
+
 Règles des variantes :
 
 - **Contrastes** mesurés comme pour la base : 4,5:1 pour `texte` sur `fond`, `bande` et `carte` ;
