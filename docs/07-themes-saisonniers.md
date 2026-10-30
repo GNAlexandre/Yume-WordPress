@@ -129,8 +129,7 @@ purge des caches (§7) ; le module planning pourra y accrocher plus tard une ann
   `aria-hidden`, au plus 12 éléments, coupés par `@media (prefers-reduced-motion: reduce)`, par
   `yn.a11y.animations = 'reduites'` et par le réglage `saison_decor`. Sans JavaScript : rien.
 - Logos : six fichiers WebP 320 px de large (`assets/img/saisons/<slug>.webp`) convertis depuis les
-  visuels fournis ; `noel.webp` reçoit le visuel de Noël dès qu'il est déposé (en attendant, copie
-  d'`hiver.webp`, signalée dans le CHANGELOG).
+  visuels fournis (le visuel de Noël, reçu en dernier, est intégré en 2.7.0-dev.2).
 - `readme.txt` du thème et `design/README.md` : palettes documentées.
 
 ## 7. Cache : garantir que les visiteurs voient le changement

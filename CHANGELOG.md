@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.0-dev.2 — 2026-10-30
+
+- Thèmes saisonniers : vrai logo de Noël (noel.webp, 320×263) à la place de la copie d'hiver.webp
+
 ## 2.7.0-dev.1 — 2026-10-30
 
 - Thèmes saisonniers : module saisons (réglages Pilotage du thème / Thème choisi / Calendrier / Décors animés, type de champ saisons, API yume_saison_*, aperçu ?yn-saison, tâche quotidienne, événement yume_saison_changee et purge des caches), variantes du thème (attribut data-yn-saison, palettes Été / Automne / Halloween / Hiver / Noël en Nuit et Papier, logo saisonnier, décors légers, theme-color), assets versionnés par empreinte de fichier, documentation et guide de l'équipe. noel.webp est provisoirement une copie d'hiver.webp.
