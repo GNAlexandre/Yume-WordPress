@@ -214,17 +214,20 @@ function yume_tsv_nettoyer( array $d ): void {
  */
 function yume_tsv_sorties_publiques(): array {
 	wp_set_current_user( 0 );
-	$sorties     = array(
-		'planning'   => yume_render_block( 'yume/planning' ),
-		'accueil'    => yume_render_block( 'yume/planning-accueil' ),
-		'upcoming'   => yume_render_block( 'yume/upcoming', array( 'count' => 6 ) ),
-		'calendrier' => yume_render_block( 'yume/calendrier' ),
+	$sorties = array(
+		'planning' => yume_render_block( 'yume/planning' ),
+		'accueil'  => yume_render_block( 'yume/planning-accueil' ),
+		'upcoming' => yume_render_block( 'yume/upcoming', array( 'count' => 6 ) ),
 	);
-	$_GET['vue'] = 'calendrier'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	// Le calendrier affiche le mois courant par défaut : en fin de mois, le tome du jeu (dans deux
+	// jours) tombe le mois suivant. On demande le mois de sa date cible, comme le ferait un visiteur.
+	$_GET['mois'] = substr( yume_tsv_jour( 2 ), 0, 7 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	try {
+		$sorties['calendrier']          = yume_render_block( 'yume/calendrier' );
+		$_GET['vue']                    = 'calendrier'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$sorties['planning-calendrier'] = yume_render_block( 'yume/planning' );
 	} finally {
-		unset( $_GET['vue'] );
+		unset( $_GET['vue'], $_GET['mois'] );
 	}
 	$sorties['rest']    = (string) wp_json_encode( yume_rest( 'GET', '/yume/v1/planning' )->get_data(), JSON_UNESCAPED_UNICODE );
 	$sorties['avenir']  = (string) wp_json_encode( yume_rest( 'GET', '/yume/v1/planning', array( 'a_venir' => true ) )->get_data(), JSON_UNESCAPED_UNICODE );
