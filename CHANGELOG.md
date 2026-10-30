@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.2-dev.2 — 2026-10-30
+
+- Navigation : l'anneau de focus du sous-menu « Yume Novel » (et du menu Bibliothèque) est réservé au clavier ; au clic, Safari et Firefox le faisaient apparaître via le focus posé par programme par le script de menu de WordPress
+
 ## 2.7.2-dev.1 — 2026-10-30
 
 - Arbre décoratif sur les chapitres : dans la marge libre à droite de la colonne de lecture (mesurée par yume.js, jamais sous le texte, masqué sous 160 px de marge), à pleine opacité

@@ -10,6 +10,8 @@
  * - Chaque changement émet l'événement document « yn:theme » (detail.theme).
  * - Sur un chapitre, l'arbre décoratif (.yn-sprite--lecture) reçoit la marge libre à droite de la
  *   colonne de lecture (--yn-marge-lecture) pour ne jamais passer sous le texte.
+ * - html[data-yn-pointeur] pendant une interaction au pointeur : l'anneau de focus de la navigation
+ *   est réservé au clavier.
  * - Couleur de l'interface du navigateur (meta theme-color) : bande du thème actif, celle de la
  *   saison quand html[data-yn-saison] est posé (inc/saisons.php ; Sépia ne change pas).
  *
@@ -118,6 +120,19 @@
 			appliquer( theme );
 		}
 	};
+
+	// Navigation : l'anneau de focus (accent) est réservé au clavier. Au pointeur, Safari et Firefox
+	// ne donnent pas le focus au bouton du sous-menu ; le script du menu de WordPress le lui donne
+	// par programme, ce qui ferait apparaître l'anneau au clic. data-yn-pointeur le neutralise
+	// (yume.css) jusqu'à la première touche.
+	document.addEventListener( 'pointerdown', function () {
+		racine.setAttribute( 'data-yn-pointeur', '' );
+	}, true );
+	document.addEventListener( 'keydown', function ( e ) {
+		if ( e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta' ) {
+			racine.removeAttribute( 'data-yn-pointeur' );
+		}
+	}, true );
 
 	// Arbre décoratif sur un chapitre (.yn-sprite--lecture, inc/saisons.php) : il ne passe jamais
 	// sous la colonne de lecture. On mesure la marge libre à droite de .yn-reader (largeur réglable

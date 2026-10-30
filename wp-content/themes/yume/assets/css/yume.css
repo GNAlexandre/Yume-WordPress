@@ -923,6 +923,18 @@ hr.yn-scene-break::before {
 	display: none;
 }
 
+/*
+ * Sous-menu ouvert à la souris ou au doigt : Safari et Firefox ne donnent pas le focus à un bouton
+ * au clic ; le script du menu de WordPress le lui donne alors par programme, et l'anneau de focus
+ * clavier (accent) apparaît autour de « Yume Novel » déplié. yume.js pose data-yn-pointeur sur
+ * <html> pendant une interaction au pointeur et le retire à la première touche : l'anneau de la
+ * navigation est ainsi réservé au clavier (l'état ouvert reste visible par le fond « selection »).
+ */
+html[data-yn-pointeur] .yn-nav .wp-block-navigation-submenu__toggle:focus-visible,
+html[data-yn-pointeur] .yn-nav .yn-library-menu > summary:focus-visible {
+	outline: none;
+}
+
 /* Sous-menu « Yume Novel » : le chevron est dessiné dans la pastille du bouton. */
 .yn-header .yn-nav .has-child {
 	position: relative;
