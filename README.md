@@ -27,6 +27,7 @@ sans ce Go. Décisions et jalons : [docs/journal-des-decisions.md](docs/journal-
 | [docs/04-import-docx-epub-lecteur.md](docs/04-import-docx-epub-lecteur.md) | Conversion DOCX/EPUB → chapitres, rendu et réglages du lecteur, marque-page |
 | [docs/05-pipeline-github-wordpress.md](docs/05-pipeline-github-wordpress.md) | Releases GitHub → mises à jour WordPress, environnement local, CI, migration |
 | [docs/06-contrat-technique.md](docs/06-contrat-technique.md) | Contrat technique partagé : types, métadonnées, blocs, routes, rôles, pages |
+| [docs/08-sprites-saisonniers.md](docs/08-sprites-saisonniers.md) | Sprites saisonniers (arbre décoratif en fond de page) : cahier des charges des images à générer, prompts, plan d'intégration |
 | [docs/07-themes-saisonniers.md](docs/07-themes-saisonniers.md) | Thèmes saisonniers (2.7.0) : cahier des charges — un seul thème, variante par saison (Printemps, Été, Automne, Hiver, Halloween, Noël), calendrier, réglages, API, cache, palettes |
 | [docs/mise-en-production.md](docs/mise-en-production.md) | Liste de contrôle de mise en production : comptes et 2FA, Jetpack, sauvegardes, `wp-config.php`, réglages GitHub |
 | [docs/tester-en-local.md](docs/tester-en-local.md) | Lancer le site sur son ordinateur (Playground, environnement PHP, préproduction) |

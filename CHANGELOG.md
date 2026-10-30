@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.0-dev.3 — 2026-10-30
+
+- Thèmes saisonniers : cahier des charges des sprites (arbre décoratif en fond de page, images à générer) et plan d'intégration (docs/08)
+
 ## 2.7.0-dev.2 — 2026-10-30
 
 - Thèmes saisonniers : vrai logo de Noël (noel.webp, 320×263) à la place de la copie d'hiver.webp
