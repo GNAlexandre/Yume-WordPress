@@ -15,6 +15,7 @@ define( 'YUME_THEME_DIR', get_template_directory() );
 
 require_once YUME_THEME_DIR . '/inc/setup.php';
 require_once YUME_THEME_DIR . '/inc/assets.php';
+require_once YUME_THEME_DIR . '/inc/saisons.php';
 require_once YUME_THEME_DIR . '/inc/liens.php';
 require_once YUME_THEME_DIR . '/inc/blocs.php';
 require_once YUME_THEME_DIR . '/inc/langue.php';

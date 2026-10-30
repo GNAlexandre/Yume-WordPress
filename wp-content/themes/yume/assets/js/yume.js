@@ -8,6 +8,8 @@
  * - Les boutons [data-yn-theme-toggle] alternent Nuit ↔ Papier ; depuis Sépia, ils reviennent à Nuit.
  * - API publique : window.ynTheme.get() et window.ynTheme.set( 'nuit' | 'papier' | 'sepia' ).
  * - Chaque changement émet l'événement document « yn:theme » (detail.theme).
+ * - Couleur de l'interface du navigateur (meta theme-color) : bande du thème actif, celle de la
+ *   saison quand html[data-yn-saison] est posé (inc/saisons.php ; Sépia ne change pas).
  *
  * JavaScript sans étape de build (ES2019), sans dépendance.
  */
@@ -17,6 +19,14 @@
 	var CLE = 'yn.theme';
 	var THEMES = [ 'nuit', 'papier', 'sepia' ];
 	var COULEURS_NAVIGATEUR = { nuit: '#241740', papier: '#f6eef3', sepia: '#efe2cc' };
+	// Bande des thèmes saisonniers (assets/css/yume.css, section 1 bis ; inc/saisons.php).
+	var COULEURS_SAISONS = {
+		ete: { nuit: '#142a44', papier: '#e6f2fb' },
+		automne: { nuit: '#2d1a14', papier: '#f8ebdd' },
+		hiver: { nuit: '#1b2537', papier: '#e9f0f7' },
+		halloween: { nuit: '#211537', papier: '#f3e8fb' },
+		noel: { nuit: '#162b22', papier: '#e7f3ea' }
+	};
 	var racine = document.documentElement;
 
 	function valide( theme ) {
@@ -25,6 +35,12 @@
 
 	function lire() {
 		return valide( racine.getAttribute( 'data-yn-theme' ) );
+	}
+
+	function couleurNavigateur( theme ) {
+		var saison = racine.getAttribute( 'data-yn-saison' );
+		var couleurs = saison && Object.prototype.hasOwnProperty.call( COULEURS_SAISONS, saison ) ? COULEURS_SAISONS[ saison ] : null;
+		return couleurs && couleurs[ theme ] ? couleurs[ theme ] : COULEURS_NAVIGATEUR[ theme ];
 	}
 
 	function enregistrer( theme ) {
@@ -44,7 +60,7 @@
 		} );
 		var meta = document.querySelector( 'meta[name="theme-color"]' );
 		if ( meta ) {
-			meta.setAttribute( 'content', COULEURS_NAVIGATEUR[ theme ] );
+			meta.setAttribute( 'content', couleurNavigateur( theme ) );
 		}
 	}
 

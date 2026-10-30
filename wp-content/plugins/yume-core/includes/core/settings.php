@@ -117,13 +117,18 @@ function sections_reglages(): array {
 /**
  * Champs de la page de réglages (contrat §6 + filtre yume_reglages_champs).
  *
- * Chaque champ : key, label, type (text|url|number|checkbox|select|media|textarea|checkboxes|secret),
+ * Chaque champ : key, label, type (text|url|number|checkbox|select|media|textarea|checkboxes|secret|saisons),
  * section, options (select, checkboxes : valeur => libellé), description, et facultativement
  * default, min, max, step, placeholder, sanitize (callable), capability (capacité exigée en plus
  * de yume_reglages pour voir et modifier le champ), verrouille (message : champ non modifiable).
  *
  * Type secret (clé d'API, secret OAuth) : jamais réaffiché (champ mot de passe vide), une saisie
  * vide conserve la valeur enregistrée (assainir_champ()), verrouillé sans montrer la valeur.
+ *
+ * Type saisons (calendrier des thèmes saisonniers, module saisons) : une ligne par thème
+ * {theme, debut, fin, actif} ; le module fournit sanitize, lignes (callable : valeur → lignes
+ * {theme, nom, debut, fin, actif, apercu}) et etat (callable : phrase d'état sous la table), de
+ * sorte que le core ne dépend pas du module (champ_saisons()).
  *
  * @return array<int,array<string,mixed>>
  */
@@ -292,7 +297,7 @@ function champs_reglages(): array {
 	 */
 	$champs = (array) apply_filters( 'yume_reglages_champs', $champs );
 
-	$types  = array( 'text', 'url', 'number', 'checkbox', 'select', 'media', 'textarea', 'checkboxes', 'partenaires', 'secret' );
+	$types  = array( 'text', 'url', 'number', 'checkbox', 'select', 'media', 'textarea', 'checkboxes', 'partenaires', 'secret', 'saisons' );
 	$propre = array();
 	$vues   = array();
 	foreach ( $champs as $champ ) {
@@ -372,6 +377,9 @@ function assainir_champ( array $champ, $valeur, $defaut ) {
 			return san_texte_long( $valeur );
 		case 'partenaires':
 			return assainir_partenaires( $valeur );
+		case 'saisons':
+			// Sans callback sanitize (fourni par le module saisons), rien n'est modifié.
+			return $defaut;
 		case 'secret':
 			return trim( san_texte( $valeur ) );
 		default:
@@ -494,7 +502,7 @@ function declarer_champs(): void {
 	}
 	foreach ( $champs as $champ ) {
 		$args = array( 'champ' => $champ );
-		if ( ! in_array( $champ['type'], array( 'checkbox', 'checkboxes', 'media', 'partenaires' ), true ) ) {
+		if ( ! in_array( $champ['type'], array( 'checkbox', 'checkboxes', 'media', 'partenaires', 'saisons' ), true ) ) {
 			$args['label_for'] = 'yume-reglage-' . $champ['key'];
 		}
 		add_settings_field( 'yume_' . $champ['key'], esc_html( (string) $champ['label'] ), __NAMESPACE__ . '\\afficher_champ', PAGE_REGLAGES, 'yume_' . $champ['section'], $args );
@@ -572,6 +580,9 @@ function afficher_champ( array $args ): void {
 			break;
 		case 'partenaires':
 			champ_partenaires( $id, $nom, $valeur, (string) $champ['label'], '' !== $desc ? $id . '-aide' : '' );
+			break;
+		case 'saisons':
+			champ_saisons( $champ, $id, $nom, $valeur, '' !== $desc ? $id . '-aide' : '' );
 			break;
 		case 'secret':
 			// Jamais réaffiché : champ vide, la valeur enregistrée est seulement signalée.
@@ -851,6 +862,136 @@ function champ_partenaires( string $id, string $nom, $valeur, string $libelle, s
 	}
 	echo '</tbody></table></fieldset>';
 	echo '<style>.yume-partenaires__table{table-layout:fixed}.form-table .yume-partenaires__table th,.form-table .yume-partenaires__table td{width:auto;padding:8px;vertical-align:top}.form-table .yume-partenaires__table .yume-partenaires__num{width:2em}.yume-partenaires__table input{width:100%;max-width:none}.yume-partenaires__vignette{display:block;max-width:96px;max-height:40px;width:auto;height:auto;margin-top:4px;object-fit:contain}@media (max-width:782px){.yume-partenaires__table{table-layout:auto}.yume-partenaires__table thead{display:none}.form-table .yume-partenaires__table tr,.form-table .yume-partenaires__table td,.form-table .yume-partenaires__table th{display:block;width:auto}}</style>';
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ * Calendrier des thèmes saisonniers (type de champ saisons, module saisons)
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * Données d'un champ de type saisons : lignes du formulaire et phrase d'état, fournies par les
+ * callables lignes et etat du champ (module saisons) ; sans eux, les lignes enregistrées telles
+ * quelles et aucune phrase.
+ *
+ * @param array<string,mixed> $champ  Champ.
+ * @param mixed               $valeur Valeur enregistrée.
+ * @return array{lignes:array<int,array{theme:string,nom:string,debut:string,fin:string,actif:bool,apercu:string}>,etat:string}
+ */
+function donnees_champ_saisons( array $champ, $valeur ): array {
+	$brutes = ! empty( $champ['lignes'] ) && is_callable( $champ['lignes'] ) ? call_user_func( $champ['lignes'], $valeur ) : $valeur;
+	$lignes = array();
+	foreach ( is_array( $brutes ) ? $brutes : array() as $ligne ) {
+		if ( ! is_array( $ligne ) || empty( $ligne['theme'] ) || ! is_string( $ligne['theme'] ) ) {
+			continue;
+		}
+		$theme    = sanitize_key( $ligne['theme'] );
+		$lignes[] = array(
+			'theme'  => $theme,
+			'nom'    => is_scalar( $ligne['nom'] ?? null ) && '' !== (string) $ligne['nom'] ? (string) $ligne['nom'] : $theme,
+			'debut'  => is_scalar( $ligne['debut'] ?? null ) ? (string) $ligne['debut'] : '',
+			'fin'    => is_scalar( $ligne['fin'] ?? null ) ? (string) $ligne['fin'] : '',
+			'actif'  => ! empty( $ligne['actif'] ),
+			'apercu' => is_string( $ligne['apercu'] ?? null ) ? $ligne['apercu'] : '',
+		);
+	}
+	$etat = ! empty( $champ['etat'] ) && is_callable( $champ['etat'] ) ? call_user_func( $champ['etat'] ) : '';
+	return array(
+		'lignes' => $lignes,
+		'etat'   => is_string( $etat ) ? $etat : '',
+	);
+}
+
+/**
+ * Libellés des colonnes du calendrier des thèmes saisonniers.
+ *
+ * @return array<string,string> colonne => libellé.
+ */
+function colonnes_champ_saisons(): array {
+	return array(
+		'theme'  => __( 'Thème', 'yume-core' ),
+		'debut'  => __( 'Du (JJ/MM)', 'yume-core' ),
+		'fin'    => __( 'Au (JJ/MM)', 'yume-core' ),
+		'actif'  => __( 'Actif', 'yume-core' ),
+		'apercu' => __( 'Aperçu', 'yume-core' ),
+	);
+}
+
+/**
+ * Libellé accessible d'une date du calendrier des thèmes saisonniers.
+ *
+ * @param string $borne debut ou fin.
+ * @param string $theme Nom du thème.
+ */
+function libelle_date_saison( string $borne, string $theme ): string {
+	/* translators: %s : thème */
+	return sprintf( 'debut' === $borne ? __( 'Début de « %s » (JJ/MM)', 'yume-core' ) : __( 'Fin de « %s » (JJ/MM)', 'yume-core' ), $theme );
+}
+
+/**
+ * Calendrier des thèmes saisonniers dans la page de réglages : une ligne par thème (dans l'ordre
+ * de priorité), dates « JJ/MM », case « Actif » (un champ caché envoie 0 quand elle est
+ * décochée), lien d'aperçu dans un nouvel onglet, puis la phrase d'état.
+ *
+ * @param array<string,mixed> $champ  Champ.
+ * @param string              $id     Préfixe des ID des champs.
+ * @param string              $nom    Attribut name du réglage.
+ * @param mixed               $valeur Valeur enregistrée.
+ * @param string              $aide   ID de la description (aria-describedby), ou ''.
+ */
+function champ_saisons( array $champ, string $id, string $nom, $valeur, string $aide ): void {
+	$donnees  = donnees_champ_saisons( $champ, $valeur );
+	$colonnes = colonnes_champ_saisons();
+	printf(
+		'<fieldset class="yume-saisons"%2$s><legend class="screen-reader-text">%1$s</legend>',
+		esc_html( (string) $champ['label'] ),
+		'' !== $aide ? ' aria-describedby="' . esc_attr( $aide ) . '"' : ''
+	);
+	echo '<div class="yume-saisons__defilement"><table class="widefat striped yume-saisons__table"><thead><tr>';
+	foreach ( $colonnes as $titre ) {
+		echo '<th scope="col">' . esc_html( $titre ) . '</th>';
+	}
+	echo '</tr></thead><tbody>';
+	foreach ( $donnees['lignes'] as $ligne ) {
+		$base = $id . '-' . $ligne['theme'];
+		$name = $nom . '[' . $ligne['theme'] . ']';
+		echo '<tr><th scope="row">' . esc_html( $ligne['nom'] ) . '</th>';
+		foreach ( array( 'debut', 'fin' ) as $borne ) {
+			printf(
+				'<td><label class="screen-reader-text" for="%1$s">%2$s</label><input type="text" id="%1$s" name="%3$s" value="%4$s" class="small-text" size="5" maxlength="5" placeholder="%5$s" pattern="[0-9]{1,2}/[0-9]{1,2}" autocomplete="off" /></td>',
+				esc_attr( $base . '-' . $borne ),
+				esc_html( libelle_date_saison( $borne, $ligne['nom'] ) ),
+				esc_attr( $name . '[' . $borne . ']' ),
+				esc_attr( $ligne[ $borne ] ),
+				esc_attr__( 'JJ/MM', 'yume-core' )
+			);
+		}
+		printf(
+			'<td><input type="hidden" name="%1$s" value="0" /><input type="checkbox" id="%2$s" name="%1$s" value="1"%3$s /><label class="screen-reader-text" for="%2$s">%4$s</label></td>',
+			esc_attr( $name . '[actif]' ),
+			esc_attr( $base . '-actif' ),
+			checked( $ligne['actif'], true, false ),
+			/* translators: %s : thème */
+			esc_html( sprintf( __( 'Activer « %s »', 'yume-core' ), $ligne['nom'] ) )
+		);
+		echo '<td>';
+		if ( '' !== $ligne['apercu'] ) {
+			printf(
+				'<a href="%1$s" target="_blank" rel="noopener">%2$s<span class="screen-reader-text"> %3$s</span></a>',
+				esc_url( $ligne['apercu'] ),
+				esc_html( $colonnes['apercu'] ),
+				/* translators: %s : thème */
+				esc_html( sprintf( __( 'du thème « %s » (nouvel onglet)', 'yume-core' ), $ligne['nom'] ) )
+			);
+		}
+		echo '</td></tr>';
+	}
+	echo '</tbody></table></div></fieldset>';
+	if ( '' !== $donnees['etat'] ) {
+		echo '<p class="yume-saisons__etat"><strong>' . esc_html( $donnees['etat'] ) . '</strong></p>';
+	}
+	echo '<style>.yume-saisons__defilement{max-width:100%;overflow-x:auto}.form-table .yume-saisons__table{width:auto}.form-table .yume-saisons__table th,.form-table .yume-saisons__table td{width:auto;padding:8px 10px;vertical-align:middle}.yume-saisons__etat{margin:8px 0 0}@media (max-width:782px){.form-table .yume-saisons__table th,.form-table .yume-saisons__table td{display:table-cell;padding:6px}}</style>';
 }
 
 /**

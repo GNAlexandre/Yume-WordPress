@@ -48,3 +48,54 @@ Espacements : 4 / 8 / 12 / 16 / 24 / 32 px. Rayons : 6 px (contrôles), 10 px (c
 - Le rose sakura reste un accent (boutons, badges, barres) : jamais en aplat de fond ; les grandes surfaces colorées sont réservées aux couvertures et à la bannière.
 - Pas d'ombre au repos ; une carte se détache par son filet, une couverture cliquable s'éclaircit légèrement au survol.
 - Les illustrations (bannière, cartes d'actualité) sont assombries par un dégradé pour garder le texte lisible.
+
+## Variantes saisonnières (depuis 2.7.0)
+
+Le site change d'habillage selon la période de l'année : **Printemps**, **Été**, **Automne**,
+**Hiver**, et deux fêtes qui passent avant la saison, **Halloween** (octobre) et **Noël** (décembre).
+Ce n'est pas un autre thème : c'est une **variante** de « Crépuscule sakura », posée par le serveur
+(`<html data-yn-saison="<slug>">`) et programmée par les gérants dans les réglages. Cahier des
+charges : [docs/07-themes-saisonniers.md](../docs/07-themes-saisonniers.md) ; règles techniques :
+`docs/06-contrat-technique.md` §15.
+
+- **Deuxième dimension** : la saison s'ajoute au thème choisi par le lecteur. En Nuit, palette
+  sombre de la saison ; en Papier, palette claire ; en **Sépia**, rien ne change (thème de confort de
+  lecture).
+- **Printemps = la palette actuelle** (cerisiers au couchant) : seul le logo change.
+- Sans saison active (thème de base) : palette actuelle et logo du site réglé dans WordPress.
+
+| Saison | Nuit : fond / bande / carte / filet / bordure / accent / accent-texte / accent-2 / selection | Papier : fond / bande / carte / filet / bordure / accent / accent-texte / accent-2 / selection |
+| --- | --- | --- |
+| `ete` (ciel et mer) | `#0f1f33` / `#142a44` / `#1b3556` / `#2f4f78` / `#6f93c2` / `#7fd3ff` / `#0b1b2c` / `#ffd27a` / `#1f3f66` | `#f3f9fd` / `#e6f2fb` / `#ffffff` / `#cfe3f2` / `#5a86b0` / `#0f6fb3` / `#ffffff` / `#985f19` / `#e3f0fa` |
+| `automne` (érables) | `#221410` / `#2d1a14` / `#3a231b` / `#5a3a2c` / `#a8705a` / `#ff9c4a` / `#2a1208` / `#ffd08a` / `#4a2b20` | `#fdf6ef` / `#f8ebdd` / `#ffffff` / `#ecd7c3` / `#9a6a4a` / `#ae4e19` / `#ffffff` / `#8a5a14` / `#f7e6d6` |
+| `halloween` (nuit violette, citrouille) | `#170f26` / `#211537` / `#2b1b47` / `#4a3270` / `#8a66b8` / `#ff9a3c` / `#1b0f2a` / `#c9a3ff` / `#3a2360` | `#fbf5ff` / `#f3e8fb` / `#ffffff` / `#e3d3f0` / `#7b5aa3` / `#b24a0b` / `#ffffff` / `#6a3fb0` / `#f1e4f9` |
+| `hiver` (neige, glace) | `#141c2b` / `#1b2537` / `#243247` / `#3b4d68` / `#7f98b8` / `#bfe3ff` / `#0f1b2a` / `#e8d9c4` / `#2c3d57` | `#f6f9fc` / `#e9f0f7` / `#ffffff` / `#d6e1ec` / `#647e98` / `#2f6ea5` / `#ffffff` / `#7a6248` / `#e6eef6` |
+| `noel` (sapin, or, houx) | `#10211a` / `#162b22` / `#1e3a2e` / `#335a48` / `#7fae93` / `#f7c56b` / `#1b2a1f` / `#ff9c9c` / `#2a4d3b` | `#f6fbf7` / `#e7f3ea` / `#ffffff` / `#cfe4d5` / `#4f7f62` / `#b32d2d` / `#ffffff` / `#8a6414` / `#e4f1e8` |
+
+`--yn-accent-survol` et `--yn-degrade-couverture` sont aussi redéfinis par saison (valeurs dans
+`assets/css/yume.css`, section « 1 bis. Thèmes saisonniers », et dans `docs/06-contrat-technique.md` §15).
+Trois couleurs Papier ont été assombries par rapport au cahier des charges pour tenir 4,5:1 aussi comme
+couleur de texte : été `accent-2` #985f19, automne `accent` #ae4e19, halloween `accent` #b24a0b.
+
+**Logos** : un logo par thème, `wp-content/themes/yume/assets/img/saisons/<slug>.webp` (WebP, 320 px
+de large, affiché à 44 px dans l'en-tête), converti depuis les visuels fournis ; `printemps.webp` est
+le logo actuel du site. Un logo se remplace par une release du thème (ce n'est pas une image de la
+médiathèque).
+
+**Décors** : quelques particules légères dans la bande d'en-tête seulement : pétales au printemps,
+feuilles en automne, flocons en hiver et à Noël, chauves-souris à Halloween, rien en été. Douze
+éléments au plus, qui n'interceptent jamais un clic et sont ignorés des lecteurs d'écran ; coupés
+par la préférence système « réduire les animations », par l'option **Réduire les animations** du
+lecteur et par le réglage du site. Sans JavaScript : aucun décor.
+
+Règles des variantes :
+
+- **Contrastes** mesurés comme pour la base : 4,5:1 pour `texte` sur `fond`, `bande` et `carte` ;
+  3:1 pour `bordure` et pour `accent` sur `fond` ; 4,5:1 pour `accent-texte` sur `accent`.
+- **Encre inchangée** : seules les surfaces (`fond`, `bande`, `carte`, `filet`, `bordure`,
+  `selection`), l'accent (`accent`, `accent-texte`, `accent-2`, `--yn-accent-survol`) et le dégradé
+  de couverture changent ; `texte`, `texte-fort`, `texte-faible` et les couleurs d'état (succès,
+  avertissement, erreur) restent ceux de la base.
+- **L'accent reste un accent** : la couleur de la saison (citrouille, or, ciel…) suit la règle du rose
+  sakura (boutons, badges, barres), jamais en aplat de fond.
+- Une saison ne touche ni la mise en page, ni la typographie, ni le thème Sépia.

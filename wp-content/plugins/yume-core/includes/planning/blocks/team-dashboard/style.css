@@ -1193,6 +1193,48 @@
 	padding: 4px 0;
 }
 
+/* Calendrier des thèmes saisonniers (type de champ saisons) : table défilante sur mobile. */
+.yn-reglages__saisons {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.yn-reglages__defilement {
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+.yn-reglages__table {
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+.yn-reglages__table th,
+.yn-reglages__table td {
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--wp--preset--color--filet);
+	text-align: left;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.yn-reglages__table thead th {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.yn-reglages__table input[type="text"] {
+	box-sizing: border-box;
+	width: 6.5em;
+}
+
+.yn-reglages__etat {
+	margin: 0;
+	font-size: 14px;
+}
+
 .yn-reglages__retour:empty {
 	display: none;
 }

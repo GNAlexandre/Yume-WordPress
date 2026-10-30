@@ -18,8 +18,11 @@ function yume_theme_themes_couleurs(): array {
 }
 
 /**
- * Version d'un fichier du thème pour le cache navigateur : la version du thème, complétée
- * de la date de modification du fichier en développement local.
+ * Version d'un fichier du thème pour le cache navigateur (?ver= des feuilles et scripts, ?v= des
+ * logos saisonniers) : la version du thème suivie de l'empreinte du fichier, sa date de
+ * modification en hexadécimal (« 2.7.0-6720f1c4 »). Toute modification du fichier change donc
+ * son URL, en production comme en local, même sans montée de version du thème (correctif de CSS,
+ * nouveau logo saisonnier). Si la date du fichier est illisible, la version du thème seule.
  *
  * @param string $relatif Chemin du fichier relatif au dossier du thème.
  * @return string
@@ -29,10 +32,11 @@ function yume_theme_version_fichier( string $relatif ): string {
 	if ( '' === $version ) {
 		$version = '2.0.0';
 	}
-	if ( in_array( wp_get_environment_type(), array( 'local', 'development' ), true ) ) {
-		$chemin = get_theme_file_path( $relatif );
-		if ( is_readable( $chemin ) ) {
-			$version .= '.' . (string) filemtime( $chemin );
+	$chemin = get_theme_file_path( $relatif );
+	if ( is_readable( $chemin ) ) {
+		$date = filemtime( $chemin );
+		if ( false !== $date ) {
+			$version .= '-' . dechex( $date );
 		}
 	}
 	return $version;
@@ -85,9 +89,19 @@ add_action( 'wp_head', 'yume_theme_script_initialisation', 0 );
 /**
  * Couleur de l'interface du navigateur mobile et préchargement des deux polices
  * utilisées sur toutes les pages (titres 800 et corps 400, sous-ensemble latin).
+ *
+ * La couleur est celle de la bande du thème Nuit (posé par défaut) ; inc/saisons.php la
+ * remplace par celle de la saison active (filtre yume_theme_couleur_navigateur), et
+ * assets/js/yume.js la met à jour quand le lecteur change de thème.
  */
 function yume_theme_entete_document(): void {
-	printf( '<meta name="theme-color" content="%s">' . "\n", esc_attr( '#241740' ) );
+	/**
+	 * Filtre la couleur de l'interface du navigateur (meta theme-color) au premier rendu.
+	 *
+	 * @param string $couleur Couleur hexadécimale (bande du thème Nuit).
+	 */
+	$couleur = (string) apply_filters( 'yume_theme_couleur_navigateur', '#241740' );
+	printf( '<meta name="theme-color" content="%s">' . "\n", esc_attr( $couleur ) );
 	$polices = array(
 		'assets/fonts/outfit/outfit-latin-800-normal.woff2',
 		'assets/fonts/nunito-sans/nunito-sans-latin-400-normal.woff2',

@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.0-dev.1 — 2026-10-30
+
+- Thèmes saisonniers : module saisons (réglages Pilotage du thème / Thème choisi / Calendrier / Décors animés, type de champ saisons, API yume_saison_*, aperçu ?yn-saison, tâche quotidienne, événement yume_saison_changee et purge des caches), variantes du thème (attribut data-yn-saison, palettes Été / Automne / Halloween / Hiver / Noël en Nuit et Papier, logo saisonnier, décors légers, theme-color), assets versionnés par empreinte de fichier, documentation et guide de l'équipe. noel.webp est provisoirement une copie d'hiver.webp.
+
 ## 2.6.0 — 2026-10-24
 
 - Yume Novel 2.6.0 : comptes inscrits dans l'espace équipe. Nouvelle vue « Comptes inscrits » (menu Équipe, gérants et administrateurs) : indicateurs, recherche par pseudo, nom Discord ou e-mail, filtres (rôle, source, Discord, activité, inscription), tri, fiche de chaque compte (identité, lecture, favoris, listes, notes, commentaires, coquilles, notifications) avec « Ajouter à l'équipe », export CSV journalisé (avec e-mail pour les administrateurs seulement), dernier jour d'activité relevé sans heure ni adresse IP. « Ajouter un membre » retrouve aussi un compte par son pseudo public ou son nom Discord (comptes créés depuis la 2.5.0, par le formulaire ou par Discord).
