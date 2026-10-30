@@ -8,6 +8,10 @@
  * - Les boutons [data-yn-theme-toggle] alternent Nuit ↔ Papier ; depuis Sépia, ils reviennent à Nuit.
  * - API publique : window.ynTheme.get() et window.ynTheme.set( 'nuit' | 'papier' | 'sepia' ).
  * - Chaque changement émet l'événement document « yn:theme » (detail.theme).
+ * - Sur un chapitre, l'arbre décoratif (.yn-sprite--lecture) reçoit la marge libre à droite de la
+ *   colonne de lecture (--yn-marge-lecture) pour ne jamais passer sous le texte.
+ * - html[data-yn-pointeur] pendant une interaction au pointeur : l'anneau de focus de la navigation
+ *   est réservé au clavier.
  * - Couleur de l'interface du navigateur (meta theme-color) : bande du thème actif, celle de la
  *   saison quand html[data-yn-saison] est posé (inc/saisons.php ; Sépia ne change pas).
  *
@@ -117,11 +121,65 @@
 		}
 	};
 
+	// Navigation : l'anneau de focus (accent) est réservé au clavier. Au pointeur, Safari et Firefox
+	// ne donnent pas le focus au bouton du sous-menu ; le script du menu de WordPress le lui donne
+	// par programme, ce qui ferait apparaître l'anneau au clic. data-yn-pointeur le neutralise
+	// (yume.css) jusqu'à la première touche.
+	document.addEventListener( 'pointerdown', function () {
+		racine.setAttribute( 'data-yn-pointeur', '' );
+	}, true );
+	document.addEventListener( 'keydown', function ( e ) {
+		if ( e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta' ) {
+			racine.removeAttribute( 'data-yn-pointeur' );
+		}
+	}, true );
+
+	// Arbre décoratif sur un chapitre (.yn-sprite--lecture, inc/saisons.php) : il ne passe jamais
+	// sous la colonne de lecture. On mesure la marge libre à droite de .yn-reader (largeur réglable
+	// par le panneau de lecture) et on la transmet en variable CSS ; sous 160 px, l'arbre est masqué.
+	function majSpriteLecture() {
+		var sprite = document.querySelector( '.yn-sprite--lecture' );
+		var colonne = document.querySelector( '.yn-reader' );
+		if ( ! sprite || ! colonne ) {
+			return;
+		}
+		var marge = Math.floor( document.documentElement.clientWidth - colonne.getBoundingClientRect().right - 24 );
+		sprite.style.setProperty( '--yn-marge-lecture', Math.max( 0, marge ) + 'px' );
+		sprite.classList.toggle( 'yn-sprite--cache', marge < 160 );
+	}
+
+	function surveillerSpriteLecture() {
+		var colonne = document.querySelector( '.yn-reader' );
+		if ( ! document.querySelector( '.yn-sprite--lecture' ) || ! colonne ) {
+			return;
+		}
+		var prevu = false;
+		var replanifier = function () {
+			if ( prevu ) {
+				return;
+			}
+			prevu = true;
+			window.requestAnimationFrame( function () {
+				prevu = false;
+				majSpriteLecture();
+			} );
+		};
+		majSpriteLecture();
+		window.addEventListener( 'resize', replanifier );
+		window.addEventListener( 'load', replanifier );
+		if ( 'MutationObserver' in window ) {
+			// Le panneau de lecture écrit --yn-width (et la taille du texte) dans l'attribut style.
+			new MutationObserver( replanifier ).observe( colonne, { attributes: true, attributeFilter: [ 'style', 'class' ] } );
+		}
+	}
+
 	if ( document.readyState === 'loading' ) {
 		document.addEventListener( 'DOMContentLoaded', function () {
 			majInterface( lire() );
+			surveillerSpriteLecture();
 		} );
 	} else {
 		majInterface( lire() );
+		surveillerSpriteLecture();
 	}
 }() );

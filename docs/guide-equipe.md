@@ -1198,7 +1198,9 @@ bien visible dans la marge de droite, sans passer sous le texte. Il **n'apparaî
 
 - sur les écrans de moins de 1 024 pixels de large (téléphones, tablettes en portrait) : l'image
   n'est même pas téléchargée ;
-- dans les chapitres (lecteur MangaDex compris) ni sur la page « Illustrations » d'un tome ;
+- sur la page « Illustrations » d'un tome. Dans un **chapitre**, il reste dans la marge à droite du
+  texte, sans jamais passer dessous, et disparaît si la marge est trop étroite (fenêtre réduite ou
+  colonne de lecture élargie dans **Paramètres**) ;
 - dans l'espace équipe et le formulaire de publication, ni dans l'administration ;
 - pour un lecteur qui a demandé plus de contraste (réglage du système, ou **Contraste renforcé**
   dans un chapitre), pour un lecteur en thème **Sépia**, ni à l'impression.

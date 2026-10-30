@@ -17,7 +17,7 @@ puis intégrées dans le thème selon le §3. **Intégré en 2.7.0** (lot D) : l
 | Taille affichée | hauteur `min(78vh, 880px)`, boîte de 0,67 × hauteur (l'arbre rogné fait ≈ 0,62 × hauteur), soit **≈ 340 à 550 px de large** | Assez présent pour se voir, assez étroit pour ne pas manger la colonne de lecture. |
 | Fondu | `mask-image` : fondu vers la gauche (vers le contenu) ; **filigrane à 30 %** sous 1 900 px de large, **0,9** au-delà, la boîte étant alors limitée à la marge libre à droite de la grille large (l'arbre est rogné à gauche plutôt que de passer sous le texte) | La grille large fait 1344 px : sur un écran de 1440 px, l'arbre passe forcément sous le contenu ; il devient alors un filigrane qui ne gêne pas la lecture. Le haut de l'arbre se termine par des branches : pas de fondu vertical. |
 | Écrans étroits | **aucun sprite sous 1024 px** (`@media`) : l'image n'est même pas téléchargée | Bande passante mobile et lisibilité. |
-| Pages de lecture | **aucun sprite sur un chapitre** (`single-yume_chapitre`, lecteur MangaDex compris), sur la page « Illustrations » d'un tome, ni dans l'espace équipe (pages `equipe`, `publier`, `membres`) | Confort de lecture ; cohérent avec le thème Sépia inchangé (l'arbre est aussi retiré sous Sépia, quelle que soit la page). |
+| Pages de lecture | Sur un **chapitre** (lecteur MangaDex compris), l'arbre reste **dans la marge libre** à droite de la colonne de lecture (classe `yn-sprite--lecture`, marge mesurée par `yume.js`, masqué sous 160 px de marge), à pleine opacité, jamais sous le texte. **Aucun sprite** sur la page « Illustrations » d'un tome ni dans l'espace équipe (pages `equipe`, `publier`, `membres`). | Confort de lecture : le texte n'est jamais recouvert ; cohérent avec le thème Sépia inchangé (l'arbre est aussi retiré sous Sépia, quelle que soit la page). |
 | Accessibilité | élément décoratif pur (`aria-hidden`, `pointer-events: none`), aucun mouvement (image fixe, les particules restent dans l'en-tête) ; retiré avec `prefers-contrast: more`, avec le contraste renforcé du lecteur (`data-yn-contraste`), en couleurs forcées et à l'impression | Un fond illustré sous du texte baisse le contraste perçu : on le retire pour qui demande plus de contraste. |
 | Réglage | case **Arbre décoratif** dans *Réglages → Thème saisonnier* (`saison_sprite`, défaut vrai), à côté de **Décors animés** | Même logique que les particules : l'équipe peut couper sans release. |
 | Cache | fichiers versionnés par empreinte (`?v=`), comme les logos | Un visuel remplacé est vu immédiatement. |
@@ -103,7 +103,10 @@ le thème affiche tout arbre dont le fichier 1x existe, sans changement de code.
 1. Arbre **à droite** (comme dans le logo), calé en bas de la fenêtre, derrière le contenu.
 2. **Filigrane** sous 1 900 px de large (prévu à 35 %, ramené à 30 % pour le contraste du texte),
    **90 %** au-delà ; rien sous 1 024 px (image non téléchargée).
-3. **Aucun arbre** sur les pages de lecture (chapitres, lecteur MangaDex, illustrations d'un tome),
-   dans l'espace équipe et le formulaire de publication, ni dans l'administration.
+3. **Chapitres** : d'abord sans arbre (décision du 30/10), puis, après essai en lecture, arbre
+   **dans la marge libre seulement** (révision du 30/10, 2.7.2-dev.1) : à droite de la colonne de
+   lecture mesurée, jamais sous le texte, masqué sous 160 px de marge. Toujours **aucun arbre** sur les
+   illustrations d'un tome, dans l'espace équipe et le formulaire de publication, ni dans
+   l'administration.
 4. Retiré pour qui demande plus de contraste (`prefers-contrast: more`, contraste renforcé du lecteur).
 5. Case **Arbre décoratif** (`saison_sprite`, défaut vrai) après **Décors animés**.

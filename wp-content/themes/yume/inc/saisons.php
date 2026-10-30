@@ -214,15 +214,15 @@ function yume_theme_charger_decors(): void {
 add_action( 'wp_enqueue_scripts', 'yume_theme_charger_decors', 21 );
 
 /**
- * La page courante est-elle exclue de l'arbre décoratif ? Pages de lecture (chapitre, y compris
- * le lecteur MangaDex qui s'affiche dans le chapitre ; page « Illustrations » d'un tome), espace
- * équipe (pages equipe, publier et membres de l'option yume_pages, ou à ces slugs) et
- * administration.
+ * La page courante est-elle exclue de l'arbre décoratif ? Page « Illustrations » d'un tome,
+ * espace équipe (pages equipe, publier et membres de l'option yume_pages, ou à ces slugs) et
+ * administration. Un chapitre n'est pas exclu : l'arbre y reste dans la marge libre, à droite de
+ * la colonne de lecture (classe yn-sprite--lecture, voir yume_theme_afficher_sprite()).
  *
  * @return bool
  */
 function yume_theme_page_sans_sprite(): bool {
-	if ( is_admin() || is_singular( 'yume_chapitre' ) ) {
+	if ( is_admin() ) {
 		return true;
 	}
 	if ( function_exists( 'yume_est_page_illustrations' ) && yume_est_page_illustrations() ) {
@@ -323,12 +323,18 @@ add_filter( 'body_class', 'yume_theme_classe_sprite' );
 /**
  * Arbre décoratif de la saison, juste après l'ouverture de <body> (wp_body_open, appelé par le
  * canevas des thèmes blocs) : élément vide et décoratif (aria-hidden), mis en forme par yume.css.
+ *
+ * Sur un chapitre (lecteur MangaDex compris), la classe yn-sprite--lecture le cantonne à la marge
+ * libre à droite de la colonne de lecture : jamais sous le texte, à pleine opacité ; la marge est
+ * mesurée par assets/js/yume.js (variable --yn-marge-lecture), une colonne de 760 px est supposée
+ * sans JavaScript, et l'arbre est masqué quand la marge est trop étroite.
  */
 function yume_theme_afficher_sprite(): void {
 	$style = yume_theme_style_sprite();
 	if ( '' === $style ) {
 		return;
 	}
-	printf( '<div class="yn-sprite" aria-hidden="true" style="%s"></div>' . "\n", esc_attr( $style ) );
+	$classes = 'yn-sprite' . ( is_singular( 'yume_chapitre' ) ? ' yn-sprite--lecture' : '' );
+	printf( '<div class="%1$s" aria-hidden="true" style="%2$s"></div>' . "\n", esc_attr( $classes ), esc_attr( $style ) );
 }
 add_action( 'wp_body_open', 'yume_theme_afficher_sprite' );

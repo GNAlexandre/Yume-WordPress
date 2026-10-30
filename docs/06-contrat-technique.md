@@ -413,7 +413,7 @@ lecture via `yume_setting( string $key, $default = null )`. Clés et défauts :
 | `saison_manuelle` | `''` | saisons : thème forcé quand `saison_mode` = `manuel`, type `select` — `''` « Thème de base » et les six slugs (§15) |
 | `saison_calendrier` | les six lignes du calendrier par défaut (`docs/07-themes-saisonniers.md` §3) | saisons : programmation, type de champ **`saisons`** (ci-dessous) ; lecture résolue par `yume_saison_calendrier()` (§7) |
 | `saison_decor` | `true` | saisons, thème : décors animés légers dans la bande d'en-tête (§15) ; jamais avec `prefers-reduced-motion` ni `yn.a11y.animations = 'reduites'` (§14) |
-| `saison_sprite` | `true` | saisons, thème : **Arbre décoratif** de la saison en fond de page, à droite, en filigrane (§15) ; jamais sur les pages de lecture, dans l'espace équipe, sous le thème Sépia ni sous 1 024 px de large (`docs/08-sprites-saisonniers.md`) |
+| `saison_sprite` | `true` | saisons, thème : **Arbre décoratif** de la saison en fond de page, à droite, en filigrane (§15 ; sur un chapitre, dans la marge libre de la colonne de lecture seulement) ; jamais sur la page Illustrations, dans l'espace équipe, sous le thème Sépia ni sous 1 024 px de large (`docs/08-sprites-saisonniers.md`) |
 
 `yume_setting( $key, $default )` : un `$default` explicite l'emporte quand la clé n'est pas enregistrée.
 Les modules peuvent ajouter des champs à la page via le filtre
@@ -2297,9 +2297,13 @@ aussi 4,5:1 comme couleur de texte sur `fond`, `bande` et `carte`).
   attribut `style` porte `--yn-sprite-1x` (WebP 1x) et `--yn-sprite` (`image-set()` : AVIF puis WebP,
   1x et 2x, `type()`), URL versionnées (`?v=`). Fichiers `assets/img/sprites/arbre-<slug>.{avif,webp}`
   (900 px de haut) et `arbre-<slug>-2x.{avif,webp}` (1 400 px). Imprimé seulement si une saison est
-  active, si `saison_sprite` est vrai (§6), hors chapitre (`single-yume_chapitre`, lecteur MangaDex
-  compris), page « Illustrations » d'un tome, pages `equipe`, `publier` et `membres` (§11) et
-  administration, et si le fichier WebP 1x de la saison existe (sinon rien, pas de 404). Règles
+  active, si `saison_sprite` est vrai (§6), hors page « Illustrations » d'un tome, pages `equipe`,
+  `publier` et `membres` (§11) et administration, et si le fichier WebP 1x de la saison existe (sinon
+  rien, pas de 404). Sur un chapitre (`single-yume_chapitre`, lecteur MangaDex compris), classe
+  `yn-sprite--lecture` : largeur limitée à la marge libre à droite de `.yn-reader` (variable
+  `--yn-marge-lecture` posée par `yume.js`, recalculée au redimensionnement et quand le panneau de
+  lecture change `--yn-width` ; 760 px de colonne supposés sans JavaScript), opacité 0,9, classe
+  `yn-sprite--cache` sous 160 px de marge. Règles
   d'affichage (`yume.css`, section 1 bis) : `background-image` déclaré seulement dans
   `@media (min-width: 1024px)` (rien de téléchargé en dessous) ; `position: fixed; right: 0; bottom: 0;
   z-index: 0`, hauteur `min(78vh, 880px)`, largeur 0,67 × hauteur, fondu vers la gauche (`mask-image`) ;
