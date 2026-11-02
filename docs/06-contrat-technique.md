@@ -646,13 +646,17 @@ méta `yume_chapitres_prevus` / `yume_rythme` du tome) :
   `prochains` = chapitres programmés (statut `future`), les plus proches d'abord ; `publies` =
   chapitres publiés depuis `jours_publies` jours, les plus récents d'abord (badge « Nouveau » de
   moins de 48 h) ; `tomes_en_cours` = tomes en cours de publication, avec « N / M » (chapitres en
-  ligne sur `yume_chapitres_prevus`) et leur rythme. Rendu en frise : « Prochains · programmés »
-  (bouton « Me prévenir »), repère « Aujourd'hui », « Publiés récemment » (bouton « Lire »), lien
-  « Tous les chapitres publiés → ».
+  ligne sur `yume_chapitres_prevus`) et leur rythme, rendus en encarts sur la page Planning
+  seulement (colonne de côté de la vue Chapitres ; l'accueil ne les montre pas, ces tomes étant
+  déjà dans « Dernières sorties »). Rendu en frise : « Prochains · programmés » (bouton « Me
+  prévenir »), repère « Aujourd'hui », « Publiés récemment » (bouton « Lire »), lien « Tous les
+  chapitres publiés → ».
 - **Tomes en préparation** : tomes à venir du planning public, hors tome à la une (`$exclure_tome`)
   et hors tomes en cours de publication, triés par date (programmée ou cible), les tomes sans date
-  (« à venir ») ensuite ; étape, pourcentage, date cible ou « à venir », pastille d'état
-  (`yume_planning_etat()`), légende.
+  (« à venir ») ensuite ; étape et pourcentage (`Planning\etape_affichee()` : l'étape en cours,
+  ou, si elle est à 100 % sans que le planning ait avancé, la première étape suivante non
+  terminée ; la barre et le libellé du retard suivent l'étape affichée), date cible ou « à
+  venir », pastille d'état (`yume_planning_etat()`), légende.
 
 Heure de sortie : quand `yume_heure_cible` est connue, la date cible s'affiche avec elle
 (« sam. 10 oct. · 20 h ») sur la page Planning, dans le bandeau « À la une » (compte à rebours
@@ -957,20 +961,34 @@ chapitres à un tome », champ caché `mode=chapitres`, `Service::MODE_CHAPITRES
   `Formulaire::VUE_NOUVEAU_TOME` de l'espace équipe, filtre `yume_url_nouveau_tome`).
 - **Comparaison** (`Service::comparer()`, rapport `comparaison` de l'analyse et de la préparation :
   `lignes[{index, cle, numero, nature, libelle, sous_titre, titre, nb_mots, existant{id, statut,
-  lien, date, date_libelle}|null, etat, etat_libelle, action, choix}]`, `nouveaux`, `identiques`,
-  `modifies`, `a_mettre_a_jour`, `programmes`, `brouillons`) : chaque chapitre du fichier est
-  rapproché par nature + numéro + rang (`cle`, ex. `chapitre:3#1`) ; état `nouveau` (créé en
-  brouillon, placé après les chapitres du tome), `identique` (en ligne, même texte : rien n'est
-  touché), `modifie` (en ligne, texte différent : `choix` `garder` par défaut, rien n'est touché ;
-  `maj` = « Mettre à jour (sans annonce) »), `programme` / `brouillon` (pas encore visibles : mis
-  à jour en place, date et ordre gardés). Rien n'est jamais retiré ni signalé absent. Texte
-  comparé : titre + contenu normalisés (`Service::texte_normalise()` : illustrations, balises et
-  commentaires retirés, entités décodées, espaces réduites), empreinte `Service::empreinte_texte()`
-  ; méta interne d'un chapitre `_yume_empreinte_texte` (`Service::META_EMPREINTE`,
-  `{contenu: md5 titre + contenu enregistrés, texte: empreinte}`), posée à la création, à la mise à
-  jour et au remplacement, recalculée à la volée si elle manque ou si le chapitre a été retouché.
-  Paramètre `choix` (objet ou JSON, clé => `garder` | `maj`, `Service::choix()`, 400
-  `yume_choix_invalide`). L'analyse renvoie aussi `tome` (`Service::infos_tome()` : parution,
+  lien, date, date_libelle}|null, etat, etat_libelle, difference, action, choix}]`, `nouveaux`,
+  `identiques`, `modifies`, `illustrations`, `a_mettre_a_jour`, `programmes`, `brouillons`,
+  `galerie`) : chaque chapitre du fichier est rapproché par nature + numéro + rang (`cle`, ex.
+  `chapitre:3#1`) ; état `nouveau` (créé en brouillon, placé après les chapitres du tome),
+  `identique` (en ligne, même texte et mêmes illustrations : rien n'est touché), `modifie` (en
+  ligne, `difference` = `texte` — texte différent — ou `illustrations` — même texte, images
+  différentes en nombre, ordre ou contenu ; `etat_libelle` « En ligne, illustrations modifiées »,
+  comptées dans `modifies` et dans `illustrations` — : `choix` `garder` par défaut, rien n'est
+  touché ; `maj` = « Mettre à jour (sans annonce) »), `programme` / `brouillon` (pas encore
+  visibles : mis à jour en place, date et ordre gardés). Rien n'est jamais retiré ni signalé absent.
+  Texte comparé : titre + contenu normalisés (`Service::texte_normalise()` : illustrations, balises
+  et commentaires retirés, entités décodées, espaces réduites), empreinte
+  `Service::empreinte_texte()` ; méta interne d'un chapitre `_yume_empreinte_texte`
+  (`Service::META_EMPREINTE`, `{contenu: md5 titre + contenu enregistrés, texte: empreinte}`),
+  posée à la création, à la mise à jour et au remplacement, recalculée à la volée si elle manque ou
+  si le chapitre a été retouché. Illustrations comparées : suite des empreintes SHA-1 des images
+  d'origine du fichier (`Service::empreintes_images_fichier()`) contre celles des pièces jointes
+  des blocs `core/image` du contenu enregistré (`Service::images_contenu()`,
+  `Service::empreintes_images_enregistrees()` : méta `_yume_import_image` posée par `Medias`,
+  sinon SHA-1 du fichier joint). `galerie` (null si le fichier n'a aucune image avant le premier
+  chapitre ; sinon `{nb, etat: nouvelle | identique | modifie, etat_libelle, action: cree |
+  inchange | garder | maj, choix, cle: Service::CLE_GALERIE = galerie:#0, lien}`) : la galerie du
+  fichier comparée de même à `yume_illustrations` du tome ; `nouvelle` = posée tout de suite
+  (tome sans galerie) ; `modifie` + `maj` = images versées sans rattachement et galerie en
+  attente (`galerie` de l'état `_yume_remplacement`, mode chapitres), remplacée à la sortie par
+  `Remplacement::appliquer()` (`galerie` = 1 dans son bilan, phrase dans le message de sortie).
+  Paramètre `choix` (objet ou JSON, clé de chapitre ou `galerie:#0` => `garder` | `maj`,
+  `Service::choix()`, 400 `yume_choix_invalide`). L'analyse renvoie aussi `tome` (`Service::infos_tome()` : parution,
   chapitres en ligne et leur libellé, programmés, prévus, rythme en clair, `dates_rythme` des
   chapitres à sortir, `sans_annonce` par défaut).
 - **Mises à jour choisies** : chaque chapitre `maj` devient une version en attente

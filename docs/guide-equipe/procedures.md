@@ -464,6 +464,8 @@ Le formulaire a trois parties numérotées et un résumé à droite.
 | **Nouveau** | Le chapitre est ajouté au tome. Il sort selon la partie 3. |
 | **En ligne, identique** | Rien ne change. |
 | **En ligne, modifié** | Au choix : **Garder la version en ligne** (par défaut) ou **Mettre à jour (sans annonce)**. |
+| **En ligne, illustrations modifiées** | Même texte, images différentes (par exemple des illustrations traduites). Même choix : **Garder la version en ligne** (par défaut) ou **Mettre à jour (sans annonce)**. |
+| **Illustrations du tome** (ligne à part) | Images placées avant le premier titre (page « Illustrations ») : **Nouvelle**, **En ligne, identique** ou **En ligne, modifiée**, avec le même choix. |
 | **Programmé** ou **Brouillon** | Pas encore visible des lecteurs : mis à jour. |
 
 Rien n'est jamais retiré : un chapitre en ligne absent du fichier reste en ligne.
@@ -553,9 +555,9 @@ Pour des coquilles ou des corrections de relecture, sans prévenir les lecteurs.
 1. Corrigez le texte dans le fichier Word.
 2. Ouvrez **Ajouter des chapitres** et choisissez le tome.
 3. Déposez le fichier corrigé.
-4. Le chapitre corrigé apparaît **En ligne, modifié**. Dans sa colonne « Action », choisissez **Mettre à jour (sans annonce)**.
+4. Le chapitre corrigé apparaît **En ligne, modifié** (ou **En ligne, illustrations modifiées** si seules ses images ont changé). Dans sa colonne « Action », choisissez **Mettre à jour (sans annonce)**. Pour remplacer aussi les images de la page « Illustrations », faites de même sur la ligne **Illustrations du tome**.
 5. Les autres chapitres en ligne restent **Inchangé** ou **Garder la version en ligne** : ils ne bougent pas.
-6. Cliquez sur le bouton d'envoi. S'il n'y a aucun nouveau chapitre, il s'appelle **Enregistrer (aucun nouveau chapitre)**.
+6. Cliquez sur le bouton d'envoi. S'il n'y a aucun nouveau chapitre, il s'appelle **Mettre à jour la lecture en ligne (sans annonce)**. « Enregistrer en brouillon » ne remplace rien : les mises à jour attendent.
 
 Le chapitre est remplacé à la même adresse. Ses commentaires et sa date sont gardés. Aucune annonce n'est envoyée.
 

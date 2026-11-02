@@ -28,8 +28,10 @@
  * Ajout de chapitres (Service::MODE_CHAPITRES) : pas de remplacement en deux temps ; seuls les
  * chapitres en ligne que l'équipe choisit de « Mettre à jour (sans annonce) » deviennent des
  * versions en attente (état mode = chapitres), appliquées par la sortie suivante (Service::publier()
- * en mode chapitres), sans encadré « Remplacer la lecture en ligne ». Un remplacement complet en
- * attente n'est jamais appliqué par une sortie en mode chapitres.
+ * en mode chapitres), sans encadré « Remplacer la lecture en ligne » ; la galerie d'illustrations
+ * du tome choisie « Mettre à jour » attend de même (galerie de l'état, images versées sans
+ * rattachement). Un remplacement complet en attente n'est jamais appliqué par une sortie en mode
+ * chapitres.
  *
  * @package Yume\Core
  */
@@ -265,7 +267,7 @@ final class Remplacement {
 	 * mis en brouillon si demandé ; images rattachées ; galerie et couverture posées.
 	 *
 	 * @param int $tome_id Tome.
-	 * @return array{remplaces:int,inchanges:int,nouveaux:int,retires:int}|null Null : rien en attente.
+	 * @return array{remplaces:int,inchanges:int,nouveaux:int,retires:int,galerie:int}|null Null : rien en attente (galerie : 1 si la galerie du tome a changé).
 	 */
 	public static function appliquer( int $tome_id ): ?array {
 		$etat = self::lire( $tome_id );
@@ -277,6 +279,7 @@ final class Remplacement {
 			'inchanges' => 0,
 			'nouveaux'  => 0,
 			'retires'   => 0,
+			'galerie'   => 0,
 		);
 		$traites  = array();
 		$en_place = array();
@@ -367,6 +370,9 @@ final class Remplacement {
 		// Galerie et couverture tirées du fichier.
 		if ( isset( $etat['galerie'] ) && is_array( $etat['galerie'] ) && $etat['galerie'] ) {
 			$galerie = array_map( 'intval', $etat['galerie'] );
+			if ( array_values( array_map( 'intval', (array) get_post_meta( $tome_id, 'yume_illustrations', true ) ) ) !== $galerie ) {
+				$stats['galerie'] = 1;
+			}
 			update_post_meta( $tome_id, 'yume_illustrations', $galerie );
 			self::rattacher( $galerie, $tome_id );
 		}
