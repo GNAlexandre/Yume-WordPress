@@ -530,6 +530,30 @@ function etape_de_travail( string $etape ): string {
 }
 
 /**
+ * Étape de travail à montrer aux lecteurs pour une ligne de planning : l'étape en cours, ou,
+ * si elle est terminée (100 %) sans que l'équipe ait fait avancer le planning, la première
+ * étape suivante qui ne l'est pas (« Traduction 100 % » devient « Relecture 0 % »). Vide une
+ * fois publié ; la dernière étape si tout est à 100 %.
+ *
+ * @param array $ligne Ligne du planning (etape, avancement).
+ */
+function etape_affichee( array $ligne ): string {
+	$etape = etape_de_travail( (string) ( $ligne['etape'] ?? '' ) );
+	if ( '' === $etape ) {
+		return '';
+	}
+	$avancement = (array) ( $ligne['avancement'] ?? array() );
+	$rang       = (int) array_search( $etape, ETAPES_TRAVAIL, true );
+	foreach ( array_slice( ETAPES_TRAVAIL, $rang ) as $suivante ) {
+		$etape = $suivante;
+		if ( (int) ( $avancement[ $suivante ] ?? 0 ) < 100 ) {
+			break;
+		}
+	}
+	return $etape;
+}
+
+/**
  * Libellé d'une étape de travail en minuscules (« relecture »).
  *
  * @param string $etape Étape.

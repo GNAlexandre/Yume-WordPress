@@ -646,13 +646,17 @@ méta `yume_chapitres_prevus` / `yume_rythme` du tome) :
   `prochains` = chapitres programmés (statut `future`), les plus proches d'abord ; `publies` =
   chapitres publiés depuis `jours_publies` jours, les plus récents d'abord (badge « Nouveau » de
   moins de 48 h) ; `tomes_en_cours` = tomes en cours de publication, avec « N / M » (chapitres en
-  ligne sur `yume_chapitres_prevus`) et leur rythme. Rendu en frise : « Prochains · programmés »
-  (bouton « Me prévenir »), repère « Aujourd'hui », « Publiés récemment » (bouton « Lire »), lien
-  « Tous les chapitres publiés → ».
+  ligne sur `yume_chapitres_prevus`) et leur rythme, rendus en encarts sur la page Planning
+  seulement (colonne de côté de la vue Chapitres ; l'accueil ne les montre pas, ces tomes étant
+  déjà dans « Dernières sorties »). Rendu en frise : « Prochains · programmés » (bouton « Me
+  prévenir »), repère « Aujourd'hui », « Publiés récemment » (bouton « Lire »), lien « Tous les
+  chapitres publiés → ».
 - **Tomes en préparation** : tomes à venir du planning public, hors tome à la une (`$exclure_tome`)
   et hors tomes en cours de publication, triés par date (programmée ou cible), les tomes sans date
-  (« à venir ») ensuite ; étape, pourcentage, date cible ou « à venir », pastille d'état
-  (`yume_planning_etat()`), légende.
+  (« à venir ») ensuite ; étape et pourcentage (`Planning\etape_affichee()` : l'étape en cours,
+  ou, si elle est à 100 % sans que le planning ait avancé, la première étape suivante non
+  terminée ; la barre et le libellé du retard suivent l'étape affichée), date cible ou « à
+  venir », pastille d'état (`yume_planning_etat()`), légende.
 
 Heure de sortie : quand `yume_heure_cible` est connue, la date cible s'affiche avec elle
 (« sam. 10 oct. · 20 h ») sur la page Planning, dans le bandeau « À la une » (compte à rebours

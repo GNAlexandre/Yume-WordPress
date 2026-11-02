@@ -529,12 +529,15 @@ une section **Planning** pleine largeur :
   à rebours (« J-2 », « Aujourd'hui à 20 h » le jour même), barres
   Traduction / Relecture / Édition, boutons **Suivre l'œuvre** et **Voir la fiche** ;
 - deux colonnes de même hauteur :
-  - **Chapitres en lecture** : les tomes publiés chapitre par chapitre (« 3 / 12 » et leur
-    rythme) ; **Prochains · programmés** (les 3 prochains chapitres programmés, bouton **Me
-    prévenir**) ; le repère **Aujourd'hui** ; **Publiés récemment** (chapitres des 14 derniers
-    jours, badge **Nouveau** pendant 48 h, bouton **Lire**) ; lien **Tous les chapitres publiés →** ;
-  - **Tomes en préparation** : étape, pourcentage, date cible ou « à venir », pastille d'état,
-    légende.
+  - **Chapitres en lecture** : **Prochains · programmés** (les 3 prochains chapitres programmés,
+    bouton **Me prévenir**) ; le repère **Aujourd'hui** ; **Publiés récemment** (chapitres des 14
+    derniers jours, badge **Nouveau** pendant 48 h, bouton **Lire**) ; lien **Tous les chapitres
+    publiés →**. Les encarts des tomes publiés chapitre par chapitre (« 3 / 12 » et leur rythme)
+    ne sont plus sur l'accueil, où « Dernières sorties » les montre déjà : ils restent sur la page
+    Planning, vue Chapitres ;
+  - **Tomes en préparation** : étape et pourcentage (une étape terminée à 100 % laisse la place
+    à la suivante : « Traduction 100 % » s'affiche « Relecture 0 % » tant que le planning n'a pas
+    été avancé), date cible ou « à venir », pastille d'état, légende.
 
 Sur mobile, les deux colonnes deviennent des onglets **Chapitres** / **Tomes**. Actualités, Discord et
 partenaires ne changent pas.

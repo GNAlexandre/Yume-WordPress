@@ -477,6 +477,60 @@ yume_tv_test(
 	}
 );
 
+yume_tv_test(
+	'tomes en préparation : une étape terminée à 100 % laisse la place à la suivante (« Traduction 100 % » → « Relecture 0 % »), y compris pour le retard',
+	static function () {
+		$oeuvre = yume_tv_oeuvre( 'Miss Medic’s Diary at War' );
+		$tome   = yume_tv_tome(
+			$oeuvre,
+			2,
+			array(
+				'yume_etape'      => 'traduction',
+				'yume_avancement' => array(
+					'traduction' => 100,
+					'relecture'  => 0,
+					'edition'    => 0,
+				),
+				'yume_date_cible' => yume_tv_jour( 30 ),
+			)
+		);
+		$html   = rendu_tomes_preparation( tomes_en_preparation() );
+		yume_assert_contains( 'Relecture 0', $html );
+		yume_assert_not_contains( 'Traduction 100', $html );
+
+		// Tout à 100 % sans passage « publié » : la dernière étape, terminée.
+		update_post_meta(
+			$tome,
+			'yume_avancement',
+			array(
+				'traduction' => 100,
+				'relecture'  => 100,
+				'edition'    => 100,
+			)
+		);
+		clean_post_cache( $tome );
+		$html = rendu_tomes_preparation( tomes_en_preparation() );
+		yume_assert_contains( 'Édition 100', $html );
+
+		// En retard, traduction finie : le retard se lit sur la relecture.
+		update_post_meta(
+			$tome,
+			'yume_avancement',
+			array(
+				'traduction' => 100,
+				'relecture'  => 20,
+				'edition'    => 0,
+			)
+		);
+		update_post_meta( $tome, 'yume_date_cible', yume_tv_jour( -4 ) );
+		clean_post_cache( $tome );
+		$html = rendu_tomes_preparation( tomes_en_preparation() );
+		yume_assert_contains( 'Relecture 20', $html );
+		yume_assert_contains( 'En retard · relecture', $html );
+		yume_assert_contains( 'yn-bar--warn', $html, 'barre en retard sur l’étape affichée' );
+	}
+);
+
 /*
  * -----------------------------------------------------------------------------
  * Rendus et bloc d'accueil
@@ -501,9 +555,9 @@ yume_tv_test(
 		yume_assert_contains( 'Chapitres en lecture', $html );
 		yume_assert_contains( 'Tomes en préparation', $html );
 		yume_assert_true( strpos( $html, 'Chapitres en lecture' ) < strpos( $html, 'Tomes en préparation' ), 'chapitres à gauche' );
-		yume_assert_contains( '3 / 12', $html );
-		yume_assert_contains( 'Chaque samedi à 18 h', $html );
-		yume_assert_contains( 'Rythme libre', $html );
+		yume_assert_not_contains( 'yn-vitrine-encours', $html, 'accueil : pas d’encarts des tomes en cours (déjà dans « Dernières sorties »)' );
+		yume_assert_not_contains( '3 / 12', $html );
+		yume_assert_not_contains( 'Rythme libre', $html );
 		yume_assert_contains( 'Nouveau', $html );
 		yume_assert_contains( 'Me prévenir', $html );
 		yume_assert_contains( 'Lire', $html );
@@ -646,5 +700,18 @@ yume_tv_test(
 		$html = rendu_file_chapitres( file_chapitres(), 'planning' );
 		yume_assert_contains( 'Aucun chapitre programmé pour le moment.', $html );
 		yume_assert_contains( 'Aucun chapitre publié récemment.', $html );
+	}
+);
+
+yume_tv_test(
+	'page Planning : encarts des tomes en cours de publication (« N / M », rythme) dans la colonne de côté, et seulement là',
+	static function () {
+		yume_tv_jeu();
+		$html = rendu_file_chapitres( file_chapitres(), 'planning' );
+		yume_assert_contains( 'yn-vitrine-encours', $html );
+		yume_assert_contains( '3 / 12', $html );
+		yume_assert_contains( 'Chaque samedi à 18 h', $html );
+		yume_assert_contains( 'Rythme libre', $html );
+		yume_assert_true( strpos( $html, 'yn-vitrine-chapitres__cote' ) < strpos( $html, 'yn-vitrine-encours' ), 'dans la colonne de côté' );
 	}
 );

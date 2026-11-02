@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.3-dev.2 — 2026-11-02
+
+- Planning sur l’accueil : plus d’encarts des tomes publiés chapitre par chapitre dans « Chapitres en lecture » (déjà dans « Dernières sorties » ; gardés sur la page Planning) ; « Tomes en préparation » montre la première étape non terminée (« Traduction 100 % » devient « Relecture 0 % »), barre et retard compris
+
 ## 2.7.3-dev.1 — 2026-11-02
 
 - Ajout de chapitres : un chapitre dont seules les illustrations changent (images provisoires remplacées par leur traduction) est repéré « En ligne, illustrations modifiées » et peut être mis à jour en place ; la galerie d’illustrations du tome a sa ligne de comparaison avec le même choix Garder / Mettre à jour ; bouton « Mettre à jour la lecture en ligne (sans annonce) » quand rien de nouveau ne sort

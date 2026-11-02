@@ -5,7 +5,8 @@
  *
  * - prochain_tome() : le prochain tome à sortir (bandeau « À la une ») ;
  * - file_chapitres() : chapitres programmés, chapitres publiés récemment, tomes en cours de
- *   publication chapitre par chapitre ;
+ *   publication chapitre par chapitre (encarts « N / M » sur la page Planning seulement :
+ *   l'accueil les montre déjà dans « Dernières sorties ») ;
  * - tomes_en_preparation() : tomes à paraître (hors tome à la une et tomes en cours) ;
  * - rendus HTML échappés à la construction : rendu_a_la_une(), rendu_file_chapitres(),
  *   rendu_tomes_preparation(), rendu_planning_accueil().
@@ -763,11 +764,11 @@ function rendu_file_chapitres( array $file, string $contexte = 'accueil' ): stri
 	$html .= '<div class="yn-vitrine__tete"><' . $h_titre . ' class="yn-vitrine__titre" id="' . esc_attr( $id . '-titre' ) . '">' . esc_html__( 'Chapitres en lecture', 'yume-core' ) . '</' . $h_titre . '>';
 	$html .= '<p class="yn-label yn-muted yn-vitrine__soustitre">' . esc_html__( 'Publication chapitre par chapitre', 'yume-core' ) . '</p></div>';
 
-	$encarts = encarts_tomes_en_cours( $en_cours );
+	// Encarts des tomes en cours : page Planning seulement (colonne de côté) ; sur l'accueil,
+	// ces tomes sont déjà dans « Dernières sorties », juste au-dessus.
+	$encarts = $planning ? encarts_tomes_en_cours( $en_cours ) : '';
 	if ( $planning ) {
 		$html .= '<div class="yn-vitrine-chapitres__grille"><div class="yn-vitrine-chapitres__principal">';
-	} else {
-		$html .= $encarts;
 	}
 
 	$html .= '<div class="yn-vitrine-frise">';
@@ -796,9 +797,10 @@ function rendu_file_chapitres( array $file, string $contexte = 'accueil' ): stri
 }
 
 /**
- * Tomes en préparation (voir tomes_en_preparation()) : œuvre · tome, étape et pourcentage,
- * barre, date cible (ou « à venir »), pastille d'état (le retard écrit en toutes lettres),
- * légende des états en bas de la carte.
+ * Tomes en préparation (voir tomes_en_preparation()) : œuvre · tome, étape et pourcentage
+ * (etape_affichee() : une étape terminée à 100 % laisse la place à la suivante), barre, date
+ * cible (ou « à venir »), pastille d'état (le retard écrit en toutes lettres), légende des
+ * états en bas de la carte.
  *
  * @param array $lignes Lignes.
  */
@@ -812,10 +814,12 @@ function rendu_tomes_preparation( array $lignes ): string {
 	} else {
 		$html .= '<ul class="yn-vitrine-tomes__liste">';
 		foreach ( $lignes as $l ) {
-			$etape = etape_de_travail( (string) $l['etape'] );
+			$etape = etape_affichee( $l );
 			$etape = '' !== $etape ? $etape : 'edition';
 			$pct   = (int) ( $l['avancement'][ $etape ] ?? 0 );
-			$nom   = '<b>' . esc_html( (string) $l['oeuvre'] ) . '</b>';
+			// La barre et le retard se lisent sur l'étape affichée.
+			$l['etape'] = $etape;
+			$nom        = '<b>' . esc_html( (string) $l['oeuvre'] ) . '</b>';
 			if ( '' !== (string) $l['url_oeuvre'] ) {
 				$nom = '<a href="' . esc_url( (string) $l['url_oeuvre'] ) . '">' . $nom . '</a>';
 			}
@@ -868,7 +872,7 @@ function rendu_planning_accueil( array $attributs = array() ): string {
 	$une   = prochain_tome();
 	$file  = file_chapitres();
 	$tomes = tomes_en_preparation( $une ? (int) $une['tome_id'] : 0, 4 );
-	if ( ! $une && ! $file['prochains'] && ! $file['publies'] && ! $file['tomes_en_cours'] && ! $tomes ) {
+	if ( ! $une && ! $file['prochains'] && ! $file['publies'] && ! $tomes ) {
 		return message_editeur( 'yn-planning-accueil', __( 'Planning : aucun tome ni chapitre à venir pour le moment (le bloc ne s’affiche pas).', 'yume-core' ) );
 	}
 	charger_assets_vitrine( true );
