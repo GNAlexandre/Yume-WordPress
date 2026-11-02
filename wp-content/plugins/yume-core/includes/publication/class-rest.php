@@ -217,7 +217,7 @@ final class Rest {
 				'enum'        => array( '', Service::MODE_CHAPITRES, Service::MODE_REMPLACEMENT ),
 			),
 			'choix'            => array(
-				'description'       => __( 'Chapitres en ligne modifiés : clé de chapitre (comparaison de l’analyse) => garder (défaut) ou maj (mettre à jour, sans annonce). Objet ou JSON.', 'yume-core' ),
+				'description'       => __( 'Chapitres en ligne modifiés (texte ou illustrations) et galerie du tome (clé galerie:#0) : clé (comparaison de l’analyse) => garder (défaut) ou maj (mettre à jour, sans annonce). Objet ou JSON.', 'yume-core' ),
 				'validate_callback' => static function ( $valeur ) {
 					$choix = Service::choix( $valeur );
 					return is_wp_error( $choix ) ? $choix : true;

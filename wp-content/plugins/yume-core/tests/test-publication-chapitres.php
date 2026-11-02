@@ -11,6 +11,7 @@
 
 use Yume\Core\Publication\Annonce;
 use Yume\Core\Publication\Formulaire;
+use Yume\Core\Publication\Medias;
 use Yume\Core\Publication\Remplacement;
 use Yume\Core\Publication\Service;
 
@@ -65,6 +66,57 @@ if ( ! function_exists( 'yume_tpc_docx' ) ) {
 	}
 
 	/**
+	 * Image PNG de test propre à son nom (une taille par nom : une empreinte par nom), stable
+	 * pendant les tests.
+	 *
+	 * @param string $nom Nom de fichier (word/media/).
+	 */
+	function yume_tpc_image( string $nom ): string {
+		static $cache = array();
+		if ( ! isset( $cache[ $nom ] ) ) {
+			yume_timp_outils_fixtures();
+			$cache[ $nom ] = yume_fx_image( 'png', 400, 300 + 10 * count( $cache ) );
+		}
+		return $cache[ $nom ];
+	}
+
+	/**
+	 * DOCX temporaire illustré : images placées avant le premier chapitre (galerie du tome), puis
+	 * chapitres de référence suivis chacun de leurs images ; et son entrée $_FILES.
+	 *
+	 * @param stdClass               $ctx     Contexte (fichiers supprimés à la fin).
+	 * @param string[]               $galerie Images (yume_tpc_image()) avant le premier chapitre.
+	 * @param array<string,string[]> $cles    Chapitre (yume_tpc_chapitre()) => images après son texte.
+	 * @return array<string,mixed>
+	 */
+	function yume_tpc_docx_images( stdClass $ctx, array $galerie, array $cles ): array {
+		yume_timp_outils_fixtures();
+		$medias = array();
+		$image  = static function ( string $nom ) use ( &$medias ): string {
+			$medias[ $nom ] = yume_tpc_image( $nom );
+			return yume_fx_p( yume_fx_dessin( yume_fx_rid( $nom ), 'Illustration ' . $nom, true ) );
+		};
+		$corps  = '';
+		foreach ( $galerie as $nom ) {
+			$corps .= $image( $nom );
+		}
+		foreach ( $cles as $cle => $images ) {
+			foreach ( yume_tpc_chapitre( $cle ) as $titre => $paragraphes ) {
+				$corps .= yume_fx_t( $titre, array( 'style' => 'Titre1' ) );
+				foreach ( $paragraphes as $paragraphe ) {
+					$corps .= yume_fx_t( $paragraphe );
+				}
+			}
+			foreach ( (array) $images as $nom ) {
+				$corps .= $image( $nom );
+			}
+		}
+		$docx            = yume_timp_docx( $corps, $medias );
+		$ctx->fichiers[] = $docx;
+		return yume_tpub_fichier( $ctx, $docx, 'SukaMoka_T2.docx' );
+	}
+
+	/**
 	 * Tome 2 de l'œuvre (brouillon du planning par défaut).
 	 *
 	 * @param int                 $oeuvre Œuvre.
@@ -112,6 +164,20 @@ if ( ! function_exists( 'yume_tpc_docx' ) ) {
 	 * @throws Yume_Test_Failure Préparation en erreur.
 	 */
 	function yume_tpc_preparer( stdClass $ctx, int $oeuvre, int $tome, array $cles, array $champs = array() ): array {
+		return yume_tpc_preparer_fichier( $oeuvre, $tome, yume_tpc_docx( $ctx, $cles ), $champs );
+	}
+
+	/**
+	 * Prépare un ajout de chapitres au tome choisi (mode chapitres) depuis un fichier donné.
+	 *
+	 * @param int                 $oeuvre  Œuvre.
+	 * @param int                 $tome    Tome.
+	 * @param array<string,mixed> $fichier Entrée $_FILES (yume_tpc_docx(), yume_tpc_docx_images()).
+	 * @param array<string,mixed> $champs  Champs supplémentaires.
+	 * @return array<string,mixed>
+	 * @throws Yume_Test_Failure Préparation en erreur.
+	 */
+	function yume_tpc_preparer_fichier( int $oeuvre, int $tome, array $fichier, array $champs = array() ): array {
 		$rapport = Service::preparer(
 			array_merge(
 				array(
@@ -121,7 +187,7 @@ if ( ! function_exists( 'yume_tpc_docx' ) ) {
 				),
 				$champs
 			),
-			array( 'source' => yume_tpc_docx( $ctx, $cles ) )
+			array( 'source' => $fichier )
 		);
 		if ( is_wp_error( $rapport ) ) {
 			throw new Yume_Test_Failure( 'preparer : ' . $rapport->get_error_message() );
@@ -524,6 +590,147 @@ yume_test(
 			yume_assert_same( null, Remplacement::lire( $tome ) );
 			yume_assert_contains( '1 chapitre en ligne mis à jour en place, sans annonce.', Formulaire::message_chapitres( $sortie ) );
 			yume_assert_same( 3, count( yume_get_chapitres( $tome ) ), 'aucun doublon' );
+		}
+	)
+);
+
+yume_test(
+	'chapitres : seules les illustrations changent (texte identique) — « En ligne, illustrations modifiées », gardé par défaut, remplacé en place sur « Mettre à jour (sans annonce) » ; galerie du tome comparée et remplacée de même',
+	yume_tpub(
+		function ( $ctx ) {
+			wp_set_current_user( yume_factory_user( 'yume_editeur' ) );
+			$oeuvre = yume_tpub_oeuvre( 'SukaMoka' );
+			$tome   = yume_tpc_tome( $oeuvre );
+			$eng    = static function () use ( $ctx ) {
+				return yume_tpc_docx_images(
+					$ctx,
+					array( 'galerie-eng.png' ),
+					array(
+						'prologue' => array(),
+						'ch1'      => array( 'ch1-eng.png' ),
+					)
+				);
+			};
+			$fr     = static function () use ( $ctx ) {
+				return yume_tpc_docx_images(
+					$ctx,
+					array( 'galerie-fr.png' ),
+					array(
+						'prologue' => array(),
+						'ch1'      => array( 'ch1-fr.png' ),
+					)
+				);
+			};
+			// Tome mis en ligne avec des images provisoires (galerie d'une image, chapitre 1 illustré).
+			yume_tpc_preparer_fichier( $oeuvre, $tome, $eng() );
+			yume_tpc_publier( $tome );
+			yume_tpc_requete();
+			$ch1     = yume_tpc_id( $tome, 'Chapitre 1' );
+			$avant   = yume_tpc_photo( $ch1 );
+			$galerie = array_map( 'intval', (array) get_post_meta( $tome, 'yume_illustrations', true ) );
+			$images  = Service::images_contenu( $avant[1] );
+			yume_assert_same( 1, count( $galerie ), 'galerie posée' );
+			yume_assert_same( 1, count( $images ), 'chapitre 1 illustré' );
+			yume_assert_true( $images[0] > 0, 'pièce jointe' );
+			yume_assert_same( sha1( yume_tpc_image( 'ch1-eng.png' ) ), get_post_meta( $images[0], Medias::META_EMPREINTE, true ), 'empreinte de l’image d’origine notée' );
+			yume_assert_same( array( sha1( yume_tpc_image( 'galerie-eng.png' ) ) ), Service::empreintes_images_enregistrees( $galerie ) );
+
+			// 1. Même fichier : tout est identique, galerie comprise.
+			$r = yume_tpc_preparer_fichier( $oeuvre, $tome, $eng() );
+			yume_assert_same( array( 'identique', 'identique' ), array_column( $r['comparaison']['lignes'], 'etat' ) );
+			yume_assert_same( array( 'identique', 'inchange', '' ), array( $r['comparaison']['galerie']['etat'], $r['comparaison']['galerie']['action'], $r['comparaison']['galerie']['choix'] ) );
+			yume_assert_same( 0, $r['comparaison']['illustrations'] );
+			yume_assert_same( null, Remplacement::lire( $tome ) );
+
+			// 2. Images traduites, texte inchangé : « illustrations modifiées », gardé par défaut.
+			yume_tpc_requete();
+			$r = yume_tpc_preparer_fichier( $oeuvre, $tome, $fr() );
+			$c = $r['comparaison'];
+			yume_assert_same( array( 'identique', 'modifie' ), array_column( $c['lignes'], 'etat' ) );
+			yume_assert_same( array( '', 'illustrations' ), array_column( $c['lignes'], 'difference' ) );
+			yume_assert_same( 'En ligne, illustrations modifiées', $c['lignes'][1]['etat_libelle'] );
+			yume_assert_same( array( 'garder', 'garder' ), array( $c['lignes'][1]['choix'], $c['lignes'][1]['action'] ) );
+			yume_assert_same( array( 1, 1, 0 ), array( $c['modifies'], $c['illustrations'], $c['a_mettre_a_jour'] ) );
+			yume_assert_same( array( 'modifie', 'garder', 'garder', Service::CLE_GALERIE, 1 ), array( $c['galerie']['etat'], $c['galerie']['choix'], $c['galerie']['action'], $c['galerie']['cle'], $c['galerie']['nb'] ) );
+			yume_assert_same( 'En ligne, modifiée', $c['galerie']['etat_libelle'] );
+			yume_assert_same( array( 'inchange', 'garde' ), array_column( $r['chapitres'], 'action' ) );
+			yume_assert_same( null, Remplacement::lire( $tome ), 'rien en attente : tout est gardé' );
+			yume_assert_same( $avant, yume_tpc_photo( $ch1 ), 'chapitre intact' );
+			yume_assert_same( $galerie, array_map( 'intval', (array) get_post_meta( $tome, 'yume_illustrations', true ) ), 'galerie gardée' );
+
+			// 3. « Mettre à jour » le chapitre et la galerie : en attente, appliqués à la sortie, sans annonce.
+			yume_tpc_requete();
+			$r = yume_tpc_preparer_fichier(
+				$oeuvre,
+				$tome,
+				$fr(),
+				array(
+					'choix' => array(
+						'chapitre:1#1'       => 'maj',
+						Service::CLE_GALERIE => 'maj',
+					),
+				)
+			);
+			$c = $r['comparaison'];
+			yume_assert_same( array( 'maj', 1, 'maj' ), array( $c['lignes'][1]['action'], $c['a_mettre_a_jour'], $c['galerie']['action'] ) );
+			yume_assert_same( Service::MODE_CHAPITRES, Remplacement::lire( $tome )['mode'] ?? '' );
+			yume_assert_same( 1, count( (array) ( Remplacement::lire( $tome )['galerie'] ?? array() ) ), 'nouvelle galerie en attente' );
+			yume_assert_same( 1, count( Remplacement::versions( $tome ) ), 'une version en attente' );
+			yume_assert_same( $avant, yume_tpc_photo( $ch1 ), 'rien en ligne avant la sortie' );
+			yume_assert_same( $galerie, array_map( 'intval', (array) get_post_meta( $tome, 'yume_illustrations', true ) ), 'galerie en ligne intacte avant la sortie' );
+			yume_assert_contains( '1 chapitre en ligne à mettre à jour à la sortie (sans annonce), galerie d’illustrations du tome à mettre à jour à la sortie (sans annonce)', Formulaire::message_brouillon_chapitres( $r ) );
+
+			$sortie = null;
+			$n      = yume_tpc_compter(
+				function () use ( $tome, &$sortie ) {
+					$sortie = yume_tpc_publier( $tome );
+				}
+			);
+			$apres  = yume_tpc_photo( $ch1 );
+			yume_assert_same( array( 1, 1 ), array( $sortie['remplacement_applique']['remplaces'], $sortie['remplacement_applique']['galerie'] ) );
+			$images_apres = Service::images_contenu( $apres[1] );
+			yume_assert_same( 1, count( $images_apres ) );
+			yume_assert_true( $images_apres[0] > 0 && $images_apres[0] !== $images[0], 'nouvelle pièce jointe' );
+			yume_assert_same( sha1( yume_tpc_image( 'ch1-fr.png' ) ), get_post_meta( $images_apres[0], Medias::META_EMPREINTE, true ), 'image traduite' );
+			yume_assert_same( $ch1, (int) wp_get_post_parent_id( $images_apres[0] ), 'image rattachée au chapitre' );
+			yume_assert_same( Service::texte_normalise( $avant[1] ), Service::texte_normalise( $apres[1] ), 'texte inchangé' );
+			yume_assert_same( array( 'publish', $avant[4], $avant[5], $avant[6] ), array( $apres[2], $apres[4], $apres[5], $apres[6] ), 'date, adresse, ordre gardés' );
+			$galerie_apres = array_map( 'intval', (array) get_post_meta( $tome, 'yume_illustrations', true ) );
+			yume_assert_same( 1, count( $galerie_apres ) );
+			yume_assert_true( $galerie_apres !== $galerie, 'galerie remplacée' );
+			yume_assert_same( sha1( yume_tpc_image( 'galerie-fr.png' ) ), get_post_meta( $galerie_apres[0], Medias::META_EMPREINTE, true ) );
+			yume_assert_same( $tome, (int) wp_get_post_parent_id( $galerie_apres[0] ), 'galerie rattachée au tome' );
+			yume_assert_same( array(), $n->chap, 'une mise à jour n’est jamais annoncée' );
+			yume_assert_same( array(), $n->tome );
+			yume_assert_same( array(), Remplacement::versions( $tome ) );
+			yume_assert_same( null, Remplacement::lire( $tome ) );
+			yume_assert_contains( '1 chapitre en ligne mis à jour en place, sans annonce. Galerie d’illustrations du tome remplacée par celle du fichier, sans annonce.', Formulaire::message_chapitres( $sortie ) );
+
+			// 4. Le fichier traduit est désormais identique au tome.
+			yume_tpc_requete();
+			$r = yume_tpc_preparer_fichier( $oeuvre, $tome, $fr() );
+			yume_assert_same( array( 'identique', 'identique' ), array_column( $r['comparaison']['lignes'], 'etat' ) );
+			yume_assert_same( 'identique', $r['comparaison']['galerie']['etat'] );
+
+			// 5. Illustration retirée du fichier : illustrations modifiées aussi ; fichier sans image
+			// avant le premier chapitre : pas de ligne galerie, galerie du tome intacte.
+			yume_tpc_requete();
+			$r = yume_tpc_preparer_fichier(
+				$oeuvre,
+				$tome,
+				yume_tpc_docx_images(
+					$ctx,
+					array(),
+					array(
+						'prologue' => array(),
+						'ch1'      => array(),
+					)
+				)
+			);
+			yume_assert_same( array( 'identique', 'modifie' ), array_column( $r['comparaison']['lignes'], 'etat' ) );
+			yume_assert_same( 'illustrations', $r['comparaison']['lignes'][1]['difference'] );
+			yume_assert_same( null, $r['comparaison']['galerie'] );
+			yume_assert_same( $galerie_apres, array_map( 'intval', (array) get_post_meta( $tome, 'yume_illustrations', true ) ) );
 		}
 	)
 );

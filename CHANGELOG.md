@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.3-dev.1 — 2026-11-02
+
+- Ajout de chapitres : un chapitre dont seules les illustrations changent (images provisoires remplacées par leur traduction) est repéré « En ligne, illustrations modifiées » et peut être mis à jour en place ; la galerie d’illustrations du tome a sa ligne de comparaison avec le même choix Garder / Mettre à jour ; bouton « Mettre à jour la lecture en ligne (sans annonce) » quand rien de nouveau ne sort
+
 ## 2.7.2 — 2026-10-30
 
 - Yume Novel 2.7.2 : tests indépendants de la date et de la langue, arbre décoratif sur les chapitres (dans la marge libre de la colonne de lecture, jamais sous le texte), anneau de focus du sous-menu de navigation réservé au clavier.

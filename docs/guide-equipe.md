@@ -633,11 +633,13 @@ le site utilise « Œuvre, Tome N, Chapitre N — illustration ».
    possible de créer un tome ici (nature, numéro, titre) si aucun tome n'est choisi, mais « Nouveau
    tome » est préférable : il enregistre aussi les chapitres prévus et le rythme de sortie.
 2. **Le fichier** : déposez le DOCX (ou l'EPUB). Il peut contenir le seul chapitre à publier, ou le
-   tome avec ses chapitres déjà parus. Le site l'analyse et compare chaque chapitre au tome :
-   **Nouveau**, **En ligne, identique**, **En ligne, modifié** (au choix : « Garder la version en
-   ligne » ou « Mettre à jour (sans annonce) »), **Programmé** ou **Brouillon**. Rien n'est jamais
-   retiré. Si le découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez
-   les styles dans Word et déposez à nouveau le fichier.
+   tome avec ses chapitres déjà parus. Le site l'analyse et compare chaque chapitre au tome, texte
+   **et illustrations** : **Nouveau**, **En ligne, identique**, **En ligne, modifié** ou **En ligne,
+   illustrations modifiées** (au choix : « Garder la version en ligne » ou « Mettre à jour (sans
+   annonce) »), **Programmé** ou **Brouillon** ; la galerie d'illustrations du tome (images avant le
+   premier Titre 1) a sa propre ligne, avec le même choix. Rien n'est jamais retiré. Si le
+   découpage est faux : **délimitez les chapitres vous-même** (5.2 bis), ou corrigez les styles dans
+   Word et déposez à nouveau le fichier.
 3. **Couverture** (facultative) : glissez l'image (JPG, PNG ou WebP ; 1400 × 2000 px conseillé).
 4. **Crédits** : traduction, relecture, édition / couverture (affichés sur le tome et les chapitres).
 
@@ -867,7 +869,13 @@ déjà parus, les deux marchent. Après l'analyse, chaque chapitre du fichier es
 | **Nouveau** | Le chapitre est ajouté au tome (il sortira selon l'étape 3). |
 | **En ligne, identique** | Rien ne change (même adresse, mêmes commentaires). |
 | **En ligne, modifié** | Au choix : **« Garder la version en ligne »** (par défaut, rien ne change) ou **« Mettre à jour (sans annonce) »** : le chapitre est remplacé en place à la sortie (même adresse, mêmes commentaires, même date), sans aucune annonce. |
+| **En ligne, illustrations modifiées** | Même texte, mais les images du chapitre diffèrent (nombre, ordre ou image : par exemple des illustrations provisoires en VO remplacées par leur version traduite). Même choix : **« Garder la version en ligne »** (par défaut) ou **« Mettre à jour (sans annonce) »**. |
+| **Illustrations du tome** (ligne à part) | Images placées avant le premier Titre 1 (page « Illustrations » du tome) : **Nouvelle** (le tome n'en avait pas : ajoutée), **En ligne, identique**, ou **En ligne, modifiée** avec le même choix « Garder » / « Mettre à jour (sans annonce) ». |
 | **Programmé** / **Brouillon** | Pas encore visible des lecteurs : mis à jour ; un chapitre programmé garde sa date, un brouillon sort avec les nouveaux. |
+
+Les mises à jour choisies ne s'appliquent **qu'à la sortie** : s'il n'y a aucun nouveau chapitre, le
+bouton s'appelle **« Mettre à jour la lecture en ligne (sans annonce) »** ; « Enregistrer en
+brouillon » les laisse en attente sans rien changer en ligne.
 
 **Rien n'est jamais retiré** : un chapitre en ligne absent du fichier reste en ligne. Pour refaire
 toute la lecture en ligne d'un tome (nouvelle traduction, corrections en masse), utilisez l'encadré

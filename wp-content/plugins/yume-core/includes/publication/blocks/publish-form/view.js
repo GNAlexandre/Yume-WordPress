@@ -7,8 +7,9 @@
  *   (parution, chapitres en ligne, chapitres prévus, rythme), création du tome ici seulement si
  *   aucun n'est choisi, lien « + Nouveau tome » ;
  * - comparaison du fichier avec le tome (renvoyée par l'analyse) : « Nouveau », « En ligne,
- *   identique », « En ligne, modifié » (choix « Garder la version en ligne » / « Mettre à jour
- *   (sans annonce) », champ choix[clé]), « Programmé », « Brouillon » ;
+ *   identique », « En ligne, modifié » ou « En ligne, illustrations modifiées » (choix « Garder
+ *   la version en ligne » / « Mettre à jour (sans annonce) », champ choix[clé]), « Programmé »,
+ *   « Brouillon » ; galerie d'illustrations du tome sur une ligne à part, même choix ;
  * - sortie des nouveaux chapitres (maintenant, un par un au rythme ou tous les N jours, à une
  *   date), annonce (« Annoncer les nouveaux chapitres », ou « Ajout au catalogue » pour un tome
  *   complet déjà paru), « Le tome est complet » (liens PDF et EPUB activés seulement alors) ;
@@ -486,11 +487,13 @@
 					ajouterRecap( true, [ '… et ' + pluriel( sortants.length - 6, 'autre chapitre', 'autres chapitres' ) ] );
 				}
 			}
-			var majs = comparaisonCourante ? comparaisonCourante.lignes.filter( function ( l ) {
-				return l.etat === 'modifie' && l.choix === 'maj';
-			} ) : [];
+			var maj = aMettreAJour();
+			var majs = maj.chapitres;
 			if ( majs.length ) {
 				ajouterRecap( true, [ { fort: groupeChapitres( majs ) }, ' mis à jour en place (sans annonce) : mêmes adresses, commentaires conservés' ] );
+			}
+			if ( maj.galerie ) {
+				ajouterRecap( true, [ { fort: 'Illustrations du tome' }, ' remplacées par celles du fichier (sans annonce)' ] );
 			}
 			if ( muet ) {
 				ajouterRecap( false, [ { fort: 'Aucune annonce' }, ' : ajout au catalogue, ni article, ni Discord, ni e-mail' ] );
@@ -526,16 +529,17 @@
 			if ( gardes.length ) {
 				ajouterRecap( false, [ groupeChapitres( gardes ) + ( gardes.length > 1 ? ' inchangés' : ' inchangé' ) + ' : mêmes adresses, commentaires conservés' ] );
 			}
-			majBoutonPublier( sortants.length, sortie );
+			majBoutonPublier( sortants.length, sortie, maj.nb );
 		}
 
-		function majBoutonPublier( n, sortie ) {
+		function majBoutonPublier( n, sortie, nbMaj ) {
 			if ( ! publierLibelle ) {
 				return;
 			}
 			var quoi = comparaisonCourante ? pluriel( n, 'chapitre', 'chapitres' ) : 'les nouveaux chapitres';
 			if ( comparaisonCourante && ! n ) {
-				publierLibelle.textContent = completCase && completCase.checked ? 'Marquer le tome complet' : 'Enregistrer (aucun nouveau chapitre)';
+				// Rien de nouveau à sortir : le bouton applique les mises à jour choisies, s'il y en a.
+				publierLibelle.textContent = completCase && completCase.checked ? 'Marquer le tome complet' : ( nbMaj ? 'Mettre à jour la lecture en ligne (sans annonce)' : 'Enregistrer (aucun nouveau chapitre)' );
 				return;
 			}
 			publierLibelle.textContent = ( sortie === 'maintenant' ? 'Publier ' : 'Programmer ' ) + quoi + ( sortie === 'rythme' ? ' un par un' : '' );
@@ -565,8 +569,12 @@
 			if ( comp.identiques ) {
 				parties.push( pluriel( comp.identiques, 'en ligne identique', 'en ligne identiques' ) );
 			}
-			if ( comp.modifies ) {
-				parties.push( pluriel( comp.modifies, 'en ligne modifié', 'en ligne modifiés' ) );
+			var modifiesTexte = comp.modifies - ( comp.illustrations || 0 );
+			if ( modifiesTexte ) {
+				parties.push( pluriel( modifiesTexte, 'en ligne modifié', 'en ligne modifiés' ) );
+			}
+			if ( comp.illustrations ) {
+				parties.push( pluriel( comp.illustrations, 'en ligne aux illustrations modifiées', 'en ligne aux illustrations modifiées' ) );
 			}
 			if ( comp.programmes ) {
 				parties.push( pluriel( comp.programmes, 'programmé', 'programmés' ) );
@@ -574,13 +582,44 @@
 			if ( comp.brouillons ) {
 				parties.push( pluriel( comp.brouillons, 'brouillon', 'brouillons' ) );
 			}
-			comparaisonBilan.textContent = pluriel( comp.lignes.length, 'chapitre repéré', 'chapitres repérés' ) + ' : ' + parties.join( ', ' ) + '. Rien n’est jamais retiré du tome.';
+			comparaisonBilan.textContent = pluriel( comp.lignes.length, 'chapitre repéré', 'chapitres repérés' ) + ' : ' + parties.join( ', ' )
+				+ ( comp.galerie && comp.galerie.etat === 'modifie' ? ' ; galerie d’illustrations du tome modifiée' : '' ) + '. Rien n’est jamais retiré du tome.';
+			// Galerie d'illustrations du tome (images avant le premier chapitre) : une ligne à part,
+			// avec le même choix « Garder » / « Mettre à jour » quand elle diffère de celle en ligne.
+			if ( comp.galerie ) {
+				var g = comp.galerie;
+				g.libelle = 'Illustrations du tome';
+				var trg = el( 'tr' );
+				var tdg = el( 'td' );
+				tdg.appendChild( el( 'strong', '', g.libelle ) );
+				trg.appendChild( tdg );
+				trg.appendChild( el( 'td', 'yn-muted', g.etat === 'identique' ? 'identiques' : pluriel( g.nb, 'image avant le premier chapitre', 'images avant le premier chapitre' ) ) );
+				tdg = el( 'td' );
+				tdg.appendChild( el( 'span', 'yn-chip yn-chip--' + ( { nouvelle: 'ok', identique: 'info', modifie: 'warn' }[ g.etat ] || 'info' ), g.etat_libelle ) );
+				if ( g.lien ) {
+					var voirGalerie = lien( g.lien, 'Voir' );
+					voirGalerie.target = '_blank';
+					voirGalerie.rel = 'noopener';
+					voirGalerie.appendChild( el( 'span', 'yn-visually-hidden', ' — ' + g.libelle ) );
+					tdg.appendChild( document.createTextNode( ' ' ) );
+					tdg.appendChild( voirGalerie );
+				}
+				trg.appendChild( tdg );
+				tdg = el( 'td', 'yn-publish__comparaison-action' );
+				if ( g.etat === 'modifie' ) {
+					choixRadios( tdg, g, 'galerie' );
+				} else {
+					tdg.textContent = g.etat === 'nouvelle' ? 'Ajoutée au tome' : 'Inchangée';
+				}
+				trg.appendChild( tdg );
+				comparaisonLignes.appendChild( trg );
+			}
 			comp.lignes.forEach( function ( l, i ) {
 				var tr = el( 'tr' );
 				var td = el( 'td' );
 				td.appendChild( el( 'strong', '', l.libelle ) );
 				tr.appendChild( td );
-				td = el( 'td', 'yn-muted', ( l.etat === 'identique' ? 'identique' : ( l.sous_titre ? l.sous_titre + ' · ' : '' ) + nombre( l.nb_mots ) + ' mots' ) );
+				td = el( 'td', 'yn-muted', ( l.etat === 'identique' ? 'identique' : ( l.difference === 'illustrations' ? 'même texte, illustrations différentes' : ( l.sous_titre ? l.sous_titre + ' · ' : '' ) + nombre( l.nb_mots ) + ' mots' ) ) );
 				tr.appendChild( td );
 				td = el( 'td' );
 				var variante = { nouveau: 'ok', identique: 'info', modifie: 'warn', programme: 'info', brouillon: 'info' }[ l.etat ] || 'info';
@@ -597,26 +636,7 @@
 				td = el( 'td', 'yn-publish__comparaison-action' );
 				var ref = { l: l, action: td };
 				if ( l.etat === 'modifie' ) {
-					[ [ 'garder', 'Garder la version en ligne' ], [ 'maj', 'Mettre à jour (sans annonce)' ] ].forEach( function ( c ) {
-						var id = 'yn-publish-choix-' + i + '-' + c[ 0 ];
-						var p = el( 'span', 'yn-publish__choix' );
-						var radio = el( 'input' );
-						radio.type = 'radio';
-						radio.name = 'choix[' + l.cle + ']';
-						radio.value = c[ 0 ];
-						radio.id = id;
-						radio.checked = ( l.choix || 'garder' ) === c[ 0 ];
-						radio.addEventListener( 'change', function () {
-							l.choix = radio.value;
-							majRecap();
-						} );
-						var etiquette = el( 'label', '', c[ 1 ] );
-						etiquette.htmlFor = id;
-						etiquette.appendChild( el( 'span', 'yn-visually-hidden', ' — ' + l.libelle ) );
-						p.appendChild( radio );
-						p.appendChild( etiquette );
-						td.appendChild( p );
-					} );
+					choixRadios( td, l, i );
 				}
 				tr.appendChild( td );
 				comparaisonLignes.appendChild( tr );
@@ -624,6 +644,46 @@
 			} );
 			comparaison.hidden = false;
 			majActionsComparaison();
+		}
+
+		/**
+		 * Boutons radio « Garder la version en ligne » / « Mettre à jour (sans annonce) » d'une
+		 * ligne de la comparaison (chapitre en ligne modifié, ou galerie du tome) : champ
+		 * choix[clé], envoyé avec le formulaire.
+		 */
+		function choixRadios( td, l, suffixe ) {
+			[ [ 'garder', 'Garder la version en ligne' ], [ 'maj', 'Mettre à jour (sans annonce)' ] ].forEach( function ( c ) {
+				var id = 'yn-publish-choix-' + suffixe + '-' + c[ 0 ];
+				var p = el( 'span', 'yn-publish__choix' );
+				var radio = el( 'input' );
+				radio.type = 'radio';
+				radio.name = 'choix[' + l.cle + ']';
+				radio.value = c[ 0 ];
+				radio.id = id;
+				radio.checked = ( l.choix || 'garder' ) === c[ 0 ];
+				radio.addEventListener( 'change', function () {
+					l.choix = radio.value;
+					majRecap();
+				} );
+				var etiquette = el( 'label', '', c[ 1 ] );
+				etiquette.htmlFor = id;
+				etiquette.appendChild( el( 'span', 'yn-visually-hidden', ' — ' + l.libelle ) );
+				p.appendChild( radio );
+				p.appendChild( etiquette );
+				td.appendChild( p );
+			} );
+		}
+
+		/**
+		 * Mises à jour choisies (« Mettre à jour (sans annonce) ») : chapitres en ligne, et galerie
+		 * du tome le cas échéant.
+		 */
+		function aMettreAJour() {
+			var majs = comparaisonCourante ? comparaisonCourante.lignes.filter( function ( l ) {
+				return l.etat === 'modifie' && l.choix === 'maj';
+			} ) : [];
+			var galerie = !! ( comparaisonCourante && comparaisonCourante.galerie && comparaisonCourante.galerie.etat === 'modifie' && comparaisonCourante.galerie.choix === 'maj' );
+			return { chapitres: majs, galerie: galerie, nb: majs.length + ( galerie ? 1 : 0 ) };
 		}
 
 		/**
@@ -1147,7 +1207,9 @@
 					var comp = rapport.comparaison;
 					texte += ' Comparé à ' + rapport.tome_existant.titre + ' : ' + pluriel( comp.nouveaux + comp.brouillons, 'chapitre à sortir', 'chapitres à sortir' )
 						+ ( comp.identiques ? ', ' + pluriel( comp.identiques, 'déjà en ligne à l’identique', 'déjà en ligne à l’identique' ) : '' )
-						+ ( comp.modifies ? ', ' + pluriel( comp.modifies, 'en ligne modifié (à garder ou mettre à jour)', 'en ligne modifiés (à garder ou mettre à jour)' ) : '' ) + '.';
+						+ ( comp.modifies - ( comp.illustrations || 0 ) ? ', ' + pluriel( comp.modifies - ( comp.illustrations || 0 ), 'en ligne modifié (à garder ou mettre à jour)', 'en ligne modifiés (à garder ou mettre à jour)' ) : '' )
+						+ ( comp.illustrations ? ', ' + pluriel( comp.illustrations, 'en ligne aux illustrations modifiées (à garder ou mettre à jour)', 'en ligne aux illustrations modifiées (à garder ou mettre à jour)' ) : '' )
+						+ ( comp.galerie && comp.galerie.etat === 'modifie' ? ', galerie d’illustrations du tome modifiée (à garder ou mettre à jour)' : '' ) + '.';
 				}
 				annoncer( texte, 'succes' );
 			} ).catch( function ( erreur ) {
@@ -1342,11 +1404,23 @@
 			var remplace = etape === 'remplacer' || ( ! ajout && etape === 'publier' && ( enAttente() || ( aVerifier && !! racine.querySelector( '[data-yn-mode-remplacement]' ) ) ) );
 			if ( ajout && etape === 'publier' ) {
 				var nbSortants = comparaisonCourante ? aSortir().length : 0;
-				var question = ( sortieAjout === 'maintenant' ? 'Publier maintenant ' : 'Programmer ' )
-					+ ( comparaisonCourante ? pluriel( nbSortants, 'chapitre', 'chapitres' ) : 'les nouveaux chapitres' )
-					+ ( sortieAjout === 'rythme' ? ' un par un' : '' ) + ' ?'
-					+ ( modeCatalogue() ? ' Sans annonce (ni article, ni Discord, ni e-mail).' : ' Les lecteurs qui suivent l’œuvre seront prévenus' + ( sortieAjout === 'maintenant' ? '.' : ' à chaque sortie.' ) )
-					+ ( completCase && completCase.checked ? ' Le tome passera « Publié ».' : '' );
+				var majChoisies = aMettreAJour();
+				var question;
+				if ( comparaisonCourante && ! nbSortants && majChoisies.nb && ! ( completCase && completCase.checked ) ) {
+					// Aucun nouveau chapitre : seules les mises à jour choisies sont appliquées.
+					question = 'Mettre à jour maintenant la lecture en ligne ('
+						+ ( majChoisies.chapitres.length ? pluriel( majChoisies.chapitres.length, 'chapitre', 'chapitres' ) : '' )
+						+ ( majChoisies.chapitres.length && majChoisies.galerie ? ' et ' : '' )
+						+ ( majChoisies.galerie ? 'illustrations du tome' : '' )
+						+ ') ? Remplacement en place, sans annonce : mêmes adresses, commentaires conservés.';
+				} else {
+					question = ( sortieAjout === 'maintenant' ? 'Publier maintenant ' : 'Programmer ' )
+						+ ( comparaisonCourante ? pluriel( nbSortants, 'chapitre', 'chapitres' ) : 'les nouveaux chapitres' )
+						+ ( sortieAjout === 'rythme' ? ' un par un' : '' ) + ' ?'
+						+ ( modeCatalogue() ? ' Sans annonce (ni article, ni Discord, ni e-mail).' : ' Les lecteurs qui suivent l’œuvre seront prévenus' + ( sortieAjout === 'maintenant' ? '.' : ' à chaque sortie.' ) )
+						+ ( completCase && completCase.checked ? ' Le tome passera « Publié ».' : '' )
+						+ ( majChoisies.nb ? ' ' + pluriel( majChoisies.nb, 'mise à jour en place appliquée (sans annonce).', 'mises à jour en place appliquées (sans annonce).' ) : '' );
+				}
 				if ( ! window.confirm( question ) ) {
 					return;
 				}

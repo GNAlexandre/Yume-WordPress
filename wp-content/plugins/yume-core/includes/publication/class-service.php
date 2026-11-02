@@ -38,11 +38,13 @@
  *
  * Ajout de chapitres à un tome (mode « chapitres », formulaire « Ajouter des chapitres à un
  * tome ») : le tome est CHOISI (tome_id), sa nature et son numéro ne sont jamais réécrits. Le
- * fichier est comparé au tome (comparer() : nouveau, en ligne identique, en ligne modifié,
- * programmé, brouillon ; empreinte du texte _yume_empreinte_texte) : les chapitres nouveaux
- * sont créés directement en brouillon, ceux en ligne ne sont pas touchés, sauf choix « Mettre à
- * jour (sans annonce) » (version en attente appliquée à la sortie, voir Remplacement) ; rien
- * n'est retiré. Sortie (publier() avec mode « chapitres ») : maintenant (une annonce groupée),
+ * fichier est comparé au tome (comparer() : nouveau, en ligne identique, en ligne modifié — texte
+ * ou illustrations seules —, programmé, brouillon ; empreinte du texte _yume_empreinte_texte,
+ * empreintes des images _yume_import_image) : les chapitres nouveaux sont créés directement en
+ * brouillon, ceux en ligne ne sont pas touchés, sauf choix « Mettre à jour (sans annonce) »
+ * (version en attente appliquée à la sortie, voir Remplacement) ; de même pour la galerie
+ * d'illustrations du tome (images avant le premier chapitre, clé CLE_GALERIE) ; rien n'est
+ * retiré. Sortie (publier() avec mode « chapitres ») : maintenant (une annonce groupée),
  * un par un au rythme du tome (yume_prochaine_sortie_rythme(), une annonce par chapitre) ou à
  * une date. Parution : première sortie sans « Tome complet » → yume_parution = en_cours (annonce
  * « SukaMoka, Tome 2 : Prologue disponible ! ») ; « Tome complet » → marquer_complet() (liens
@@ -121,6 +123,9 @@ final class Service {
 
 	/** Clé de rapprochement d'un chapitre (« chapitre:3#1 », « postface:#1 »). */
 	public const MOTIF_CLE = '/^[a-z]{1,20}:[0-9.]{0,12}#[0-9]{1,5}\z/';
+
+	/** Clé du choix « Garder » / « Mettre à jour » de la galerie d'illustrations du tome (comparer()). */
+	public const CLE_GALERIE = 'galerie:#0';
 
 	/** Intervalle par défaut (jours) d'une sortie un par un sans rythme de tome. */
 	public const INTERVALLE_DEFAUT = 7;
@@ -802,6 +807,140 @@ final class Service {
 	}
 
 	/**
+	 * Empreintes des illustrations d'un chapitre du fichier, dans l'ordre : SHA-1 de l'image
+	 * d'origine, la même que celle notée par Medias à l'import (META_EMPREINTE) ; image illisible
+	 * = chaîne vide. Chaque image du fichier n'est extraite qu'une fois ($cache).
+	 *
+	 * @param Result               $resultat Résultat de la conversion (archive source présente).
+	 * @param string[]             $cles     Clés des images (dans l'ordre de lecture).
+	 * @param array<string,string> $cache    Clé => empreinte (modifié).
+	 * @return string[]
+	 */
+	public static function empreintes_images_fichier( Result $resultat, array $cles, array &$cache ): array {
+		if ( ! function_exists( 'wp_tempnam' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php'; // Analyse hors écran d'administration (API REST).
+		}
+		$empreintes = array();
+		foreach ( array_values( array_unique( array_map( 'strval', $cles ) ) ) as $cle ) {
+			if ( ! isset( $cache[ $cle ] ) ) {
+				$cache[ $cle ] = '';
+				$tmp           = wp_tempnam( 'yume-image' );
+				if ( $tmp ) {
+					if ( $resultat->copier_image( $cle, $tmp ) ) {
+						$cache[ $cle ] = (string) sha1_file( $tmp );
+					}
+					wp_delete_file( $tmp );
+				}
+			}
+			$empreintes[] = $cache[ $cle ];
+		}
+		return $empreintes;
+	}
+
+	/**
+	 * Empreintes d'illustrations enregistrées (pièces jointes), dans l'ordre : méta
+	 * Medias::META_EMPREINTE (image versée par ce module), sinon SHA-1 du fichier (image ajoutée
+	 * dans l'éditeur ou migrée), sinon chaîne vide.
+	 *
+	 * @param int[] $ids Pièces jointes (0 : image sans pièce jointe).
+	 * @return string[]
+	 */
+	public static function empreintes_images_enregistrees( array $ids ): array {
+		$empreintes = array();
+		foreach ( array_values( array_unique( array_map( 'intval', $ids ) ) ) as $id ) {
+			$empreinte = $id > 0 ? (string) get_post_meta( $id, Medias::META_EMPREINTE, true ) : '';
+			if ( '' === $empreinte && $id > 0 ) {
+				$fichier   = (string) get_attached_file( $id );
+				$empreinte = '' !== $fichier && is_readable( $fichier ) ? (string) sha1_file( $fichier ) : '';
+			}
+			$empreintes[] = $empreinte;
+		}
+		return $empreintes;
+	}
+
+	/**
+	 * Pièces jointes des blocs image d'un contenu enregistré (blocs imbriqués compris), dans
+	 * l'ordre de lecture ; 0 pour une image sans pièce jointe.
+	 *
+	 * @param string $contenu Contenu (blocs).
+	 * @return int[]
+	 */
+	public static function images_contenu( string $contenu ): array {
+		$ids       = array();
+		$parcourir = static function ( array $blocs ) use ( &$ids, &$parcourir ): void {
+			foreach ( $blocs as $bloc ) {
+				if ( 'core/image' === ( $bloc['blockName'] ?? '' ) ) {
+					$ids[] = (int) ( $bloc['attrs']['id'] ?? 0 );
+				}
+				if ( ! empty( $bloc['innerBlocks'] ) ) {
+					$parcourir( (array) $bloc['innerBlocks'] );
+				}
+			}
+		};
+		$parcourir( parse_blocks( $contenu ) );
+		return $ids;
+	}
+
+	/**
+	 * Les illustrations d'un chapitre du fichier diffèrent-elles de celles du chapitre
+	 * enregistré (nombre, ordre ou image) ?
+	 *
+	 * @param Result               $resultat Résultat.
+	 * @param array<string,mixed>  $chapitre Chapitre du Result.
+	 * @param \WP_Post             $post     Chapitre enregistré.
+	 * @param array<string,string> $cache    Empreintes des images du fichier (modifié).
+	 */
+	private static function illustrations_differentes( Result $resultat, array $chapitre, \WP_Post $post, array &$cache ): bool {
+		return self::empreintes_images_fichier( $resultat, (array) $chapitre['images'], $cache )
+			!== self::empreintes_images_enregistrees( self::images_contenu( (string) $post->post_content ) );
+	}
+
+	/**
+	 * Galerie d'illustrations du fichier (images placées avant le premier chapitre) comparée à
+	 * celle du tome (méta yume_illustrations) : null si le fichier n'en a pas ; sinon {nb, etat
+	 * (nouvelle : le tome n'en a pas ; identique ; modifie), etat_libelle, action (cree,
+	 * inchange, garder, maj), choix ('' ; garder par défaut ; maj = « Mettre à jour (sans
+	 * annonce) », appliquée à la sortie), cle (CLE_GALERIE, clé du paramètre choix), lien (page
+	 * Illustrations du tome, ou '')}.
+	 *
+	 * @param int                  $tome_id  Tome (0 : nouveau tome).
+	 * @param Result               $resultat Résultat.
+	 * @param array<string,string> $choix    Choix reçus (choix()).
+	 * @param array<string,string> $cache    Empreintes des images du fichier (modifié).
+	 * @return array<string,mixed>|null
+	 */
+	private static function comparer_galerie( int $tome_id, Result $resultat, array $choix, array &$cache ): ?array {
+		if ( ! $resultat->front_images ) {
+			return null;
+		}
+		$actuelle = $tome_id ? array_values( array_filter( array_map( 'intval', (array) get_post_meta( $tome_id, 'yume_illustrations', true ) ) ) ) : array();
+		$galerie  = array(
+			'nb'     => count( $resultat->front_images ),
+			'cle'    => self::CLE_GALERIE,
+			'etat'   => 'nouvelle',
+			'action' => 'cree',
+			'choix'  => '',
+			'lien'   => $tome_id && function_exists( '\Yume\Core\Core\url_illustrations' ) ? \Yume\Core\Core\url_illustrations( $tome_id ) : '',
+		);
+		if ( $actuelle ) {
+			if ( self::empreintes_images_fichier( $resultat, $resultat->front_images, $cache ) === self::empreintes_images_enregistrees( $actuelle ) ) {
+				$galerie['etat']   = 'identique';
+				$galerie['action'] = 'inchange';
+			} else {
+				$galerie['etat']   = 'modifie';
+				$galerie['choix']  = 'maj' === ( $choix[ self::CLE_GALERIE ] ?? '' ) ? 'maj' : 'garder';
+				$galerie['action'] = $galerie['choix'];
+			}
+		}
+		$galerie['etat_libelle'] = array(
+			'nouvelle'  => __( 'Nouvelle', 'yume-core' ),
+			'identique' => __( 'En ligne, identique', 'yume-core' ),
+			'modifie'   => __( 'En ligne, modifiée', 'yume-core' ),
+		)[ $galerie['etat'] ];
+		return $galerie;
+	}
+
+	/**
 	 * Enregistre l'empreinte du texte d'un chapitre (après sa création ou sa mise à jour).
 	 *
 	 * @param int $chapitre_id Chapitre.
@@ -865,36 +1004,44 @@ final class Service {
 	 * chapitre du fichier, dans l'ordre, son état par rapport au tome et ce qui en sera fait.
 	 *
 	 * - nouveau (aucun chapitre de même nature et numéro) : créé (action « cree ») ;
-	 * - en ligne, identique (même texte, empreinte_texte()) : rien n'est touché (« inchange ») ;
-	 * - en ligne, modifié : « garder » (défaut, rien n'est touché) ou « maj » (choix de l'équipe :
-	 *   mis à jour en place, sans annonce, à la sortie) ;
+	 * - en ligne, identique (même texte, empreinte_texte(), et mêmes illustrations,
+	 *   illustrations_differentes()) : rien n'est touché (« inchange ») ;
+	 * - en ligne, modifié (texte différent, ou texte identique mais illustrations différentes :
+	 *   difference = texte | illustrations) : « garder » (défaut, rien n'est touché) ou « maj »
+	 *   (choix de l'équipe : mis à jour en place, sans annonce, à la sortie) ;
 	 * - programmé ou brouillon (pas encore visible des lecteurs) : mis à jour en place
 	 *   (« programme » : sa date est gardée ; « brouillon » : il sort avec les nouveaux).
+	 *
+	 * La galerie d'illustrations du tome (images avant le premier chapitre) est comparée de même
+	 * (comparer_galerie(), clé CLE_GALERIE du paramètre choix).
 	 *
 	 * @param int                  $tome_id  Tome (0 : nouveau tome, tout est nouveau).
 	 * @param Result               $resultat Résultat de la conversion.
 	 * @param array<string,string> $choix    Choix des chapitres modifiés (choix()).
-	 * @return array{lignes:array<int,array<string,mixed>>,nouveaux:int,identiques:int,modifies:int,a_mettre_a_jour:int,programmes:int,brouillons:int}
+	 * @return array{lignes:array<int,array<string,mixed>>,nouveaux:int,identiques:int,modifies:int,illustrations:int,a_mettre_a_jour:int,programmes:int,brouillons:int,galerie:array<string,mixed>|null}
 	 */
 	public static function comparer( int $tome_id, Result $resultat, array $choix = array() ): array {
-		$existants = self::chapitres_par_cle( $tome_id );
-		$etats     = array(
+		$existants    = self::chapitres_par_cle( $tome_id );
+		$cache_images = array();
+		$etats        = array(
 			'nouveau'   => __( 'Nouveau', 'yume-core' ),
 			'identique' => __( 'En ligne, identique', 'yume-core' ),
 			'modifie'   => __( 'En ligne, modifié', 'yume-core' ),
 			'programme' => __( 'Programmé', 'yume-core' ),
 			'brouillon' => __( 'Brouillon', 'yume-core' ),
 		);
-		$bilan     = array(
+		$bilan        = array(
 			'lignes'          => array(),
 			'nouveaux'        => 0,
 			'identiques'      => 0,
 			'modifies'        => 0,
+			'illustrations'   => 0,
 			'a_mettre_a_jour' => 0,
 			'programmes'      => 0,
 			'brouillons'      => 0,
+			'galerie'         => null,
 		);
-		$rangs     = array();
+		$rangs        = array();
 		foreach ( $resultat->chapters as $i => $chapitre ) {
 			$numero = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
 			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs );
@@ -911,6 +1058,7 @@ final class Service {
 				'nb_mots'    => (int) $chapitre['nb_mots'],
 				'existant'   => null,
 				'etat'       => 'nouveau',
+				'difference' => '',
 				'action'     => 'cree',
 				'choix'      => '',
 			);
@@ -923,19 +1071,21 @@ final class Service {
 					'date_libelle' => 'future' === $post->post_status ? Formulaire::date_fr( (int) strtotime( $post->post_date_gmt . ' UTC' ), 'court' ) : '',
 				);
 				if ( in_array( $post->post_status, array( 'publish', 'private' ), true ) ) {
-					$fichier = Blocks::remplacer_images(
+					$fichier    = Blocks::remplacer_images(
 						(string) $chapitre['blocks'],
 						static function (): string {
 							return '';
 						}
 					);
-					if ( self::empreinte_chapitre( $post ) === self::empreinte_texte( $noms['titre'], $fichier ) ) {
+					$meme_texte = self::empreinte_chapitre( $post ) === self::empreinte_texte( $noms['titre'], $fichier );
+					if ( $meme_texte && ! self::illustrations_differentes( $resultat, $chapitre, $post, $cache_images ) ) {
 						$ligne['etat']   = 'identique';
 						$ligne['action'] = 'inchange';
 					} else {
-						$ligne['etat']   = 'modifie';
-						$ligne['choix']  = 'maj' === ( $choix[ $cle ] ?? '' ) ? 'maj' : 'garder';
-						$ligne['action'] = $ligne['choix'];
+						$ligne['etat']       = 'modifie';
+						$ligne['difference'] = $meme_texte ? 'illustrations' : 'texte';
+						$ligne['choix']      = 'maj' === ( $choix[ $cle ] ?? '' ) ? 'maj' : 'garder';
+						$ligne['action']     = $ligne['choix'];
 					}
 				} elseif ( 'future' === $post->post_status ) {
 					$ligne['etat']   = 'programme';
@@ -946,7 +1096,11 @@ final class Service {
 				}
 			}
 			$ligne['etat_libelle'] = $etats[ $ligne['etat'] ];
-			$compteur              = array(
+			if ( 'illustrations' === $ligne['difference'] ) {
+				$ligne['etat_libelle'] = __( 'En ligne, illustrations modifiées', 'yume-core' );
+				++$bilan['illustrations'];
+			}
+			$compteur = array(
 				'nouveau'   => 'nouveaux',
 				'identique' => 'identiques',
 				'modifie'   => 'modifies',
@@ -959,6 +1113,7 @@ final class Service {
 			}
 			$bilan['lignes'][] = $ligne;
 		}
+		$bilan['galerie'] = self::comparer_galerie( $tome_id, $resultat, $choix, $cache_images );
 		return $bilan;
 	}
 
@@ -1587,7 +1742,8 @@ final class Service {
 			$sans_annonce = null === $champs['sans_annonce'] ? self::sans_annonce_par_defaut( $tome ) : (bool) $champs['sans_annonce'];
 			// Ajout de chapitres : comparaison du fichier avec le tome (rien n'est retiré).
 			$comparaison  = $chapitres_mode && $resultat ? self::comparer( $tome ? (int) $tome->ID : 0, $resultat, $champs['choix'] ) : null;
-			$mises_a_jour = $comparaison && $comparaison['a_mettre_a_jour'] > 0;
+			$galerie_maj  = $comparaison && 'maj' === ( $comparaison['galerie']['action'] ?? '' );
+			$mises_a_jour = $comparaison && ( $comparaison['a_mettre_a_jour'] > 0 || $galerie_maj );
 			// Tome paru avec sa lecture en ligne (hors ajout de chapitres) : le nouveau fichier
 			// attend l'application (remplacement en deux temps).
 			$attente = $resultat && $tome && ! $chapitres_mode && Remplacement::mode( $tome );
@@ -1654,15 +1810,16 @@ final class Service {
 				try {
 					$galerie = array();
 					$alt     = sprintf( /* translators: %s : titre du tome */ __( 'Illustration — %s', 'yume-core' ), get_the_title( $tome_id ) );
-					// Ajout de chapitres : la galerie du tome n'est posée que s'il n'en a pas encore.
-					$images_avant = $chapitres_mode && get_post_meta( $tome_id, 'yume_illustrations', true ) ? array() : $resultat->front_images;
+					// Ajout de chapitres : la galerie du tome est posée s'il n'en a pas encore ; sinon
+					// elle n'est remplacée, à la sortie, que sur choix « Mettre à jour » (comparer()).
+					$images_avant = $chapitres_mode && get_post_meta( $tome_id, 'yume_illustrations', true ) && ! $galerie_maj ? array() : $resultat->front_images;
 					foreach ( $images_avant as $cle ) {
-						$id = self::image( $resultat, (string) $cle, $attente ? 0 : $tome_id, $tome_id, $alt, $cache, $avert );
+						$id = self::image( $resultat, (string) $cle, $attente || $galerie_maj ? 0 : $tome_id, $tome_id, $alt, $cache, $avert );
 						if ( $id ) {
 							$galerie[] = $id;
 						}
 					}
-					if ( $galerie && ! $attente ) {
+					if ( $galerie && ! $attente && ! $galerie_maj ) {
 						update_post_meta( $tome_id, 'yume_illustrations', $galerie );
 					}
 					$cle_couv  = (string) ( $resultat->stats['couverture'] ?? '' );
@@ -1685,7 +1842,7 @@ final class Service {
 								'hash'   => (string) ( $resultat->stats['hash'] ?? '' ),
 							) : array(),
 							'resume'          => self::resume( $resultat ),
-							'galerie'         => $attente && $galerie ? $galerie : null,
+							'galerie'         => ( $attente || $galerie_maj ) && $galerie ? $galerie : null,
 							'couverture'      => $attente ? $couv_epub : 0,
 							'retirer_absents' => $attente && ! empty( $champs['retirer_absents'] ),
 							'absents'         => array_map( 'intval', array_column( $chapitres['disparus'], 'id' ) ),

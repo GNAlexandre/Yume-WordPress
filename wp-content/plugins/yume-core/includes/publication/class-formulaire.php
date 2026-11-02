@@ -489,6 +489,9 @@ final class Formulaire {
 			/* translators: %d : nombre de chapitres */
 			$parties[] = sprintf( _n( '%d chapitre en ligne à mettre à jour à la sortie (sans annonce)', '%d chapitres en ligne à mettre à jour à la sortie (sans annonce)', (int) $c['a_mettre_a_jour'], 'yume-core' ), (int) $c['a_mettre_a_jour'] );
 		}
+		if ( 'maj' === ( $c['galerie']['action'] ?? '' ) ) {
+			$parties[] = __( 'galerie d’illustrations du tome à mettre à jour à la sortie (sans annonce)', 'yume-core' );
+		}
 		if ( (int) $c['programmes'] > 0 ) {
 			/* translators: %d : nombre de chapitres */
 			$parties[] = sprintf( _n( '%d chapitre programmé mis à jour (date gardée)', '%d chapitres programmés mis à jour (dates gardées)', (int) $c['programmes'], 'yume-core' ), (int) $c['programmes'] );
@@ -561,6 +564,9 @@ final class Formulaire {
 		if ( $maj > 0 ) {
 			/* translators: %d : nombre de chapitres */
 			$phrases[] = sprintf( _n( '%d chapitre en ligne mis à jour en place, sans annonce.', '%d chapitres en ligne mis à jour en place, sans annonce.', $maj, 'yume-core' ), $maj );
+		}
+		if ( ! empty( $sortie['remplacement_applique']['galerie'] ) ) {
+			$phrases[] = __( 'Galerie d’illustrations du tome remplacée par celle du fichier, sans annonce.', 'yume-core' );
 		}
 		if ( 'fait' === ( $sortie['complet'] ?? '' ) && 'future' === ( $sortie['statut'] ?? '' ) ) {
 			$phrases[] = sprintf(
