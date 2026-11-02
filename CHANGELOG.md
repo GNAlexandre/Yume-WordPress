@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.7.3 — 2026-11-02
+
+- Yume Novel 2.7.3 : ajout de chapitres — illustrations modifiées et galerie du tome comparées et remplaçables en place (images provisoires puis traduites) ; planning de l’accueil — encarts des tomes en cours retirés de « Chapitres en lecture », « Tomes en préparation » montre la première étape non terminée
+
 ## 2.7.3-dev.2 — 2026-11-02
 
 - Planning sur l’accueil : plus d’encarts des tomes publiés chapitre par chapitre dans « Chapitres en lecture » (déjà dans « Dernières sorties » ; gardés sur la page Planning) ; « Tomes en préparation » montre la première étape non terminée (« Traduction 100 % » devient « Relecture 0 % »), barre et retard compris
