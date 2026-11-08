@@ -7,6 +7,9 @@
  *                                               tome et chapitres en brouillon (ou mis à jour), rapport ;
  * - POST /yume/v1/publications/(?P<id>\d+)/publier  « quand » = maintenant | date ISO (applique
  *                                               d'abord un remplacement de lecture en ligne en attente) ;
+ * - POST /yume/v1/publications/(?P<id>\d+)/calendrier  calendrier sur mesure du tome (vue
+ *                                               « Programmer les sorties ») : programme les brouillons
+ *                                               et reprogramme les chapitres déjà programmés ;
  * - DELETE /yume/v1/publications/(?P<id>\d+)/remplacement  annule le remplacement en attente
  *                                               (versions et images supprimées, rien ne change en ligne).
  *
@@ -24,7 +27,9 @@
  * Service, en-tête) : « tome_id » (tome choisi, jamais renommé), « choix » (objet clé de
  * chapitre => garder | maj, d'après la comparaison renvoyée par l'analyse), « complet »
  * (booléen : le tome est complet avec ces chapitres ; liens « lien_pdf » / « lien_epub »),
- * « sortie » (maintenant | rythme | date) et « intervalle » (jours, un par un sans rythme). Sans
+ * « sortie » (maintenant | rythme | date | calendrier), « intervalle » (jours, un par un sans
+ * rythme), « calendrier » (JSON des publications et de leurs dates, voir Calendrier) ou, sans
+ * calendrier, « repartition » (N publications réparties par nombre de mots). Sans
  * « mode » : comportement historique (outil en ligne de commande, intégrations).
  *
  * Les fichiers téléversés sont contrôlés (type réel, extension, taille) et supprimés après
@@ -112,6 +117,35 @@ final class Rest {
 					'lien_epub'      => $champs['lien_epub'],
 					'sortie'         => $champs['sortie'],
 					'intervalle'     => $champs['intervalle'],
+					'calendrier'     => $champs['calendrier'],
+					'repartition'    => $champs['repartition'],
+				),
+			)
+		);
+		register_rest_route(
+			self::ESPACE,
+			'/publications/(?P<id>\d+)/calendrier',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( self::class, 'calendrier' ),
+				'permission_callback' => array( self::class, 'peut_publier_tome' ),
+				'args'                => array(
+					'id'           => array(
+						'description' => __( 'Identifiant du tome.', 'yume-core' ),
+						'type'        => 'integer',
+						'minimum'     => 1,
+						'required'    => true,
+					),
+					'calendrier'   => $champs['calendrier'],
+					'repartition'  => $champs['repartition'],
+					'depart'       => array(
+						'description'       => __( 'Avec « repartition » : date de la première publication (AAAA-MM-JJTHH:MM, heure du site) ; vide : rythme du tome, ou maintenant.', 'yume-core' ),
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'intervalle'   => $champs['intervalle'],
+					'sans_annonce' => self::argument_sans_annonce(),
+					'annoncer'     => $champs['annoncer'],
 				),
 			)
 		);
@@ -253,6 +287,24 @@ final class Rest {
 					'type'        => 'integer',
 					'minimum'     => 1,
 					'maximum'     => 60,
+				)
+			),
+			'calendrier'       => array(
+				'description'       => __( 'Sortie « calendrier » : {"publications": [{"date": "2026-11-15T18:00", "chapitres": ["chapitre:1#1", "id:123"]}]} (JSON ou objet). Clés : celles de la comparaison de l’analyse, ou « id:N » pour un chapitre enregistré ; date vide : maintenant.', 'yume-core' ),
+				'validate_callback' => static function ( $valeur ) {
+					$calendrier = Calendrier::analyser( $valeur );
+					return is_wp_error( $calendrier ) ? $calendrier : true;
+				},
+				'sanitize_callback' => static function ( $valeur ) {
+					return is_array( $valeur ) || is_string( $valeur ) ? $valeur : null;
+				},
+			),
+			'repartition'      => yume_rest_arg_vide_absent(
+				array(
+					'description' => __( 'Sortie « calendrier » sans calendrier : nombre de publications, chapitres répartis par nombre de mots (dates au rythme du tome, ou depuis « quand » tous les « intervalle » jours).', 'yume-core' ),
+					'type'        => 'integer',
+					'minimum'     => 1,
+					'maximum'     => Calendrier::MAX,
 				)
 			),
 			'plan'             => array(
@@ -473,10 +525,16 @@ final class Rest {
 					'complet'       => null === $requete->get_param( 'complet' ) ? null : (bool) $requete->get_param( 'complet' ),
 					'liens_dernier' => null === $requete->get_param( 'liens_dernier' ) ? null : (bool) $requete->get_param( 'liens_dernier' ),
 					'liens'         => $liens,
+					'calendrier'    => $requete->get_param( 'calendrier' ),
+					'repartition'   => (int) $requete->get_param( 'repartition' ),
 				)
 			);
 		}
-		$resultat = Service::publier( $id, (string) $requete->get_param( 'quand' ), $options );
+		$quand = (string) $requete->get_param( 'quand' );
+		if ( 'calendrier' === ( $options['sortie'] ?? '' ) && $requete->get_param( 'calendrier' ) ) {
+			$quand = 'maintenant'; // Les dates sont celles du calendrier.
+		}
+		$resultat = Service::publier( $id, $quand, $options );
 		if ( is_wp_error( $resultat ) ) {
 			return self::erreur( $resultat );
 		}
@@ -484,5 +542,30 @@ final class Rest {
 			$resultat['message'] = Formulaire::message_chapitres( $resultat );
 		}
 		return rest_ensure_response( $resultat );
+	}
+
+	/**
+	 * POST /publications/{id}/calendrier : programme les brouillons et reprogramme les chapitres
+	 * déjà programmés du tome (Calendrier::reprogrammer()).
+	 *
+	 * @param \WP_REST_Request $requete Requête.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function calendrier( \WP_REST_Request $requete ) {
+		$sans_annonce = $requete->get_param( 'sans_annonce' );
+		if ( null === $sans_annonce && null !== $requete->get_param( 'annoncer' ) ) {
+			$sans_annonce = ! $requete->get_param( 'annoncer' );
+		}
+		$resultat = Calendrier::reprogrammer(
+			(int) $requete['id'],
+			array(
+				'calendrier'   => $requete->get_param( 'calendrier' ),
+				'repartition'  => (int) $requete->get_param( 'repartition' ),
+				'depart'       => (string) $requete->get_param( 'depart' ),
+				'intervalle'   => null === $requete->get_param( 'intervalle' ) ? Service::INTERVALLE_DEFAUT : (int) $requete->get_param( 'intervalle' ),
+				'sans_annonce' => null === $sans_annonce ? null : (bool) $sans_annonce,
+			)
+		);
+		return is_wp_error( $resultat ) ? self::erreur( $resultat ) : rest_ensure_response( $resultat );
 	}
 }

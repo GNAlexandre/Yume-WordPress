@@ -69,6 +69,7 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			'POST /yume/v1/publications/analyse'          => $equipe_planning,
 			'POST /yume/v1/publications'                  => $equipe_planning,
 			'POST /yume/v1/publications/(?P<id>\d+)/publier' => $equipe_planning,
+			'POST /yume/v1/publications/(?P<id>\d+)/calendrier' => $equipe_planning,
 			'DELETE /yume/v1/publications/(?P<id>\d+)/remplacement' => $equipe_planning,
 
 			// Planning (includes/planning/rest.php).

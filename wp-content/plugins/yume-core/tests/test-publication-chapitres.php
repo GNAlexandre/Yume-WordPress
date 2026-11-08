@@ -315,6 +315,11 @@ if ( ! function_exists( 'yume_tpc_docx' ) ) {
 	}
 }
 
+// Chargé pour ses seules fonctions d'aide (test-publication-calendrier.php) : pas de tests.
+if ( ! empty( $GLOBALS['yume_tests_publication_aides_seules'] ) ) {
+	return;
+}
+
 /*
  * -----------------------------------------------------------------------------
  * Le tome d'abord : jamais renommé

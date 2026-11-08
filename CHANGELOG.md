@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.8.0-dev.5 — 2026-11-08
+
+- Programmation des sorties : choix « Calendrier sur mesure » (dates modifiables une à une, une annonce par publication), répartition automatique en N publications par nombre de mots (Service::repartir(), sans couper un chapitre ni un sous-chapitre), vue d’équipe « Programmer les sorties » (?vue=programmer) et route POST /yume/v1/publications/{id}/calendrier pour reprogrammer les chapitres déjà programmés
+
 ## 2.8.0-dev.4 — 2026-11-08
 
 - Sous-chapitres : nature « Sous-chapitre » à l’import et à la publication (bouton « Couper aux Titre 2 (sous-chapitres) », marqueur [sous-chapitre] Titre, chapitre parent sans texte absorbé dans ses parties), libellés « Chapitre 2, partie 1 » / « Partie 1 », sommaire du tome groupé par chapitre, en-tête de partie avec surtitre du chapitre ; détection automatique inchangée

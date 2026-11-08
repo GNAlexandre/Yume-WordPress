@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string[]
  */
 function champs_evenements(): array {
-	return array( 'creation', 'publie', 'depublie', 'chapitre_publie', 'retire', 'etape_forcee', 'rappel', 'signalement', 'digest', 'lecture_ajoutee' );
+	return array( 'creation', 'publie', 'depublie', 'chapitre_publie', 'retire', 'etape_forcee', 'rappel', 'signalement', 'digest', 'lecture_ajoutee', 'calendrier' );
 }
 
 /**
@@ -34,7 +34,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution', 'chapitres_prevus', 'serie_a_venir' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution', 'chapitres_prevus', 'serie_a_venir', 'calendrier' );
 }
 
 /**
@@ -479,6 +479,30 @@ function texte_changement( $ligne, bool $equipe ): string {
 				? sprintf( __( 'chapitres prévus : %d', 'yume-core' ), $a )
 				/* translators: 1: avant, 2: après */
 				: sprintf( __( 'chapitres prévus : %1$d → %2$d', 'yume-core' ), $de, $a );
+
+		case 'calendrier':
+			// Calendrier sur mesure enregistré (vue « Programmer les sorties ») : équipe seulement.
+			if ( ! $equipe ) {
+				return '';
+			}
+			$infos   = is_array( $nouveau ) ? $nouveau : array();
+			$nb      = (int) ( $infos['publications'] ?? 0 );
+			$parties = array(
+				/* translators: %d : nombre de publications */
+				sprintf( _n( 'sorties programmées : %d publication', 'sorties programmées : %d publications', $nb, 'yume-core' ), $nb ),
+			);
+			if ( ! empty( $infos['debut'] ) && ! empty( $infos['fin'] ) ) {
+				$parties[] = $infos['debut'] === $infos['fin']
+					/* translators: %s : date */
+					? sprintf( __( 'le %s', 'yume-core' ), format_fr( ts_gmt( (string) $infos['debut'] ), 'j M' ) )
+					/* translators: 1: première date, 2: dernière date */
+					: sprintf( __( 'du %1$s au %2$s', 'yume-core' ), format_fr( ts_gmt( (string) $infos['debut'] ), 'j M' ), format_fr( ts_gmt( (string) $infos['fin'] ), 'j M' ) );
+			}
+			if ( ! empty( $infos['reprogrammes'] ) ) {
+				/* translators: %d : nombre de chapitres */
+				$parties[] = sprintf( _n( '%d chapitre reprogrammé', '%d chapitres reprogrammés', (int) $infos['reprogrammes'], 'yume-core' ), (int) $infos['reprogrammes'] );
+			}
+			return implode( ', ', $parties );
 
 		case 'etat_oeuvre':
 			// Changement d'état d'une œuvre (oeuvres-etat.php) : équipe seulement.

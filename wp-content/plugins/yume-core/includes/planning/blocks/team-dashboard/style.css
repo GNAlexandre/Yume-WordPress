@@ -2295,3 +2295,7 @@
 		flex: 1 1 100%;
 	}
 }
+
+.yn-team .yn-chapitres__liens {
+	margin: 0;
+}

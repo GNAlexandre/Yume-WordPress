@@ -11,7 +11,8 @@
  *   la version en ligne » / « Mettre à jour (sans annonce) », champ choix[clé]), « Programmé »,
  *   « Brouillon » ; galerie d'illustrations du tome sur une ligne à part, même choix ;
  * - sortie des nouveaux chapitres (maintenant, un par un au rythme ou tous les N jours, à une
- *   date), annonce (« Annoncer les nouveaux chapitres », ou « Ajout au catalogue » pour un tome
+ *   date, calendrier sur mesure : panneau « Programmer les sorties » de programmer.js, nourri
+ *   ici par programmerDefinir()), annonce (« Annoncer les nouveaux chapitres », ou « Ajout au catalogue » pour un tome
  *   complet déjà paru), « Le tome est complet » (liens PDF et EPUB activés seulement alors) ;
  * - récapitulatif « Ce qui va se passer » (data-yn-recap) recalculé à chaque changement ;
  * - glisser-déposer de la couverture et du DOCX/EPUB (le champ fichier reste utilisable
@@ -184,6 +185,14 @@
 		var prevusTouche = false;
 		var recap = racine.querySelector( '[data-yn-recap]' );
 		var publierLibelle = racine.querySelector( '[data-yn-publier-libelle]' );
+		// Calendrier sur mesure : panneau « Programmer les sorties » (programmer.js).
+		var panneauProg = racine.querySelector( '[data-yn-programmer]' );
+		var configProgInitiale = null;
+		try {
+			configProgInitiale = panneauProg ? JSON.parse( panneauProg.getAttribute( 'data-yn-programmer-config' ) || 'null' ) : null;
+		} catch ( err ) {
+			configProgInitiale = null;
+		}
 		// Dernière analyse : comparaison avec le tome et informations du tome (rythme, dates).
 		var comparaisonCourante = null;
 		var infosAnalyse = null;
@@ -750,16 +759,70 @@
 					? rythme.charAt( 0 ).toUpperCase() + rythme.slice( 1 ) + ', après le dernier chapitre déjà programmé. Une annonce par chapitre.'
 					: 'Ce tome n’a pas de rythme : à partir de la date choisie (ou maintenant), puis tous les N jours. Une annonce par chapitre.';
 			}
+			var unParUn = sortie === 'rythme' || sortie === 'calendrier';
 			if ( sortieDate ) {
-				sortieDate.hidden = ! ( sortie === 'date' || ( sortie === 'rythme' && ! rythme ) );
+				sortieDate.hidden = ! ( sortie === 'date' || ( unParUn && ! rythme ) );
 			}
 			if ( sortieIntervalle ) {
-				sortieIntervalle.hidden = ! ( sortie === 'rythme' && ! rythme );
+				sortieIntervalle.hidden = ! ( unParUn && ! rythme );
 			}
+			programmerDefinir();
 			if ( date ) {
 				date.required = sortie === 'date';
 			}
 			majActionsComparaison();
+		}
+
+		/**
+		 * Panneau « Programmer les sorties » : visible avec « Calendrier sur mesure » ; unités =
+		 * chapitres à sortir de la comparaison (clés de comparaison) puis brouillons du tome
+		 * absents du fichier (id:N), sinon brouillons du tome affiché par le serveur.
+		 */
+		function programmerDefinir() {
+			if ( ! panneauProg ) {
+				return;
+			}
+			panneauProg.hidden = ! ( chapitresMode && sortieChoisie() === 'calendrier' );
+			var infos = infosTome();
+			var analyse = infosAnalyse && infos && String( infosAnalyse.id ) === String( infos.id ) ? infosAnalyse : null;
+			var config;
+			if ( comparaisonCourante ) {
+				var sortants = aSortir();
+				var ids = {};
+				var unites = sortants.map( function ( l ) {
+					if ( l.existant && l.existant.id ) {
+						ids[ l.existant.id ] = true;
+					}
+					return { cle: l.cle, libelle: l.titre || l.libelle, nature: l.nature, nature_libelle: natures[ l.nature ] || l.nature, mots: l.nb_mots };
+				} );
+				( analyse && analyse.a_sortir ? analyse.a_sortir : [] ).forEach( function ( u ) {
+					if ( ! ids[ u.id ] ) {
+						unites.push( u );
+					}
+				} );
+				config = {
+					unites: unites,
+					rythme: analyse ? analyse.rythme_regle : null,
+					dates: ( analyse && analyse.dates_rythme ? analyse.dates_rythme : [] ).map( function ( d ) {
+						return String( d.date || '' ).slice( 0, 16 );
+					} ),
+					maintenant: analyse ? analyse.maintenant : ( configProgInitiale || {} ).maintenant,
+				};
+			} else if ( configProgInitiale && infos && String( configProgInitiale.tome ) === String( infos.id ) ) {
+				config = Object.assign( {}, configProgInitiale );
+			} else {
+				config = { unites: [], rythme: null, dates: [], maintenant: ( configProgInitiale || {} ).maintenant };
+			}
+			config.depart = date ? date.value : '';
+			config.intervalle = intervalle ? intervalle.value : 7;
+			panneauProg.setAttribute( 'data-yn-programmer-config', JSON.stringify( config ) );
+			if ( panneauProg.ynProgrammer ) {
+				panneauProg.ynProgrammer.definir( config );
+			}
+			var lienVue = panneauProg.querySelector( '[data-yn-programmer-lien]' );
+			if ( lienVue && analyse && analyse.programmer ) {
+				lienVue.href = analyse.programmer;
+			}
 		}
 
 		function majComplet() {
@@ -1254,6 +1317,7 @@
 				infosAnalyse = rapport.tome || null;
 				afficherComparaison( rapport.comparaison || null );
 				majFicheTome();
+				programmerDefinir();
 				if ( essai ) {
 					annoncer( 'Découpage vérifié (rien n’est enregistré) : ' + rapport.resume + '.' + ( planActif.checked ? '' : ' Cochez « Utiliser ce découpage » pour l’appliquer à l’enregistrement.' ), 'succes' );
 					return;
@@ -1477,7 +1541,8 @@
 				} else {
 					question = ( sortieAjout === 'maintenant' ? 'Publier maintenant ' : 'Programmer ' )
 						+ ( comparaisonCourante ? pluriel( nbSortants, 'chapitre', 'chapitres' ) : 'les nouveaux chapitres' )
-						+ ( sortieAjout === 'rythme' ? ' un par un' : '' ) + ' ?'
+						+ ( sortieAjout === 'rythme' ? ' un par un' : '' )
+						+ ( sortieAjout === 'calendrier' && panneauProg && panneauProg.ynProgrammer ? ' en ' + pluriel( panneauProg.ynProgrammer.nbPublications(), 'publication', 'publications' ) : '' ) + ' ?'
 						+ ( modeCatalogue() ? ' Sans annonce (ni article, ni Discord, ni e-mail).' : ' Les lecteurs qui suivent l’œuvre seront prévenus' + ( sortieAjout === 'maintenant' ? '.' : ' à chaque sortie.' ) )
 						+ ( completCase && completCase.checked ? ' Le tome passera « Publié ».' : '' )
 						+ ( majChoisies.nb ? ' ' + pluriel( majChoisies.nb, 'mise à jour en place appliquée (sans annonce).', 'mises à jour en place appliquées (sans annonce).' ) : '' );
@@ -1496,7 +1561,7 @@
 			}
 			var fenetre = etape === 'apercu' ? window.open( '', '_blank' ) : null;
 			var donnees = new FormData( form );
-			[ 'action', '_yume_nonce', '_wp_http_referer', 'etape' ].forEach( function ( nom ) {
+			[ 'action', '_yume_nonce', '_wp_http_referer', 'etape', 'calendrier', 'repartition' ].forEach( function ( nom ) {
 				donnees.delete( nom );
 			} );
 			// Nombres facultatifs laissés vides : non envoyés (l'API les lit comme absents).
@@ -1578,7 +1643,8 @@
 				if ( etape === 'publier' || etape === 'programmer' || etape === 'remplacer' ) {
 					var sortir = function ( confirme ) {
 						var sortieDonnees = new FormData();
-						var avecDate = etape === 'programmer' || ( ajout && ( sortieAjout === 'date' || ( sortieAjout === 'rythme' && ! ( infosTome() || {} ).rythme && date.value ) ) );
+						var calendrierProg = ajout && sortieAjout === 'calendrier' && panneauProg && panneauProg.ynProgrammer ? panneauProg.ynProgrammer.calendrier() : '';
+						var avecDate = etape === 'programmer' || ( ajout && ( sortieAjout === 'date' || ( ( sortieAjout === 'rythme' || ( sortieAjout === 'calendrier' && ! calendrierProg ) ) && ! ( infosTome() || {} ).rythme && date.value ) ) );
 						sortieDonnees.append( 'quand', avecDate ? date.value : 'maintenant' );
 						// Toujours explicite : sans ce champ, l'API choisit selon le statut du tome.
 						sortieDonnees.append( 'sans_annonce', rapport.sans_annonce ? '1' : '0' );
@@ -1586,6 +1652,14 @@
 							sortieDonnees.append( 'mode', 'chapitres' );
 							sortieDonnees.append( 'sortie', etape === 'programmer' ? 'date' : sortieAjout );
 							sortieDonnees.append( 'intervalle', ( intervalle && intervalle.value ) || '7' );
+							if ( sortieAjout === 'calendrier' && etape !== 'programmer' ) {
+								// Calendrier du panneau (JSON), sinon répartition en N publications.
+								sortieDonnees.append( 'calendrier', calendrierProg );
+								var champRepartition = panneauProg ? panneauProg.querySelector( '[data-yn-programmer-n]' ) : null;
+								if ( champRepartition && champRepartition.value ) {
+									sortieDonnees.append( 'repartition', champRepartition.value );
+								}
+							}
 							sortieDonnees.append( 'complet', completCase && completCase.checked ? '1' : '0' );
 							sortieDonnees.append( 'liens_dernier', liensDernierCase && liensDernierCase.checked && ! ( completCase && completCase.checked ) ? '1' : '0' );
 							if ( ( completCase && completCase.checked ) || ( liensDernierCase && liensDernierCase.checked ) ) {
@@ -1865,6 +1939,10 @@
 		} );
 		if ( intervalle ) {
 			intervalle.addEventListener( 'input', majActionsComparaison );
+			intervalle.addEventListener( 'change', programmerDefinir );
+		}
+		if ( date ) {
+			date.addEventListener( 'change', programmerDefinir );
 		}
 		if ( completCase ) {
 			completCase.addEventListener( 'change', majComplet );

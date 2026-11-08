@@ -1,0 +1,177 @@
+/*
+ * Panneau « Programmer les sorties » (calendrier sur mesure) : formulaire « Ajouter des
+ * chapitres à un tome » et vue de l'espace équipe ?vue=programmer. Variables de theme.json.
+ */
+
+.yn-programmer {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 24px;
+}
+
+.yn-programmer[hidden] {
+	display: none;
+}
+
+.yn-programmer__titre {
+	margin: 0;
+	font-family: var(--wp--preset--font-family--titres);
+	font-size: 18px;
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-programmer__intro,
+.yn-programmer__sans-js,
+.yn-programmer__lien {
+	margin: 0;
+	font-size: 14px;
+}
+
+.yn-programmer__tete {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px 16px;
+}
+
+.yn-programmer__champ {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+}
+
+.yn-programmer__champ input[type="number"] {
+	width: 7em;
+}
+
+.yn-programmer__resume {
+	flex: 1 1 260px;
+	margin: 0;
+	padding-bottom: 6px;
+	font-weight: 600;
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-programmer__liste {
+	overflow-x: auto;
+}
+
+.yn-programmer__unites {
+	margin: 0;
+	padding-left: 1.4em;
+	font-size: 14px;
+}
+
+.yn-programmer__table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+.yn-programmer__table :where(th, td) {
+	padding: 6px 10px;
+	text-align: left;
+	vertical-align: middle;
+}
+
+.yn-programmer__table thead th {
+	color: var(--wp--preset--color--texte-faible);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.yn-programmer__groupe {
+	border-top: 2px solid var(--wp--preset--color--filet);
+}
+
+.yn-programmer__entete th {
+	background: var(--wp--preset--color--bande);
+	color: var(--wp--preset--color--texte-fort);
+}
+
+.yn-programmer__entete th > * {
+	margin-right: 12px;
+}
+
+.yn-programmer__date input {
+	font: inherit;
+}
+
+.yn-programmer__aide:empty {
+	display: none;
+}
+
+.yn-programmer__mots {
+	font-weight: 400;
+}
+
+.yn-programmer__unite + .yn-programmer__unite :where(th, td) {
+	border-top: 1px solid var(--wp--preset--color--filet);
+}
+
+.yn-programmer__unite .yn-programmer__libelle {
+	font-weight: 400;
+	color: var(--wp--preset--color--texte);
+}
+
+.yn-programmer__coupure {
+	width: 3em;
+}
+
+.yn-programmer__coupure input:focus-visible,
+.yn-programmer__date input:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-programmer__nombre {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.yn-programmer__boutons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+}
+
+.yn-programmer__boutons[hidden] {
+	display: none;
+}
+
+/* Vue « Programmer les sorties » de l'espace équipe. */
+.yn-programmer-vue {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.yn-programmer-vue__reglages {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px 24px;
+	align-items: flex-end;
+	padding: 16px 24px;
+}
+
+.yn-programmer-vue__reglages p {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+}
+
+@media (max-width: 600px) {
+	.yn-programmer {
+		padding: 16px;
+	}
+
+	.yn-programmer__entete th > * {
+		display: block;
+		margin: 2px 0;
+	}
+}

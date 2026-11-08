@@ -518,6 +518,34 @@ Chaque chapitre sort à sa date, avec sa propre annonce : « SukaMoka, Tome 2 : 
 
 > **À savoir** : le tome n'a pas de rythme ? Indiquez la **Date** de départ et le nombre de jours dans **Un chapitre tous les (jours)** (7 par défaut). Pour donner un rythme au tome, voir « Modifier les informations d'un tome ».
 
+## Programmer les sorties : calendrier sur mesure et répartition en N publications
+
+Exemple : le tome 2 de Miss Medic compte 45 chapitres et parties. Vous voulez le sortir en 10 publications de longueur comparable, chacune à sa date.
+
+1. Ouvrez **Ajouter des chapitres**, choisissez le tome et déposez le DOCX.
+2. À l'étape « 3 · La sortie des nouveaux chapitres », choisissez **Calendrier sur mesure**. Le panneau **Programmer les sorties** s'ouvre sous l'étape 3, avec tous les chapitres à sortir.
+3. Tapez **10** dans **Nombre de publications**, puis cliquez sur **Répartir**. Les chapitres sont répartis par nombre de mots, sans jamais couper un chapitre. Le résumé indique par exemple « 10 publications · 5 526 mots en moyenne · de 4 252 à 8 453 ».
+4. Vérifiez les coupures. Pour en ajouter ou en retirer une, cochez ou décochez **Nouvelle publication ici** sur la ligne du chapitre.
+5. Choisissez la date de la **Publication 1**, puis cliquez sur **Recalculer les dates** : les suivantes suivent le rythme du tome (ou une publication tous les N jours). Vous pouvez ensuite changer la date de n'importe quelle publication.
+6. Cliquez sur **Programmer 45 chapitres** (le bouton donne le nombre de chapitres), puis confirmez.
+
+Chaque publication sort à sa date, avec une seule annonce pour tous ses chapitres : « SukaMoka, Tome 2 : chapitres 4 à 6 disponibles ! ».
+
+> **Astuce** : **Tout en une publication** regroupe tous les chapitres à la même date. **Une par chapitre** revient à un chapitre par publication.
+
+> **À savoir** : un chapitre sans texte (titre d'une partie, page d'illustrations) ne sort jamais seul : il part avec le chapitre qui le suit. Une date déjà passée veut dire « maintenant » : le site vous le signale.
+
+> **À savoir** : sans JavaScript, indiquez seulement le **Nombre de publications** : la répartition et les dates sont calculées à l'enregistrement.
+
+### Changer plus tard les dates programmées
+
+1. Depuis la fiche du tome (section « Chapitres »), cliquez sur **Programmer les sorties**. Le lien **Programmer plus tard dans la vue dédiée** du formulaire mène au même endroit.
+2. La page montre les chapitres en brouillon et ceux déjà programmés, groupés par publication avec leur date.
+3. Changez une date, une coupure, ou répartissez à nouveau avec **Répartir**.
+4. Cliquez sur **Enregistrer le calendrier**, puis confirmez.
+
+Les chapitres déjà programmés prennent leur nouvelle date, et leur annonce les suit. Les brouillons sont programmés. Les chapitres en ligne ne changent pas.
+
 ## Publier un tome entier d'un coup
 
 Pour un tome traduit en entier, publié en une fois avec ses liens de téléchargement.

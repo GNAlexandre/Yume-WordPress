@@ -4,7 +4,8 @@
  *
  * Trois étapes : 1 · le tome (œuvre puis tome existant ; créé ici seulement si aucun n'est
  * choisi), 2 · le fichier (comparé au tome par le script après l'analyse), 3 · la sortie des
- * nouveaux chapitres (maintenant, un par un au rythme, à une date ; annonce ; tome complet).
+ * nouveaux chapitres (maintenant, un par un au rythme, à une date, calendrier sur mesure avec le
+ * panneau « Programmer les sorties » ; annonce ; tome complet).
  * À droite, le récapitulatif « Ce qui va se passer » (data-yn-recap, mis à jour par le script).
  * L'encadré « Remplacer la lecture en ligne » d'un tome paru reste le remplacement en deux temps.
  *
@@ -507,6 +508,10 @@ if ( $yume_tome ) {
 							<input id="yn-publish-sortie-date" type="radio" name="sortie" value="date" data-yn-sortie-choix <?php checked( 'date', $v['sortie'] ); ?>>
 							<label for="yn-publish-sortie-date"><strong><?php esc_html_e( 'À une date', 'yume-core' ); ?></strong> <span class="yn-muted"><?php esc_html_e( 'Les nouveaux chapitres ensemble, le jour choisi.', 'yume-core' ); ?></span></label>
 						</p>
+						<p class="yn-publish__choix-sortie">
+							<input id="yn-publish-sortie-calendrier" type="radio" name="sortie" value="calendrier" aria-describedby="yn-programmer-titre" data-yn-sortie-choix <?php checked( 'calendrier', $v['sortie'] ); ?>>
+							<label for="yn-publish-sortie-calendrier"><strong><?php esc_html_e( 'Calendrier sur mesure', 'yume-core' ); ?></strong> <span class="yn-muted"><?php esc_html_e( 'En N publications réparties par nombre de mots, chacune à sa date. Une annonce par publication.', 'yume-core' ); ?></span></label>
+						</p>
 					</div>
 					<div class="yn-publish__sortie-reglages">
 						<p class="yn-publish__champ" data-yn-sortie-date>
@@ -566,6 +571,28 @@ if ( $yume_tome ) {
 						</p>
 					</div>
 				</fieldset>
+
+				<?php
+				// Calendrier sur mesure (sortie « calendrier ») : panneau « Programmer les sorties »
+				// (Calendrier::panneau(), script programmer.js). Ses unités viennent de l'analyse du
+				// fichier ou, sans fichier, des brouillons du tome.
+				$yume_panneau = Calendrier::panneau(
+					Calendrier::config(
+						$yume_tome ? (int) $yume_tome->ID : 0,
+						false,
+						array(
+							'depart'     => (string) $v['date_sortie'],
+							'intervalle' => (int) $v['intervalle'],
+						)
+					),
+					array(
+						'id'       => 'yn-programmer',
+						'aide'     => __( 'Sans JavaScript : choisissez « Calendrier sur mesure » et le nombre de publications. Les chapitres sont répartis par nombre de mots et datés au rythme du tome, sinon à partir de la date choisie puis tous les N jours.', 'yume-core' ),
+						'lien_vue' => $yume_tome ? Calendrier::url_vue( (int) $yume_tome->ID ) : '',
+					)
+				);
+				echo $yume_panneau; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML échappé par Calendrier::panneau().
+				?>
 			</div>
 
 			<aside class="yn-publish__cote" aria-label="<?php esc_attr_e( 'Récapitulatif et actions', 'yume-core' ); ?>">

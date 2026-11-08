@@ -14,12 +14,16 @@
  *                   (versions en attente, statut interne yume_remplacement), appliqué en place
  *                   seulement à la sortie, annulable, nettoyé après 7 jours ;
  * - Rest          : POST /yume/v1/publications/analyse, /publications, /publications/{id}/publier,
- *                   DELETE /publications/{id}/remplacement ;
+ *                   /publications/{id}/calendrier, DELETE /publications/{id}/remplacement ;
  * - Formulaire    : bloc yume/publish-form (« Ajouter des chapitres à un tome » : tome choisi,
  *                   fichier comparé au tome, sortie maintenant / au rythme / à une date, tome
  *                   complet), envoi sans JavaScript (admin-post.php), menu d'administration ;
  * - publication chapitre par chapitre : Service (mode « chapitres »), passage « complet » programmé
- *                   (tâche cron yume_publication_tome_complet), action yume_tome_complet.
+ *                   (tâche cron yume_publication_tome_complet), action yume_tome_complet ;
+ * - Calendrier    : calendrier sur mesure (sortie « calendrier »), répartition en N publications
+ *                   par nombre de mots, une annonce par publication (tâche cron
+ *                   yume_publication_sortie_calendrier), reprogrammation (POST
+ *                   /publications/{id}/calendrier, vue équipe « Programmer les sorties »).
  *
  * Au chargement, le module n'appelle aucun autre module : il accroche ses hooks.
  *
@@ -35,6 +39,7 @@ require_once __DIR__ . '/class-medias.php';
 require_once __DIR__ . '/class-annonce.php';
 require_once __DIR__ . '/class-remplacement.php';
 require_once __DIR__ . '/class-service.php';
+require_once __DIR__ . '/class-calendrier.php';
 require_once __DIR__ . '/class-rest.php';
 require_once __DIR__ . '/class-formulaire.php';
 
@@ -54,4 +59,6 @@ add_action( 'admin_post_yume_publication', array( Formulaire::class, 'traiter' )
 add_action( 'admin_post_nopriv_yume_publication', array( Formulaire::class, 'traiter_anonyme' ) );
 add_action( Service::HOOK_GROUPE, array( Service::class, 'sortie_groupee_programmee' ), 10, 2 );
 add_action( Service::HOOK_COMPLET, array( Service::class, 'complet_programme' ) );
+add_action( Calendrier::HOOK_GROUPE, array( Calendrier::class, 'sortie_programmee' ), 10, 2 );
+add_action( 'init', array( Calendrier::class, 'enregistrer_ressources' ), 5 );
 add_action( 'transition_post_status', array( Annonce::class, 'suivre_tome' ), 10, 3 );

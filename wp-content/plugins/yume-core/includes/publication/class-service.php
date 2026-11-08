@@ -80,7 +80,7 @@ final class Service {
 	public const META_RETIRE = '_yume_retire';
 
 	/** Méta de core : événement de publication traité. */
-	private const META_NOTIFIE = '_yume_publie_notifie';
+	public const META_NOTIFIE = '_yume_publie_notifie';
 
 	/**
 	 * Valeur de _yume_publie_notifie d'un tome ou d'un chapitre mis en ligne par un ajout au
@@ -118,8 +118,11 @@ final class Service {
 	/** Mode « Remplacer la lecture en ligne » explicite (en deux temps, Remplacement). */
 	public const MODE_REMPLACEMENT = 'remplacement';
 
-	/** Sorties des nouveaux chapitres (mode chapitres) : ensemble maintenant, un par un, à une date. */
-	public const SORTIES = array( 'maintenant', 'rythme', 'date' );
+	/**
+	 * Sorties des nouveaux chapitres (mode chapitres) : ensemble maintenant, un par un, à une
+	 * date, ou calendrier sur mesure (publications et dates choisies, voir Calendrier).
+	 */
+	public const SORTIES = array( 'maintenant', 'rythme', 'date', 'calendrier' );
 
 	/** Clé de rapprochement d'un chapitre (« chapitre:3#1 », « postface:#1 »). */
 	public const MOTIF_CLE = '/^[a-z]{1,20}:[0-9.]{0,12}#[0-9]{1,5}\z/';
@@ -1015,7 +1018,7 @@ final class Service {
 	 * @param int $tome_id Tome (0 : aucun).
 	 * @return array<string,\WP_Post>
 	 */
-	private static function chapitres_par_cle( int $tome_id ): array {
+	public static function chapitres_par_cle( int $tome_id ): array {
 		$existants = array();
 		$rangs     = array();
 		foreach ( $tome_id ? yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) : array() as $post ) {
@@ -1195,9 +1198,11 @@ final class Service {
 	 * @param string                  $sortie     maintenant | rythme | date.
 	 * @param \DateTimeImmutable|null $date       Date choisie (départ du rythme), ou null.
 	 * @param int                     $intervalle Jours entre deux chapitres sans rythme (1 à 60).
+	 * @param bool                    $apres_programmes Au rythme : après le dernier chapitre déjà
+	 *                                                  programmé (faux : ils sont reprogrammés).
 	 * @return array<int,\DateTimeImmutable|null>
 	 */
-	public static function calendrier( int $tome_id, int $nb, string $sortie, ?\DateTimeImmutable $date, int $intervalle = self::INTERVALLE_DEFAUT ): array {
+	public static function calendrier( int $tome_id, int $nb, string $sortie, ?\DateTimeImmutable $date, int $intervalle = self::INTERVALLE_DEFAUT, bool $apres_programmes = true ): array {
 		if ( $nb <= 0 ) {
 			return array();
 		}
@@ -1207,7 +1212,7 @@ final class Service {
 		$dates = array();
 		if ( null !== yume_prochaine_sortie_rythme( $tome_id ) ) {
 			$ref     = new \DateTimeImmutable( 'now', wp_timezone() );
-			$dernier = self::dernier_programme( $tome_id );
+			$dernier = $apres_programmes ? self::dernier_programme( $tome_id ) : null;
 			if ( $dernier && $dernier > $ref ) {
 				$ref = $dernier;
 			}
@@ -1226,6 +1231,18 @@ final class Service {
 			$dates[] = 0 === $i ? $date : $depart->modify( '+' . ( $i * $intervalle ) . ' days' );
 		}
 		return $dates;
+	}
+
+	/**
+	 * Répartit des unités (chapitres à sortir, dans l'ordre) en $n publications contiguës qui
+	 * minimisent la plus grosse en nombre de mots (voir Calendrier::repartir()).
+	 *
+	 * @param int[] $mots Mots de chaque unité.
+	 * @param int   $n    Nombre de publications voulu.
+	 * @return int[] Nombre d'unités de chaque publication.
+	 */
+	public static function repartir( array $mots, int $n ): array {
+		return Calendrier::repartir( $mots, $n );
 	}
 
 	/**
@@ -1273,7 +1290,9 @@ final class Service {
 
 	/**
 	 * Informations d'un tome pour le formulaire « Ajouter des chapitres » : parution (à paraître,
-	 * en cours, complet), chapitres en ligne et prévus, rythme, prochaines dates au rythme.
+	 * en cours, complet), chapitres en ligne et prévus, rythme, prochaines dates au rythme,
+	 * chapitres déjà en brouillon à sortir (a_sortir : {id, cle « id:N », libelle, nature,
+	 * nature_libelle, mots}) et règle du rythme pour le panneau « Programmer les sorties ».
 	 *
 	 * @param int $tome_id  Tome.
 	 * @param int $a_sortir Chapitres à sortir (dates au rythme calculées pour eux).
@@ -1285,9 +1304,11 @@ final class Service {
 		$en_ligne  = wp_list_pluck( yume_get_chapitres( $tome_id ), 'ID' );
 		$dernier   = self::dernier_programme( $tome_id );
 		$rythme    = self::rythme_texte( $tome_id );
+		$unites    = Calendrier::unites( $tome_id );
 		$dates     = array();
+		$a_sortir  = max( $a_sortir, count( $unites ) );
 		if ( '' !== $rythme && $a_sortir > 0 ) {
-			foreach ( self::calendrier( $tome_id, min( $a_sortir, 200 ), 'rythme', null ) as $date ) {
+			foreach ( self::calendrier( $tome_id, min( $a_sortir, Calendrier::MAX ), 'rythme', null ) as $date ) {
 				$dates[] = array(
 					'date'    => $date ? $date->format( DATE_ATOM ) : '',
 					'libelle' => $date ? Formulaire::date_fr( $date->getTimestamp(), 'court' ) : '',
@@ -1307,6 +1328,10 @@ final class Service {
 			'prevus'            => (int) get_post_meta( $tome_id, 'yume_chapitres_prevus', true ),
 			'rythme'            => $rythme,
 			'dates_rythme'      => $dates,
+			'rythme_regle'      => Calendrier::regle_rythme( $tome_id ),
+			'a_sortir'          => array_map( array( Calendrier::class, 'unite' ), $unites ),
+			'maintenant'        => Calendrier::valeur_locale( new \DateTimeImmutable( 'now', wp_timezone() ) ),
+			'programmer'        => Calendrier::url_vue( $tome_id ),
 			'sans_annonce'      => self::sans_annonce_par_defaut( $tome_id ),
 			'lien'              => 'publish' === get_post_status( $tome_id ) ? (string) get_permalink( $tome_id ) : '',
 		);
@@ -2216,12 +2241,15 @@ final class Service {
 	}
 
 	/**
-	 * Annule la sortie groupée programmée d'un tome (nouvelle sortie) : tâche cron supprimée,
-	 * marques retirées des chapitres qui ne sont pas encore en ligne.
+	 * Annule la sortie groupée programmée d'un tome (nouvelle sortie), et celles de son
+	 * calendrier sur mesure : tâches cron supprimées, marques retirées des chapitres qui ne
+	 * sont pas encore en ligne.
 	 *
 	 * @param int $tome_id Tome.
 	 */
-	private static function annuler_sortie_groupee( int $tome_id ): void {
+	public static function annuler_sortie_groupee( int $tome_id ): void {
+		// Publications du calendrier sur mesure en attente (Calendrier::programmer_groupe()).
+		Calendrier::annuler_groupes( $tome_id );
 		$groupe = get_post_meta( $tome_id, self::META_GROUPE, true );
 		if ( ! is_array( $groupe ) ) {
 			return;
@@ -2239,7 +2267,7 @@ final class Service {
 	 * @param array<string,mixed> $groupe Méta META_GROUPE.
 	 * @return int[] Chapitres du groupe publiés.
 	 */
-	private static function liberer_chapitres( array $groupe ): array {
+	public static function liberer_chapitres( array $groupe ): array {
 		$ts      = (int) ( $groupe['ts'] ?? 0 );
 		$ignores = array_map( 'intval', (array) ( $groupe['ignores'] ?? array() ) );
 		$publies = array();
@@ -2340,9 +2368,12 @@ final class Service {
 	 * @param string              $quand   « maintenant » ou date ISO.
 	 * @param array<string,mixed> $options confirmer_vide (bool, défaut false), sans_annonce
 	 *                                     (bool, défaut false), mode (chapitres : ajout de
-	 *                                     chapitres), sortie (maintenant | rythme | date),
-	 *                                     intervalle (jours), complet (bool ou null : repris de la
-	 *                                     préparation), liens (lien_pdf, lien_epub).
+	 *                                     chapitres), sortie (maintenant | rythme | date |
+	 *                                     calendrier), intervalle (jours), calendrier (JSON ou
+	 *                                     tableau, voir Calendrier), repartition (N publications,
+	 *                                     sans calendrier), inclure_programmes (bool : reprogrammer
+	 *                                     aussi les chapitres programmés), complet (bool ou null :
+	 *                                     repris de la préparation), liens (lien_pdf, lien_epub).
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function publier( int $tome_id, string $quand = 'maintenant', array $options = array() ) {
@@ -2502,7 +2533,10 @@ final class Service {
 	 *   de suite, sans annonce ; un remplacement complet en attente n'est jamais appliqué ici ;
 	 * - les chapitres à sortir (brouillons du tome, hors chapitres retirés) sortent maintenant
 	 *   (une seule annonce), un par un au rythme du tome (calendrier() ; une annonce par chapitre
-	 *   à sa sortie) ou ensemble à une date ; les chapitres déjà programmés gardent leur date ;
+	 *   à sa sortie), ensemble à une date, ou selon un calendrier sur mesure (sortie
+	 *   « calendrier » : publications et dates choisies, une annonce par publication, voir
+	 *   Calendrier) ; les chapitres déjà programmés gardent leur date, sauf option
+	 *   inclure_programmes (vue « Programmer les sorties » : ils sont reprogrammés) ;
 	 * - première sortie du tome : le tome sort avec ses premiers chapitres ; sans « Tome
 	 *   complet », yume_parution = en_cours et l'annonce dit « SukaMoka, Tome 2 : Prologue
 	 *   disponible ! » ; tome complet publié d'un coup : yume_parution = complet, liens posés,
@@ -2546,9 +2580,10 @@ final class Service {
 		$etat     = Remplacement::lire( $tome_id );
 		$applique = $etat && self::MODE_CHAPITRES === ( $etat['mode'] ?? '' ) ? Remplacement::appliquer( $tome_id ) : null;
 
+		$inclure   = ! empty( $options['inclure_programmes'] );
 		$a_publier = array_values(
 			array_filter(
-				yume_get_chapitres( $tome_id, array( 'status' => $complet ? array( 'draft', 'pending', 'future' ) : array( 'draft', 'pending' ) ) ),
+				yume_get_chapitres( $tome_id, array( 'status' => $complet || $inclure ? array( 'draft', 'pending', 'future' ) : array( 'draft', 'pending' ) ) ),
 				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true ) && ! metadata_exists( 'post', $c->ID, Remplacement::META_DE )
 			)
 		);
@@ -2562,8 +2597,17 @@ final class Service {
 				)
 			);
 		}
-		$dates    = self::calendrier( $tome_id, count( $a_publier ), $sortie, $date, (int) ( $options['intervalle'] ?? self::INTERVALLE_DEFAUT ) );
-		$premiere = $a_publier ? $dates[0] : ( 'maintenant' === $sortie ? null : $date );
+		$avert = array();
+		if ( 'calendrier' === $sortie ) {
+			// Calendrier sur mesure : dates choisies par publication (ou répartition en N).
+			$dates = Calendrier::dates_sortie( $tome_id, $a_publier, $options, $date, $avert );
+			if ( is_wp_error( $dates ) ) {
+				return $dates;
+			}
+		} else {
+			$dates = self::calendrier( $tome_id, count( $a_publier ), $sortie, $date, (int) ( $options['intervalle'] ?? self::INTERVALLE_DEFAUT ) );
+		}
+		$premiere = $a_publier ? $dates[0] : ( in_array( $sortie, array( 'maintenant', 'calendrier' ), true ) ? null : $date );
 		$fin      = null;
 		$creneaux = array();
 		foreach ( $dates as $d ) {
@@ -2589,7 +2633,7 @@ final class Service {
 		// Une sortie groupée programmée auparavant (chapitres déjà programmés) n'est pas touchée.
 		$faite = $muet
 			? self::sortie_muette( $tome, $a_publier, $dates, $premiere )
-			: self::sortie_annoncee( $tome, $a_publier, $dates, $premiere, $complet_direct );
+			: self::sortie_annoncee( $tome, $a_publier, $dates, $premiere, $complet_direct, 'calendrier' === $sortie );
 		if ( is_wp_error( $faite ) ) {
 			return $faite;
 		}
@@ -2619,6 +2663,17 @@ final class Service {
 				self::programmer_complet( $tome_id, $quand->getTimestamp(), $liens, ! $muet );
 				$etat_complet = 'programme';
 				$complet_le   = $quand->format( DATE_ATOM );
+			}
+		}
+		// Reprogrammation (vue « Programmer les sorties ») : un passage « complet » déjà programmé
+		// suit la sortie du nouveau dernier chapitre programmé.
+		$prog = get_post_meta( $tome_id, self::META_COMPLET, true );
+		if ( $inclure && '' === $etat_complet && is_array( $prog ) ) {
+			$dernier = self::dernier_programme( $tome_id );
+			if ( $dernier ) {
+				self::programmer_complet( $tome_id, $dernier->getTimestamp(), (array) ( $prog['liens'] ?? array() ), ! empty( $prog['annoncer'] ) );
+				$etat_complet = 'programme';
+				$complet_le   = $dernier->format( DATE_ATOM );
 			}
 		}
 		// Sortie sans annonce : aucun événement, l'avancement du planning suit quand même.
@@ -2663,6 +2718,8 @@ final class Service {
 			'complet'               => $etat_complet,
 			'complet_le'            => $complet_le,
 			'en_ligne'              => count( yume_get_chapitres( $tome_id ) ),
+			'publications'          => Calendrier::nb_publications( $dates ),
+			'avertissements'        => $avert,
 		);
 	}
 
@@ -2737,15 +2794,19 @@ final class Service {
 	 *   (annoncer_groupe()) ; plusieurs chapitres programmés à la même date aussi (sortie groupée
 	 *   programmée), sauf si une autre sortie groupée attend déjà ; un chapitre programmé seul
 	 *   est annoncé à sa sortie (core).
+	 * - Calendrier sur mesure ($par_publication) : chaque publication de plusieurs chapitres
+	 *   programmée après la première sortie du tome a SA sortie groupée (une annonce,
+	 *   Calendrier::programmer_groupe()), même si d'autres attendent.
 	 *
 	 * @param \WP_Post                           $tome           Tome.
 	 * @param \WP_Post[]                         $a_publier      Chapitres à sortir.
 	 * @param array<int,\DateTimeImmutable|null> $dates          Date de chaque chapitre.
 	 * @param \DateTimeImmutable|null            $premiere       Date de sortie du tome.
 	 * @param bool                               $complet_direct Tome complet publié d'un coup.
+	 * @param bool                               $par_publication Calendrier sur mesure : une annonce par publication.
 	 * @return array{publies:int,calendrier:array<int,array<string,mixed>>,article:int}|\WP_Error
 	 */
-	private static function sortie_annoncee( \WP_Post $tome, array $a_publier, array $dates, ?\DateTimeImmutable $premiere, bool $complet_direct ) {
+	private static function sortie_annoncee( \WP_Post $tome, array $a_publier, array $dates, ?\DateTimeImmutable $premiere, bool $complet_direct, bool $par_publication = false ) {
 		$tome_id    = (int) $tome->ID;
 		$deja_sorti = 'publish' === $tome->post_status;
 		if ( ! $deja_sorti || in_array( null, $dates, true ) ) {
@@ -2787,11 +2848,25 @@ final class Service {
 				/** This action is documented in includes/publication/class-service.php */
 				do_action( 'yume_tome_publie', $tome_id );
 			}
+			if ( $par_publication ) {
+				// Publications suivantes du calendrier : une annonce chacune (le tome sera en ligne).
+				foreach ( $par_date as $ts => $ids ) {
+					if ( count( $ids ) > 1 && ( null === $premiere || (int) $ts !== $premiere->getTimestamp() ) ) {
+						Calendrier::programmer_groupe( $tome_id, $ids, (int) $ts );
+					}
+				}
+			}
 		} else {
 			if ( $maintenant ) {
 				self::annoncer_groupe( $tome_id, $maintenant );
 			}
 			foreach ( $par_date as $ts => $ids ) {
+				if ( $par_publication ) {
+					if ( count( $ids ) > 1 ) {
+						Calendrier::programmer_groupe( $tome_id, $ids, (int) $ts );
+					}
+					continue;
+				}
 				$groupe = get_post_meta( $tome_id, self::META_GROUPE, true );
 				// Une seule sortie groupée programmée par tome : si une autre attend, ces chapitres
 				// seront annoncés un par un à leur sortie.
@@ -3031,7 +3106,7 @@ final class Service {
 	 */
 	public static function annuler_programmations( int $tome_id ): array {
 		$annule = array(
-			'groupe'  => is_array( get_post_meta( $tome_id, self::META_GROUPE, true ) ),
+			'groupe'  => is_array( get_post_meta( $tome_id, self::META_GROUPE, true ) ) || (bool) Calendrier::groupes( $tome_id ),
 			'complet' => is_array( get_post_meta( $tome_id, self::META_COMPLET, true ) ),
 		);
 		self::annuler_sortie_groupee( $tome_id );

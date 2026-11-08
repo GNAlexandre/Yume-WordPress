@@ -17,8 +17,9 @@
  *   confirmation ?etat=… pour ce qui touche les lecteurs) ; œuvre, nature, numéro, titre,
  *   responsables, crédits, couverture et son cadrage ; chapitres du tome (tous statuts sauf
  *   corbeille et versions en attente) avec « Voir », « Aperçu », « Publier maintenant »,
- *   « Changer la date » et « Retirer » (écran de confirmation, sans JavaScript) ; lien « Édition
- *   avancée » vers l'administration.
+ *   « Changer la date » et « Retirer » (écran de confirmation, sans JavaScript) ; liens « Ajouter
+ *   des chapitres » et « Programmer les sorties » (programmer.php) ; lien « Édition avancée »
+ *   vers l'administration.
  *
  * Formulaires sans JavaScript (admin-post.php : yume_planning_ajout, yume_tome_modifier,
  * yume_tome_chapitre, yume_tome_etat), résultat affiché au retour (retour_formulaire()).
@@ -1732,7 +1733,12 @@ function section_chapitres_tome( int $tome_id, callable $pour ): string {
 		/* translators: %d : nombre de chapitres */
 		sprintf( _n( 'Chapitres (%d)', 'Chapitres (%d)', count( $chapitres ), 'yume-core' ), count( $chapitres ) )
 	) . '</h3>';
-	$html .= '<a href="' . esc_url( url_publier_tome( $tome_id ) ) . '">' . esc_html__( 'Ajouter des chapitres', 'yume-core' ) . '</a></div>';
+	$html .= '<p class="yn-chapitres__liens"><a href="' . esc_url( url_publier_tome( $tome_id ) ) . '">' . esc_html__( 'Ajouter des chapitres', 'yume-core' ) . '</a>';
+	if ( current_user_can( 'yume_publier' ) && function_exists( __NAMESPACE__ . '\\url_programmer' ) ) {
+		// Vue « Programmer les sorties » : dates des brouillons et des chapitres programmés.
+		$html .= ' · <a href="' . esc_url( url_programmer( $tome_id ) ) . '">' . esc_html__( 'Programmer les sorties', 'yume-core' ) . '</a>';
+	}
+	$html .= '</p></div>';
 	$html .= '<div class="yn-chapitres__note">' . zone_retour( $pour( 'yn-tome-chapitres' ) );
 	if ( ! $chapitres ) {
 		$html .= '<p class="yn-muted">' . esc_html__( 'Aucun chapitre pour le moment : « Ajouter des chapitres » reçoit un DOCX ou un EPUB avec un chapitre, plusieurs ou le tome entier.', 'yume-core' ) . '</p>';
