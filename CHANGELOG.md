@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.8.0 — 2026-11-08
+
+- Yume Novel 2.8.0 : lecteur manga (doubles pages plus larges que la colonne, zoom − / + / Auto, double clic), sous-chapitres (nature « Sous-chapitre », « Couper aux Titre 2 », libellés « Chapitre 2, partie 1 », sommaire groupé), programmation des sorties (calendrier sur mesure, répartition en N publications par nombre de mots, vue « Programmer les sorties », route /publications/{id}/calendrier), maquettes 2.8.0
+
 ## 2.8.0-dev.5 — 2026-11-08
 
 - Programmation des sorties : choix « Calendrier sur mesure » (dates modifiables une à une, une annonce par publication), répartition automatique en N publications par nombre de mots (Service::repartir(), sans couper un chapitre ni un sous-chapitre), vue d’équipe « Programmer les sorties » (?vue=programmer) et route POST /yume/v1/publications/{id}/calendrier pour reprogrammer les chapitres déjà programmés
