@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.8.0-dev.2 — 2026-11-08
+
+- Maquettes 2.8.0 : lecteur manga (double page, zoom), découpage en sous-chapitres, panneau « Programmer les sorties », sommaire groupé du tome (design/maquettes, canvas.json)
+
 ## 2.8.0-dev.1 — 2026-11-08
 
 - Cahier des charges 2.8.0 : lecteur manga (pages paysage plus larges, zoom), sous-chapitres à l’import et à la publication, programmation des sorties (calendrier sur mesure, répartition en N publications, vue dédiée)

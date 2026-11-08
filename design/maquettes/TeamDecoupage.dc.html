@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — découpage en sous-chapitres</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap;box-sizing:border-box}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.rose{color:#f3a6c8;border-color:#f3a6c8}
+.muted{color:#b7a9cc}
+.side a{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-radius:4px;color:#ebe3f2;font-weight:500}
+.side a.on{background:#3a2a63;color:#fff8fb;border-left:3px solid #f3a6c8}
+select,input{background:#241740;border:1px solid #7f6aa8;border-radius:4px;color:#ebe3f2;height:40px;padding:0 12px;font-family:inherit;font-size:14px;width:100%;box-sizing:border-box;color-scheme:dark}
+input[type="checkbox"],input[type="radio"]{width:18px;height:18px;padding:0;margin:0;accent-color:#f3a6c8;flex-shrink:0}
+label{display:flex;flex-direction:column;gap:6px}
+.etape{font-family:"Outfit",sans-serif;font-weight:700;font-size:20px;color:#fff8fb}
+table{border-collapse:collapse;width:100%;table-layout:fixed}th{text-align:left;font-weight:600;color:#fff8fb;font-size:13px;padding:10px 12px;background:#241740}
+</style>
+</helmet>
+<div style="width: 1440px; height: 2260px; box-sizing: border-box; display: flex; background: #1b1231">
+<aside class="side" style="width: 240px; background: #241740; border-right: 1px solid #4a3b6e; padding: 20px 12px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-sizing: border-box">
+  <a href="Main.dc.html" style="height: 48px; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px; margin-bottom: 12px"><span style="width: 24px; height: 24px; border-radius: 50%; background: #f3a6c8; display: inline-block"></span>Yume · Équipe</a>
+  <a href="TeamDashboard.dc.html">Tableau de bord</a>
+  <a href="TeamDashboard.dc.html">Mes tâches</a>
+  <a href="TeamPublier.dc.html" class="on">Publier un tome</a>
+  <a href="Planning.dc.html">Planning complet</a>
+  <a href="TeamDashboard.dc.html">Journal</a>
+  <a href="TeamDashboard.dc.html">Membres et rôles</a>
+  <a href="TeamDashboard.dc.html">Réglages (rappels, Discord)</a>
+</aside>
+<main style="flex-grow: 1; padding: 32px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-content: start">
+  <div style="grid-column: span 2; display: flex; justify-content: space-between; align-items: flex-end">
+    <div><span class="lbl">Catalogue · ajouter des chapitres</span><h1 style="font-size: 32px">Ajouter des chapitres à un tome</h1><p class="muted" style="margin: 4px 0 0">Un seul formulaire pour tous les cas : un chapitre, plusieurs, ou le tome entier. Rien n'est jamais retiré.</p></div>
+    <span class="chip info">Brouillon du tome · rien n'est encore en ligne</span>
+  </div>
+
+  <form style="display: contents">
+  <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+    <fieldset class="card" style="margin: 0; padding: 18px 24px; display: grid; grid-template-columns: 1.3fr 1.3fr 1fr; gap: 16px; align-items: end">
+      <legend class="etape" style="padding: 0 6px">1 · Le tome</legend>
+      <label><span class="lbl">Œuvre</span><select><option>Miss Medic's Diary at War (LN)</option></select></label>
+      <label><span class="lbl">Tome</span><select><option>Tome 2 · brouillon · 0 chapitre en ligne</option></select></label>
+      <span class="muted" style="font-size: 13px">Rythme du tome : chaque dimanche à 18 h</span>
+    </fieldset>
+
+    <div class="card" style="padding: 18px 24px; display: flex; flex-direction: column; gap: 12px">
+      <h3 class="etape">2 · Le fichier</h3>
+      <div style="display: flex; gap: 12px; align-items: center; background: #241740; border: 1px solid #4a3b6e; border-radius: 8px; padding: 10px 14px">
+        <span class="chip ok">✓ DOCX</span><div style="flex-grow: 1; font-size: 13px"><b style="color: #fff8fb">Miss_Medic_Diary_at_War_T2.docx</b><div class="muted">analysé : 18 Titre 1 (dont 8 sans texte propre) · 27 Titre 2 · 55 263 mots · détection automatique : 18 chapitres, les Titre 2 restent des intertitres</div></div><a href="TeamDecoupage.dc.html" style="font-size: 13px">Retirer</a>
+      </div>
+    </div>
+
+  </div>
+  <aside style="display: flex; flex-direction: column; gap: 16px">
+    <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px">
+      <span class="lbl">Ce qui va se passer</span>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">Tome 2</b> de Miss Medic's Diary at War reçoit les chapitres du fichier</span></div>
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">37 pages de lecture</b> : sommaire groupé par chapitre, parties indentées</span></div>
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">Annonces</b> : « Chapitre 2, partie 1 — 10 septembre, soir »</span></div>
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">Planning</b> : en cours, 100 % quand le tome est complet</span></div>
+      </div>
+    </div>
+    <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+      <span class="lbl">Marqueur dans le document</span>
+      <span>Sans passer par ce cadre : un paragraphe seul <b style="color: #fff8fb">« [sous-chapitre] Titre »</b> force une partie ; il n'est pas publié.</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <a href="TeamProgrammer.dc.html" class="btn pri" style="height: 48px; font-size: 16px">Étape 3 · La sortie →</a>
+      <button type="button" class="btn">Enregistrer en brouillon</button>
+    </div>
+  </aside>
+  <div style="grid-column: span 2; display: flex; flex-direction: column; gap: 20px; min-width: 0">
+    <fieldset class="card" style="margin: 0; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; min-width: 0">
+      <legend class="lbl" style="padding: 0 6px; font-size: 12px">Délimiter les chapitres moi-même</legend>
+      <p class="muted" style="margin: 0; font-size: 14px">Cochez chaque début de chapitre parmi les endroits repérés dans le fichier, puis choisissez sa nature et son titre. Un <b style="color: #fff8fb">sous-chapitre</b> devient une partie du chapitre qui le précède (« Chapitre 2, partie 1 ») : il a sa page, sa date de sortie et son annonce.</p>
+      <p style="margin: 0; display: flex; gap: 10px; align-items: center"><input id="actif" type="checkbox" checked><label for="actif" style="flex-direction: row">Utiliser ce découpage (sinon : détection automatique des chapitres)</label></p>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <button type="button" class="btn sm" style="border-color: #f3a6c8; background: #3a2a63">✓ Couper aux Titre 2 (sous-chapitres)</button>
+        <button type="button" class="btn sm">Couper aux ouvertures illustrées</button>
+        <button type="button" class="btn sm">Couper à chaque illustration</button>
+        <button type="button" class="btn sm">Couper à chaque saut de page</button>
+        <button type="button" class="btn sm">Revenir à la détection automatique</button>
+        <button type="button" class="btn sm">Vérifier ce découpage (rien n'est enregistré)</button>
+      </div>
+      <div style="display: grid; grid-template-columns: 200px 1fr; gap: 16px; align-items: end">
+        <label for="premier" style="gap: 4px"><span class="muted" style="font-size: 12px">Premier numéro de chapitre</span><input id="premier" type="number" value="1"></label>
+        <label for="filtre" style="gap: 4px"><span class="muted" style="font-size: 12px">Afficher</span><select id="filtre"><option>Titres, illustrations, sauts de page et débuts cochés</option></select></label>
+      </div>
+      <p role="status" style="margin: 0; font-size: 14px"><b style="color: #fff8fb">45 débuts cochés → 37 pages de lecture</b> : 9 chapitres, 27 parties (sous-chapitres), 1 postface. Les 8 chapitres sans texte deviennent l'intitulé de leurs parties.</p>
+      <div style="border: 1px solid #4a3b6e; border-radius: 6px; overflow: hidden">
+        <table>
+          <caption style="position: absolute; width: 1px; height: 1px; overflow: hidden">Débuts de chapitre possibles, dans l'ordre du fichier</caption>
+          <thead><tr><th scope="col" style="width: 140px">Début de chapitre</th><th scope="col" style="width: 160px">Nature</th><th scope="col">Titre</th><th scope="col" style="width: 340px">Dans le fichier</th></tr></thead>
+          <tbody>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 12px"><span style="display: flex; align-items: center; gap: 10px"><input type="checkbox" id="d0" checked><label for="d0" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 1</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n0" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n0" style="height: 34px"><option selected>Chapitre</option><option>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t0" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t0" type="text" value="Année 1938, été 6" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« Année 1938, été 6 » · 1 011 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 12px"><span style="display: flex; align-items: center; gap: 10px"><input type="checkbox" id="d1" checked><label for="d1" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 1</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n1" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n1" style="height: 34px"><option selected>Chapitre</option><option>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t1" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t1" type="text" value="Bataille défensive de Mashdale" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« Bataille défensive de Mashdale » · 0 mots<div style="font-size: 12px; color: #f4c069">▲ sans texte : son titre passe à ses parties</div></td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d2" checked><label for="d2" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n2" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n2" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t2" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t2" type="text" value="10 septembre, soir" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« Journal… 10 septembre, soir » · 797 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d3" checked><label for="d3" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n3" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n3" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t3" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t3" type="text" value="10 septembre, nuit" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« 10 septembre, nuit » · 779 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d4" checked><label for="d4" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n4" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n4" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t4" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t4" type="text" value="10 septembre, tard dans la nuit" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« 10 septembre, tard dans la nuit » · 3 838 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d5" checked><label for="d5" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n5" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n5" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t5" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t5" type="text" value="11 septembre, début de matinée" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« 11 septembre, début de matinée » · 814 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d6" checked><label for="d6" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n6" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n6" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t6" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t6" type="text" value="11 septembre, matin" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« 11 septembre, matin » · 1 085 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d7" checked><label for="d7" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n7" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n7" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t7" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t7" type="text" value="11 septembre, midi" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« 11 septembre, midi » · 502 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 12px"><span style="display: flex; align-items: center; gap: 10px"><input type="checkbox" id="d8" checked><label for="d8" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 1</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n8" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n8" style="height: 34px"><option selected>Chapitre</option><option>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t8" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t8" type="text" value="Année 1938, été 7" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« Année 1938, été 7 » · 702 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 12px"><span style="display: flex; align-items: center; gap: 10px"><input type="checkbox" id="d9" checked><label for="d9" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 1</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n9" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n9" style="height: 34px"><option selected>Chapitre</option><option>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t9" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t9" type="text" value="Bataille défensive de Mashdale 2" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« Bataille défensive de Mashdale 2 » · 0 mots<div style="font-size: 12px; color: #f4c069">▲ sans texte : son titre passe à ses parties</div></td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d10" checked><label for="d10" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n10" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n10" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t10" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t10" type="text" value="11 septembre, soir" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« 11 septembre, soir » · 1 882 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d11" checked><label for="d11" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n11" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n11" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t11" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t11" type="text" value="12 septembre, midi" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« 12 septembre, midi » · 1 116 mots</td>
+        </tr>
+<tr style="border-top: 1px solid #4a3b6e">
+          <td style="padding: 8px 12px 8px 36px"><span style="display: flex; align-items: center; gap: 10px"><span class="muted" aria-hidden="true">↳</span><input type="checkbox" id="d12" checked><label for="d12" style="flex-direction: row; gap: 6px"><span class="chip info">Titre 2</span></label></span></td>
+          <td style="padding: 8px 12px"><label for="n12" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nature</label><select id="n12" style="height: 34px; border-color: #f3a6c8; color: #fff8fb"><option>Chapitre</option><option selected>Sous-chapitre</option><option>Prologue</option><option>Interlude</option><option>Épilogue</option><option>Postface</option><option>Bonus</option><option>Illustrations</option></select></td>
+          <td style="padding: 8px 12px"><label for="t12" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Titre</label><input id="t12" type="text" value="12 septembre, soir" style="height: 34px"></td>
+          <td style="padding: 8px 12px; font-size: 13px" class="muted">« 12 septembre, soir » · 600 mots</td>
+        </tr>
+          <tr style="border-top: 1px solid #4a3b6e"><td colspan="4" class="muted" style="padding: 10px 12px; font-size: 13px">… 32 autres débuts (chapitres 4 à 17, leurs parties et la postface)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </fieldset>
+
+    <div class="card" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px">
+      <span class="lbl">Chapitres détectés (aperçu)</span>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 28px"><ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px"><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 1</b> — Année 1938, été 6 <span class="muted">· 1 011 mots</span></span></li><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 2</b> — Bataille défensive de Mashdale <span class="muted">· intitulé, 6 parties</span></span><ol style="list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 2px solid #4a3b6e; margin-left: 6px; display: flex; flex-direction: column; gap: 2px"><li>Partie 1 · 10 septembre, soir <span class="muted">· 797 mots</span></li><li>Partie 2 · 10 septembre, nuit <span class="muted">· 779 mots</span></li><li>Partie 3 · 10 septembre, tard dans la nuit <span class="muted">· 3 838 mots</span></li><li>Partie 4 · 11 septembre, début de matinée <span class="muted">· 814 mots</span></li><li>Partie 5 · 11 septembre, matin <span class="muted">· 1 085 mots</span></li><li>Partie 6 · 11 septembre, midi <span class="muted">· 502 mots</span></li></ol></li><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 3</b> — Année 1938, été 7 <span class="muted">· 702 mots</span></span></li></ol><ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px"><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 4</b> — Bataille défensive de Mashdale 2 <span class="muted">· intitulé, 8 parties</span></span><ol style="list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 2px solid #4a3b6e; margin-left: 6px; display: flex; flex-direction: column; gap: 2px"><li>Partie 1 · 11 septembre, soir <span class="muted">· 1 882 mots</span></li><li>Partie 2 · 12 septembre, midi <span class="muted">· 1 116 mots</span></li><li>Partie 3 · 12 septembre, soir <span class="muted">· 600 mots</span></li><li>Partie 4 · 12 septembre, nuit <span class="muted">· 661 mots</span></li><li>Partie 5 · 13 septembre, aube naissante <span class="muted">· 1 401 mots</span></li><li>Partie 6 · 13 septembre, soir <span class="muted">· 1 320 mots</span></li><li>Partie 7 · 15 septembre, midi <span class="muted">· 1 089 mots</span></li><li>Partie 8 · 17 septembre, soir <span class="muted">· 3 421 mots</span></li></ol></li></ol><ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px"><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 5</b> — Année 1938, été 8 <span class="muted">· 625 mots</span></span></li><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 6</b> — Évacuation de Mashdale 1 <span class="muted">· intitulé, 1 partie</span></span><ol style="list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 2px solid #4a3b6e; margin-left: 6px; display: flex; flex-direction: column; gap: 2px"><li>Partie 1 · 17 septembre, soir <span class="muted">· 5 301 mots</span></li></ol></li><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 7</b> — Année 1938, été 9 <span class="muted">· 906 mots</span></span></li><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 8</b> — Évacuation de Mashdale 2 <span class="muted">· intitulé, 1 partie</span></span><ol style="list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 2px solid #4a3b6e; margin-left: 6px; display: flex; flex-direction: column; gap: 2px"><li>Partie 1 · 17 septembre <span class="muted">· 8 453 mots</span></li></ol></li><li style="display: flex; flex-direction: column; gap: 4px"><span><b style="color: #fff8fb">Chapitre 9</b> — Année 1938, été 10 <span class="muted">· 1 084 mots</span></span></li><li class="muted">… chapitres 10 à 17, puis Postface · 479 mots</li></ol></div>
+      <div style="display: flex; gap: 10px; align-items: center"><a href="TomeSousChapitres.dc.html" class="btn sm">Prévisualiser « Chapitre 2, partie 1 »</a><span class="chip info">ⓘ Titre 2 placé après un prologue : traité comme un chapitre (avertissement)</span></div>
+    </div>
+  </div>
+  </form>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2260}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

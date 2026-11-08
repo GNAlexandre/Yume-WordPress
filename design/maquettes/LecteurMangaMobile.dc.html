@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Lecteur manga mobile — page par page, zoom</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;padding:0 14px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:40px;padding:0 10px;font-size:13px}
+.btn[aria-pressed="true"]{border-color:#f3a6c8;background:#3a2a63;color:#fff8fb}
+.ico{width:36px;height:36px;border-radius:50%;border:0;background:transparent;color:#ebe3f2;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:22px}
+.muted{color:#b7a9cc}
+.choix{display:flex;gap:6px;align-items:center}
+.valeur{flex-grow:1;height:40px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #4a3b6e;border-radius:4px;background:#241740;color:#fff8fb;font-weight:700;font-size:14px;box-sizing:border-box}
+.case{border:2px solid #2a1240;border-radius:2px;background:linear-gradient(160deg,rgba(91,58,122,.10),rgba(194,67,126,.16))}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #1b1231; position: relative; overflow: hidden">
+  <header style="height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #241740; border-bottom: 1px solid #4a3b6e; flex-shrink: 0">
+    <a href="LecteurManga.dc.html" class="ico" aria-label="Retour au tome">‹</a>
+    <div style="display: flex; flex-direction: column; line-height: 1.15; overflow: hidden"><span style="color: #fff8fb; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Aldnoah.Zero Gaiden · T.1 · Chapitre 2</span><span class="muted" style="font-size: 11px">Page par page · zoom 150 %</span></div>
+  </header>
+  <div style="height: 3px; background: #241740; flex-shrink: 0"><div style="height: 100%; width: 12.5%; background: #f3a6c8"></div></div>
+
+  <div class="yn-manga__outils" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #4a3b6e; flex-shrink: 0">
+    <div class="choix" role="group" aria-label="Mode de lecture">
+      <span class="lbl" style="width: 58px">24 pages</span>
+      <button type="button" class="btn sm" aria-pressed="false" style="flex-grow: 1">Défilement</button>
+      <button type="button" class="btn sm" aria-pressed="true" style="flex-grow: 1">✓ Page par page</button>
+    </div>
+    <div class="choix" role="group" aria-label="Qualité des images">
+      <span class="lbl" style="width: 58px">Qualité</span>
+      <button type="button" class="btn sm" aria-pressed="true" style="flex-grow: 1">✓ Économie</button>
+      <button type="button" class="btn sm" aria-pressed="false" style="flex-grow: 1">Originale (≈ 12 Mo)</button>
+    </div>
+    <div class="choix" role="group" aria-label="Zoom">
+      <span class="lbl" style="width: 58px">Zoom</span>
+      <button type="button" class="btn sm" aria-label="Réduire" style="width: 44px; padding: 0; font-size: 18px">−</button>
+      <span class="valeur" aria-live="polite">150 %</span>
+      <button type="button" class="btn sm" aria-label="Agrandir" style="width: 44px; padding: 0; font-size: 18px">+</button>
+      <button type="button" class="btn sm" aria-pressed="false">Auto</button>
+    </div>
+  </div>
+
+  <figure style="margin: 12px 0 0; padding: 0 16px; position: relative; flex-grow: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px">
+    <div style="flex-grow: 1; min-height: 0; overflow: hidden; border-radius: 4px; position: relative; background: #2d1f4f; border: 1px solid #4a3b6e">
+      <div style="position: absolute; left: -64px; top: 0; width: 537px; height: 767px; background: linear-gradient(165deg,#f7f3f8 0%,#e4dce9 60%,#cfc4d9 100%); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 1.6fr 1fr 1.3fr; gap: 10px; padding: 16px; box-sizing: border-box">
+        <div class="case" style="grid-column: span 2"></div><div class="case"></div><div class="case"></div><div class="case" style="grid-column: span 2"></div>
+      </div>
+      <span style="position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%); background: #2a1240; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px; padding: 8px 14px; border-radius: 6px; white-space: nowrap">Page 3 · 150 %</span>
+      <div style="position: absolute; left: 8px; right: 8px; bottom: 6px; height: 6px; border-radius: 3px; background: rgba(42,18,64,.35)"><div style="position: absolute; left: 12%; width: 67%; top: 0; bottom: 0; border-radius: 3px; background: #2a1240"></div></div>
+    </div>
+    <figcaption class="muted" style="font-size: 12px; text-align: center">↔ Faites glisser pour parcourir la page (537 px de large) · le pincement reste possible</figcaption>
+  </figure>
+
+  <div class="yn-manga__navigation" style="padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 8px; align-items: stretch; flex-shrink: 0">
+    <span class="lbl" aria-live="polite" style="text-align: center; font-size: 12px">Page 3 sur 24</span>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <a href="LecteurMangaMobile.dc.html" class="btn">← Page précédente</a>
+      <a href="LecteurMangaMobile.dc.html" class="btn pri">Page suivante →</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

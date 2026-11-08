@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Fiche du tome — sommaire groupé</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap;box-sizing:border-box}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.rose{color:#f3a6c8;border-color:#f3a6c8}
+.muted{color:#b7a9cc}
+.side a{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-radius:4px;color:#ebe3f2;font-weight:500}
+.side a.on{background:#3a2a63;color:#fff8fb;border-left:3px solid #f3a6c8}
+select,input{background:#241740;border:1px solid #7f6aa8;border-radius:4px;color:#ebe3f2;height:40px;padding:0 12px;font-family:inherit;font-size:14px;width:100%;box-sizing:border-box;color-scheme:dark}
+input[type="checkbox"],input[type="radio"]{width:18px;height:18px;padding:0;margin:0;accent-color:#f3a6c8;flex-shrink:0}
+label{display:flex;flex-direction:column;gap:6px}
+.etape{font-family:"Outfit",sans-serif;font-weight:700;font-size:20px;color:#fff8fb}
+.toc{list-style:none;margin:0;padding:8px 0}.item{border-bottom:1px solid #4a3b6e;padding:4px 0}.item:last-child{border-bottom:0}
+.ligne{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:12px;align-items:center;padding:7px 20px;color:#ebe3f2;font-size:15px}
+a.ligne:hover{background:#3a2a63}.ligne .num{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.04em;color:#f3a6c8}
+.parties{list-style:none;margin:0 0 6px 34px;padding:0;border-left:2px solid #4a3b6e}.parties .ligne{padding:5px 20px 5px 18px;grid-template-columns:76px minmax(0,1fr) auto;font-size:14px}
+.ligne.cur{background:#3a2a63;box-shadow:inset 3px 0 0 #f3a6c8;color:#fff8fb;font-weight:600}
+.cover{border-radius:8px;background:linear-gradient(160deg,#5b3a7a 0%,#2d1f4f 55%,#c2437e 140%);display:flex;align-items:flex-end;padding:10px;color:#ebe3f2;font-family:"Outfit",sans-serif;font-weight:700;font-size:14px;line-height:1.15;border:1px solid #4a3b6e;box-sizing:border-box}
+nav a{color:#ebe3f2;font-weight:500}.sk{height:10px;border-radius:5px;background:#4a3b6e}
+</style>
+</helmet>
+<div style="width: 1440px; height: 2290px; box-sizing: border-box; display: flex; background: #1b1231">
+<div style="display: flex; flex-direction: column; width: 100%">
+<header style="background: #241740; border-bottom: 1px solid #4a3b6e; height: 64px; display: flex; align-items: center; gap: 32px; padding: 0 48px; flex-shrink: 0">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 20px"><span style="width: 28px; height: 28px; border-radius: 50%; background: #f3a6c8; display: inline-block"></span>Yume Novel</a>
+  <nav style="display: flex; gap: 24px"><a href="Main.dc.html" style="color: #fff8fb">Bibliothèque ▾</a><a href="Planning.dc.html">Planning</a><a href="Main.dc.html">Actualités</a><a href="Main.dc.html">L'équipe</a><a href="Main.dc.html">Soutenir</a></nav>
+  <div style="margin-left: auto"><a href="Compte.dc.html" class="btn sm">Mon compte</a></div>
+</header>
+
+<div style="background: linear-gradient(180deg, #241740 0%, #1b1231 100%); padding: 32px 48px 28px; border-bottom: 1px solid #4a3b6e">
+  <div class="muted" style="font-size: 13px; margin-bottom: 14px"><a href="Main.dc.html">Bibliothèque</a> › <a href="Oeuvre.dc.html">Miss Medic's Diary at War</a> › Tome 2</div>
+  <div style="display: flex; gap: 28px; align-items: flex-start">
+    <div class="cover" style="width: 160px; height: 226px; flex-shrink: 0; font-size: 16px">Miss Medic's Diary at War — Tome 2</div>
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; gap: 8px"><span class="chip info">Light novel</span><span class="chip ok">● Tome en cours · une publication chaque dimanche</span></div>
+      <h1 style="font-size: 40px">Miss Medic's Diary at War — Tome 2</h1>
+      <div class="muted">9 chapitres en ligne · 46 min de lecture · 28 à venir · 55 263 mots au total</div>
+      <div style="display: flex; gap: 10px; margin-top: 4px"><a href="TomeSousChapitres.dc.html" class="btn pri">▶ Reprendre · Chapitre 2, partie 1</a><button type="button" class="btn">♥ Suivre l'œuvre</button></div>
+    </div>
+  </div>
+</div>
+
+<main style="padding: 28px 48px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 520px; gap: 32px; align-items: start">
+  <nav aria-labelledby="som" style="display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; align-items: baseline; gap: 14px"><h2 id="som" style="font-size: 24px">Sommaire</h2><span class="muted" style="font-size: 14px">9 chapitres · 46 min · 28 à venir</span></div>
+    <ol class="card toc">
+<li class="item"><a class="ligne" href="TomeSousChapitres.dc.html"><span class="num">Chapitre 1</span><span class="titre">Année 1938, été 6</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>4 min</span></a></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 2</span><span class="titre" style="font-weight: 700; color: #fff8fb">Bataille défensive de Mashdale</span><span class="muted" style="font-size: 13px">6 parties</span></span><ol class="parties"><li><a class="ligne cur" href="TomeSousChapitres.dc.html" aria-current="page"><span class="num">Partie 1</span><span class="titre">10 septembre, soir</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>3 min</span></a></li><li><a class="ligne" href="TomeSousChapitres.dc.html"><span class="num">Partie 2</span><span class="titre">10 septembre, nuit</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>3 min</span></a></li><li><a class="ligne" href="TomeSousChapitres.dc.html"><span class="num">Partie 3</span><span class="titre">10 septembre, tard dans la nuit</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>15 min</span></a></li><li><a class="ligne" href="TomeSousChapitres.dc.html"><span class="num">Partie 4</span><span class="titre">11 septembre, début de matinée</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>3 min</span></a></li><li><a class="ligne" href="TomeSousChapitres.dc.html"><span class="num">Partie 5</span><span class="titre">11 septembre, matin</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>4 min</span></a></li><li><a class="ligne" href="TomeSousChapitres.dc.html"><span class="num">Partie 6</span><span class="titre">11 septembre, midi</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>2 min</span></a></li></ol></li>
+<li class="item"><a class="ligne" href="TomeSousChapitres.dc.html"><span class="num">Chapitre 3</span><span class="titre">Année 1938, été 7</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>3 min</span></a></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 4</span><span class="titre" style="font-weight: 700; color: #fff8fb">Bataille défensive de Mashdale 2</span><span class="muted" style="font-size: 13px">8 parties</span></span><ol class="parties"><li><a class="ligne" href="TomeSousChapitres.dc.html"><span class="num">Partie 1</span><span class="titre">11 septembre, soir</span><span class="muted" style="font-size: 13px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Temps de lecture : </span>8 min</span></a></li><li><span class="ligne"><span class="num">Partie 2</span><span class="titre">12 septembre, midi</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 29 nov. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 3</span><span class="titre">12 septembre, soir</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 29 nov. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 4</span><span class="titre">12 septembre, nuit</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 29 nov. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 5</span><span class="titre">13 septembre, aube naissante</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 29 nov. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 6</span><span class="titre">13 septembre, soir</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 29 nov. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 7</span><span class="titre">15 septembre, midi</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>sam. 5 déc. · 14:00</span></span></li><li><span class="ligne"><span class="num">Partie 8</span><span class="titre">17 septembre, soir</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>sam. 5 déc. · 14:00</span></span></li></ol></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 5</span><span class="titre">Année 1938, été 8</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>sam. 5 déc. · 14:00</span></span></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 6</span><span class="titre" style="font-weight: 700; color: #fff8fb">Évacuation de Mashdale 1</span><span class="muted" style="font-size: 13px">1 partie</span></span><ol class="parties"><li><span class="ligne"><span class="num">Partie 1</span><span class="titre">17 septembre, soir</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 13 déc. · 18:00</span></span></li></ol></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 7</span><span class="titre">Année 1938, été 9</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 13 déc. · 18:00</span></span></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 8</span><span class="titre" style="font-weight: 700; color: #fff8fb">Évacuation de Mashdale 2</span><span class="muted" style="font-size: 13px">1 partie</span></span><ol class="parties"><li><span class="ligne"><span class="num">Partie 1</span><span class="titre">17 septembre</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 20 déc. · 18:00</span></span></li></ol></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 9</span><span class="titre">Année 1938, été 10</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 27 déc. · 18:00</span></span></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 10</span><span class="titre" style="font-weight: 700; color: #fff8fb">Évacuation de Mashdale 3</span><span class="muted" style="font-size: 13px">4 parties</span></span><ol class="parties"><li><span class="ligne"><span class="num">Partie 1</span><span class="titre">17 septembre, nuit</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 27 déc. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 2</span><span class="titre">18 septembre, midi</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 3 janv. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 3</span><span class="titre">19 septembre</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 3 janv. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 4</span><span class="titre">20 septembre</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 3 janv. · 18:00</span></span></li></ol></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 11</span><span class="titre">Année 1938, été 11</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 3 janv. · 18:00</span></span></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 12</span><span class="titre" style="font-weight: 700; color: #fff8fb">Évacuation de Mashdale 4</span><span class="muted" style="font-size: 13px">5 parties</span></span><ol class="parties"><li><span class="ligne"><span class="num">Partie 1</span><span class="titre">20 septembre, midi</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 3 janv. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 2</span><span class="titre">20 septembre, aube naissante</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 3 janv. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 3</span><span class="titre">Compte rendu de combat — 153ᵉ division</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 3 janv. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 4</span><span class="titre">22 septembre, matin</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 10 janv. · 18:00</span></span></li><li><span class="ligne"><span class="num">Partie 5</span><span class="titre">Sans date</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 10 janv. · 18:00</span></span></li></ol></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 13</span><span class="titre">Année 1938, été 12</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 10 janv. · 18:00</span></span></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 14</span><span class="titre" style="font-weight: 700; color: #fff8fb">Wynn, la capitale 1</span><span class="muted" style="font-size: 13px">1 partie</span></span><ol class="parties"><li><span class="ligne"><span class="num">Partie 1</span><span class="titre">22 septembre, nuit</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 10 janv. · 18:00</span></span></li></ol></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 15</span><span class="titre">Année 1938, été 13</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 10 janv. · 18:00</span></span></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 16</span><span class="titre" style="font-weight: 700; color: #fff8fb">Wynn, la capitale 2</span><span class="muted" style="font-size: 13px">1 partie</span></span><ol class="parties"><li><span class="ligne"><span class="num">Partie 1</span><span class="titre">23 septembre, midi</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 17 janv. · 18:00</span></span></li></ol></li>
+<li class="item"><span class="ligne"><span class="num">Chapitre 17</span><span class="titre">Année 1938, été 14</span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 17 janv. · 18:00</span></span></li>
+<li class="item"><span class="ligne"><span class="num">Postface</span><span></span><span class="chip warn" style="font-size: 11px">◷ <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Prévu le </span>dim. 17 janv. · 18:00</span></span></li>    </ol>
+  </nav>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <span class="lbl">Page d'une partie · en-tête et navigation</span>
+    <article class="card" style="overflow: hidden">
+      <div style="background: #241740; border-bottom: 1px solid #4a3b6e; padding: 10px 16px; display: flex; flex-direction: column; line-height: 1.25">
+        <span style="color: #fff8fb; font-weight: 600; font-size: 14px">Miss Medic's Diary at War · Tome 2</span>
+        <span class="muted" style="font-size: 12px">Chapitre 2, partie 1 · ~3 min</span>
+      </div>
+      <div style="height: 3px; background: #241740"><div style="height: 100%; width: 8%; background: #f3a6c8"></div></div>
+      <header class="yn-chapter-header" style="padding: 32px 32px 18px; text-align: center; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid #4a3b6e; margin: 0 32px">
+        <span class="lbl" style="font-size: 12px">Chapitre 2 — Bataille défensive de Mashdale</span>
+        <h1 style="font-size: 30px; font-weight: 800">Partie 1 — 10 septembre, soir</h1>
+      </header>
+      <div aria-label="Texte de la partie (797 mots)" role="img" style="padding: 22px 32px; display: flex; flex-direction: column; gap: 12px">
+        <div class="sk" style="width: 96%"></div><div class="sk" style="width: 100%"></div><div class="sk" style="width: 88%"></div><div class="sk" style="width: 72%"></div>
+        <div class="sk" style="width: 100%; margin-top: 8px"></div><div class="sk" style="width: 93%"></div><div class="sk" style="width: 60%"></div>
+        <span class="muted" style="font-size: 12px; text-align: center">Texte de la partie · 797 mots</span>
+      </div>
+      <footer style="border-top: 1px solid #4a3b6e; background: #241740; padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center">
+        <a href="TomeSousChapitres.dc.html" class="btn sm" style="height: auto; min-height: 44px; white-space: normal; text-align: left; justify-content: flex-start; padding: 6px 10px; line-height: 1.25">◀ Chapitre 1<br>Année 1938, été 6</a>
+        <a href="TomeSousChapitres.dc.html" class="btn sm" style="height: 44px">Sommaire</a>
+        <a href="TomeSousChapitres.dc.html" class="btn sm pri" style="height: auto; min-height: 44px; white-space: normal; text-align: right; justify-content: flex-end; padding: 6px 10px; line-height: 1.25">Partie 2 ▶<br>10 septembre, nuit</a>
+      </footer>
+    </article>
+    <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+      <span class="lbl">Partout ailleurs</span>
+      <span><span class="muted">Onglet :</span> Chapitre 2, partie 1 — 10 septembre, soir · Miss Medic's Diary at War · Yume Novel</span>
+      <span><span class="muted">Annonce, reprise de lecture, planning :</span> « Chapitre 2, partie 1 — 10 septembre, soir »</span>
+      <span><span class="muted">Ordre de lecture :</span> chapitre 1 → chapitre 2, parties 1 à 6 → chapitre 3…</span>
+    </div>
+  </div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2290}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
