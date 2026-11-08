@@ -14,6 +14,47 @@ technique : `docs/06-contrat-technique.md` §8 bis ; décisions : `docs/journal-
 | Chapitres | Créés par la synchronisation horaire (Yume → Mangas (MangaDex)), datés de leur sortie sur MangaDex |
 | Images | Relayées par le site, jamais stockées ; « Économie de données » par défaut, « Originale » au choix du lecteur |
 | Annonces | Première synchronisation d'une œuvre : ajout au catalogue sans annonce ; ensuite, annonces habituelles |
+| Lecture | Défilement ou page par page, qualité, zoom (Auto, 50 à 300 %) ; doubles pages affichées en grand (voir plus bas) |
+
+## Lecture : doubles pages et zoom
+
+Depuis 2.8.0, le lecteur s'adapte au format des pages et laisse chacun régler la taille des images.
+
+- **Doubles pages** : une page plus large que haute (double page, illustration paysage) est
+  reconnue à son chargement (classe `is-paysage`). En **défilement**, elle sort de la colonne de
+  lecture (960 px) pour être lisible : largeur = la plus petite de (fenêtre − 32 px, deux
+  colonnes, 1920 px), centrée sur la fenêtre, sans jamais faire défiler la page de côté. En **page
+  par page**, elle tient entière à l'écran (largeur de la fenêtre, hauteur de l'écran moins la
+  barre de lecture et les boutons), donc plus large qu'une page simple. Avant son chargement, une
+  page garde le cadre au format 7/10 (le format n'est pas encore connu). L'arbre décoratif de la
+  saison peut se cacher derrière une double page.
+- **Zoom** (outils au-dessus des pages : « − », valeur, « + », « Auto ») : « Auto » est
+  l'ajustement ci-dessus ; « − » et « + » vont de 50 à 300 % par pas de 25 % (depuis Auto :
+  75 % ou 125 %). La largeur de chaque page vaut sa largeur « Auto » multipliée par le zoom, dans
+  les deux modes. Une page zoomée occupe toute la largeur de la fenêtre et, si elle est plus large,
+  **défile horizontalement dans son cadre** (glisser, molette avec Maj, barre de défilement) ; la
+  page du site ne défile jamais de côté. En défilement, la page en cours reste à l'écran quand on
+  change le zoom.
+- **Raccourcis** (hors champ de saisie) : `+` ou `=` agrandir, `-` réduire, `0` retour à Auto ;
+  Ctrl / Cmd + (zoom du navigateur) n'est pas intercepté. En page par page, ← / → tournent toujours
+  les pages.
+- **Double clic** (souris) ou **double appui** (doigt) sur une page : Auto ↔ 200 %, centré sur
+  l'endroit visé. En page par page, un simple clic tourne toujours la page, avec un délai de
+  250 ms (le temps de reconnaître un double clic) : deux clics rapprochés sur une même page
+  zooment au lieu de tourner deux pages.
+- **Mobile** : le pincement du navigateur reste disponible (le double appui natif est remplacé par
+  la bascule Auto ↔ 200 %).
+- **Mémorisation** : mode, qualité et zoom sont gardés sur l'appareil (`localStorage` `yn.manga`,
+  `zoom` absent = Auto), jamais sur le compte.
+
+Test de bout en bout : `tools/ci/manga-zoom.sh` (chapitre d'essai fabriqué dans la base locale,
+images du proxy remplacées par deux PNG générés, Chromium par Playwright ; détail en tête de
+`tools/ci/manga-zoom.js`) :
+
+```sh
+. <dossier>/env.sh
+YUME_ENV=manga tools/ci/manga-zoom.sh --port 8101
+```
 
 ## Publication : un chapitre publié sur MangaDex est public tout de suite
 

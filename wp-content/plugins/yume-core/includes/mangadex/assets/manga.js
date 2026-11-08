@@ -8,7 +8,15 @@
  *   le sens de lecture, choix de l'équipe). Au bout du chapitre, les flèches laissent la
  *   barre de lecture passer au chapitre voisin. Les deux pages suivantes sont préchargées.
  * - Qualité : « Économie de données » (src) ou « Originale » (data-yn-originale).
- * - Choix gardés sur l'appareil : localStorage yn.manga = { mode, qualite }.
+ * - Doubles pages : une image paysage (largeur > hauteur) reçoit is-paysage (figure et image) ;
+ *   manga.css l'élargit au-delà de la colonne, centrée sur la fenêtre, d'après les largeurs
+ *   mesurées ici (--yn-manga-fenetre, --yn-manga-colonne, --yn-manga-decalage).
+ * - Zoom : Auto (ajustement actuel) ou 50 à 300 % par pas de 25 (− / + / Auto, touches + = − 0,
+ *   double clic ou double appui sur une page : Auto ↔ 200 %). Largeur rendue = largeur auto ×
+ *   zoom (--yn-manga-zoom, data-yn-zoom="auto|manuel") ; l'image zoomée défile dans sa figure.
+ *   En mode page, un simple clic tourne la page après DELAI_CLIC ms, annulé par un double clic.
+ * - Choix gardés sur l'appareil : localStorage yn.manga = { mode, qualite, zoom } (zoom absent :
+ *   Auto).
  * - Page qui ne se charge pas : « Page N indisponible » et lien vers MangaDex.
  * - Coordination avec la barre de lecture (yume/reader-tools) : attribut data-yn-courante
  *   (index de la page affichée en mode page), événement document « yn:manga-page » à chaque
@@ -27,6 +35,11 @@
 	const MODES = [ 'defilement', 'page' ];
 	const QUALITES = [ 'data-saver', 'data' ];
 	const PRECHARGEES = 2;
+	const ZOOM_MIN = 50;
+	const ZOOM_MAX = 300;
+	const ZOOM_PAS = 25;
+	const ZOOM_DOUBLE = 200;
+	const DELAI_CLIC = 250;
 
 	const pages = Array.prototype.slice.call( racine.querySelectorAll( '.yn-manga__page' ) );
 	const zone = racine.querySelector( '.yn-manga__pages' );
@@ -36,6 +49,7 @@
 	const boutonPrecedente = racine.querySelector( '[data-yn-manga-aller="precedente"]' );
 	const boutonSuivante = racine.querySelector( '[data-yn-manga-aller="suivante"]' );
 	const lienMangadex = racine.querySelector( '[data-yn-manga-mangadex]' );
+	const valeurZoom = racine.querySelector( '[data-yn-manga-zoom-valeur]' );
 	const total = pages.length;
 	if ( ! total || ! zone ) {
 		return;
@@ -52,18 +66,58 @@
 
 	function ecrire() {
 		try {
-			window.localStorage.setItem( CLE, JSON.stringify( { mode: etat.mode, qualite: etat.qualite } ) );
+			const valeur = { mode: etat.mode, qualite: etat.qualite };
+			if ( etat.zoom !== null ) {
+				valeur.zoom = etat.zoom;
+			}
+			window.localStorage.setItem( CLE, JSON.stringify( valeur ) );
 		} catch ( e ) {
 			// Stockage indisponible (navigation privée) : le choix vaut pour cette page.
 		}
+	}
+
+	/**
+	 * Zoom valide (nombre entier de 50 à 300, multiple de 25) ou null (Auto).
+	 *
+	 * @param {*} valeur Valeur lue.
+	 * @return {number|null} Zoom.
+	 */
+	function zoomValide( valeur ) {
+		return typeof valeur === 'number' && valeur >= ZOOM_MIN && valeur <= ZOOM_MAX && valeur % ZOOM_PAS === 0 ? valeur : null;
 	}
 
 	const memo = lire();
 	const etat = {
 		mode: MODES.indexOf( memo.mode ) >= 0 ? memo.mode : 'defilement',
 		qualite: QUALITES.indexOf( memo.qualite ) >= 0 ? memo.qualite : 'data-saver',
+		zoom: zoomValide( memo.zoom ),
 		courante: 0,
 	};
+
+	/* ------------------------------------------------------------------ */
+	/* Largeurs (doubles pages, zoom)                                      */
+	/* ------------------------------------------------------------------ */
+
+	/** Largeurs de la fenêtre et de la colonne, pour manga.css (en px). */
+	function mesurer() {
+		const fenetre = document.documentElement.clientWidth || window.innerWidth;
+		const rect = zone.getBoundingClientRect();
+		racine.style.setProperty( '--yn-manga-fenetre', fenetre + 'px' );
+		racine.style.setProperty( '--yn-manga-colonne', rect.width + 'px' );
+		racine.style.setProperty( '--yn-manga-decalage', ( fenetre / 2 - ( rect.left + rect.width / 2 ) ) + 'px' );
+	}
+
+	let mesureDemandee = false;
+	function demanderMesure() {
+		if ( mesureDemandee ) {
+			return;
+		}
+		mesureDemandee = true;
+		window.requestAnimationFrame( function () {
+			mesureDemandee = false;
+			mesurer();
+		} );
+	}
 
 	/* ------------------------------------------------------------------ */
 	/* Images                                                              */
@@ -90,15 +144,28 @@
 			const voulue = adresse( img );
 			if ( voulue && img.getAttribute( 'src' ) !== voulue ) {
 				img.classList.remove( 'is-chargee' );
+				page.classList.remove( 'is-chargee' );
 				img.setAttribute( 'src', voulue );
 			}
 		} );
 	}
 
 	function surChargement( img ) {
+		const page = img.closest( '.yn-manga__page' );
+		const largeur = img.naturalWidth;
+		const hauteur = img.naturalHeight;
+		if ( largeur && hauteur ) {
+			img.style.setProperty( '--yn-manga-naturelle', largeur + 'px' );
+			img.style.setProperty( '--yn-manga-ratio', String( largeur / hauteur ) );
+		}
+		const paysage = !! ( largeur && largeur > hauteur );
+		img.classList.toggle( 'is-paysage', paysage );
+		img.classList.toggle( 'is-longue', !! ( largeur && hauteur > largeur * 2.2 ) );
 		img.classList.add( 'is-chargee' );
-		if ( img.naturalWidth && img.naturalHeight > img.naturalWidth * 2.2 ) {
-			img.classList.add( 'is-longue' );
+		if ( page ) {
+			page.classList.toggle( 'is-paysage', paysage );
+			page.classList.add( 'is-chargee' );
+			centrerFigure( page );
 		}
 	}
 
@@ -226,6 +293,108 @@
 	}
 
 	/* ------------------------------------------------------------------ */
+	/* Zoom                                                                */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * Image zoomée plus large que sa figure : défilement horizontal centré (ou sur le point
+	 * visé, fraction 0…1 de la largeur de l'image).
+	 *
+	 * @param {Element} page    Figure.
+	 * @param {number}  [point] Fraction de la largeur de l'image à garder au centre.
+	 */
+	function centrerFigure( page, point ) {
+		const debord = page.scrollWidth - page.clientWidth;
+		if ( debord <= 0 ) {
+			return;
+		}
+		const fraction = typeof point === 'number' ? point : 0.5;
+		page.scrollLeft = Math.max( 0, Math.min( debord, fraction * page.scrollWidth - page.clientWidth / 2 ) );
+	}
+
+	function majZoom() {
+		if ( valeurZoom ) {
+			valeurZoom.textContent = etat.zoom === null ? 'Auto' : etat.zoom + ' %';
+		}
+		racine.querySelectorAll( '[data-yn-manga-zoom]' ).forEach( function ( b ) {
+			const action = b.getAttribute( 'data-yn-manga-zoom' );
+			if ( action === 'auto' ) {
+				b.setAttribute( 'aria-pressed', String( etat.zoom === null ) );
+			} else if ( action === 'moins' ) {
+				b.disabled = etat.zoom !== null && etat.zoom <= ZOOM_MIN;
+			} else if ( action === 'plus' ) {
+				b.disabled = etat.zoom !== null && etat.zoom >= ZOOM_MAX;
+			}
+		} );
+	}
+
+	/**
+	 * Applique un zoom (null : Auto) en gardant à l'écran la page lue.
+	 *
+	 * @param {number|null} zoom   Zoom en %.
+	 * @param {Object}      [vise] { page, x } : figure et fraction horizontale à garder au centre.
+	 */
+	function appliquerZoom( zoom, vise ) {
+		const page = vise && vise.page ? vise.page : pages[ etat.mode === 'page' ? etat.courante : pageVisible() ];
+		const limite = hauteurBarre() + 1;
+		const avant = page ? page.getBoundingClientRect() : null;
+		const fraction = avant && avant.height ? ( limite - avant.top ) / avant.height : 0;
+
+		etat.zoom = zoom;
+		racine.setAttribute( 'data-yn-zoom', zoom === null ? 'auto' : 'manuel' );
+		racine.style.setProperty( '--yn-manga-zoom', String( zoom === null ? 1 : zoom / 100 ) );
+		majZoom();
+		mesurer();
+
+		// Défilement : la même ligne de la page lue reste sous la barre de lecture.
+		if ( page && avant && etat.mode !== 'page' && avant.top < limite ) {
+			const apres = page.getBoundingClientRect();
+			window.scrollBy( 0, apres.top + fraction * apres.height - limite );
+		}
+		pages.forEach( function ( p ) {
+			centrerFigure( p, p === page && vise && typeof vise.x === 'number' ? vise.x : undefined );
+		} );
+	}
+
+	/**
+	 * Pas de zoom : +1 agrandir, -1 réduire (depuis Auto : 125 % ou 75 %).
+	 *
+	 * @param {number} sens +1 ou -1.
+	 */
+	function pasZoom( sens ) {
+		const depart = etat.zoom === null ? 100 : etat.zoom;
+		const cible = Math.max( ZOOM_MIN, Math.min( ZOOM_MAX, depart + sens * ZOOM_PAS ) );
+		if ( cible !== etat.zoom ) {
+			appliquerZoom( cible );
+			ecrire();
+		}
+	}
+
+	function zoomAuto() {
+		if ( etat.zoom !== null ) {
+			appliquerZoom( null );
+			ecrire();
+		}
+	}
+
+	/**
+	 * Double clic ou double appui : Auto ↔ 200 %, centré sur le point visé.
+	 *
+	 * @param {Element} page Figure.
+	 * @param {number}  x    Abscisse du clic (fenêtre).
+	 */
+	function basculerZoom( page, x ) {
+		const img = page.querySelector( 'img' );
+		const rect = img ? img.getBoundingClientRect() : null;
+		const point = rect && rect.width ? Math.max( 0, Math.min( 1, ( x - rect.left ) / rect.width ) ) : 0.5;
+		appliquerZoom( etat.zoom === null ? ZOOM_DOUBLE : null, { page: page, x: point } );
+		ecrire();
+		if ( window.getSelection ) {
+			window.getSelection().removeAllRanges();
+		}
+	}
+
+	/* ------------------------------------------------------------------ */
 	/* Modes et outils                                                     */
 	/* ------------------------------------------------------------------ */
 
@@ -258,7 +427,11 @@
 			prevenirLecteur();
 		}
 		majBoutons();
+		mesurer();
 	}
+
+	let clicEnAttente = 0;
+	let dernierClic = { page: null, t: 0 };
 
 	racine.addEventListener( 'click', function ( e ) {
 		const cible = e.target.closest ? e.target.closest( 'button, a' ) : null;
@@ -278,6 +451,15 @@
 			ecrire();
 			return;
 		}
+		if ( cible && cible.hasAttribute( 'data-yn-manga-zoom' ) ) {
+			const action = cible.getAttribute( 'data-yn-manga-zoom' );
+			if ( action === 'auto' ) {
+				zoomAuto();
+			} else {
+				pasZoom( action === 'plus' ? 1 : -1 );
+			}
+			return;
+		}
 		if ( cible && cible.hasAttribute( 'data-yn-manga-aller' ) ) {
 			const pas = cible.getAttribute( 'data-yn-manga-aller' ) === 'suivante' ? 1 : -1;
 			if ( ! tourner( pas ) && pas > 0 && lienChapitreSuivant() ) {
@@ -285,26 +467,66 @@
 			}
 			return;
 		}
-		// Clic sur la page en mode page par page : moitié droite → suivante, gauche → précédente.
-		if ( etat.mode === 'page' && ! cible && e.target.closest && e.target.closest( '.yn-manga__page' ) ) {
+		const page = ! cible && e.target.closest ? e.target.closest( '.yn-manga__page' ) : null;
+		if ( ! page ) {
+			return;
+		}
+		// Deuxième clic rapproché sur la même page (double clic à la souris, double appui au
+		// doigt, quel que soit e.detail) : bascule du zoom ; la page ne tourne pas (le premier
+		// clic attendait encore). Un troisième clic repart de zéro.
+		const maintenant = Date.now();
+		if ( e.detail !== 0 && dernierClic.page === page && maintenant - dernierClic.t <= DELAI_CLIC ) {
+			window.clearTimeout( clicEnAttente );
+			clicEnAttente = 0;
+			dernierClic = { page: null, t: 0 };
+			basculerZoom( page, e.clientX );
+			return;
+		}
+		dernierClic = { page: page, t: maintenant };
+		// Clic sur la page en mode page par page : moitié droite → suivante, gauche → précédente,
+		// après DELAI_CLIC ms (le temps d'un éventuel double clic). Clic sans pointeur
+		// (detail 0) : tout de suite.
+		if ( etat.mode === 'page' ) {
 			const rect = zone.getBoundingClientRect();
-			tourner( e.clientX >= rect.left + rect.width / 2 ? 1 : -1 );
+			const pas = e.clientX >= rect.left + rect.width / 2 ? 1 : -1;
+			window.clearTimeout( clicEnAttente );
+			clicEnAttente = window.setTimeout( function () {
+				clicEnAttente = 0;
+				tourner( pas );
+			}, e.detail === 0 ? 0 : DELAI_CLIC );
 		}
 	} );
 
 	function estChampSaisie( el ) {
-		return !! ( el && ( el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test( el.tagName || '' ) ) );
+		if ( ! el || ! el.tagName ) {
+			return false;
+		}
+		return !! ( el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test( el.tagName ) || ( el.closest && el.closest( '[contenteditable="true"], [role="textbox"], [role="combobox"], [role="slider"]' ) ) );
 	}
 
 	// Phase de capture : passe avant la barre de lecture (← / → : chapitre voisin), qui ignore
 	// une touche déjà traitée (defaultPrevented). Au bout du chapitre, la touche lui revient.
+	// Zoom (+ = − 0, les deux modes) : Maj permise (« + » ou « 0 » selon le clavier), jamais
+	// Ctrl, Alt ou Cmd (zoom du navigateur).
 	window.addEventListener(
 		'keydown',
 		function ( e ) {
-			if ( etat.mode !== 'page' || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.isComposing ) {
+			if ( e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.isComposing ) {
 				return;
 			}
 			if ( estChampSaisie( e.target ) || document.querySelector( 'dialog[open]' ) ) {
+				return;
+			}
+			if ( e.key === '+' || e.key === '=' || e.key === '-' || e.key === '0' ) {
+				e.preventDefault();
+				if ( e.key === '0' ) {
+					zoomAuto();
+				} else {
+					pasZoom( e.key === '-' ? -1 : 1 );
+				}
+				return;
+			}
+			if ( etat.mode !== 'page' || e.shiftKey ) {
 				return;
 			}
 			let pas = 0;
@@ -335,6 +557,12 @@
 	if ( outils ) {
 		outils.hidden = false;
 	}
+	mesurer();
+	window.addEventListener( 'resize', demanderMesure );
+	if ( typeof window.ResizeObserver === 'function' ) {
+		new window.ResizeObserver( demanderMesure ).observe( zone );
+	}
+	appliquerZoom( etat.zoom );
 	appliquerQualite();
 	if ( etat.mode === 'page' ) {
 		// Ouverture en haut du chapitre : la page est alignée sous la barre de lecture, entière à

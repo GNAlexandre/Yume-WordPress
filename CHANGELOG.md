@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.8.0-dev.3 — 2026-11-08
+
+- Lecteur manga : les doubles pages (images paysage) s’affichent plus larges que la colonne, centrées sur la fenêtre en défilement et entières à l’écran en page par page ; nouveau zoom (− / + / Auto, 50 à 300 %, touches + − 0, double clic ou double appui Auto ↔ 200 %), l’image zoomée défilant dans son cadre, réglage gardé sur l’appareil (yn.manga) ; test de bout en bout tools/ci/manga-zoom.sh
+
 ## 2.8.0-dev.2 — 2026-11-08
 
 - Maquettes 2.8.0 : lecteur manga (double page, zoom), découpage en sous-chapitres, panneau « Programmer les sorties », sommaire groupé du tome (design/maquettes, canvas.json)

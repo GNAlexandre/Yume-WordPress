@@ -1209,8 +1209,34 @@ d'administration dans `includes/mangadex/synchro.php`.
   1re), `lazy` ensuite. Outils (`.yn-manga__outils`) et navigation page par page
   (`.yn-manga__navigation`) en `hidden`, affichés par le script : sans JavaScript, défilement.
 - **Outils** : « N pages », mode Défilement / Page par page, qualité « Économie de données » /
-  « Originale (≈ X Mo) » (X = pages × 1,6 Mo, `MO_PAR_PAGE_ORIGINALE`) ; choix dans
-  `localStorage yn.manga` (§14).
+  « Originale (≈ X Mo) » (X = pages × 1,6 Mo, `MO_PAR_PAGE_ORIGINALE`), groupe « Zoom »
+  (`html_zoom()`, depuis 2.8.0) ; choix dans `localStorage yn.manga` (§14).
+- **Doubles pages** (2.8.0) : au chargement d'une image, `manga.js` pose `is-chargee` sur la figure
+  et l'image, `is-paysage` si `naturalWidth > naturalHeight`, `is-longue` si hauteur > 2,2 ×
+  largeur, et les variables `--yn-manga-naturelle` (px) et `--yn-manga-ratio` sur l'image. Il
+  mesure aussi `--yn-manga-fenetre` (`clientWidth`), `--yn-manga-colonne` (largeur de
+  `.yn-manga__pages`) et `--yn-manga-decalage` (centre de la fenêtre − centre de la colonne) sur
+  `.yn-manga` (au démarrage, au redimensionnement). Figure paysage : cadre
+  `--yn-manga-large` = max(colonne, min(fenêtre − 32 px, 2 × colonne, 1920 px)), centré sur la
+  fenêtre par marges négatives (boîte de marge = colonne), jamais de défilement horizontal du
+  document. Mode page : largeur de l'image bornée aussi par `(100dvh − 140px) × ratio`
+  (`--yn-manga-hauteur`), la double page tient entière à l'écran. Page non chargée : cadre 7/10.
+- **Zoom** (2.8.0) : `.yn-manga__zoom` (`role="group"`, `aria-label` « Zoom ») = boutons
+  `data-yn-manga-zoom="moins"` (`aria-label` « Réduire »), valeur
+  `[data-yn-manga-zoom-valeur]` (`aria-live="polite"` : « Auto », « 150 % »),
+  `data-yn-manga-zoom="plus"` (« Agrandir »), `data-yn-manga-zoom="auto"` (`aria-pressed`). Auto ou
+  50 à 300 % par pas de 25 (depuis Auto : 75 / 125 %) ; « − » / « + » désactivés aux bornes. État
+  sur `.yn-manga` : `data-yn-zoom="auto|manuel"` (HTML serveur : `auto`) et `--yn-manga-zoom`
+  (1 ou 0,5…3). Largeur d'une image chargée = largeur auto (min(naturelle, colonne ou cadre
+  paysage[, hauteur × ratio en mode page])) × zoom. Zoom manuel : chaque figure chargée prend le
+  cadre `--yn-manga-ample` = max(colonne, min(fenêtre − 32 px, 1920 px)), `overflow-x: auto`
+  (l'image plus large y défile, centrée tant qu'elle tient). Au changement de zoom, la page lue
+  reste sous la barre (défilement). Raccourcis (phase de capture, hors champ de saisie et
+  dialogue ouvert, sans Ctrl / Alt / Cmd, Maj permise) : `+` / `=` agrandir, `-` réduire, `0`
+  Auto. Double clic ou double appui (deux clics sur la même figure en 250 ms, `DELAI_CLIC`) :
+  Auto ↔ 200 %, centré sur le point visé ; en mode page, le simple clic tourne la page après
+  250 ms (annulé par le second clic). `touch-action: manipulation` sur les figures : pincement
+  du navigateur permis, pas de `user-scalable=no`. Test de bout en bout : `tools/ci/manga-zoom.sh`.
 - **Page par page** : moitié droite de la page, → ou Page suivante = page suivante ; moitié
   gauche, ← ou Page précédente = page précédente, **quel que soit le sens de lecture** (décision
   de l'équipe, 16/10/2026). Touches captées avant la barre de lecture ; au bout du chapitre,
@@ -2161,7 +2187,7 @@ sous MySQL/MariaDB (production) **et** sous l'intégration SQLite (développemen
 | `yn.reglages` | `{size, lh, font, width, bgAlpha}` | lecture |
 | `yn.progression` | `{ [oeuvre_id]: {chapitre_id, tome_id, paragraphe, pourcentage, url, titre, updated_at} }` | lecture (écrit), lecteurs (bloc reprise) |
 | `yn.a11y` | `{contraste: bool, animations: 'systeme'\|'reduites'}` (appareil seulement, jamais envoyé au compte) | lecture (panneau Paramètres, script d'initialisation) ; lu aussi par le thème (`animations` = `reduites` coupe les décors saisonniers, §15) |
-| `yn.manga` | `{mode: 'defilement'\|'page', qualite: 'data-saver'\|'data'}` (appareil seulement ; défaut défilement, économie de données) | lecteur des chapitres MangaDex (`includes/mangadex/assets/manga.js`, §8 bis) |
+| `yn.manga` | `{mode: 'defilement'\|'page', qualite: 'data-saver'\|'data', zoom?: 50…300}` (appareil seulement ; défaut défilement, économie de données ; `zoom` entier multiple de 25, absent ou invalide = Auto, depuis 2.8.0 ; les valeurs antérieures sans `zoom` restent valides) | lecteur des chapitres MangaDex (`includes/mangadex/assets/manga.js`, §8 bis) |
 | `yn.wordend` | `{meilleur: int, parties: int, maj: 'YYYY-MM-DD', volume: 0…1, muet: bool}` (meilleur score et réglages du son du jeu caché, appareil seulement) | wordend |
 
 Stockage Cache Storage du service worker (lecture hors ligne) : caches `yume-lecture-{version}`,

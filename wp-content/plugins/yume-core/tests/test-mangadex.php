@@ -1644,6 +1644,56 @@ yume_test(
 );
 
 yume_test(
+	'mangadex : lecteur — outils de zoom (groupe « Zoom », Réduire, valeur annoncée, Agrandir, Auto enfoncé), data-yn-zoom="auto" ; script et feuille : doubles pages (is-paysage), zoom 50 à 300 % mémorisé dans yn.manga, raccourcis, double clic',
+	function () {
+		$site = yume_tmdx_chapitre_site();
+		$html = yume_tmdx_rendu_contenu( $site['chapitre'] );
+		yume_assert_contains( 'data-yn-pages="3" data-yn-zoom="auto"', $html, 'zoom automatique sans JavaScript (HTML identique pour tous)' );
+
+		// Groupe d'outils dans .yn-manga__outils (masqué sans JavaScript), après la qualité.
+		$debut  = strpos( $html, '<div class="yn-manga__outils" hidden>' );
+		$pages  = strpos( $html, '<div class="yn-manga__pages">' );
+		$groupe = strpos( $html, '<div class="yn-manga__choix yn-manga__zoom" role="group" aria-label="Zoom">' );
+		yume_assert_true( false !== $debut && false !== $groupe && $debut < $groupe && $groupe < $pages, 'groupe Zoom dans les outils' );
+		yume_assert_true( $groupe > strpos( $html, 'aria-label="Qualité des images"' ), 'après la qualité' );
+		$zoom = substr( $html, $groupe, $pages - $groupe );
+
+		$moins  = strpos( $zoom, '<button type="button" class="yn-btn yn-btn--sm" data-yn-manga-zoom="moins" aria-label="Réduire"' );
+		$valeur = strpos( $zoom, '<span class="yn-label yn-manga__zoom-valeur" aria-live="polite" data-yn-manga-zoom-valeur>Auto</span>' );
+		$plus   = strpos( $zoom, '<button type="button" class="yn-btn yn-btn--sm" data-yn-manga-zoom="plus" aria-label="Agrandir"' );
+		$auto   = strpos( $zoom, '<button type="button" class="yn-btn yn-btn--sm" data-yn-manga-zoom="auto" aria-pressed="true"' );
+		yume_assert_true( false !== $moins && false !== $valeur && false !== $plus && false !== $auto, 'quatre éléments présents' );
+		yume_assert_true( $moins < $valeur && $valeur < $plus && $plus < $auto, 'ordre − / valeur / + / Auto' );
+		yume_assert_contains( '<span aria-hidden="true">−</span>', $zoom, 'symbole décoratif, nom accessible par aria-label' );
+		yume_assert_contains( '<span aria-hidden="true">+</span>', $zoom );
+		yume_assert_contains( '>Auto</button>', $zoom );
+		yume_assert_same( 3, substr_count( $zoom, '<button type="button"' ), 'vrais boutons' );
+
+		$js = (string) file_get_contents( YUME_CORE_DIR . 'includes/mangadex/assets/manga.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		yume_assert_contains( "img.classList.toggle( 'is-paysage', paysage )", $js );
+		yume_assert_contains( "page.classList.toggle( 'is-paysage', paysage )", $js );
+		yume_assert_contains( 'largeur > hauteur', $js, 'paysage : naturalWidth > naturalHeight' );
+		yume_assert_contains( 'const ZOOM_MIN = 50;', $js );
+		yume_assert_contains( 'const ZOOM_MAX = 300;', $js );
+		yume_assert_contains( 'const ZOOM_PAS = 25;', $js );
+		yume_assert_contains( 'const ZOOM_DOUBLE = 200;', $js );
+		yume_assert_contains( 'valeur.zoom = etat.zoom', $js, 'zoom gardé dans yn.manga (absent = Auto)' );
+		yume_assert_contains( "'--yn-manga-zoom'", $js );
+		yume_assert_contains( "'data-yn-zoom', zoom === null ? 'auto' : 'manuel'", $js );
+		yume_assert_contains( "e.key === '+' || e.key === '=' || e.key === '-' || e.key === '0'", $js );
+		yume_assert_contains( 'e.altKey || e.ctrlKey || e.metaKey', $js, 'jamais avec Ctrl, Alt ou Cmd (zoom du navigateur)' );
+
+		$css = (string) file_get_contents( YUME_CORE_DIR . 'includes/mangadex/assets/manga.css' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		yume_assert_contains( '.yn-manga__page.is-paysage', $css );
+		yume_assert_contains( 'min(var(--yn-manga-fenetre) - 32px, 2 * var(--yn-manga-colonne), 1920px)', $css, 'largeur cible d’une double page' );
+		yume_assert_contains( 'width: calc(var(--yn-manga-base) * var(--yn-manga-zoom));', $css, 'largeur rendue = auto × zoom' );
+		yume_assert_contains( 'overflow-x: auto;', $css, 'image zoomée : défilement dans sa figure' );
+		yume_assert_contains( 'touch-action: manipulation;', $css, 'pincement permis, double appui pour le zoom' );
+		yume_assert_not_contains( 'user-scalable', $css . $js );
+	}
+);
+
+yume_test(
 	'mangadex : lecteur — la barre de lecture compte les pages comme des paragraphes (suivi, reprise « à la page N », mode page par page)',
 	function () {
 		$js = (string) file_get_contents( YUME_CORE_DIR . 'includes/reader/blocks/reader-tools/view.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
