@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.8.0-dev.1 — 2026-11-08
+
+- Cahier des charges 2.8.0 : lecteur manga (pages paysage plus larges, zoom), sous-chapitres à l’import et à la publication, programmation des sorties (calendrier sur mesure, répartition en N publications, vue dédiée)
+
 ## 2.7.3 — 2026-11-02
 
 - Yume Novel 2.7.3 : ajout de chapitres — illustrations modifiées et galerie du tome comparées et remplaçables en place (images provisoires puis traduites) ; planning de l’accueil — encarts des tomes en cours retirés de « Chapitres en lecture », « Tomes en préparation » montre la première étape non terminée
