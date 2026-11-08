@@ -151,7 +151,18 @@ final class Texte {
 		'postface'      => 'Postface',
 		'bonus'         => 'Bonus',
 		'illustrations' => 'Illustrations',
+		'sous-chapitre' => 'Sous-chapitre',
 	);
+
+	/**
+	 * Libellé d'une partie de chapitre (sous-chapitre) : « Chapitre 2, partie 1 ».
+	 *
+	 * @param float|null $numero      Numéro du chapitre parent (null : « Chapitre, partie 1 »).
+	 * @param int        $sous_numero Rang de la partie dans le chapitre (1, 2…).
+	 */
+	public static function libelle_partie( ?float $numero, int $sous_numero ): string {
+		return 'Chapitre' . ( null !== $numero ? ' ' . self::numero_fr( $numero ) : '' ) . ', partie ' . max( 1, $sous_numero );
+	}
 
 	/**
 	 * Normalise les espaces d'un texte brut : insécables et tabulations → espace, espaces
@@ -410,7 +421,8 @@ final class Texte {
 	/**
 	 * Paragraphe marqueur de début de chapitre, écrit dans le document : « [chapitre] »,
 	 * « [chapitre] Titre », « [bonus] Titre », « [prologue] », « [interlude] … », « [épilogue] … »,
-	 * « [postface] … » (casse et accents indifférents). Tout le paragraphe doit être le marqueur.
+	 * « [postface] … », « [sous-chapitre] Titre » (partie du chapitre précédent ; casse, accents
+	 * et trait d'union indifférents). Tout le paragraphe doit être le marqueur.
 	 *
 	 * @param string $texte Texte brut du paragraphe.
 	 * @return array{nature:string,titre:string}|null Nature et titre (éventuellement vide), ou null.
@@ -420,18 +432,20 @@ final class Texte {
 		if ( '' === $texte || '[' !== $texte[0] || mb_strlen( $texte, 'UTF-8' ) > 260 ) {
 			return null;
 		}
-		if ( ! preg_match( '/^\[\s*([\p{L}]+)\s*\]\s*(?:[:.\-–—]\s*)?(.*)$/u', $texte, $m ) ) {
+		if ( ! preg_match( '/^\[\s*([\p{L}]+(?:[\s\-‐‑]+[\p{L}]+)?)\s*\]\s*(?:[:.\-–—]\s*)?(.*)$/u', $texte, $m ) ) {
 			return null;
 		}
 		$natures = array(
-			'chapitre'  => 'chapitre',
-			'bonus'     => 'bonus',
-			'prologue'  => 'prologue',
-			'interlude' => 'interlude',
-			'epilogue'  => 'epilogue',
-			'postface'  => 'postface',
+			'chapitre'      => 'chapitre',
+			'bonus'         => 'bonus',
+			'prologue'      => 'prologue',
+			'interlude'     => 'interlude',
+			'epilogue'      => 'epilogue',
+			'postface'      => 'postface',
+			'sous-chapitre' => 'sous-chapitre',
+			'souschapitre'  => 'sous-chapitre',
 		);
-		$mot     = self::sans_accents( mb_strtolower( $m[1], 'UTF-8' ) );
+		$mot     = (string) preg_replace( '/[\s\-‐‑]+/u', '-', self::sans_accents( mb_strtolower( $m[1], 'UTF-8' ) ) );
 		if ( ! isset( $natures[ $mot ] ) ) {
 			return null;
 		}

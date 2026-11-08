@@ -940,9 +940,51 @@ function rendu_tome_header( array $attributs = array(), $bloc = null ): string {
  */
 
 /**
+ * Ligne (contenu de l'élément li) d'un chapitre du sommaire : lien s'il est publié, date de
+ * sortie s'il est programmé, « À venir » sinon. Une partie (sous-chapitre) affiche « Partie 1 »
+ * en tête de ligne.
+ *
+ * @param \WP_Post $chapitre Chapitre.
+ * @param int      $courant  Chapitre affiché (0 si aucun).
+ * @return array{html:string,classes:string} Contenu de la ligne et classes de l'élément li.
+ */
+function ligne_sommaire( \WP_Post $chapitre, int $courant ): array {
+	$cid        = (int) $chapitre->ID;
+	$partie     = function_exists( 'yume_libelle_partie' ) ? yume_libelle_partie( $cid ) : '';
+	$libelle    = '' !== $partie ? $partie : libelle_chapitre( $cid );
+	$sous_titre = meta_texte( $cid, 'yume_sous_titre' );
+	$contenu    = '<span class="yn-toc__numero">' . esc_html( $libelle ) . '</span>';
+	$contenu   .= '<span class="yn-toc__sous-titre">' . ( '' !== $sous_titre ? esc_html( $sous_titre ) : '' ) . '</span>';
+	$classes    = 'yn-toc__item' . ( '' !== $partie ? ' yn-toc__item--partie' : '' );
+	if ( 'publish' === $chapitre->post_status ) {
+		$minutes  = (int) get_post_meta( $cid, 'yume_temps_lecture', true );
+		$contenu .= '<span class="yn-toc__duree yn-muted">' . ( $minutes > 0 ? '<span class="yn-visually-hidden">' . esc_html__( 'Temps de lecture :', 'yume-core' ) . ' </span>' . esc_html( duree_lecture( $minutes ) ) : '' ) . '</span>';
+		$actuel   = $cid === $courant;
+		return array(
+			'html'    => '<a class="yn-toc__lien" href="' . esc_url( (string) get_permalink( $cid ) ) . '"' . ( $actuel ? ' aria-current="page"' : '' ) . '>' . $contenu . '</a>',
+			'classes' => $classes . ( $actuel ? ' is-current' : '' ),
+		);
+	}
+	if ( 'future' === $chapitre->post_status ) {
+		// Chapitre programmé : sa date et son heure de sortie (sans lien).
+		$contenu .= '<span class="yn-toc__duree"><span class="yn-chip yn-chip--warn yn-toc__a-venir yn-toc__programme">'
+			. '<span class="yn-visually-hidden">' . esc_html__( 'Prévu le', 'yume-core' ) . ' </span>' . balise_date_jour( horodatage( $chapitre ), true ) . '</span></span>';
+	} else {
+		$contenu .= '<span class="yn-toc__duree">' . pastille( __( 'À venir', 'yume-core' ), 'info', '', 'yn-toc__a-venir' ) . '</span>';
+	}
+	return array(
+		'html'    => '<span class="yn-toc__lien">' . $contenu . '</span>',
+		'classes' => $classes . ' yn-toc__item--a-venir',
+	);
+}
+
+/**
  * Rendu de yume/tome-toc : sommaire du tome (chapitres publiés, sous-titres, temps de
  * lecture ; si le tome est en cours : chapitres planifiés « à venir », datés s'ils sont
  * programmés, et ligne « Chapitres N à M » pour les chapitres prévus pas encore créés).
+ * Les parties d'un chapitre (sous-chapitres) sont groupées, en retrait, dans une liste
+ * imbriquée sous la ligne de leur chapitre : le chapitre parent s'il est au sommaire juste
+ * avant elles (lien), sinon un simple intitulé « Chapitre 2 — titre du chapitre ».
  *
  * @param array          $attributs Attributs du bloc.
  * @param \WP_Block|null $bloc      Instance du bloc.
@@ -1012,7 +1054,7 @@ function rendu_tome_toc( array $attributs = array(), $bloc = null ): string {
 		foreach ( $liste as $rang => $chapitre ) {
 			$nature = (string) get_post_meta( $chapitre->ID, 'yume_nature', true );
 			$numero = get_post_meta( $chapitre->ID, 'yume_numero', true );
-			if ( ( '' === $nature || 'chapitre' === $nature ) && is_numeric( $numero ) ) {
+			if ( ( '' === $nature || 'chapitre' === $nature || 'sous-chapitre' === $nature ) && is_numeric( $numero ) ) {
 				$dernier_numero = max( $dernier_numero, (int) floor( (float) $numero ) );
 				$rang_prevus    = $rang;
 			}
@@ -1025,30 +1067,45 @@ function rendu_tome_toc( array $attributs = array(), $bloc = null ): string {
 			. '<span class="yn-toc__sous-titre">' . esc_html__( 'à venir', 'yume-core' ) . '</span><span class="yn-toc__duree"></span></span></li>';
 	}
 
-	$html .= '<ol class="yn-card yn-toc__liste">' . $entree_illus;
-	foreach ( $liste as $rang => $chapitre ) {
-		$cid        = (int) $chapitre->ID;
-		$libelle    = libelle_chapitre( $cid );
-		$sous_titre = meta_texte( $cid, 'yume_sous_titre' );
-		$contenu    = '<span class="yn-toc__numero">' . esc_html( $libelle ) . '</span>';
-		$contenu   .= '<span class="yn-toc__sous-titre">' . ( '' !== $sous_titre ? esc_html( $sous_titre ) : '' ) . '</span>';
-		if ( 'publish' === $chapitre->post_status ) {
-			$minutes  = (int) get_post_meta( $cid, 'yume_temps_lecture', true );
-			$contenu .= '<span class="yn-toc__duree yn-muted">' . ( $minutes > 0 ? '<span class="yn-visually-hidden">' . esc_html__( 'Temps de lecture :', 'yume-core' ) . ' </span>' . esc_html( duree_lecture( $minutes ) ) : '' ) . '</span>';
-			$actuel   = $cid === $courant;
-			$html    .= '<li class="yn-toc__item' . ( $actuel ? ' is-current' : '' ) . '"><a class="yn-toc__lien" href="' . esc_url( (string) get_permalink( $cid ) ) . '"' . ( $actuel ? ' aria-current="page"' : '' ) . '>' . $contenu . '</a></li>';
-		} elseif ( 'future' === $chapitre->post_status ) {
-			// Chapitre programmé : sa date et son heure de sortie (sans lien).
-			$contenu .= '<span class="yn-toc__duree"><span class="yn-chip yn-chip--warn yn-toc__a-venir yn-toc__programme">'
-				. '<span class="yn-visually-hidden">' . esc_html__( 'Prévu le', 'yume-core' ) . ' </span>' . balise_date_jour( horodatage( $chapitre ), true ) . '</span></span>';
-			$html    .= '<li class="yn-toc__item yn-toc__item--a-venir"><span class="yn-toc__lien">' . $contenu . '</span></li>';
+	$html  .= '<ol class="yn-card yn-toc__liste">' . $entree_illus;
+	$liste  = array_values( $liste );
+	$nombre = count( $liste );
+	for ( $rang = 0; $rang < $nombre; ) {
+		$chapitre = $liste[ $rang ];
+		$ligne    = ligne_sommaire( $chapitre, $courant );
+		$numero   = (string) get_post_meta( $chapitre->ID, 'yume_numero', true );
+		$partie   = 'sous-chapitre' === (string) get_post_meta( $chapitre->ID, 'yume_nature', true );
+		$suivant  = $liste[ $rang + 1 ] ?? null;
+		$parent   = ! $partie && $suivant && in_array( (string) get_post_meta( $chapitre->ID, 'yume_nature', true ), array( '', 'chapitre' ), true )
+			&& 'sous-chapitre' === (string) get_post_meta( $suivant->ID, 'yume_nature', true ) && (string) get_post_meta( $suivant->ID, 'yume_numero', true ) === $numero;
+		if ( ! $partie && ! $parent ) {
+			$html .= '<li class="' . esc_attr( $ligne['classes'] ) . '">' . $ligne['html'] . '</li>';
+			$html .= $rang === $rang_prevus ? $ligne_prevus : '';
+			++$rang;
+			continue;
+		}
+		// Chapitre en parties : ligne du chapitre (le parent, ou un intitulé), parties imbriquées.
+		$debut = $rang;
+		if ( $parent ) {
+			$html .= '<li class="' . esc_attr( $ligne['classes'] . ' yn-toc__item--groupe' ) . '">' . $ligne['html'];
+			++$rang;
 		} else {
-			$contenu .= '<span class="yn-toc__duree">' . pastille( __( 'À venir', 'yume-core' ), 'info', '', 'yn-toc__a-venir' ) . '</span>';
-			$html    .= '<li class="yn-toc__item yn-toc__item--a-venir"><span class="yn-toc__lien">' . $contenu . '</span></li>';
+			$titre_parent = meta_texte( (int) $chapitre->ID, 'yume_chapitre_parent' );
+			$intitule     = is_numeric( $numero )
+				/* translators: %s : numéro du chapitre. */
+				? sprintf( __( 'Chapitre %s', 'yume-core' ), str_replace( '.', ',', (string) round( (float) $numero, 3 ) ) )
+				: __( 'Chapitre', 'yume-core' );
+			$html .= '<li class="yn-toc__item yn-toc__item--groupe"><span class="yn-toc__lien yn-toc__intitule"><span class="yn-toc__numero">' . esc_html( $intitule ) . '</span>'
+				. '<span class="yn-toc__sous-titre">' . esc_html( $titre_parent ) . '</span><span class="yn-toc__duree"></span></span>';
 		}
-		if ( $rang === $rang_prevus ) {
-			$html .= $ligne_prevus;
+		$html .= '<ol class="yn-toc__parties">';
+		while ( $rang < $nombre && 'sous-chapitre' === (string) get_post_meta( $liste[ $rang ]->ID, 'yume_nature', true ) && (string) get_post_meta( $liste[ $rang ]->ID, 'yume_numero', true ) === $numero ) {
+			$partie_ligne = ligne_sommaire( $liste[ $rang ], $courant );
+			$html        .= '<li class="' . esc_attr( $partie_ligne['classes'] ) . '">' . $partie_ligne['html'] . '</li>';
+			++$rang;
 		}
+		$html .= '</ol></li>';
+		$html .= $rang_prevus >= $debut && $rang_prevus < $rang ? $ligne_prevus : '';
 	}
 	$html .= '</ol>';
 	return $html . '</nav>';

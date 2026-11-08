@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — programmer les sorties</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap;box-sizing:border-box}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.rose{color:#f3a6c8;border-color:#f3a6c8}
+.muted{color:#b7a9cc}
+.side a{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-radius:4px;color:#ebe3f2;font-weight:500}
+.side a.on{background:#3a2a63;color:#fff8fb;border-left:3px solid #f3a6c8}
+select,input{background:#241740;border:1px solid #7f6aa8;border-radius:4px;color:#ebe3f2;height:40px;padding:0 12px;font-family:inherit;font-size:14px;width:100%;box-sizing:border-box;color-scheme:dark}
+input[type="checkbox"],input[type="radio"]{width:18px;height:18px;padding:0;margin:0;accent-color:#f3a6c8;flex-shrink:0}
+label{display:flex;flex-direction:column;gap:6px}
+.etape{font-family:"Outfit",sans-serif;font-weight:700;font-size:20px;color:#fff8fb}
+table{border-collapse:collapse;width:100%;font-size:14px}thead th{text-align:left;font-weight:600;color:#fff8fb;font-size:13px;padding:10px 14px;background:#1b1231}.radio{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid #4a3b6e;border-radius:6px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 3120px; box-sizing: border-box; display: flex; background: #1b1231">
+<aside class="side" style="width: 240px; background: #241740; border-right: 1px solid #4a3b6e; padding: 20px 12px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-sizing: border-box">
+  <a href="Main.dc.html" style="height: 48px; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px; margin-bottom: 12px"><span style="width: 24px; height: 24px; border-radius: 50%; background: #f3a6c8; display: inline-block"></span>Yume · Équipe</a>
+  <a href="TeamDashboard.dc.html">Tableau de bord</a>
+  <a href="TeamDashboard.dc.html">Mes tâches</a>
+  <a href="TeamPublier.dc.html" class="on">Publier un tome</a>
+  <a href="Planning.dc.html">Planning complet</a>
+  <a href="TeamDashboard.dc.html">Journal</a>
+  <a href="TeamDashboard.dc.html">Membres et rôles</a>
+  <a href="TeamDashboard.dc.html">Réglages (rappels, Discord)</a>
+</aside>
+<main style="flex-grow: 1; padding: 32px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px 28px; align-content: start; min-width: 0">
+  <div style="grid-column: span 2; display: flex; justify-content: space-between; align-items: flex-end">
+    <div><span class="lbl">Catalogue · ajouter des chapitres</span><h1 style="font-size: 32px">Ajouter des chapitres à un tome</h1><p class="muted" style="margin: 4px 0 0">Un seul formulaire pour tous les cas : un chapitre, plusieurs, ou le tome entier. Rien n'est jamais retiré.</p></div>
+    <span class="chip info">Brouillon du tome · rien n'est encore en ligne</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap"><span class="chip ok">✓ 1 · Le tome : Miss Medic's Diary at War — Tome 2</span><span class="chip ok">✓ 2 · Le fichier : 45 unités, 55 263 mots (sous-chapitres)</span></div>
+    <fieldset class="card" style="margin: 0; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px">
+      <legend class="etape" style="padding: 0 6px">3 · La sortie des nouveaux chapitres</legend>
+      <div role="radiogroup" aria-label="Sortie des nouveaux chapitres" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <p class="radio" style="margin: 0"><input type="radio" name="sortie" id="s1"><label for="s1" style="gap: 0"><b style="color: #fff8fb">Maintenant</b><span class="muted" style="font-size: 13px">Les nouveaux chapitres ensemble, une seule annonce.</span></label></p>
+        <p class="radio" style="margin: 0"><input type="radio" name="sortie" id="s2"><label for="s2" style="gap: 0"><b style="color: #fff8fb">Un par un, au rythme</b><span class="muted" style="font-size: 13px">Chaque dimanche à 18 h. Une annonce par chapitre.</span></label></p>
+        <p class="radio" style="margin: 0"><input type="radio" name="sortie" id="s3"><label for="s3" style="gap: 0"><b style="color: #fff8fb">À une date</b><span class="muted" style="font-size: 13px">Les nouveaux chapitres ensemble, le jour choisi.</span></label></p>
+        <p class="radio" style="margin: 0; border-color: #f3a6c8; background: #3a2a63"><input type="radio" name="sortie" id="s4" checked><label for="s4" style="gap: 0"><b style="color: #fff8fb">Calendrier sur mesure ✓</b><span style="font-size: 13px">Vous choisissez les publications et leurs dates ; une annonce par publication.</span></label></p>
+      </div>
+    </fieldset>
+  </div>
+  <aside class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px; align-self: start">
+    <span class="lbl">Ce qui va se passer</span>
+    <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+      <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">37 pages de lecture</b> programmées en <b style="color: #fff8fb">10 publications</b>, du 15 nov. 2026 au 17 janv. 2027</span></div>
+      <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">10 annonces</b> (Discord, e-mail), une par publication</span></div>
+      <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">Tome complet</b> à la dernière publication : liens PDF et EPUB</span></div>
+    </div>
+  </aside>
+
+  <section class="card" data-yn-programmer aria-labelledby="prog-titre" style="grid-column: span 2; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px">
+      <div><span class="lbl">Calendrier sur mesure</span><h2 id="prog-titre" style="font-size: 26px">Programmer les sorties</h2></div>
+      <a href="Planning.dc.html" style="font-size: 14px">Programmer plus tard dans la vue dédiée →</a>
+    </div>
+    <div style="display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap">
+      <label for="nb" style="gap: 4px; width: 190px"><span class="muted" style="font-size: 12px">Nombre de publications</span><input id="nb" type="number" min="1" max="45" value="10"></label>
+      <button type="button" class="btn pri">Répartir</button>
+      <p role="status" aria-live="polite" style="margin: 0 0 0 12px; align-self: center; font-size: 15px"><b style="color: #fff8fb">10 publications · 5 526 mots en moyenne · de 4 252 à 8 453</b></p>
+      <span style="margin-left: auto; display: flex; gap: 8px"><button type="button" class="btn sm">Recalculer les dates</button><button type="button" class="btn sm">Tout en une publication</button><button type="button" class="btn sm">Une par chapitre</button></span>
+    </div>
+    <p class="muted" style="margin: 0; font-size: 13px">Répartition équilibrée en nombre de mots, sans jamais couper une unité : « 17 septembre » (8 453 mots) forme à elle seule la publication 6. Un chapitre sans texte (0 mot) part avec la partie qui le suit. Dates par défaut : rythme du tome, chaque dimanche à 18 h ; une date modifiée à la main est conservée tant que sa publication existe.</p>
+    <div style="border: 1px solid #4a3b6e; border-radius: 6px; overflow: hidden">
+      <table>
+        <caption style="position: absolute; width: 1px; height: 1px; overflow: hidden">Unités à sortir, groupées par publication</caption>
+        <thead><tr><th scope="col">Nouvelle publication ici</th><th scope="col">Nature</th><th scope="col">Unité</th><th scope="col" style="text-align: right">Mots</th></tr></thead>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 1</span>
+              <span class="muted">· dim. 15 nov. 2026 18:00 · 6 425 mots · 5 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date0" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date0" type="datetime-local" value="2026-11-15T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c0" checked disabled><label for="c0" style="flex-direction: row; font-size: 12px" class="muted">Toujours une publication</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 1 — Année 1938, été 6</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 011</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c1"><label for="c1" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 2 — Bataille défensive de Mashdale</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums"><span class="muted">0 · rejoint la suite</span></td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c2" disabled><label for="c2" style="flex-direction: row; font-size: 12px" class="muted">Liée à l'intitulé</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 2, partie 1 ·</span> 10 septembre, soir</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">797</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c3"><label for="c3" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 2, partie 2 ·</span> 10 septembre, nuit</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">779</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c4"><label for="c4" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 2, partie 3 ·</span> 10 septembre, tard dans la nuit</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">3 838</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 2</span>
+              <span class="muted">· dim. 22 nov. 2026 18:00 · 4 985 mots · 6 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date1" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date1" type="datetime-local" value="2026-11-22T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c5" checked><label for="c5" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 2, partie 4 ·</span> 11 septembre, début de matinée</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">814</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c6"><label for="c6" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 2, partie 5 ·</span> 11 septembre, matin</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 085</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c7"><label for="c7" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 2, partie 6 ·</span> 11 septembre, midi</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">502</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c8"><label for="c8" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 3 — Année 1938, été 7</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">702</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c9"><label for="c9" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 4 — Bataille défensive de Mashdale 2</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums"><span class="muted">0 · rejoint la suite</span></td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c10" disabled><label for="c10" style="flex-direction: row; font-size: 12px" class="muted">Liée à l'intitulé</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 4, partie 1 ·</span> 11 septembre, soir</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 882</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 3</span>
+              <span class="muted">· dim. 29 nov. 2026 18:00 · 5 098 mots · 5 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date2" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date2" type="datetime-local" value="2026-11-29T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c11" checked><label for="c11" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 4, partie 2 ·</span> 12 septembre, midi</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 116</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c12"><label for="c12" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 4, partie 3 ·</span> 12 septembre, soir</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">600</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c13"><label for="c13" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 4, partie 4 ·</span> 12 septembre, nuit</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">661</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c14"><label for="c14" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 4, partie 5 ·</span> 13 septembre, aube naissante</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 401</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c15"><label for="c15" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 4, partie 6 ·</span> 13 septembre, soir</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 320</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 4</span>
+              <span class="muted">· sam. 5 déc. 2026 14:00 · 5 135 mots · 3 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date3" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date3" type="datetime-local" value="2026-12-05T14:00" style="width: 220px; height: 34px; border-color: #f4c069"><span class="chip warn">✎ Modifiée à la main</span></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c16" checked><label for="c16" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 4, partie 7 ·</span> 15 septembre, midi</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 089</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c17"><label for="c17" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 4, partie 8 ·</span> 17 septembre, soir</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">3 421</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c18"><label for="c18" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 5 — Année 1938, été 8</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">625</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 5</span>
+              <span class="muted">· dim. 13 déc. 2026 18:00 · 6 207 mots · 3 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date4" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date4" type="datetime-local" value="2026-12-13T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c19" checked><label for="c19" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 6 — Évacuation de Mashdale 1</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums"><span class="muted">0 · rejoint la suite</span></td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c20" disabled><label for="c20" style="flex-direction: row; font-size: 12px" class="muted">Liée à l'intitulé</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 6, partie 1 ·</span> 17 septembre, soir</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">5 301</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c21"><label for="c21" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 7 — Année 1938, été 9</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">906</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 6</span>
+              <span class="muted">· dim. 20 déc. 2026 18:00 · 8 453 mots · 2 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date5" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date5" type="datetime-local" value="2026-12-20T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c22" checked><label for="c22" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 8 — Évacuation de Mashdale 2</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums"><span class="muted">0 · rejoint la suite</span></td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c23" disabled><label for="c23" style="flex-direction: row; font-size: 12px" class="muted">Liée à l'intitulé</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 8, partie 1 ·</span> 17 septembre</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">8 453</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 7</span>
+              <span class="muted">· dim. 27 déc. 2026 18:00 · 4 363 mots · 3 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date6" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date6" type="datetime-local" value="2026-12-27T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c24" checked><label for="c24" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 9 — Année 1938, été 10</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 084</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c25"><label for="c25" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 10 — Évacuation de Mashdale 3</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums"><span class="muted">0 · rejoint la suite</span></td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c26" disabled><label for="c26" style="flex-direction: row; font-size: 12px" class="muted">Liée à l'intitulé</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 10, partie 1 ·</span> 17 septembre, nuit</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">3 279</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 8</span>
+              <span class="muted">· dim. 3 janv. 2027 18:00 · 5 200 mots · 8 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date7" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date7" type="datetime-local" value="2027-01-03T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c27" checked><label for="c27" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 10, partie 2 ·</span> 18 septembre, midi</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">922</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c28"><label for="c28" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 10, partie 3 ·</span> 19 septembre</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 100</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c29"><label for="c29" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 10, partie 4 ·</span> 20 septembre</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">255</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c30"><label for="c30" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 11 — Année 1938, été 11</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">618</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c31"><label for="c31" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 12 — Évacuation de Mashdale 4</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums"><span class="muted">0 · rejoint la suite</span></td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c32" disabled><label for="c32" style="flex-direction: row; font-size: 12px" class="muted">Liée à l'intitulé</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 12, partie 1 ·</span> 20 septembre, midi</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 513</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c33"><label for="c33" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 12, partie 2 ·</span> 20 septembre, aube naissante</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">674</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c34"><label for="c34" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 12, partie 3 ·</span> Compte rendu de combat — 153ᵉ division</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">118</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 9</span>
+              <span class="muted">· dim. 10 janv. 2027 18:00 · 5 145 mots · 6 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date8" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date8" type="datetime-local" value="2027-01-10T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c35" checked><label for="c35" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 12, partie 4 ·</span> 22 septembre, matin</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">823</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c36"><label for="c36" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 12, partie 5 ·</span> Sans date</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">388</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c37"><label for="c37" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 13 — Année 1938, été 12</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">787</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c38"><label for="c38" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 14 — Wynn, la capitale 1</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums"><span class="muted">0 · rejoint la suite</span></td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c39" disabled><label for="c39" style="flex-direction: row; font-size: 12px" class="muted">Liée à l'intitulé</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 14, partie 1 ·</span> 22 septembre, nuit</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 344</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c40"><label for="c40" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 15 — Année 1938, été 13</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">1 803</td>
+          </tr>
+        </tbody>
+        <tbody style="border-top: 2px solid #7f6aa8">
+          <tr style="background: #241740"><th colspan="4" scope="rowgroup" style="padding: 10px 14px; text-align: left; font-weight: 400">
+            <span style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+              <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; color: #fff8fb">Publication 10</span>
+              <span class="muted">· dim. 17 janv. 2027 18:00 · 4 252 mots · 4 unités</span>
+              <span style="margin-left: auto; display: flex; align-items: center; gap: 8px"><label for="date9" style="flex-direction: row; font-size: 13px" class="muted">Date de sortie</label><input id="date9" type="datetime-local" value="2027-01-17T18:00" style="width: 220px; height: 34px"></span>
+            </span>
+          </th></tr>
+          <tr style="border-top: 1px solid #4a3b6e; background: #33255a">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c41" checked><label for="c41" style="flex-direction: row; font-size: 12px" class="muted">Nouvelle publication ici</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 16 — Wynn, la capitale 2</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums"><span class="muted">0 · rejoint la suite</span></td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c42" disabled><label for="c42" style="flex-direction: row; font-size: 12px" class="muted">Liée à l'intitulé</label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip rose">Sous-chapitre</span></td>
+            <td style="padding: 6px 14px 6px 34px"><span class="muted">Chapitre 16, partie 1 ·</span> 23 septembre, midi</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">3 058</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c43"><label for="c43" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Chapitre</span></td>
+            <td style="padding: 6px 14px 6px 14px">Chapitre 17 — Année 1938, été 14</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">715</td>
+          </tr>
+          <tr style="border-top: 1px solid #4a3b6e">
+            <td style="padding: 6px 14px; width: 210px"><span style="display: flex; align-items: center; gap: 8px"><input type="checkbox" id="c44"><label for="c44" style="flex-direction: row; font-size: 12px" class="muted"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Nouvelle publication ici</span></label></span></td>
+            <td style="padding: 6px 14px; width: 130px"><span class="chip info">Postface</span></td>
+            <td style="padding: 6px 14px 6px 14px">Postface</td>
+            <td style="padding: 6px 14px; width: 150px; text-align: right; font-variant-numeric: tabular-nums">479</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px">
+      <button type="button" class="btn pri" style="height: 48px; font-size: 16px; padding: 0 28px">Enregistrer</button>
+      <button type="button" class="btn">Enregistrer en brouillon</button>
+      <span class="muted" style="font-size: 13px">Les chapitres déjà programmés d'un tome se reprogramment dans la vue « Programmer les sorties » (fiche équipe du tome).</span>
+    </div>
+  </section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":3120}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

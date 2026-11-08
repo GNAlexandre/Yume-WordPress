@@ -43,7 +43,8 @@ function ariane_chapitre( int $chapitre_id ): array {
 
 /**
  * Rendu de yume/chapter-header : fil d'Ariane, « Chapitre N » (h1), sous-titre (.yn-subtitle),
- * crédits et temps de lecture.
+ * crédits et temps de lecture. Partie d'un chapitre (sous-chapitre) : surtitre « Chapitre 2 —
+ * titre du chapitre parent », puis « Partie 1 » (h1) et son sous-titre.
  *
  * @param array          $attributs Attributs du bloc.
  * @param \WP_Block|null $bloc      Instance du bloc.
@@ -60,10 +61,16 @@ function rendu_chapter_header( array $attributs = array(), $bloc = null ): strin
 	$credits    = credits_herites( $chapitre_id );
 	$minutes    = (int) get_post_meta( $chapitre_id, 'yume_temps_lecture', true );
 
-	$html  = '<header ' . attributs_racine( 'yn-chapter-header' ) . '>';
-	$html .= fil_ariane( ariane_chapitre( $chapitre_id ), 'yn-chapter-header__ariane' );
-	$html .= '<hgroup class="yn-chapter-header__titres">';
-	$html .= '<h1 class="yn-chapter-header__titre">' . esc_html( libelle_chapitre( $chapitre_id ) ) . '</h1>';
+	$html   = '<header ' . attributs_racine( 'yn-chapter-header' ) . '>';
+	$html  .= fil_ariane( ariane_chapitre( $chapitre_id ), 'yn-chapter-header__ariane' );
+	$html  .= '<hgroup class="yn-chapter-header__titres">';
+	$partie = function_exists( 'yume_libelle_partie' ) ? yume_libelle_partie( $chapitre_id ) : '';
+	if ( '' !== $partie ) {
+		$html .= '<p class="yn-label yn-chapter-header__surtitre">' . esc_html( surtitre_partie( $chapitre_id ) ) . '</p>';
+		$html .= '<h1 class="yn-chapter-header__titre">' . esc_html( $partie ) . '</h1>';
+	} else {
+		$html .= '<h1 class="yn-chapter-header__titre">' . esc_html( libelle_chapitre( $chapitre_id ) ) . '</h1>';
+	}
 	if ( '' !== $sous_titre ) {
 		$html .= '<p class="yn-subtitle">' . esc_html( $sous_titre ) . '</p>';
 	}
@@ -81,6 +88,22 @@ function rendu_chapter_header( array $attributs = array(), $bloc = null ): strin
 		$html .= '</p>';
 	}
 	return $html . '</header>';
+}
+
+/**
+ * Surtitre d'une partie de chapitre (sous-chapitre) : « Chapitre 2 — Bataille défensive »
+ * (numéro du chapitre, titre du chapitre parent s'il en a un).
+ *
+ * @param int $chapitre_id Sous-chapitre.
+ */
+function surtitre_partie( int $chapitre_id ): string {
+	$numero = get_post_meta( $chapitre_id, 'yume_numero', true );
+	$parent = meta_texte( $chapitre_id, 'yume_chapitre_parent' );
+	$texte  = is_numeric( $numero )
+		/* translators: %s : numéro du chapitre. */
+		? sprintf( __( 'Chapitre %s', 'yume-core' ), str_replace( '.', ',', (string) round( (float) $numero, 3 ) ) )
+		: __( 'Chapitre', 'yume-core' );
+	return '' !== $parent ? $texte . ' — ' . $parent : $texte;
 }
 
 /**

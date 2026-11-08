@@ -28,6 +28,13 @@
 	margin: 0;
 }
 
+/* Partie d'un chapitre (sous-chapitre) : « Chapitre 2 — titre du chapitre » au-dessus du titre. */
+.yn-chapter-header .yn-chapter-header__surtitre {
+	margin: 0 0 0.4em !important;
+	text-align: center;
+	text-wrap: balance;
+}
+
 /* Sélecteur renforcé : le lecteur du thème remet text-align à « initial » sur .yn-label. */
 .yn-chapter-header .yn-chapter-header__meta {
 	margin: -0.9em 0 0 !important;

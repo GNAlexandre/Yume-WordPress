@@ -57,6 +57,41 @@
       "w": 1440,
       "h": 1200,
       "title": "Équipe · publier un tome"
+    },
+    "LecteurManga.dc.html": {
+      "x": 0,
+      "y": 6360,
+      "w": 1440,
+      "h": 2530,
+      "title": "Lecteur manga · doubles pages et zoom"
+    },
+    "LecteurMangaMobile.dc.html": {
+      "x": 1520,
+      "y": 6360,
+      "w": 390,
+      "h": 844,
+      "title": "Lecteur manga mobile · zoom 150 %"
+    },
+    "TeamDecoupage.dc.html": {
+      "x": 1990,
+      "y": 6360,
+      "w": 1440,
+      "h": 2260,
+      "title": "Équipe · découpage en sous-chapitres"
+    },
+    "TeamProgrammer.dc.html": {
+      "x": 3510,
+      "y": 6360,
+      "w": 1440,
+      "h": 3120,
+      "title": "Équipe · programmer les sorties"
+    },
+    "TomeSousChapitres.dc.html": {
+      "x": 5030,
+      "y": 6360,
+      "w": 1440,
+      "h": 2290,
+      "title": "Tome · sommaire groupé et page de partie"
     }
   },
   "createdOnFiles": {
@@ -120,6 +155,21 @@
       "w": 360,
       "text": "Accueil allégé (retours Mael7523m) : bibliothèque en menu déroulant (montré ouvert), bandeau = bannière actuelle du site (ici l'image « Un nouvel élan » en attendant), dernières sorties en couvertures, prochaines sorties + actualités en deux cartes compactes, reprise de lecture. Plus de grille de toutes les œuvres sur l'accueil.",
       "fill": "pink"
+    },
+    "r5": {
+      "x": 0,
+      "y": 6100,
+      "text": "2.8.0 — Manga, sous-chapitres, programmation",
+      "kind": "title1",
+      "maxW": 6470,
+      "w": 240
+    },
+    "s4": {
+      "x": 6550,
+      "y": 6360,
+      "w": 360,
+      "fill": "pink",
+      "text": "Données réelles du tome 2 de Miss Medic (45 unités, 55 263 mots). Répartition en 10 publications (partition contiguë qui minimise la plus grosse ; un Titre 1 à 0 mot part avec l’unité suivante) : 6 425 · 4 985 · 5 098 · 5 135 · 6 207 · 8 453 · 4 363 · 5 200 · 5 145 · 4 252 mots. La publication 6 est l’unité « 17 septembre » seule (8 453 mots) : une unité n’est jamais coupée."
     }
   },
   "order": [
@@ -130,7 +180,12 @@
     "Planning.dc.html",
     "Compte.dc.html",
     "TeamDashboard.dc.html",
-    "TeamPublier.dc.html"
+    "TeamPublier.dc.html",
+    "LecteurManga.dc.html",
+    "LecteurMangaMobile.dc.html",
+    "TeamDecoupage.dc.html",
+    "TeamProgrammer.dc.html",
+    "TomeSousChapitres.dc.html"
   ],
   "pages": [],
   "title": "Yume Novel v2"

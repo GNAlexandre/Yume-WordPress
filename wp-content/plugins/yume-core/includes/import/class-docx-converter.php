@@ -747,7 +747,8 @@ final class Docx_Converter {
 
 		$tout = trim( $ligne . ' ' . $reste );
 		if ( 'titre2' === $role && $this->chapitres->attend_sous_titre() ) {
-			$this->chapitres->sous_titre( $tout );
+			// Sous-titre au style Titre 2 : aussi un début possible de sous-chapitre.
+			$this->chapitres->sous_titre( $tout, 2 );
 			return;
 		}
 		$analyse = Texte::analyser_titre( $brut_1 );
@@ -755,7 +756,7 @@ final class Docx_Converter {
 			if ( 'chapitre' === $analyse['motif'] ) {
 				$this->resultat->avertir( sprintf( 'Titre « %s » au style Titre 2 : traité comme un nouveau chapitre (utilisez le style Titre 1).', $ligne ) );
 			}
-			$this->chapitres->ouvrir( $analyse, $brut_1 );
+			$this->chapitres->ouvrir( $analyse, $brut_1, true, 2 );
 			if ( '' !== $reste && '' === $analyse['sous_titre'] ) {
 				$this->chapitres->sous_titre( $reste );
 			}

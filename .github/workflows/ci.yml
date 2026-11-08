@@ -326,6 +326,10 @@ jobs:
       - name: DOCX à jour (tools/guide/construire.js --verifier)
         run: node tools/guide/construire.js --verifier
 
+      # Tests JavaScript sans dépendance (répartition en publications, programmer.js).
+      - name: Tests JavaScript (node --test)
+        run: node --test wp-content/plugins/yume-core/tests/js/*.test.js
+
   archives:
     name: Archives yume-core.zip et yume.zip
     runs-on: ubuntu-24.04

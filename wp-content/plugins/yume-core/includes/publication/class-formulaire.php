@@ -178,7 +178,7 @@ final class Formulaire {
 	private static function champs_post(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce vérifié dans traiter().
 		$champs = array();
-		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'couverture_id', 'mode', 'sortie', 'intervalle', 'complet', 'liens_dernier', 'chapitres_prevus', 'annoncer' ) as $cle ) {
+		foreach ( array( 'oeuvre_id', 'tome_id', 'nature', 'numero', 'titre', 'date_sortie', 'lien_pdf', 'lien_epub', 'couverture_id', 'mode', 'sortie', 'intervalle', 'repartition', 'complet', 'liens_dernier', 'chapitres_prevus', 'annoncer' ) as $cle ) {
 			if ( isset( $_POST[ $cle ] ) && is_scalar( $_POST[ $cle ] ) ) {
 				$champs[ $cle ] = sanitize_text_field( wp_unslash( (string) $_POST[ $cle ] ) );
 			}
@@ -199,6 +199,11 @@ final class Formulaire {
 			}
 		}
 		$champs['retirer_absents'] = ! empty( $_POST['retirer_absents'] );
+		// Calendrier sur mesure (JSON du champ caché « calendrier », rempli par le panneau
+		// « Programmer les sorties ») : contrôlé strictement par Calendrier::analyser().
+		if ( isset( $_POST['calendrier'] ) && is_string( $_POST['calendrier'] ) && '' !== $_POST['calendrier'] ) {
+			$champs['calendrier'] = wp_unslash( $_POST['calendrier'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON validé par Calendrier::analyser().
+		}
 		// Découpage manuel (JSON du champ caché « plan ») : contrôlé strictement par Service::plan().
 		if ( isset( $_POST['plan'] ) && is_string( $_POST['plan'] ) && '' !== $_POST['plan'] ) {
 			$champs['plan'] = wp_unslash( $_POST['plan'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON validé par Service::plan().
@@ -261,8 +266,15 @@ final class Formulaire {
 				$champs['sortie'] = 'date';
 			}
 			$sortie_choisie = in_array( $champs['sortie'] ?? '', Service::SORTIES, true ) ? (string) $champs['sortie'] : 'maintenant';
-			// Champs gardés pour réafficher le formulaire (le découpage suit le fichier, jamais gardé).
-			$saisis = array_diff_key( $champs, array( 'plan' => true ) );
+			// Champs gardés pour réafficher le formulaire (le découpage et le calendrier suivent le
+			// fichier, jamais gardés).
+			$saisis = array_diff_key(
+				$champs,
+				array(
+					'plan'       => true,
+					'calendrier' => true,
+				)
+			);
 			if ( 'annuler_remplacement' === $etape ) {
 				$tome_id = absint( $champs['tome_id'] ?? 0 );
 				$annule  = $tome_id && 'yume_tome' === get_post_type( $tome_id ) && current_user_can( 'edit_post', $tome_id ) && Remplacement::annuler( $tome_id );
@@ -311,9 +323,13 @@ final class Formulaire {
 				$type    = 'erreur';
 				$message = __( 'Déposez le nouveau DOCX ou EPUB du tome, puis cliquez sur « Vérifier (sans rien changer en ligne) ».', 'yume-core' );
 			} elseif ( $chapitres_mode && in_array( $etape, array( 'publier', 'programmer' ), true ) ) {
-				// Ajout de chapitres : sortie des nouveaux chapitres (maintenant, au rythme, à une date).
-				$avec_date = 'date' === $sortie_choisie || ( 'rythme' === $sortie_choisie && '' !== ( $champs['date_sortie'] ?? '' ) && '' === Service::rythme_texte( $tome_id ) );
-				$sortie    = Service::publier(
+				// Ajout de chapitres : sortie des nouveaux chapitres (maintenant, au rythme, à une date,
+				// calendrier sur mesure : JSON du panneau, ou sans JavaScript N publications).
+				$avec_date = 'date' === $sortie_choisie || ( in_array( $sortie_choisie, array( 'rythme', 'calendrier' ), true ) && '' !== ( $champs['date_sortie'] ?? '' ) && '' === Service::rythme_texte( $tome_id ) );
+				if ( 'calendrier' === $sortie_choisie && '' !== (string) ( $champs['calendrier'] ?? '' ) ) {
+					$avec_date = false; // Les dates sont celles du calendrier.
+				}
+				$sortie = Service::publier(
 					$tome_id,
 					$avec_date ? (string) $champs['date_sortie'] : 'maintenant',
 					array(
@@ -322,6 +338,8 @@ final class Formulaire {
 						'mode'           => Service::MODE_CHAPITRES,
 						'sortie'         => $sortie_choisie,
 						'intervalle'     => isset( $champs['intervalle'] ) && is_numeric( $champs['intervalle'] ) ? (int) $champs['intervalle'] : Service::INTERVALLE_DEFAUT,
+						'calendrier'     => $champs['calendrier'] ?? null,
+						'repartition'    => isset( $champs['repartition'] ) && is_numeric( $champs['repartition'] ) ? (int) $champs['repartition'] : 0,
 					)
 				);
 				if ( is_wp_error( $sortie ) ) {
@@ -545,8 +563,15 @@ final class Formulaire {
 					$programmes[ count( $programmes ) - 1 ]['date_libelle']
 				);
 			}
+			$par_publication = 'calendrier' === ( $sortie['sortie'] ?? '' ) && (int) ( $sortie['publications'] ?? 0 ) > 0;
+			if ( $par_publication ) {
+				/* translators: %d : nombre de publications */
+				array_unshift( $parties, sprintf( _n( '%d publication', '%d publications', (int) $sortie['publications'], 'yume-core' ), (int) $sortie['publications'] ) );
+			}
 			if ( ! empty( $sortie['sans_annonce'] ) ) {
 				$annonce = __( 'sans annonce (ni article, ni Discord, ni e-mail)', 'yume-core' );
+			} elseif ( $par_publication && $programmes ) {
+				$annonce = __( 'une annonce par publication, à sa sortie', 'yume-core' );
 			} elseif ( ! $en_ligne ) {
 				$annonce = 'rythme' === ( $sortie['sortie'] ?? '' ) ? __( 'chaque chapitre sera annoncé à sa sortie', 'yume-core' ) : __( 'annonce à la sortie', 'yume-core' );
 			} else {
@@ -559,6 +584,9 @@ final class Formulaire {
 				implode( ', ', $parties ),
 				$annonce
 			);
+		}
+		foreach ( (array) ( $sortie['avertissements'] ?? array() ) as $avertissement ) {
+			$phrases[] = (string) $avertissement;
 		}
 		$maj = is_array( $sortie['remplacement_applique'] ?? null ) ? (int) $sortie['remplacement_applique']['remplaces'] : 0;
 		if ( $maj > 0 ) {

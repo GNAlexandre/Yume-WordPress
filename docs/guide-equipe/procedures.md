@@ -430,6 +430,7 @@ Quand le découpage automatique se trompe (roman sans styles de titre, histoire 
 | `[chapitre]` ou `[chapitre] Titre` | Un chapitre numéroté, avec ce titre |
 | `[prologue]`, `[épilogue]`, `[postface]` | Un chapitre spécial |
 | `[interlude] Titre`, `[bonus] Titre` | Un interlude ou un bonus, avec ce titre |
+| `[sous-chapitre] Titre` | Une partie du chapitre qui la précède (« Chapitre 2, partie 1 ») |
 
 Le marqueur n'est jamais publié. Majuscules et accents sont indifférents.
 
@@ -517,6 +518,34 @@ Chaque chapitre sort à sa date, avec sa propre annonce : « SukaMoka, Tome 2 : 
 
 > **À savoir** : le tome n'a pas de rythme ? Indiquez la **Date** de départ et le nombre de jours dans **Un chapitre tous les (jours)** (7 par défaut). Pour donner un rythme au tome, voir « Modifier les informations d'un tome ».
 
+## Programmer les sorties : calendrier sur mesure et répartition en N publications
+
+Exemple : le tome 2 de Miss Medic compte 45 chapitres et parties. Vous voulez le sortir en 10 publications de longueur comparable, chacune à sa date.
+
+1. Ouvrez **Ajouter des chapitres**, choisissez le tome et déposez le DOCX.
+2. À l'étape « 3 · La sortie des nouveaux chapitres », choisissez **Calendrier sur mesure**. Le panneau **Programmer les sorties** s'ouvre sous l'étape 3, avec tous les chapitres à sortir.
+3. Tapez **10** dans **Nombre de publications**, puis cliquez sur **Répartir**. Les chapitres sont répartis par nombre de mots, sans jamais couper un chapitre. Le résumé indique par exemple « 10 publications · 5 526 mots en moyenne · de 4 252 à 8 453 ».
+4. Vérifiez les coupures. Pour en ajouter ou en retirer une, cochez ou décochez **Nouvelle publication ici** sur la ligne du chapitre.
+5. Choisissez la date de la **Publication 1**, puis cliquez sur **Recalculer les dates** : les suivantes suivent le rythme du tome (ou une publication tous les N jours). Vous pouvez ensuite changer la date de n'importe quelle publication.
+6. Cliquez sur **Programmer 45 chapitres** (le bouton donne le nombre de chapitres), puis confirmez.
+
+Chaque publication sort à sa date, avec une seule annonce pour tous ses chapitres : « SukaMoka, Tome 2 : chapitres 4 à 6 disponibles ! ».
+
+> **Astuce** : **Tout en une publication** regroupe tous les chapitres à la même date. **Une par chapitre** revient à un chapitre par publication.
+
+> **À savoir** : un chapitre sans texte (titre d'une partie, page d'illustrations) ne sort jamais seul : il part avec le chapitre qui le suit. Une date déjà passée veut dire « maintenant » : le site vous le signale.
+
+> **À savoir** : sans JavaScript, indiquez seulement le **Nombre de publications** : la répartition et les dates sont calculées à l'enregistrement.
+
+### Changer plus tard les dates programmées
+
+1. Depuis la fiche du tome (section « Chapitres »), cliquez sur **Programmer les sorties**. Le lien **Programmer plus tard dans la vue dédiée** du formulaire mène au même endroit.
+2. La page montre les chapitres en brouillon et ceux déjà programmés, groupés par publication avec leur date.
+3. Changez une date, une coupure, ou répartissez à nouveau avec **Répartir**.
+4. Cliquez sur **Enregistrer le calendrier**, puis confirmez.
+
+Les chapitres déjà programmés prennent leur nouvelle date, et leur annonce les suit. Les brouillons sont programmés. Les chapitres en ligne ne changent pas.
+
 ## Publier un tome entier d'un coup
 
 Pour un tome traduit en entier, publié en une fois avec ses liens de téléchargement.
@@ -570,14 +599,32 @@ Quand le découpage automatique se trompe : chapitres séparés par une illustra
 1. Déposez le fichier. Sous le tableau des chapitres, ouvrez **Délimiter les chapitres moi-même**.
 2. Le tableau **Débuts de chapitre possibles** liste les endroits repérés : titres, illustrations, sauts de page, lignes courtes, centrées ou en gras.
 3. Cochez **Début de chapitre** sur chaque ligne où un chapitre commence.
-4. Pour chaque début coché, choisissez la nature (chapitre, prologue, bonus…) et, si besoin, le **Titre**.
+4. Pour chaque début coché, choisissez la nature (chapitre, prologue, bonus, sous-chapitre…) et, si besoin, le **Titre**.
 5. Si besoin, changez le **Premier numéro de chapitre**.
-6. Raccourcis utiles : **Couper à chaque illustration**, **Couper à chaque saut de page**, **Revenir à la détection automatique**.
+6. Raccourcis utiles : **Couper à chaque illustration**, **Couper à chaque saut de page**, **Couper aux Titre 2 (sous-chapitres)**, **Revenir à la détection automatique**.
 7. Cochez **Conserver le texte d'ouverture** pour garder le texte placé avant le premier début coché (il rejoint le premier chapitre).
 8. Cliquez sur **Vérifier ce découpage (rien n'est enregistré)** pour voir la liste des chapitres obtenus.
 9. Vérifiez que **Utiliser ce découpage** est cochée, puis publiez comme d'habitude.
 
 > **Attention** : le découpage part avec le fichier et n'est pas gardé. Pour redécouper plus tard, déposez de nouveau le fichier et refaites le découpage. Pour un découpage définitif, utilisez plutôt les marqueurs `[chapitre]` dans Word.
+
+## Publier un chapitre en plusieurs parties (sous-chapitres)
+
+Certains romans ont de longs chapitres faits de parties : les entrées datées d'un journal, par exemple. Dans Word, le chapitre est au style **Titre 1** et chaque partie au style **Titre 2**. Sans rien faire, une partie reste un intertitre dans son chapitre. Pour publier chaque partie sur sa propre page :
+
+1. Déposez le fichier, puis ouvrez **Délimiter les chapitres moi-même**.
+2. Cliquez sur **Couper aux Titre 2 (sous-chapitres)**. Chaque Titre 1 devient un chapitre, chaque Titre 2 une partie de ce chapitre (nature **Sous-chapitre**). Laissez le **Titre** vide : celui du fichier est repris.
+3. Si besoin, changez le **Premier numéro de chapitre**. Les parties sont numérotées 1, 2, 3… dans chaque chapitre.
+4. Cliquez sur **Vérifier ce découpage (rien n'est enregistré)**. La liste des chapitres affiche les parties en retrait sous leur chapitre.
+5. Vérifiez que **Utiliser ce découpage** est cochée, puis publiez comme d'habitude.
+
+Une partie a sa page, sa date de sortie et son annonce, comme un chapitre. Elle s'appelle « Chapitre 2, partie 1 » ; l'annonce dit « Chapitre 2, partie 1 — 10 septembre, soir ». Sur la page du tome, les parties sont groupées sous la ligne « Chapitre 2 — Bataille défensive » ; en haut de la page d'une partie, « Chapitre 2 — Bataille défensive » s'affiche au-dessus de « Partie 1 ».
+
+> **À savoir** : un chapitre sans texte à lui (seulement son titre, parfois une illustration) n'a pas de page : son titre est repris au-dessus de ses parties et son illustration passe au début de la partie 1. Un chapitre qui a du texte avant sa première partie garde sa page, suivie de ses parties.
+
+> **Attention** : une partie se rattache toujours au chapitre qui la précède. Placée juste après un prologue, un interlude ou au début du fichier, elle devient un chapitre ordinaire et le rapport le signale (« Sous-chapitre … sans chapitre parent : traité comme un chapitre »).
+
+> **Astuce** : sans passer par le découpage, écrivez dans Word un paragraphe seul `[sous-chapitre] Titre` au début de chaque partie (voir « Forcer un début de chapitre avec un marqueur »).
 
 ## Ajouter la lecture en ligne d'un tome déjà paru
 

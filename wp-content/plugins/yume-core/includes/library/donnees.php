@@ -542,7 +542,9 @@ function parution_tome( int $tome_id, int $a_venir = 0 ): string {
  * @param \WP_Post[]|null $chapitres Chapitres du tome (publiés, programmés, brouillons, en attente)
  *                                   dans l'ordre de yume_get_chapitres(), s'ils sont déjà chargés.
  *
- * Clés : chapitres (chapitres ordinaires publiés), speciaux (nature => nombre), publies (tous les
+ * Clés : chapitres (chapitres ordinaires publiés ; un chapitre publié en parties compte une fois,
+ * même si le chapitre parent n'existe pas), speciaux (nature => nombre ; « sous-chapitre » : nombre de
+ * parties), publies (tous les
  * chapitres publiés), mots, minutes, premier et dernier (chapitres publiés), dernier_ts, a_venir
  * (chapitres programmés, en brouillon ou en attente), prochain (horodatage du prochain chapitre
  * programmé, 0 si aucun), parution (parution_tome()) et en_cours (parution « en_cours »).
@@ -570,6 +572,7 @@ function calculer_stats_tome( int $tome_id, ?array $chapitres = null ): array {
 	if ( null === $chapitres ) {
 		$chapitres = yume_get_chapitres( $tome_id, array( 'status' => STATUTS_STATS ) );
 	}
+	$numeros = array();
 	foreach ( $chapitres as $chapitre ) {
 		if ( 'publish' !== $chapitre->post_status ) {
 			++$stats['a_venir'];
@@ -582,8 +585,17 @@ function calculer_stats_tome( int $tome_id, ?array $chapitres = null ): array {
 		$id     = (int) $chapitre->ID;
 		$nature = (string) get_post_meta( $id, 'yume_nature', true );
 		++$stats['publies'];
+		$numero = (string) get_post_meta( $id, 'yume_numero', true );
 		if ( '' === $nature || 'chapitre' === $nature ) {
 			++$stats['chapitres'];
+			$numeros[ $numero ] = true;
+		} elseif ( 'sous-chapitre' === $nature ) {
+			// Partie d'un chapitre : le chapitre compte une fois, les parties à part.
+			if ( '' === $numero || ! isset( $numeros[ $numero ] ) ) {
+				++$stats['chapitres'];
+			}
+			$numeros[ $numero ]           = true;
+			$stats['speciaux'][ $nature ] = ( $stats['speciaux'][ $nature ] ?? 0 ) + 1;
 		} else {
 			$stats['speciaux'][ $nature ] = ( $stats['speciaux'][ $nature ] ?? 0 ) + 1;
 		}

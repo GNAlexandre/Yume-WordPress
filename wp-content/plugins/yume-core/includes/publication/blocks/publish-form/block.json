@@ -5,7 +5,7 @@
 	"title": "Formulaire de publication",
 	"category": "yume",
 	"icon": "upload",
-	"description": "Espace équipe : ajouter des chapitres à un tome (un, plusieurs ou le tome entier) à partir d’un DOCX (ou EPUB) comparé au tome, sortie maintenant, au rythme ou à une date, tome complet avec ses liens PDF/EPUB externes.",
+	"description": "Espace équipe : ajouter des chapitres à un tome (un, plusieurs ou le tome entier) à partir d’un DOCX (ou EPUB) comparé au tome, sortie maintenant, au rythme, à une date ou selon un calendrier sur mesure, tome complet avec ses liens PDF/EPUB externes.",
 	"keywords": [ "publier", "docx", "epub", "tome", "équipe" ],
 	"textdomain": "yume-core",
 	"attributes": {},
@@ -16,6 +16,6 @@
 		"align": [ "wide", "full" ]
 	},
 	"render": "file:./render.php",
-	"style": "file:./style.css",
-	"viewScript": "file:./view.js"
+	"style": [ "file:./style.css", "yume-programmer-sorties" ],
+	"viewScript": [ "file:./view.js", "yume-programmer-sorties" ]
 }

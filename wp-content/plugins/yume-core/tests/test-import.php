@@ -1122,7 +1122,7 @@ yume_test(
 			yume_assert_true( $c->stats['decoupage_manuel'] );
 			$rapport = $a->rapport();
 			yume_assert_same( $a->candidats, $rapport['candidats'] );
-			yume_assert_same( array( 'images', 'ouvertures', 'sauts' ), array_keys( $rapport['decoupages'] ) );
+			yume_assert_same( array( 'images', 'ouvertures', 'sauts', 'titres', 'sous_chapitres' ), array_keys( $rapport['decoupages'] ) );
 		}
 	}
 );
@@ -1276,33 +1276,27 @@ yume_test(
 			);
 			yume_assert_same(
 				array(
-					array(
-						'numero' => 3.0,
-						'titre'  => 'Chapitre 3',
-					),
-					array(
-						'numero' => 0.0,
-						'titre'  => 'Prologue',
-					),
-					array(
-						'numero' => 4.0,
-						'titre'  => 'Chapitre 4',
-					),
+					array( 3.0, 'Chapitre 3' ),
+					array( 0.0, 'Prologue' ),
+					array( 4.0, 'Chapitre 4' ),
 				),
-				Chapter_Builder::numeroter(
-					array(
+				array_map(
+					static fn( $n ) => array( $n['numero'], $n['titre'] ),
+					Chapter_Builder::numeroter(
 						array(
-							'nature' => 'chapitre',
-							'numero' => 3.0,
-						),
-						array(
-							'nature' => 'prologue',
-							'numero' => null,
-						),
-						array(
-							'nature' => 'chapitre',
-							'numero' => null,
-						),
+							array(
+								'nature' => 'chapitre',
+								'numero' => 3.0,
+							),
+							array(
+								'nature' => 'prologue',
+								'numero' => null,
+							),
+							array(
+								'nature' => 'chapitre',
+								'numero' => null,
+							),
+						)
 					)
 				)
 			);

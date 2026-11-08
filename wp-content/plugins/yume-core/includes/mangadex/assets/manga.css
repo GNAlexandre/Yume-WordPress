@@ -4,6 +4,15 @@
  * Couleurs du thème actif (html[data-yn-theme]) par les variables --wp--preset--color--* ;
  * les images ne sont jamais retouchées. Une page pas encore chargée garde un format de page
  * (7/10) pour que le chargement différé ne charge pas tout le chapitre d'un coup.
+ *
+ * Largeurs (posées par manga.js, en px, sur .yn-manga ; lot A 2.8.0) :
+ *   --yn-manga-fenetre   largeur utile de la fenêtre (sans la barre de défilement)
+ *   --yn-manga-colonne   largeur de la colonne (.yn-manga__pages)
+ *   --yn-manga-decalage  centre de la fenêtre − centre de la colonne (centrage sur la fenêtre)
+ *   --yn-manga-zoom      1 (Auto) ou 0,5 … 3 (data-yn-zoom="manuel")
+ * et sur chaque image chargée : --yn-manga-naturelle (largeur naturelle, px) et
+ * --yn-manga-ratio (largeur / hauteur). Largeur rendue = largeur « auto » × zoom ; une image plus
+ * large que sa figure y défile horizontalement, la page du site ne déborde jamais.
  */
 
 /* Colonne plus large que pour le texte : une page de manga se lit en grand. */
@@ -12,6 +21,18 @@
 }
 
 .yn-manga {
+	--yn-manga-zoom: 1;
+	--yn-manga-fenetre: 100vw;
+	--yn-manga-colonne: 100%;
+	--yn-manga-decalage: 0px;
+	--yn-manga-hauteur: calc(100vh - 140px);
+
+	/* Cadre d'une double page : déborde de la colonne, sans dépasser la fenêtre (16 px de marge
+	   de chaque côté), deux colonnes ni 1920 px. */
+	--yn-manga-large: max(var(--yn-manga-colonne), min(var(--yn-manga-fenetre) - 32px, 2 * var(--yn-manga-colonne), 1920px));
+
+	/* Cadre d'une page zoomée : toute la largeur utile de la fenêtre. */
+	--yn-manga-ample: max(var(--yn-manga-colonne), min(var(--yn-manga-fenetre) - 32px, 1920px));
 	text-align: center;
 	-webkit-hyphens: manual;
 	hyphens: manual;
@@ -67,10 +88,40 @@
 }
 
 .yn-manga__page img.is-chargee {
-	width: auto;
-	max-width: 100%;
+	--yn-manga-base: min(var(--yn-manga-naturelle), var(--yn-manga-colonne));
+	width: calc(var(--yn-manga-base) * var(--yn-manga-zoom));
+	max-width: none;
 	aspect-ratio: auto;
 	background: none;
+}
+
+.yn-manga__page img.is-chargee.is-paysage {
+	--yn-manga-base: min(var(--yn-manga-naturelle), var(--yn-manga-large));
+}
+
+/* Double page (largeur > hauteur) et page zoomée : la figure sort de la colonne, centrée sur la
+   fenêtre ; sa boîte de marge garde la largeur de la colonne (rien ne bouge autour). */
+.yn-manga__page.is-paysage,
+.yn-manga[data-yn-zoom="manuel"] .yn-manga__page.is-chargee {
+	--yn-manga-cadre: var(--yn-manga-large);
+	align-self: flex-start;
+	box-sizing: border-box;
+	width: var(--yn-manga-cadre);
+	max-width: none;
+	margin-right: calc((var(--yn-manga-colonne) - var(--yn-manga-cadre)) / 2 - var(--yn-manga-decalage));
+	margin-left: calc((var(--yn-manga-colonne) - var(--yn-manga-cadre)) / 2 + var(--yn-manga-decalage));
+}
+
+.yn-manga[data-yn-zoom="manuel"] .yn-manga__page.is-chargee {
+	--yn-manga-cadre: var(--yn-manga-ample);
+	overflow-x: auto;
+	overflow-y: hidden;
+	overscroll-behavior-x: contain;
+}
+
+/* Double appui : bascule du zoom (manga.js) ; le pincement du navigateur reste permis. */
+.yn-manga__page {
+	touch-action: manipulation;
 }
 
 /* Page par page : une seule page, entière à l'écran sous la barre de lecture, boutons compris
@@ -93,9 +144,20 @@
 	width: min(100%, calc((100dvh - 140px) * 0.7));
 }
 
+/* Page chargée : entière à l'écran (largeur bornée aussi par la hauteur disponible), une double
+   page dans son cadre élargi ; le zoom multiplie cette largeur. */
 .yn-manga[data-yn-mode="page"] .yn-manga__page img.is-chargee:not(.is-longue) {
-	max-height: calc(100vh - 140px);
-	max-height: calc(100dvh - 140px);
+	--yn-manga-base: min(var(--yn-manga-naturelle), var(--yn-manga-colonne), var(--yn-manga-hauteur) * var(--yn-manga-ratio));
+}
+
+.yn-manga[data-yn-mode="page"] .yn-manga__page img.is-chargee.is-paysage:not(.is-longue) {
+	--yn-manga-base: min(var(--yn-manga-naturelle), var(--yn-manga-large), var(--yn-manga-hauteur) * var(--yn-manga-ratio));
+}
+
+@supports (height: 100dvh) {
+	.yn-manga {
+		--yn-manga-hauteur: calc(100dvh - 140px);
+	}
 }
 
 .yn-manga__navigation {
@@ -110,6 +172,21 @@
 
 .yn-manga__compteur {
 	min-width: 9em;
+}
+
+.yn-manga__zoom {
+	align-items: center;
+}
+
+.yn-manga__zoom [data-yn-manga-zoom="moins"],
+.yn-manga__zoom [data-yn-manga-zoom="plus"] {
+	min-width: 2.25em;
+	font-weight: 700;
+}
+
+.yn-manga__zoom-valeur {
+	min-width: 3.6em;
+	font-variant-numeric: tabular-nums;
 }
 
 .yn-manga__erreur {

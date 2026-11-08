@@ -509,6 +509,23 @@
 	color: var(--wp--preset--color--texte-fort);
 }
 
+/* Sous-chapitres : groupés, en retrait, sous la ligne de leur chapitre. */
+.yn-publish__groupe {
+	display: grid;
+	grid-column: 1 / -1;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	gap: 4px 16px;
+}
+
+.yn-publish__groupe > :first-child {
+	grid-column: 1 / -1;
+}
+
+.yn-publish__partie {
+	padding-left: 12px;
+	border-left: 2px solid var(--wp--preset--color--filet);
+}
+
 .yn-publish__vide {
 	grid-column: 1 / -1;
 }

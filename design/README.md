@@ -15,7 +15,10 @@ du header (LN, WN, Manga, en cours, terminées, licenciées, A → Z) et sur sa 
 
 Maquettes (canvas Design Claude) : *Yume Novel v2* — accueil, fiche œuvre, lecteur (bureau + mobile
 avec panneau de paramètres), planning public, tableau de bord équipe, formulaire de publication,
-compte lecteur. Sources dans `design/maquettes/`.
+compte lecteur. Sources dans `design/maquettes/`. Rangée 2.8.0 (cahier des charges
+[docs/09](../docs/09-manga-zoom-sous-chapitres-programmation.md)) : lecteur manga avec doubles pages élargies et zoom
+(bureau + mobile), découpage en sous-chapitres, panneau « Programmer les sorties » (répartition en N publications) et
+sommaire du tome groupé par chapitre, sur les données réelles du tome 2 de *Miss Medic's Diary at War*.
 
 ## Tokens (theme.json → `settings.color.palette`, `settings.typography.fontFamilies`)
 

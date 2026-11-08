@@ -9,6 +9,9 @@
  * - HTML identique pour tous les visiteurs (cache de pages) : qualité « Économie de données »
  *   dans src, « Originale » dans data-yn-originale ; le choix du lecteur (mode, qualité) est
  *   appliqué par manga.js et gardé dans localStorage yn.manga (contrat §14).
+ * - Doubles pages (image paysage) plus larges que la colonne et zoom du lecteur (− / valeur /
+ *   + / Auto, 50 à 300 %) : posés par manga.js (classes is-paysage, data-yn-zoom,
+ *   --yn-manga-zoom), le HTML ne connaît pas le format des images.
  * - Chaque page (.yn-manga__page) compte comme un paragraphe pour le suivi de lecture du bloc
  *   yume/reader-tools (marque-page, reprise, progression).
  * - Crédits : « Images hébergées par MangaDex », lien vers le chapitre sur MangaDex (repli si une
@@ -132,6 +135,20 @@ function poids_originale( int $pages ): int {
 }
 
 /**
+ * Groupe d'outils « Zoom » (contrat §8 bis) : Réduire, valeur courante (annoncée), Agrandir et
+ * Auto. Rendu identique pour tous ; état (valeur, boutons désactivés, Auto enfoncé) posé par
+ * manga.js d'après localStorage yn.manga.
+ */
+function html_zoom(): string {
+	return '<div class="yn-manga__choix yn-manga__zoom" role="group" aria-label="' . esc_attr__( 'Zoom', 'yume-core' ) . '">'
+		. '<button type="button" class="yn-btn yn-btn--sm" data-yn-manga-zoom="moins" aria-label="' . esc_attr__( 'Réduire', 'yume-core' ) . '" title="' . esc_attr__( 'Réduire (touche −)', 'yume-core' ) . '"><span aria-hidden="true">−</span></button>'
+		. '<span class="yn-label yn-manga__zoom-valeur" aria-live="polite" data-yn-manga-zoom-valeur>' . esc_html__( 'Auto', 'yume-core' ) . '</span>'
+		. '<button type="button" class="yn-btn yn-btn--sm" data-yn-manga-zoom="plus" aria-label="' . esc_attr__( 'Agrandir', 'yume-core' ) . '" title="' . esc_attr__( 'Agrandir (touche +)', 'yume-core' ) . '"><span aria-hidden="true">+</span></button>'
+		. '<button type="button" class="yn-btn yn-btn--sm" data-yn-manga-zoom="auto" aria-pressed="true" title="' . esc_attr__( 'Ajustement automatique (touche 0)', 'yume-core' ) . '">' . esc_html__( 'Auto', 'yume-core' ) . '</button>'
+		. '</div>';
+}
+
+/**
  * HTML du lecteur d'un chapitre MangaDex ('' pour un autre contenu).
  *
  * @param int $chapitre_id Chapitre.
@@ -148,7 +165,7 @@ function html_lecteur( int $chapitre_id ): string {
 		return '<div class="yn-manga yn-manga--vide"><p>' . esc_html__( 'Les pages de ce chapitre ne sont pas encore disponibles sur le site.', 'yume-core' ) . '</p>' . $source . '</div>';
 	}
 
-	$html  = '<div class="yn-manga" data-yn-manga data-yn-mode="defilement" data-yn-pages="' . esc_attr( (string) $total ) . '">';
+	$html  = '<div class="yn-manga" data-yn-manga data-yn-mode="defilement" data-yn-pages="' . esc_attr( (string) $total ) . '" data-yn-zoom="auto">';
 	$html .= '<div class="yn-manga__outils" hidden>';
 	/* translators: %d : nombre de pages. */
 	$html .= '<span class="yn-label yn-manga__info">' . esc_html( sprintf( _n( '%d page', '%d pages', $total, 'yume-core' ), $total ) ) . '</span>';
@@ -161,6 +178,7 @@ function html_lecteur( int $chapitre_id ): string {
 		/* translators: %d : poids approximatif du chapitre en Mo. */
 		. '<button type="button" class="yn-btn yn-btn--sm" data-yn-manga-qualite="data" aria-pressed="false">' . esc_html( sprintf( __( 'Originale (≈ %d Mo)', 'yume-core' ), poids_originale( $total ) ) ) . '</button>'
 		. '</div>';
+	$html .= html_zoom();
 	$html .= '</div>';
 
 	$html .= '<div class="yn-manga__pages">';

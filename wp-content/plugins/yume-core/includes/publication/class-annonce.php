@@ -501,6 +501,31 @@ final class Annonce {
 	}
 
 	/**
+	 * Compte un chapitre pour le texte d'une annonce : chapitre numéroté (nb), chapitre spécial
+	 * (libellé dans speciaux) ; les parties d'un chapitre (sous-chapitres) comptent une fois pour
+	 * leur chapitre, sauf si celui-ci est déjà compté.
+	 *
+	 * @param int                $chapitre_id Chapitre.
+	 * @param int                $nb          Chapitres numérotés (modifié).
+	 * @param string[]           $speciaux    Chapitres spéciaux (modifié).
+	 * @param array<string,bool> $parents     Numéros déjà comptés (modifié).
+	 */
+	public static function compter_chapitre( int $chapitre_id, int &$nb, array &$speciaux, array &$parents ): void {
+		$nature = (string) get_post_meta( $chapitre_id, 'yume_nature', true );
+		$numero = (string) get_post_meta( $chapitre_id, 'yume_numero', true );
+		if ( '' === $nature || 'chapitre' === $nature || 'sous-chapitre' === $nature ) {
+			if ( 'sous-chapitre' !== $nature || '' === $numero || ! isset( $parents[ $numero ] ) ) {
+				++$nb;
+			}
+			if ( '' !== $numero ) {
+				$parents[ $numero ] = true;
+			}
+			return;
+		}
+		$speciaux[] = yume_libelle_chapitre( $chapitre_id );
+	}
+
+	/**
 	 * Annonce « tome complet » d'un tome publié chapitre par chapitre : article publié tout de
 	 * suite dans « Sorties » (« Le tome 2 de SukaMoka est complet : PDF et EPUB disponibles »),
 	 * relié à l'œuvre, boutons Lire / PDF / EPUB, couverture du tome. Un seul par tome : s'il
@@ -517,13 +542,9 @@ final class Annonce {
 		}
 		$speciaux = array();
 		$nb       = 0;
+		$parents  = array();
 		foreach ( yume_get_chapitres( $tome_id ) as $chapitre ) {
-			$nature = (string) get_post_meta( $chapitre->ID, 'yume_nature', true );
-			if ( '' === $nature || 'chapitre' === $nature ) {
-				++$nb;
-			} else {
-				$speciaux[] = yume_libelle_chapitre( (int) $chapitre->ID );
-			}
+			self::compter_chapitre( (int) $chapitre->ID, $nb, $speciaux, $parents );
 		}
 		$credits = get_post_meta( $tome_id, 'yume_credits', true );
 		$lien    = (string) get_permalink( $tome_id );

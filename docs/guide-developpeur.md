@@ -95,6 +95,24 @@ journal), `comptes-donnees` (requêtes groupées de la liste, indicateurs, fiche
 Ne déclenchez jamais `do_action( 'yume_core_install' )` dans un test : appelez directement
 `Yume\Core\Comptes\amorcer_activite()`.
 
+Sous-chapitres (2.8.0) : `import-sous-chapitres` (DOCX synthétique à la structure du tome 2 de
+Miss Medic fabriqué dans le test, « Couper aux Titre 2 », marqueur `[sous-chapitre]`) et
+`publication-sous-chapitres` (analyse et préparation REST, métas, adresses, comparaison) ; le
+parcours de bout en bout `tools/ci/sous-chapitres.sh [--port 8102] [--captures DOSSIER]` (Playwright :
+formulaire, « Couper aux Titre 2 », publication, sommaire groupé, page d'une partie) tourne sur une
+base locale distincte (`YUME_ENV=sous-chapitres` par défaut).
+
+Programmation des sorties (2.8.0) : `publication-calendrier` (répartition en N publications,
+calendrier sur mesure, une annonce par publication, repli `repartition`, route
+`POST /publications/{id}/calendrier`, vue `?vue=programmer`). La répartition existe en PHP
+(`Calendrier::repartir()`) et en JavaScript (`programmer.js`) : les deux sont vérifiées sur la même
+fixture `tests/fixtures/repartition-miss-medic.json` (45 unités, titres neutres), en JavaScript par
+`node --test wp-content/plugins/yume-core/tests/js/*.test.js` (sans dépendance, job « Guide de
+l'équipe » de la CI). Parcours de bout en bout (Playwright, Chromium préinstallé, site local avec la
+démo `tools/playground/demo.php`) : `YUME_ENV=e2e tools/localenv/serve.sh 8103` puis
+`YUME_ENV=e2e node tools/ci/programmer.js --base http://127.0.0.1:8103` (DOCX synthétique de 45
+unités construit par `tools/ci/programmer-donnees.php`, données supprimées à la fin).
+
 `tests/runner.php` (exécuté par `wp eval-file`) charge `tests/test-*.php` ; chaque test est déclaré
 avec `yume_test( 'libellé', function () { … } )` et utilise les assertions de `tests/helpers.php`
 (`yume_assert_same`, `yume_assert_true`, `yume_assert_contains`…) et les fabriques

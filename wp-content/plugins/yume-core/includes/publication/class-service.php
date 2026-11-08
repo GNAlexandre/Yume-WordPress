@@ -80,7 +80,7 @@ final class Service {
 	public const META_RETIRE = '_yume_retire';
 
 	/** Méta de core : événement de publication traité. */
-	private const META_NOTIFIE = '_yume_publie_notifie';
+	public const META_NOTIFIE = '_yume_publie_notifie';
 
 	/**
 	 * Valeur de _yume_publie_notifie d'un tome ou d'un chapitre mis en ligne par un ajout au
@@ -118,8 +118,11 @@ final class Service {
 	/** Mode « Remplacer la lecture en ligne » explicite (en deux temps, Remplacement). */
 	public const MODE_REMPLACEMENT = 'remplacement';
 
-	/** Sorties des nouveaux chapitres (mode chapitres) : ensemble maintenant, un par un, à une date. */
-	public const SORTIES = array( 'maintenant', 'rythme', 'date' );
+	/**
+	 * Sorties des nouveaux chapitres (mode chapitres) : ensemble maintenant, un par un, à une
+	 * date, ou calendrier sur mesure (publications et dates choisies, voir Calendrier).
+	 */
+	public const SORTIES = array( 'maintenant', 'rythme', 'date', 'calendrier' );
 
 	/** Clé de rapprochement d'un chapitre (« chapitre:3#1 », « postface:#1 »). */
 	public const MOTIF_CLE = '/^[a-z]{1,20}:[0-9.]{0,12}#[0-9]{1,5}\z/';
@@ -224,13 +227,14 @@ final class Service {
 				'numero' => $numero,
 			);
 		}
-		// Clés de rapprochement des chapitres (nature + numéro) : jamais deux fois la même.
+		// Clés de rapprochement des chapitres (nature + numéro, + rang d'un sous-chapitre) : jamais
+		// deux fois la même.
 		$cles = array();
 		foreach ( Chapter_Builder::numeroter( $debuts ) as $i => $n ) {
 			if ( null === $n['numero'] ) {
 				continue;
 			}
-			$cle = $debuts[ $i ]['nature'] . ':' . Texte::numero_url( (float) $n['numero'] );
+			$cle = $n['nature'] . ':' . Texte::numero_url( (float) $n['numero'] ) . ( null !== $n['sous_numero'] ? '-' . $n['sous_numero'] : '' );
 			if ( isset( $cles[ $cle ] ) ) {
 				/* translators: %s : libellé du chapitre (« Chapitre 3 ») */
 				return $erreur( sprintf( __( 'Découpage manuel refusé : deux chapitres porteraient le même numéro (%s). Corrigez la nature ou le numéro.', 'yume-core' ), $n['titre'] ) );
@@ -298,9 +302,19 @@ final class Service {
 	public static function resume( Result $resultat ): string {
 		$numerotes = 0;
 		$speciaux  = array();
+		$parties   = 0;
+		$parents   = array();
 		foreach ( $resultat->chapters as $chapitre ) {
 			if ( 'chapitre' === $chapitre['nature'] ) {
 				++$numerotes;
+				$parents[ (string) $chapitre['numero'] ] = true;
+			} elseif ( 'sous-chapitre' === $chapitre['nature'] ) {
+				// Parties d'un chapitre : le chapitre compte une fois (parent sans texte compris).
+				++$parties;
+				if ( ! isset( $parents[ (string) $chapitre['numero'] ] ) ) {
+					$parents[ (string) $chapitre['numero'] ] = true;
+					++$numerotes;
+				}
 			} else {
 				$speciaux[] = mb_strtolower( (string) $chapitre['titre'] );
 			}
@@ -308,7 +322,10 @@ final class Service {
 		$parts = array();
 		if ( $numerotes || ! $speciaux ) {
 			/* translators: %d : nombre de chapitres */
-			$parts[] = sprintf( _n( '%d chapitre', '%d chapitres', $numerotes, 'yume-core' ), $numerotes ) . ( $speciaux ? ' + ' . implode( ', ', $speciaux ) : '' );
+			$parts[] = sprintf( _n( '%d chapitre', '%d chapitres', $numerotes, 'yume-core' ), $numerotes )
+				/* translators: %d : nombre de sous-chapitres */
+				. ( $parties ? ' (' . sprintf( _n( '%d sous-chapitre', '%d sous-chapitres', $parties, 'yume-core' ), $parties ) . ')' : '' )
+				. ( $speciaux ? ' + ' . implode( ', ', $speciaux ) : '' );
 		} else {
 			$parts[] = implode( ', ', $speciaux );
 		}
@@ -658,7 +675,7 @@ final class Service {
 		if ( Remplacement::STATUT === $post->post_status ) {
 			$statuts[ Remplacement::STATUT ] = __( 'Version en attente', 'yume-core' );
 		}
-		return array(
+		$resume = array(
 			'id'      => (int) $post->ID,
 			'titre'   => self::titre_texte( $post ),
 			'statut'  => $post->post_status,
@@ -668,18 +685,26 @@ final class Service {
 			'apercu'  => 'publish' === $post->post_status ? (string) get_permalink( $post ) : (string) get_preview_post_link( $post ),
 			'edition' => (string) get_edit_post_link( $post->ID, 'raw' ),
 		);
+		if ( 'yume_chapitre' === $post->post_type && 'sous-chapitre' === get_post_meta( $post->ID, 'yume_nature', true ) ) {
+			// Sous-chapitre : rang dans le chapitre et titre du parent (affichage groupé).
+			$resume['sous_numero']     = (int) get_post_meta( $post->ID, 'yume_sous_numero', true );
+			$resume['chapitre_parent'] = (string) get_post_meta( $post->ID, 'yume_chapitre_parent', true );
+		}
+		return $resume;
 	}
 
 	/**
 	 * Clé de rapprochement d'un chapitre : nature + numéro (sans numéro : postface,
-	 * épilogue…), suivie du rang d'apparition pour départager les doublons.
+	 * épilogue…), suivie du rang d'apparition pour départager les doublons. Sous-chapitre :
+	 * numéro du chapitre parent et rang de la partie (« sous-chapitre:2-1#1 »).
 	 *
-	 * @param string            $nature     Nature.
-	 * @param float|null        $numero     Numéro.
-	 * @param array<string,int> $compteurs  Rangs par clé (modifié).
+	 * @param string            $nature      Nature.
+	 * @param float|null        $numero      Numéro.
+	 * @param array<string,int> $compteurs   Rangs par clé (modifié).
+	 * @param int               $sous_numero Sous-chapitre : rang de la partie (0 sinon).
 	 */
-	private static function cle_chapitre( string $nature, ?float $numero, array &$compteurs ): string {
-		$base               = ( '' === $nature ? 'chapitre' : $nature ) . ':' . ( null === $numero ? '' : Texte::numero_url( $numero ) );
+	private static function cle_chapitre( string $nature, ?float $numero, array &$compteurs, int $sous_numero = 0 ): string {
+		$base               = ( '' === $nature ? 'chapitre' : $nature ) . ':' . ( null === $numero ? '' : Texte::numero_url( $numero ) ) . ( 'sous-chapitre' === $nature && $sous_numero > 0 ? '-' . $sous_numero : '' );
 		$compteurs[ $base ] = ( $compteurs[ $base ] ?? 0 ) + 1;
 		return $base . '#' . $compteurs[ $base ];
 	}
@@ -750,6 +775,10 @@ final class Service {
 	private static function slug_chapitre( array $chapitre ): string {
 		if ( 'chapitre' === $chapitre['nature'] && null !== $chapitre['numero'] ) {
 			return 'chapitre-' . str_replace( '.', '-', Texte::numero_url( (float) $chapitre['numero'] ) );
+		}
+		// Sous-chapitre : chapitre-2-partie-1.
+		if ( 'sous-chapitre' === $chapitre['nature'] && null !== $chapitre['numero'] ) {
+			return 'chapitre-' . str_replace( '.', '-', Texte::numero_url( (float) $chapitre['numero'] ) ) . '-partie-' . max( 1, (int) ( $chapitre['sous_numero'] ?? 1 ) );
 		}
 		return sanitize_title( (string) $chapitre['titre'] );
 	}
@@ -989,11 +1018,11 @@ final class Service {
 	 * @param int $tome_id Tome (0 : aucun).
 	 * @return array<string,\WP_Post>
 	 */
-	private static function chapitres_par_cle( int $tome_id ): array {
+	public static function chapitres_par_cle( int $tome_id ): array {
 		$existants = array();
 		$rangs     = array();
 		foreach ( $tome_id ? yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) : array() as $post ) {
-			$cle               = self::cle_chapitre( (string) get_post_meta( $post->ID, 'yume_nature', true ), self::numero( get_post_meta( $post->ID, 'yume_numero', true ) ), $rangs );
+			$cle               = self::cle_chapitre( (string) get_post_meta( $post->ID, 'yume_nature', true ), self::numero( get_post_meta( $post->ID, 'yume_numero', true ) ), $rangs, (int) get_post_meta( $post->ID, 'yume_sous_numero', true ) );
 			$existants[ $cle ] = $post;
 		}
 		return $existants;
@@ -1044,23 +1073,25 @@ final class Service {
 		$rangs        = array();
 		foreach ( $resultat->chapters as $i => $chapitre ) {
 			$numero = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
-			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs );
+			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs, (int) ( $chapitre['sous_numero'] ?? 0 ) );
 			$noms   = self::titres_chapitre( $chapitre );
 			$post   = $existants[ $cle ] ?? null;
 			$ligne  = array(
-				'index'      => (int) $i,
-				'cle'        => $cle,
-				'numero'     => $numero,
-				'nature'     => (string) $chapitre['nature'],
-				'libelle'    => $noms['libelle'],
-				'sous_titre' => $noms['sous_titre'],
-				'titre'      => $noms['titre'],
-				'nb_mots'    => (int) $chapitre['nb_mots'],
-				'existant'   => null,
-				'etat'       => 'nouveau',
-				'difference' => '',
-				'action'     => 'cree',
-				'choix'      => '',
+				'index'           => (int) $i,
+				'cle'             => $cle,
+				'numero'          => $numero,
+				'nature'          => (string) $chapitre['nature'],
+				'sous_numero'     => isset( $chapitre['sous_numero'] ) ? (int) $chapitre['sous_numero'] : null,
+				'chapitre_parent' => self::texte_titre( (string) ( $chapitre['chapitre_parent'] ?? '' ) ),
+				'libelle'         => $noms['libelle'],
+				'sous_titre'      => $noms['sous_titre'],
+				'titre'           => $noms['titre'],
+				'nb_mots'         => (int) $chapitre['nb_mots'],
+				'existant'        => null,
+				'etat'            => 'nouveau',
+				'difference'      => '',
+				'action'          => 'cree',
+				'choix'           => '',
 			);
 			if ( $post ) {
 				$ligne['existant'] = array(
@@ -1167,9 +1198,11 @@ final class Service {
 	 * @param string                  $sortie     maintenant | rythme | date.
 	 * @param \DateTimeImmutable|null $date       Date choisie (départ du rythme), ou null.
 	 * @param int                     $intervalle Jours entre deux chapitres sans rythme (1 à 60).
+	 * @param bool                    $apres_programmes Au rythme : après le dernier chapitre déjà
+	 *                                                  programmé (faux : ils sont reprogrammés).
 	 * @return array<int,\DateTimeImmutable|null>
 	 */
-	public static function calendrier( int $tome_id, int $nb, string $sortie, ?\DateTimeImmutable $date, int $intervalle = self::INTERVALLE_DEFAUT ): array {
+	public static function calendrier( int $tome_id, int $nb, string $sortie, ?\DateTimeImmutable $date, int $intervalle = self::INTERVALLE_DEFAUT, bool $apres_programmes = true ): array {
 		if ( $nb <= 0 ) {
 			return array();
 		}
@@ -1179,7 +1212,7 @@ final class Service {
 		$dates = array();
 		if ( null !== yume_prochaine_sortie_rythme( $tome_id ) ) {
 			$ref     = new \DateTimeImmutable( 'now', wp_timezone() );
-			$dernier = self::dernier_programme( $tome_id );
+			$dernier = $apres_programmes ? self::dernier_programme( $tome_id ) : null;
 			if ( $dernier && $dernier > $ref ) {
 				$ref = $dernier;
 			}
@@ -1198,6 +1231,18 @@ final class Service {
 			$dates[] = 0 === $i ? $date : $depart->modify( '+' . ( $i * $intervalle ) . ' days' );
 		}
 		return $dates;
+	}
+
+	/**
+	 * Répartit des unités (chapitres à sortir, dans l'ordre) en $n publications contiguës qui
+	 * minimisent la plus grosse en nombre de mots (voir Calendrier::repartir()).
+	 *
+	 * @param int[] $mots Mots de chaque unité.
+	 * @param int   $n    Nombre de publications voulu.
+	 * @return int[] Nombre d'unités de chaque publication.
+	 */
+	public static function repartir( array $mots, int $n ): array {
+		return Calendrier::repartir( $mots, $n );
 	}
 
 	/**
@@ -1245,7 +1290,9 @@ final class Service {
 
 	/**
 	 * Informations d'un tome pour le formulaire « Ajouter des chapitres » : parution (à paraître,
-	 * en cours, complet), chapitres en ligne et prévus, rythme, prochaines dates au rythme.
+	 * en cours, complet), chapitres en ligne et prévus, rythme, prochaines dates au rythme,
+	 * chapitres déjà en brouillon à sortir (a_sortir : {id, cle « id:N », libelle, nature,
+	 * nature_libelle, mots}) et règle du rythme pour le panneau « Programmer les sorties ».
 	 *
 	 * @param int $tome_id  Tome.
 	 * @param int $a_sortir Chapitres à sortir (dates au rythme calculées pour eux).
@@ -1257,9 +1304,11 @@ final class Service {
 		$en_ligne  = wp_list_pluck( yume_get_chapitres( $tome_id ), 'ID' );
 		$dernier   = self::dernier_programme( $tome_id );
 		$rythme    = self::rythme_texte( $tome_id );
+		$unites    = Calendrier::unites( $tome_id );
 		$dates     = array();
+		$a_sortir  = max( $a_sortir, count( $unites ) );
 		if ( '' !== $rythme && $a_sortir > 0 ) {
-			foreach ( self::calendrier( $tome_id, min( $a_sortir, 200 ), 'rythme', null ) as $date ) {
+			foreach ( self::calendrier( $tome_id, min( $a_sortir, Calendrier::MAX ), 'rythme', null ) as $date ) {
 				$dates[] = array(
 					'date'    => $date ? $date->format( DATE_ATOM ) : '',
 					'libelle' => $date ? Formulaire::date_fr( $date->getTimestamp(), 'court' ) : '',
@@ -1279,6 +1328,10 @@ final class Service {
 			'prevus'            => (int) get_post_meta( $tome_id, 'yume_chapitres_prevus', true ),
 			'rythme'            => $rythme,
 			'dates_rythme'      => $dates,
+			'rythme_regle'      => Calendrier::regle_rythme( $tome_id ),
+			'a_sortir'          => array_map( array( Calendrier::class, 'unite' ), $unites ),
+			'maintenant'        => Calendrier::valeur_locale( new \DateTimeImmutable( 'now', wp_timezone() ) ),
+			'programmer'        => Calendrier::url_vue( $tome_id ),
 			'sans_annonce'      => self::sans_annonce_par_defaut( $tome_id ),
 			'lien'              => 'publish' === get_post_status( $tome_id ) ? (string) get_permalink( $tome_id ) : '',
 		);
@@ -1432,8 +1485,9 @@ final class Service {
 		$lignes = array();
 		foreach ( $resultat->chapters as $i => $chapitre ) {
 			$numero = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
-			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs );
+			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs, (int) ( $chapitre['sous_numero'] ?? 0 ) );
 			$post   = $existants[ $cle ] ?? null;
+			$partie = 'sous-chapitre' === $chapitre['nature'];
 			// Titre et sous-titre extraits du document : du texte, jamais du balisage (le titre
 			// est affiché sans échappement par core/post-title, et kses ne s'applique pas à un
 			// compte unfiltered_html).
@@ -1476,6 +1530,11 @@ final class Service {
 			);
 			if ( null !== $numero ) {
 				$meta['yume_numero'] = $numero;
+			}
+			if ( $partie ) {
+				// Sous-chapitre : rang dans le chapitre parent et titre du parent.
+				$meta['yume_sous_numero']     = max( 1, (int) ( $chapitre['sous_numero'] ?? 1 ) );
+				$meta['yume_chapitre_parent'] = sanitize_text_field( self::texte_titre( (string) ( $chapitre['chapitre_parent'] ?? '' ) ) );
 			}
 			if ( $credits ) {
 				$meta['yume_credits'] = $credits;
@@ -1583,6 +1642,10 @@ final class Service {
 			}
 			if ( null === $numero ) {
 				delete_post_meta( $id, 'yume_numero' );
+			}
+			if ( ! $partie ) {
+				delete_post_meta( $id, 'yume_sous_numero' );
+				delete_post_meta( $id, 'yume_chapitre_parent' );
 			}
 			delete_post_meta( $id, self::META_RETIRE );
 			if ( ! $version ) {
@@ -1896,16 +1959,12 @@ final class Service {
 			} elseif ( ! $sans_annonce ) {
 				$speciaux = array();
 				$nb       = 0;
+				$parents  = array();
 				foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chap ) {
 					if ( get_post_meta( $chap->ID, self::META_RETIRE, true ) ) {
 						continue;
 					}
-					$nature = (string) get_post_meta( $chap->ID, 'yume_nature', true );
-					if ( '' === $nature || 'chapitre' === $nature ) {
-						++$nb;
-					} else {
-						$speciaux[] = yume_libelle_chapitre( (int) $chap->ID );
-					}
+					Annonce::compter_chapitre( (int) $chap->ID, $nb, $speciaux, $parents );
 				}
 				$credits    = get_post_meta( $tome_id, 'yume_credits', true );
 				$article_id = Annonce::preparer(
@@ -2044,14 +2103,30 @@ final class Service {
 			return yume_libelle_chapitre( $ids[0] );
 		}
 		$numeros = array();
+		$parties = array();
 		foreach ( $ids as $id ) {
 			$nature = (string) get_post_meta( $id, 'yume_nature', true );
 			$numero = self::numero( get_post_meta( $id, 'yume_numero', true ) );
-			if ( ( '' !== $nature && 'chapitre' !== $nature ) || null === $numero ) {
+			if ( ( '' !== $nature && 'chapitre' !== $nature && 'sous-chapitre' !== $nature ) || null === $numero ) {
 				$numeros = array();
 				break;
 			}
 			$numeros[] = $numero;
+			$parties[] = 'sous-chapitre' === $nature ? (int) get_post_meta( $id, 'yume_sous_numero', true ) : 0;
+		}
+		if ( $numeros && min( $numeros ) === max( $numeros ) && min( $parties ) > 0 ) {
+			// Parties d'un même chapitre : « Chapitre 2, parties 1 à 3 ».
+			return 2 === count( $parties )
+				/* translators: 1: numéro du chapitre, 2: première partie, 3: seconde partie */
+				? sprintf( __( 'Chapitre %1$s, parties %2$s et %3$s', 'yume-core' ), Texte::numero_fr( $numeros[0] ), min( $parties ), max( $parties ) )
+				/* translators: 1: numéro du chapitre, 2: première partie, 3: dernière partie */
+				: sprintf( __( 'Chapitre %1$s, parties %2$s à %3$s', 'yume-core' ), Texte::numero_fr( $numeros[0] ), min( $parties ), max( $parties ) );
+		}
+		if ( $numeros && min( $numeros ) === max( $numeros ) && array_filter( $parties ) ) {
+			// Un chapitre et ses parties : « Chapitre 2 et ses parties 1 à 3 ».
+			$rangs = array_filter( $parties );
+			/* translators: 1: numéro du chapitre, 2: première partie, 3: dernière partie */
+			return sprintf( __( 'Chapitre %1$s et ses parties %2$s à %3$s', 'yume-core' ), Texte::numero_fr( $numeros[0] ), min( $rangs ), max( $rangs ) );
 		}
 		if ( $numeros ) {
 			$min = min( $numeros );
@@ -2166,12 +2241,15 @@ final class Service {
 	}
 
 	/**
-	 * Annule la sortie groupée programmée d'un tome (nouvelle sortie) : tâche cron supprimée,
-	 * marques retirées des chapitres qui ne sont pas encore en ligne.
+	 * Annule la sortie groupée programmée d'un tome (nouvelle sortie), et celles de son
+	 * calendrier sur mesure : tâches cron supprimées, marques retirées des chapitres qui ne
+	 * sont pas encore en ligne.
 	 *
 	 * @param int $tome_id Tome.
 	 */
-	private static function annuler_sortie_groupee( int $tome_id ): void {
+	public static function annuler_sortie_groupee( int $tome_id ): void {
+		// Publications du calendrier sur mesure en attente (Calendrier::programmer_groupe()).
+		Calendrier::annuler_groupes( $tome_id );
 		$groupe = get_post_meta( $tome_id, self::META_GROUPE, true );
 		if ( ! is_array( $groupe ) ) {
 			return;
@@ -2189,7 +2267,7 @@ final class Service {
 	 * @param array<string,mixed> $groupe Méta META_GROUPE.
 	 * @return int[] Chapitres du groupe publiés.
 	 */
-	private static function liberer_chapitres( array $groupe ): array {
+	public static function liberer_chapitres( array $groupe ): array {
 		$ts      = (int) ( $groupe['ts'] ?? 0 );
 		$ignores = array_map( 'intval', (array) ( $groupe['ignores'] ?? array() ) );
 		$publies = array();
@@ -2290,9 +2368,12 @@ final class Service {
 	 * @param string              $quand   « maintenant » ou date ISO.
 	 * @param array<string,mixed> $options confirmer_vide (bool, défaut false), sans_annonce
 	 *                                     (bool, défaut false), mode (chapitres : ajout de
-	 *                                     chapitres), sortie (maintenant | rythme | date),
-	 *                                     intervalle (jours), complet (bool ou null : repris de la
-	 *                                     préparation), liens (lien_pdf, lien_epub).
+	 *                                     chapitres), sortie (maintenant | rythme | date |
+	 *                                     calendrier), intervalle (jours), calendrier (JSON ou
+	 *                                     tableau, voir Calendrier), repartition (N publications,
+	 *                                     sans calendrier), inclure_programmes (bool : reprogrammer
+	 *                                     aussi les chapitres programmés), complet (bool ou null :
+	 *                                     repris de la préparation), liens (lien_pdf, lien_epub).
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function publier( int $tome_id, string $quand = 'maintenant', array $options = array() ) {
@@ -2452,7 +2533,10 @@ final class Service {
 	 *   de suite, sans annonce ; un remplacement complet en attente n'est jamais appliqué ici ;
 	 * - les chapitres à sortir (brouillons du tome, hors chapitres retirés) sortent maintenant
 	 *   (une seule annonce), un par un au rythme du tome (calendrier() ; une annonce par chapitre
-	 *   à sa sortie) ou ensemble à une date ; les chapitres déjà programmés gardent leur date ;
+	 *   à sa sortie), ensemble à une date, ou selon un calendrier sur mesure (sortie
+	 *   « calendrier » : publications et dates choisies, une annonce par publication, voir
+	 *   Calendrier) ; les chapitres déjà programmés gardent leur date, sauf option
+	 *   inclure_programmes (vue « Programmer les sorties » : ils sont reprogrammés) ;
 	 * - première sortie du tome : le tome sort avec ses premiers chapitres ; sans « Tome
 	 *   complet », yume_parution = en_cours et l'annonce dit « SukaMoka, Tome 2 : Prologue
 	 *   disponible ! » ; tome complet publié d'un coup : yume_parution = complet, liens posés,
@@ -2496,9 +2580,10 @@ final class Service {
 		$etat     = Remplacement::lire( $tome_id );
 		$applique = $etat && self::MODE_CHAPITRES === ( $etat['mode'] ?? '' ) ? Remplacement::appliquer( $tome_id ) : null;
 
+		$inclure   = ! empty( $options['inclure_programmes'] );
 		$a_publier = array_values(
 			array_filter(
-				yume_get_chapitres( $tome_id, array( 'status' => $complet ? array( 'draft', 'pending', 'future' ) : array( 'draft', 'pending' ) ) ),
+				yume_get_chapitres( $tome_id, array( 'status' => $complet || $inclure ? array( 'draft', 'pending', 'future' ) : array( 'draft', 'pending' ) ) ),
 				static fn( \WP_Post $c ): bool => ! get_post_meta( $c->ID, self::META_RETIRE, true ) && ! metadata_exists( 'post', $c->ID, Remplacement::META_DE )
 			)
 		);
@@ -2512,8 +2597,17 @@ final class Service {
 				)
 			);
 		}
-		$dates    = self::calendrier( $tome_id, count( $a_publier ), $sortie, $date, (int) ( $options['intervalle'] ?? self::INTERVALLE_DEFAUT ) );
-		$premiere = $a_publier ? $dates[0] : ( 'maintenant' === $sortie ? null : $date );
+		$avert = array();
+		if ( 'calendrier' === $sortie ) {
+			// Calendrier sur mesure : dates choisies par publication (ou répartition en N).
+			$dates = Calendrier::dates_sortie( $tome_id, $a_publier, $options, $date, $avert );
+			if ( is_wp_error( $dates ) ) {
+				return $dates;
+			}
+		} else {
+			$dates = self::calendrier( $tome_id, count( $a_publier ), $sortie, $date, (int) ( $options['intervalle'] ?? self::INTERVALLE_DEFAUT ) );
+		}
+		$premiere = $a_publier ? $dates[0] : ( in_array( $sortie, array( 'maintenant', 'calendrier' ), true ) ? null : $date );
 		$fin      = null;
 		$creneaux = array();
 		foreach ( $dates as $d ) {
@@ -2539,7 +2633,7 @@ final class Service {
 		// Une sortie groupée programmée auparavant (chapitres déjà programmés) n'est pas touchée.
 		$faite = $muet
 			? self::sortie_muette( $tome, $a_publier, $dates, $premiere )
-			: self::sortie_annoncee( $tome, $a_publier, $dates, $premiere, $complet_direct );
+			: self::sortie_annoncee( $tome, $a_publier, $dates, $premiere, $complet_direct, 'calendrier' === $sortie );
 		if ( is_wp_error( $faite ) ) {
 			return $faite;
 		}
@@ -2569,6 +2663,17 @@ final class Service {
 				self::programmer_complet( $tome_id, $quand->getTimestamp(), $liens, ! $muet );
 				$etat_complet = 'programme';
 				$complet_le   = $quand->format( DATE_ATOM );
+			}
+		}
+		// Reprogrammation (vue « Programmer les sorties ») : un passage « complet » déjà programmé
+		// suit la sortie du nouveau dernier chapitre programmé.
+		$prog = get_post_meta( $tome_id, self::META_COMPLET, true );
+		if ( $inclure && '' === $etat_complet && is_array( $prog ) ) {
+			$dernier = self::dernier_programme( $tome_id );
+			if ( $dernier ) {
+				self::programmer_complet( $tome_id, $dernier->getTimestamp(), (array) ( $prog['liens'] ?? array() ), ! empty( $prog['annoncer'] ) );
+				$etat_complet = 'programme';
+				$complet_le   = $dernier->format( DATE_ATOM );
 			}
 		}
 		// Sortie sans annonce : aucun événement, l'avancement du planning suit quand même.
@@ -2613,6 +2718,8 @@ final class Service {
 			'complet'               => $etat_complet,
 			'complet_le'            => $complet_le,
 			'en_ligne'              => count( yume_get_chapitres( $tome_id ) ),
+			'publications'          => Calendrier::nb_publications( $dates ),
+			'avertissements'        => $avert,
 		);
 	}
 
@@ -2687,15 +2794,19 @@ final class Service {
 	 *   (annoncer_groupe()) ; plusieurs chapitres programmés à la même date aussi (sortie groupée
 	 *   programmée), sauf si une autre sortie groupée attend déjà ; un chapitre programmé seul
 	 *   est annoncé à sa sortie (core).
+	 * - Calendrier sur mesure ($par_publication) : chaque publication de plusieurs chapitres
+	 *   programmée après la première sortie du tome a SA sortie groupée (une annonce,
+	 *   Calendrier::programmer_groupe()), même si d'autres attendent.
 	 *
 	 * @param \WP_Post                           $tome           Tome.
 	 * @param \WP_Post[]                         $a_publier      Chapitres à sortir.
 	 * @param array<int,\DateTimeImmutable|null> $dates          Date de chaque chapitre.
 	 * @param \DateTimeImmutable|null            $premiere       Date de sortie du tome.
 	 * @param bool                               $complet_direct Tome complet publié d'un coup.
+	 * @param bool                               $par_publication Calendrier sur mesure : une annonce par publication.
 	 * @return array{publies:int,calendrier:array<int,array<string,mixed>>,article:int}|\WP_Error
 	 */
-	private static function sortie_annoncee( \WP_Post $tome, array $a_publier, array $dates, ?\DateTimeImmutable $premiere, bool $complet_direct ) {
+	private static function sortie_annoncee( \WP_Post $tome, array $a_publier, array $dates, ?\DateTimeImmutable $premiere, bool $complet_direct, bool $par_publication = false ) {
 		$tome_id    = (int) $tome->ID;
 		$deja_sorti = 'publish' === $tome->post_status;
 		if ( ! $deja_sorti || in_array( null, $dates, true ) ) {
@@ -2737,11 +2848,25 @@ final class Service {
 				/** This action is documented in includes/publication/class-service.php */
 				do_action( 'yume_tome_publie', $tome_id );
 			}
+			if ( $par_publication ) {
+				// Publications suivantes du calendrier : une annonce chacune (le tome sera en ligne).
+				foreach ( $par_date as $ts => $ids ) {
+					if ( count( $ids ) > 1 && ( null === $premiere || (int) $ts !== $premiere->getTimestamp() ) ) {
+						Calendrier::programmer_groupe( $tome_id, $ids, (int) $ts );
+					}
+				}
+			}
 		} else {
 			if ( $maintenant ) {
 				self::annoncer_groupe( $tome_id, $maintenant );
 			}
 			foreach ( $par_date as $ts => $ids ) {
+				if ( $par_publication ) {
+					if ( count( $ids ) > 1 ) {
+						Calendrier::programmer_groupe( $tome_id, $ids, (int) $ts );
+					}
+					continue;
+				}
 				$groupe = get_post_meta( $tome_id, self::META_GROUPE, true );
 				// Une seule sortie groupée programmée par tome : si une autre attend, ces chapitres
 				// seront annoncés un par un à leur sortie.
@@ -2842,6 +2967,7 @@ final class Service {
 	private static function preparer_annonce( int $tome_id, string $parution, ?array $chapitres, array &$avert ): int {
 		$speciaux   = array();
 		$nb         = 0;
+		$parents    = array();
 		$brouillons = array();
 		foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chap ) {
 			if ( get_post_meta( $chap->ID, self::META_RETIRE, true ) ) {
@@ -2850,12 +2976,7 @@ final class Service {
 			if ( in_array( $chap->post_status, array( 'draft', 'pending' ), true ) ) {
 				$brouillons[] = (int) $chap->ID;
 			}
-			$nature = (string) get_post_meta( $chap->ID, 'yume_nature', true );
-			if ( '' === $nature || 'chapitre' === $nature ) {
-				++$nb;
-			} else {
-				$speciaux[] = yume_libelle_chapitre( (int) $chap->ID );
-			}
+			Annonce::compter_chapitre( (int) $chap->ID, $nb, $speciaux, $parents );
 		}
 		$credits    = get_post_meta( $tome_id, 'yume_credits', true );
 		$article_id = Annonce::preparer(
@@ -2985,7 +3106,7 @@ final class Service {
 	 */
 	public static function annuler_programmations( int $tome_id ): array {
 		$annule = array(
-			'groupe'  => is_array( get_post_meta( $tome_id, self::META_GROUPE, true ) ),
+			'groupe'  => is_array( get_post_meta( $tome_id, self::META_GROUPE, true ) ) || (bool) Calendrier::groupes( $tome_id ),
 			'complet' => is_array( get_post_meta( $tome_id, self::META_COMPLET, true ) ),
 		);
 		self::annuler_sortie_groupee( $tome_id );
