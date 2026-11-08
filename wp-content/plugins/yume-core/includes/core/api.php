@@ -15,6 +15,7 @@ use function Yume\Core\Core\images_galerie;
 use function Yume\Core\Core\numero_fr;
 use function Yume\Core\Core\numero_ou_null;
 use function Yume\Core\Core\san_url;
+use function Yume\Core\Core\sous_numero;
 use function Yume\Core\Core\statuts_demandes;
 use function Yume\Core\Core\termes_taxonomie;
 use function Yume\Core\Core\url_illustrations;
@@ -143,6 +144,11 @@ function yume_get_chapitres( int $tome_id, array $args = array() ): array {
 					return -1;
 				}
 				return $na <=> $nb;
+			}
+			// Même numéro : le chapitre parent, puis ses parties (sous-chapitres) dans l'ordre.
+			$cmp = sous_numero( $a->ID ) <=> sous_numero( $b->ID );
+			if ( 0 !== $cmp ) {
+				return $cmp;
 			}
 			$cmp = strcmp( (string) $a->post_date, (string) $b->post_date );
 			return 0 !== $cmp ? $cmp : ( $a->ID <=> $b->ID );
@@ -388,7 +394,8 @@ function yume_libelle_tome( int $tome_id, bool $court = false ): string {
 }
 
 /**
- * Libellé d'un chapitre : « Chapitre 3 », « Prologue », « Interlude 2 », « Postface »…
+ * Libellé d'un chapitre : « Chapitre 3 », « Prologue », « Interlude 2 », « Postface »,
+ * « Chapitre 2, partie 1 » (sous-chapitre)…
  *
  * @param int $chapitre_id ID du chapitre.
  */
@@ -400,7 +407,13 @@ function yume_libelle_chapitre( int $chapitre_id ): string {
 	$numero  = numero_ou_null( get_post_meta( $chapitre_id, 'yume_numero', true ) );
 	$natures = yume_natures_chapitre();
 	$nom     = $natures[ $nature ] ?? $natures['chapitre'];
-	if ( '' === $nature || 'chapitre' === $nature ) {
+	if ( 'sous-chapitre' === $nature ) {
+		$libelle = null === $numero
+			/* translators: %s : numéro de la partie */
+			? sprintf( __( 'Chapitre, partie %s', 'yume-core' ), numero_fr( (float) max( 1, sous_numero( $chapitre_id ) ) ) )
+			/* translators: 1 : numéro du chapitre, 2 : numéro de la partie */
+			: sprintf( __( 'Chapitre %1$s, partie %2$s', 'yume-core' ), numero_fr( $numero ), numero_fr( (float) max( 1, sous_numero( $chapitre_id ) ) ) );
+	} elseif ( '' === $nature || 'chapitre' === $nature ) {
 		$libelle = null === $numero ? $nom : $nom . ' ' . numero_fr( $numero );
 	} elseif ( in_array( $nature, array( 'interlude', 'bonus' ), true ) && null !== $numero && $numero > 0 ) {
 		$libelle = $nom . ' ' . numero_fr( $numero );
@@ -414,6 +427,27 @@ function yume_libelle_chapitre( int $chapitre_id ): string {
 	 * @param int    $chapitre_id ID du chapitre.
 	 */
 	return (string) apply_filters( 'yume_libelle_chapitre', $libelle, $chapitre_id );
+}
+
+/**
+ * Libellé court d'une partie de chapitre (sous-chapitre) : « Partie 1 » ; vide pour un autre
+ * chapitre.
+ *
+ * @param int $chapitre_id ID du chapitre.
+ */
+function yume_libelle_partie( int $chapitre_id ): string {
+	if ( 'yume_chapitre' !== get_post_type( $chapitre_id ) || 'sous-chapitre' !== (string) get_post_meta( $chapitre_id, 'yume_nature', true ) ) {
+		return '';
+	}
+	/* translators: %s : numéro de la partie */
+	$libelle = sprintf( __( 'Partie %s', 'yume-core' ), numero_fr( (float) max( 1, sous_numero( $chapitre_id ) ) ) );
+	/**
+	 * Filtre le libellé court d'une partie de chapitre (« Partie 1 »).
+	 *
+	 * @param string $libelle     Libellé.
+	 * @param int    $chapitre_id ID du chapitre.
+	 */
+	return (string) apply_filters( 'yume_libelle_partie', $libelle, $chapitre_id );
 }
 
 /**
@@ -463,6 +497,7 @@ function yume_natures_chapitre(): array {
 		'postface'      => __( 'Postface', 'yume-core' ),
 		'bonus'         => __( 'Bonus', 'yume-core' ),
 		'illustrations' => __( 'Illustrations', 'yume-core' ),
+		'sous-chapitre' => __( 'Sous-chapitre', 'yume-core' ),
 	);
 }
 

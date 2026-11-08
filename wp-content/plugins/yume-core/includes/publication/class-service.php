@@ -224,13 +224,14 @@ final class Service {
 				'numero' => $numero,
 			);
 		}
-		// Clés de rapprochement des chapitres (nature + numéro) : jamais deux fois la même.
+		// Clés de rapprochement des chapitres (nature + numéro, + rang d'un sous-chapitre) : jamais
+		// deux fois la même.
 		$cles = array();
 		foreach ( Chapter_Builder::numeroter( $debuts ) as $i => $n ) {
 			if ( null === $n['numero'] ) {
 				continue;
 			}
-			$cle = $debuts[ $i ]['nature'] . ':' . Texte::numero_url( (float) $n['numero'] );
+			$cle = $n['nature'] . ':' . Texte::numero_url( (float) $n['numero'] ) . ( null !== $n['sous_numero'] ? '-' . $n['sous_numero'] : '' );
 			if ( isset( $cles[ $cle ] ) ) {
 				/* translators: %s : libellé du chapitre (« Chapitre 3 ») */
 				return $erreur( sprintf( __( 'Découpage manuel refusé : deux chapitres porteraient le même numéro (%s). Corrigez la nature ou le numéro.', 'yume-core' ), $n['titre'] ) );
@@ -298,9 +299,19 @@ final class Service {
 	public static function resume( Result $resultat ): string {
 		$numerotes = 0;
 		$speciaux  = array();
+		$parties   = 0;
+		$parents   = array();
 		foreach ( $resultat->chapters as $chapitre ) {
 			if ( 'chapitre' === $chapitre['nature'] ) {
 				++$numerotes;
+				$parents[ (string) $chapitre['numero'] ] = true;
+			} elseif ( 'sous-chapitre' === $chapitre['nature'] ) {
+				// Parties d'un chapitre : le chapitre compte une fois (parent sans texte compris).
+				++$parties;
+				if ( ! isset( $parents[ (string) $chapitre['numero'] ] ) ) {
+					$parents[ (string) $chapitre['numero'] ] = true;
+					++$numerotes;
+				}
 			} else {
 				$speciaux[] = mb_strtolower( (string) $chapitre['titre'] );
 			}
@@ -308,7 +319,10 @@ final class Service {
 		$parts = array();
 		if ( $numerotes || ! $speciaux ) {
 			/* translators: %d : nombre de chapitres */
-			$parts[] = sprintf( _n( '%d chapitre', '%d chapitres', $numerotes, 'yume-core' ), $numerotes ) . ( $speciaux ? ' + ' . implode( ', ', $speciaux ) : '' );
+			$parts[] = sprintf( _n( '%d chapitre', '%d chapitres', $numerotes, 'yume-core' ), $numerotes )
+				/* translators: %d : nombre de sous-chapitres */
+				. ( $parties ? ' (' . sprintf( _n( '%d sous-chapitre', '%d sous-chapitres', $parties, 'yume-core' ), $parties ) . ')' : '' )
+				. ( $speciaux ? ' + ' . implode( ', ', $speciaux ) : '' );
 		} else {
 			$parts[] = implode( ', ', $speciaux );
 		}
@@ -658,7 +672,7 @@ final class Service {
 		if ( Remplacement::STATUT === $post->post_status ) {
 			$statuts[ Remplacement::STATUT ] = __( 'Version en attente', 'yume-core' );
 		}
-		return array(
+		$resume = array(
 			'id'      => (int) $post->ID,
 			'titre'   => self::titre_texte( $post ),
 			'statut'  => $post->post_status,
@@ -668,18 +682,26 @@ final class Service {
 			'apercu'  => 'publish' === $post->post_status ? (string) get_permalink( $post ) : (string) get_preview_post_link( $post ),
 			'edition' => (string) get_edit_post_link( $post->ID, 'raw' ),
 		);
+		if ( 'yume_chapitre' === $post->post_type && 'sous-chapitre' === get_post_meta( $post->ID, 'yume_nature', true ) ) {
+			// Sous-chapitre : rang dans le chapitre et titre du parent (affichage groupé).
+			$resume['sous_numero']     = (int) get_post_meta( $post->ID, 'yume_sous_numero', true );
+			$resume['chapitre_parent'] = (string) get_post_meta( $post->ID, 'yume_chapitre_parent', true );
+		}
+		return $resume;
 	}
 
 	/**
 	 * Clé de rapprochement d'un chapitre : nature + numéro (sans numéro : postface,
-	 * épilogue…), suivie du rang d'apparition pour départager les doublons.
+	 * épilogue…), suivie du rang d'apparition pour départager les doublons. Sous-chapitre :
+	 * numéro du chapitre parent et rang de la partie (« sous-chapitre:2-1#1 »).
 	 *
-	 * @param string            $nature     Nature.
-	 * @param float|null        $numero     Numéro.
-	 * @param array<string,int> $compteurs  Rangs par clé (modifié).
+	 * @param string            $nature      Nature.
+	 * @param float|null        $numero      Numéro.
+	 * @param array<string,int> $compteurs   Rangs par clé (modifié).
+	 * @param int               $sous_numero Sous-chapitre : rang de la partie (0 sinon).
 	 */
-	private static function cle_chapitre( string $nature, ?float $numero, array &$compteurs ): string {
-		$base               = ( '' === $nature ? 'chapitre' : $nature ) . ':' . ( null === $numero ? '' : Texte::numero_url( $numero ) );
+	private static function cle_chapitre( string $nature, ?float $numero, array &$compteurs, int $sous_numero = 0 ): string {
+		$base               = ( '' === $nature ? 'chapitre' : $nature ) . ':' . ( null === $numero ? '' : Texte::numero_url( $numero ) ) . ( 'sous-chapitre' === $nature && $sous_numero > 0 ? '-' . $sous_numero : '' );
 		$compteurs[ $base ] = ( $compteurs[ $base ] ?? 0 ) + 1;
 		return $base . '#' . $compteurs[ $base ];
 	}
@@ -750,6 +772,10 @@ final class Service {
 	private static function slug_chapitre( array $chapitre ): string {
 		if ( 'chapitre' === $chapitre['nature'] && null !== $chapitre['numero'] ) {
 			return 'chapitre-' . str_replace( '.', '-', Texte::numero_url( (float) $chapitre['numero'] ) );
+		}
+		// Sous-chapitre : chapitre-2-partie-1.
+		if ( 'sous-chapitre' === $chapitre['nature'] && null !== $chapitre['numero'] ) {
+			return 'chapitre-' . str_replace( '.', '-', Texte::numero_url( (float) $chapitre['numero'] ) ) . '-partie-' . max( 1, (int) ( $chapitre['sous_numero'] ?? 1 ) );
 		}
 		return sanitize_title( (string) $chapitre['titre'] );
 	}
@@ -993,7 +1019,7 @@ final class Service {
 		$existants = array();
 		$rangs     = array();
 		foreach ( $tome_id ? yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) : array() as $post ) {
-			$cle               = self::cle_chapitre( (string) get_post_meta( $post->ID, 'yume_nature', true ), self::numero( get_post_meta( $post->ID, 'yume_numero', true ) ), $rangs );
+			$cle               = self::cle_chapitre( (string) get_post_meta( $post->ID, 'yume_nature', true ), self::numero( get_post_meta( $post->ID, 'yume_numero', true ) ), $rangs, (int) get_post_meta( $post->ID, 'yume_sous_numero', true ) );
 			$existants[ $cle ] = $post;
 		}
 		return $existants;
@@ -1044,23 +1070,25 @@ final class Service {
 		$rangs        = array();
 		foreach ( $resultat->chapters as $i => $chapitre ) {
 			$numero = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
-			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs );
+			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs, (int) ( $chapitre['sous_numero'] ?? 0 ) );
 			$noms   = self::titres_chapitre( $chapitre );
 			$post   = $existants[ $cle ] ?? null;
 			$ligne  = array(
-				'index'      => (int) $i,
-				'cle'        => $cle,
-				'numero'     => $numero,
-				'nature'     => (string) $chapitre['nature'],
-				'libelle'    => $noms['libelle'],
-				'sous_titre' => $noms['sous_titre'],
-				'titre'      => $noms['titre'],
-				'nb_mots'    => (int) $chapitre['nb_mots'],
-				'existant'   => null,
-				'etat'       => 'nouveau',
-				'difference' => '',
-				'action'     => 'cree',
-				'choix'      => '',
+				'index'           => (int) $i,
+				'cle'             => $cle,
+				'numero'          => $numero,
+				'nature'          => (string) $chapitre['nature'],
+				'sous_numero'     => isset( $chapitre['sous_numero'] ) ? (int) $chapitre['sous_numero'] : null,
+				'chapitre_parent' => self::texte_titre( (string) ( $chapitre['chapitre_parent'] ?? '' ) ),
+				'libelle'         => $noms['libelle'],
+				'sous_titre'      => $noms['sous_titre'],
+				'titre'           => $noms['titre'],
+				'nb_mots'         => (int) $chapitre['nb_mots'],
+				'existant'        => null,
+				'etat'            => 'nouveau',
+				'difference'      => '',
+				'action'          => 'cree',
+				'choix'           => '',
 			);
 			if ( $post ) {
 				$ligne['existant'] = array(
@@ -1432,8 +1460,9 @@ final class Service {
 		$lignes = array();
 		foreach ( $resultat->chapters as $i => $chapitre ) {
 			$numero = null === $chapitre['numero'] ? null : (float) $chapitre['numero'];
-			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs );
+			$cle    = self::cle_chapitre( (string) $chapitre['nature'], $numero, $rangs, (int) ( $chapitre['sous_numero'] ?? 0 ) );
 			$post   = $existants[ $cle ] ?? null;
+			$partie = 'sous-chapitre' === $chapitre['nature'];
 			// Titre et sous-titre extraits du document : du texte, jamais du balisage (le titre
 			// est affiché sans échappement par core/post-title, et kses ne s'applique pas à un
 			// compte unfiltered_html).
@@ -1476,6 +1505,11 @@ final class Service {
 			);
 			if ( null !== $numero ) {
 				$meta['yume_numero'] = $numero;
+			}
+			if ( $partie ) {
+				// Sous-chapitre : rang dans le chapitre parent et titre du parent.
+				$meta['yume_sous_numero']     = max( 1, (int) ( $chapitre['sous_numero'] ?? 1 ) );
+				$meta['yume_chapitre_parent'] = sanitize_text_field( self::texte_titre( (string) ( $chapitre['chapitre_parent'] ?? '' ) ) );
 			}
 			if ( $credits ) {
 				$meta['yume_credits'] = $credits;
@@ -1583,6 +1617,10 @@ final class Service {
 			}
 			if ( null === $numero ) {
 				delete_post_meta( $id, 'yume_numero' );
+			}
+			if ( ! $partie ) {
+				delete_post_meta( $id, 'yume_sous_numero' );
+				delete_post_meta( $id, 'yume_chapitre_parent' );
 			}
 			delete_post_meta( $id, self::META_RETIRE );
 			if ( ! $version ) {
@@ -1896,16 +1934,12 @@ final class Service {
 			} elseif ( ! $sans_annonce ) {
 				$speciaux = array();
 				$nb       = 0;
+				$parents  = array();
 				foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chap ) {
 					if ( get_post_meta( $chap->ID, self::META_RETIRE, true ) ) {
 						continue;
 					}
-					$nature = (string) get_post_meta( $chap->ID, 'yume_nature', true );
-					if ( '' === $nature || 'chapitre' === $nature ) {
-						++$nb;
-					} else {
-						$speciaux[] = yume_libelle_chapitre( (int) $chap->ID );
-					}
+					Annonce::compter_chapitre( (int) $chap->ID, $nb, $speciaux, $parents );
 				}
 				$credits    = get_post_meta( $tome_id, 'yume_credits', true );
 				$article_id = Annonce::preparer(
@@ -2044,14 +2078,30 @@ final class Service {
 			return yume_libelle_chapitre( $ids[0] );
 		}
 		$numeros = array();
+		$parties = array();
 		foreach ( $ids as $id ) {
 			$nature = (string) get_post_meta( $id, 'yume_nature', true );
 			$numero = self::numero( get_post_meta( $id, 'yume_numero', true ) );
-			if ( ( '' !== $nature && 'chapitre' !== $nature ) || null === $numero ) {
+			if ( ( '' !== $nature && 'chapitre' !== $nature && 'sous-chapitre' !== $nature ) || null === $numero ) {
 				$numeros = array();
 				break;
 			}
 			$numeros[] = $numero;
+			$parties[] = 'sous-chapitre' === $nature ? (int) get_post_meta( $id, 'yume_sous_numero', true ) : 0;
+		}
+		if ( $numeros && min( $numeros ) === max( $numeros ) && min( $parties ) > 0 ) {
+			// Parties d'un même chapitre : « Chapitre 2, parties 1 à 3 ».
+			return 2 === count( $parties )
+				/* translators: 1: numéro du chapitre, 2: première partie, 3: seconde partie */
+				? sprintf( __( 'Chapitre %1$s, parties %2$s et %3$s', 'yume-core' ), Texte::numero_fr( $numeros[0] ), min( $parties ), max( $parties ) )
+				/* translators: 1: numéro du chapitre, 2: première partie, 3: dernière partie */
+				: sprintf( __( 'Chapitre %1$s, parties %2$s à %3$s', 'yume-core' ), Texte::numero_fr( $numeros[0] ), min( $parties ), max( $parties ) );
+		}
+		if ( $numeros && min( $numeros ) === max( $numeros ) && array_filter( $parties ) ) {
+			// Un chapitre et ses parties : « Chapitre 2 et ses parties 1 à 3 ».
+			$rangs = array_filter( $parties );
+			/* translators: 1: numéro du chapitre, 2: première partie, 3: dernière partie */
+			return sprintf( __( 'Chapitre %1$s et ses parties %2$s à %3$s', 'yume-core' ), Texte::numero_fr( $numeros[0] ), min( $rangs ), max( $rangs ) );
 		}
 		if ( $numeros ) {
 			$min = min( $numeros );
@@ -2842,6 +2892,7 @@ final class Service {
 	private static function preparer_annonce( int $tome_id, string $parution, ?array $chapitres, array &$avert ): int {
 		$speciaux   = array();
 		$nb         = 0;
+		$parents    = array();
 		$brouillons = array();
 		foreach ( yume_get_chapitres( $tome_id, array( 'status' => 'any' ) ) as $chap ) {
 			if ( get_post_meta( $chap->ID, self::META_RETIRE, true ) ) {
@@ -2850,12 +2901,7 @@ final class Service {
 			if ( in_array( $chap->post_status, array( 'draft', 'pending' ), true ) ) {
 				$brouillons[] = (int) $chap->ID;
 			}
-			$nature = (string) get_post_meta( $chap->ID, 'yume_nature', true );
-			if ( '' === $nature || 'chapitre' === $nature ) {
-				++$nb;
-			} else {
-				$speciaux[] = yume_libelle_chapitre( (int) $chap->ID );
-			}
+			Annonce::compter_chapitre( (int) $chap->ID, $nb, $speciaux, $parents );
 		}
 		$credits    = get_post_meta( $tome_id, 'yume_credits', true );
 		$article_id = Annonce::preparer(

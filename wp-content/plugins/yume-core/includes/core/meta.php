@@ -731,31 +731,42 @@ function definitions_meta(): array {
 			),
 		),
 		CPT_CHAPITRE => array(
-			'yume_tome_id'       => array(
+			'yume_tome_id'         => array(
 				'type'        => 'integer',
 				'description' => __( 'Tome du chapitre.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_entier',
 				'default'     => 0,
 			),
-			'yume_oeuvre_id'     => array(
+			'yume_oeuvre_id'       => array(
 				'type'        => 'integer',
 				'description' => __( 'Œuvre du chapitre (recopiée depuis le tome : toute autre valeur est corrigée à l’enregistrement).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_entier',
 				'default'     => 0,
 			),
-			'yume_numero'        => array(
+			'yume_numero'          => array(
 				'type'        => 'number',
 				'description' => __( 'Numéro du chapitre (0 pour un prologue).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_nombre',
 			),
-			'yume_sous_titre'    => array(
+			'yume_sous_titre'      => array(
 				'type'        => 'string',
 				'description' => __( 'Sous-titre du chapitre.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_texte',
 			),
-			'yume_nature'        => array(
+			'yume_sous_numero'     => array(
+				'type'        => 'integer',
+				'description' => __( 'Sous-chapitre : rang de la partie dans son chapitre (1, 2…) ; 0 pour un autre chapitre.', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_entier',
+				'default'     => 0,
+			),
+			'yume_chapitre_parent' => array(
 				'type'        => 'string',
-				'description' => __( 'Nature : chapitre, prologue, interlude, épilogue, postface, bonus, illustrations.', 'yume-core' ),
+				'description' => __( 'Sous-chapitre : titre du chapitre parent (affichage).', 'yume-core' ),
+				'sanitize'    => __NAMESPACE__ . '\\san_texte',
+			),
+			'yume_nature'          => array(
+				'type'        => 'string',
+				'description' => __( 'Nature : chapitre, prologue, interlude, épilogue, postface, bonus, illustrations, sous-chapitre.', 'yume-core' ),
 				'sanitize'    => static function ( $v ) {
 					return san_enum( $v, array_keys( yume_natures_chapitre() ), 'chapitre' );
 				},
@@ -765,26 +776,26 @@ function definitions_meta(): array {
 					'enum' => array_keys( yume_natures_chapitre() ),
 				),
 			),
-			'yume_credits'       => array(
+			'yume_credits'         => array(
 				'type'        => 'object',
 				'description' => __( 'Crédits du chapitre.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_trio_textes',
 				'default'     => $trio_vide,
 				'schema'      => $trio_txt,
 			),
-			'yume_nb_mots'       => array(
+			'yume_nb_mots'         => array(
 				'type'        => 'integer',
 				'description' => __( 'Nombre de mots (calculé si absent).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_entier',
 				'default'     => 0,
 			),
-			'yume_temps_lecture' => array(
+			'yume_temps_lecture'   => array(
 				'type'        => 'integer',
 				'description' => __( 'Temps de lecture en minutes (230 mots/min, calculé si absent).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_entier',
 				'default'     => 0,
 			),
-			'yume_source'        => array(
+			'yume_source'          => array(
 				'type'        => 'object',
 				'description' => __( 'Traçabilité de l’import (format, empreinte, date).', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_source',
@@ -804,25 +815,25 @@ function definitions_meta(): array {
 				),
 			),
 			// Module mangadex : chapitre hébergé sur MangaDex (aucun contenu importé, aucune image gardée).
-			'yume_mdx_chapitre'  => array(
+			'yume_mdx_chapitre'    => array(
 				'type'        => 'string',
 				'description' => __( 'Chapitre MangaDex (identifiant) : ses pages sont relayées depuis MangaDex ; vide pour un chapitre importé d’un DOCX ou d’un EPUB.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_uuid',
 				'default'     => '',
 			),
-			'yume_mdx_pages'     => array(
+			'yume_mdx_pages'       => array(
 				'type'        => 'integer',
 				'description' => __( 'Nombre de pages du chapitre MangaDex.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_entier',
 				'default'     => 0,
 			),
-			'yume_mdx_version'   => array(
+			'yume_mdx_version'     => array(
 				'type'        => 'string',
 				'description' => __( 'Version du chapitre MangaDex (8 caractères, change quand MangaDex le met à jour) : elle entre dans l’adresse des pages relayées.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_version_mdx',
 				'default'     => '',
 			),
-			'yume_mdx_groupes'   => array(
+			'yume_mdx_groupes'     => array(
 				'type'        => 'array',
 				'description' => __( 'Groupes de traduction crédités sur MangaDex.', 'yume-core' ),
 				'sanitize'    => __NAMESPACE__ . '\\san_liste_textes',

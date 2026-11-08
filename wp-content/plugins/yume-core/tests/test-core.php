@@ -1199,7 +1199,7 @@ yume_test(
 		yume_assert_same( array( 'tome', 'arc', 'ex', 'bonus', 'chapitres' ), array_keys( yume_natures_tome() ) );
 		yume_assert_same( array( 'a_faire', 'traduction', 'relecture', 'edition', 'publie' ), array_keys( yume_etapes() ) );
 		yume_assert_same( 'Édition', yume_etapes()['edition'] );
-		yume_assert_same( array( 'chapitre', 'prologue', 'interlude', 'epilogue', 'postface', 'bonus', 'illustrations' ), array_keys( yume_natures_chapitre() ) );
+		yume_assert_same( array( 'chapitre', 'prologue', 'interlude', 'epilogue', 'postface', 'bonus', 'illustrations', 'sous-chapitre' ), array_keys( yume_natures_chapitre() ) );
 		yume_assert_same( 7, count( yume_jours_semaine() ) );
 	}
 );
@@ -2943,5 +2943,68 @@ yume_test(
 			$wp_rewrite->flush_rules( false );
 			$GLOBALS['wp_query'] = $GLOBALS['wp_the_query']; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		}
+	}
+);
+
+yume_test(
+	'sous-chapitres : libellés (yume_libelle_chapitre, yume_libelle_partie), ordre, adresse et titre calculé',
+	function () {
+		$o      = yume_tc_oeuvre( 'Journal de guerre' );
+		$t      = yume_tc_tome( $o, 2 );
+		$partie = static function ( int $tome, $numero, int $rang ): int {
+			return yume_tc_chapitre(
+				$tome,
+				$numero,
+				array(
+					'post_title' => 'Partie ' . $rang,
+					'post_name'  => 'chapitre-' . str_replace( '.', '-', (string) $numero ) . '-partie-' . $rang,
+					'meta_input' => array(
+						'yume_nature'          => 'sous-chapitre',
+						'yume_sous_numero'     => $rang,
+						'yume_sous_titre'      => 'Jour ' . $rang,
+						'yume_chapitre_parent' => 'Bataille défensive',
+					),
+				)
+			);
+		};
+		$p2     = $partie( $t, 2, 2 );
+		$p1     = $partie( $t, 2, 1 );
+		$c2     = yume_tc_chapitre( $t, 2 );
+		$c1     = yume_tc_chapitre( $t, 1 );
+		$c3     = yume_tc_chapitre( $t, 3 );
+		$p12    = $partie( $t, 12.5, 3 );
+		yume_assert_same( 'Chapitre 2, partie 1', yume_libelle_chapitre( $p1 ) );
+		yume_assert_same( 'Chapitre 12,5, partie 3', yume_libelle_chapitre( $p12 ) );
+		yume_assert_same( 'Partie 1', yume_libelle_partie( $p1 ) );
+		yume_assert_same( '', yume_libelle_partie( $c2 ), 'vide pour un chapitre ordinaire' );
+		yume_assert_same( '', yume_libelle_partie( $t ), 'vide pour un tome' );
+		yume_assert_same( 'Sous-chapitre', yume_natures_chapitre()['sous-chapitre'] );
+		// Ordre : même menu_order → numéro, puis le chapitre parent avant ses parties, dans l'ordre.
+		yume_assert_same( array( $c1, $c2, $p1, $p2, $c3, $p12 ), wp_list_pluck( yume_get_chapitres( $t ), 'ID' ) );
+		// Précédent / suivant : ordre naturel (parent, parties, chapitre suivant).
+		yume_assert_same( $p1, yume_chapitre_voisin( $c2, 'next' )->ID );
+		yume_assert_same( $p2, yume_chapitre_voisin( $p1, 'next' )->ID );
+		yume_assert_same( $c3, yume_chapitre_voisin( $p2, 'next' )->ID );
+		yume_assert_same( $p1, yume_chapitre_voisin( $p2, 'prev' )->ID );
+		// Adresse : une partie n'est jamais adressée par le numéro de son chapitre.
+		yume_assert_contains( '/2/', (string) get_permalink( $c2 ) );
+		yume_assert_contains( '/chapitre-2-partie-1/', (string) get_permalink( $p1 ) );
+		// Méta publiques en lecture.
+		yume_assert_true( registered_meta_key_exists( 'post', 'yume_sous_numero', 'yume_chapitre' ) );
+		yume_assert_true( registered_meta_key_exists( 'post', 'yume_chapitre_parent', 'yume_chapitre' ) );
+		// Titre calculé de l'administration (formulaire sans titre).
+		yume_assert_same(
+			'Chapitre 2, partie 3',
+			\Yume\Core\Core\titre_calcule(
+				'yume_chapitre',
+				array(
+					'yume' => array(
+						'nature'      => 'sous-chapitre',
+						'numero'      => '2',
+						'sous_numero' => '3',
+					),
+				)
+			)
+		);
 	}
 );

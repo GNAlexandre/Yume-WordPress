@@ -263,31 +263,61 @@
 
 		function libelleChapitre( c ) {
 			var numero = c.nature === 'chapitre' && c.numero !== null ? numeroFr( c.numero ) : c.titre;
+			if ( c.nature === 'sous-chapitre' ) {
+				numero = 'Partie ' + ( c.sous_numero || 1 );
+			}
 			var titre = c.sous_titre ? c.sous_titre : ( c.nature === 'chapitre' ? '' : '' );
 			return { numero: numero, titre: titre };
 		}
 
+		/**
+		 * Chapitres détectés : sept lignes au plus ; les sous-chapitres sont groupés (en retrait)
+		 * sous une ligne « Chapitre 2 · titre du parent ».
+		 */
 		function afficherChapitres( chapitres ) {
 			liste.textContent = '';
 			if ( ! chapitres.length ) {
 				liste.appendChild( el( 'span', 'yn-muted yn-publish__vide', 'Aucun chapitre détecté : vérifiez les styles Titre 1 du document.' ) );
 				return;
 			}
+			var groupe = null;
+			var precedent = null;
 			chapitres.slice( 0, 7 ).forEach( function ( c ) {
 				var l = libelleChapitre( c );
-				var span = el( 'span' );
+				var span = el( 'span', c.nature === 'sous-chapitre' ? 'yn-publish__partie' : '' );
 				span.appendChild( el( 'strong', '', l.numero ) );
 				if ( l.titre ) {
 					span.appendChild( document.createTextNode( ' · ' + l.titre ) );
 				}
 				span.appendChild( document.createTextNode( ' ' ) );
 				span.appendChild( el( 'span', 'yn-muted', nombre( c.nb_mots ) + ' mots' ) );
-				liste.appendChild( span );
+				if ( c.nature !== 'sous-chapitre' ) {
+					groupe = null;
+					liste.appendChild( span );
+					precedent = { c: c, span: span };
+					return;
+				}
+				if ( ! groupe ) {
+					// Premier sous-chapitre : son chapitre (en ligne juste avant, ou parent sans texte).
+					groupe = el( 'span', 'yn-publish__groupe' );
+					if ( precedent && precedent.c.nature === 'chapitre' && precedent.c.numero === c.numero ) {
+						groupe.appendChild( precedent.span );
+					} else {
+						var tete = el( 'span' );
+						tete.appendChild( el( 'strong', '', c.numero !== null ? 'Chapitre ' + numeroFr( c.numero ) : 'Chapitre' ) );
+						if ( c.chapitre_parent ) {
+							tete.appendChild( document.createTextNode( ' · ' + c.chapitre_parent ) );
+						}
+						groupe.appendChild( tete );
+					}
+					liste.appendChild( groupe );
+				}
+				groupe.appendChild( span );
 			} );
 			if ( chapitres.length > 7 ) {
 				var reste = chapitres.slice( 7 );
 				var speciaux = reste.filter( function ( c ) {
-					return c.nature !== 'chapitre';
+					return c.nature !== 'chapitre' && c.nature !== 'sous-chapitre';
 				} ).map( function ( c ) {
 					return c.titre;
 				} );
@@ -1012,6 +1042,11 @@
 				fragment.appendChild( l.tr );
 			} );
 			planLignes.appendChild( fragment );
+			// « Couper aux Titre 2 » : seulement pour un fichier qui a des Titre 2.
+			var boutonSous = decoupage.querySelector( '[data-yn-plan-action="sous_chapitres"]' );
+			if ( boutonSous ) {
+				boutonSous.hidden = ! ( decoupagesRapides.sous_chapitres || [] ).length;
+			}
 			// Premier numéro : celui du premier chapitre détecté (sinon 1).
 			var premier = ( rapport.chapitres || [] ).filter( function ( c ) {
 				return c.nature === 'chapitre' && c.numero !== null;
@@ -1035,7 +1070,8 @@
 		}
 
 		/**
-		 * Découpage manuel : débuts cochés (le premier chapitre numéroté porte le premier numéro).
+		 * Découpage manuel : débuts cochés (le premier chapitre numéroté porte le premier numéro ;
+		 * un sous-chapitre placé avant tout chapitre en devient un : il peut le porter).
 		 */
 		function serialiserPlan() {
 			var debuts = [];
@@ -1046,7 +1082,7 @@
 					return;
 				}
 				var debut = { ancre: l.c.ancre, nature: l.nature.value, titre: l.titre.value.trim() };
-				if ( ! numeroPose && debut.nature === 'chapitre' && premier !== '' && ! isNaN( Number( premier ) ) && Number( premier ) >= 0 ) {
+				if ( ! numeroPose && ( debut.nature === 'chapitre' || debut.nature === 'sous-chapitre' ) && premier !== '' && ! isNaN( Number( premier ) ) && Number( premier ) >= 0 ) {
 					debut.numero = Number( premier );
 					numeroPose = true;
 				}
@@ -1118,6 +1154,31 @@
 					l.titre.value = l.c.titre || '';
 				} );
 				planActif.checked = false;
+				majPlan();
+				return;
+			}
+			if ( action === 'sous_chapitres' ) {
+				// Titres de niveau 1 : chapitres (ou leur nature spéciale : postface…) ; Titre 2 :
+				// sous-chapitres. Titre vide : celui du fichier est repris.
+				var titres1 = decoupagesRapides.titres || [];
+				var titres2 = decoupagesRapides.sous_chapitres || [];
+				if ( ! titres2.length ) {
+					planCompte.textContent = 'Aucun titre au style Titre 2 repéré dans le fichier.';
+					return;
+				}
+				lignes.forEach( function ( l ) {
+					var t1 = titres1.indexOf( l.c.ancre ) >= 0;
+					var t2 = titres2.indexOf( l.c.ancre ) >= 0;
+					l.coche.checked = t1 || t2;
+					if ( t2 ) {
+						l.nature.value = 'sous-chapitre';
+						l.titre.value = '';
+					} else if ( t1 ) {
+						l.nature.value = natures[ l.c.nature ] && l.c.nature !== 'sous-chapitre' ? l.c.nature : 'chapitre';
+						l.titre.value = '';
+					}
+				} );
+				planActif.checked = true;
 				majPlan();
 				return;
 			}

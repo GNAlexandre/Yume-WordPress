@@ -257,7 +257,7 @@ final class Remplacement {
 	 * @return string[]
 	 */
 	private static function cles_recopiees(): array {
-		return array( 'yume_nature', 'yume_numero', 'yume_sous_titre', 'yume_nb_mots', 'yume_temps_lecture', 'yume_source', 'yume_credits' );
+		return array( 'yume_nature', 'yume_numero', 'yume_sous_titre', 'yume_sous_numero', 'yume_chapitre_parent', 'yume_nb_mots', 'yume_temps_lecture', 'yume_source', 'yume_credits' );
 	}
 
 	/**

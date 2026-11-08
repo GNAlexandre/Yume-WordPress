@@ -1,6 +1,7 @@
 /**
  * yume/tome-toc — sommaire du tome : une carte, une ligne par chapitre (numéro, sous-titre,
- * temps de lecture) ; chapitres à venir non cliquables.
+ * temps de lecture) ; chapitres à venir non cliquables ; parties d'un chapitre (sous-chapitres)
+ * en retrait sous leur chapitre.
  */
 .yn-toc {
 	display: flex;
@@ -93,6 +94,26 @@
 	color: var(--wp--preset--color--texte-faible);
 }
 
+/* Chapitre publié en parties (sous-chapitres) : liste imbriquée, en retrait. */
+.yn-toc .yn-toc__parties {
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--wp--preset--color--filet);
+	list-style: none;
+}
+
+.yn-toc .yn-toc__item--partie .yn-toc__lien {
+	padding-left: 44px;
+}
+
+.yn-toc__item--partie .yn-toc__numero {
+	font-weight: 600;
+}
+
+.yn-toc__intitule .yn-toc__sous-titre {
+	color: var(--wp--preset--color--texte-fort);
+}
+
 .yn-toc__vide {
 	margin: 0;
 	padding: 20px;
@@ -103,6 +124,10 @@
 		grid-template-columns: minmax(0, 1fr) auto;
 		gap: 2px 12px;
 		padding: 12px 16px;
+	}
+
+	.yn-toc .yn-toc__item--partie .yn-toc__lien {
+		padding-left: 32px;
 	}
 
 	.yn-toc__sous-titre {

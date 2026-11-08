@@ -61,6 +61,51 @@ une phrase corrigée, si. L'empreinte de chaque chapitre est notée à sa créat
 (`_yume_empreinte_texte`) et recalculée depuis `post_content` pour les chapitres plus anciens ou
 retouchés dans l'éditeur.
 
+Un sous-chapitre (§2.4) est rapproché par nature, numéro du chapitre parent et rang de la partie
+(clé `sous-chapitre:2-1#1`).
+
+### 2.4 Sous-chapitres (chapitres publiés en parties, 2.8.0)
+
+Certains romans (ex. *Miss Medic's Diary at War*, tome 2) ont des chapitres au style **Titre 1**
+faits de parties au style **Titre 2** (entrées de journal datées), certains chapitres n'ayant
+**aucun texte propre** (seulement leur titre, parfois une illustration).
+
+- **Détection automatique inchangée** : un Titre 2 reste un intertitre (ou le sous-titre du chapitre
+  s'il suit directement le Titre 1). Publier les parties séparément est un choix de l'équipe.
+- **Découpage manuel** : nature « Sous-chapitre » dans le menu Nature de chaque ligne, et bouton
+  rapide **« Couper aux Titre 2 (sous-chapitres) »** (affiché si le fichier a des Titre 2) : les
+  titres de niveau 1 deviennent des chapitres (ou gardent leur nature : prologue, postface…), les
+  Titre 2 des sous-chapitres, titres vides (ceux du fichier sont repris). Découpages rapides
+  `Result::$decoupages['titres']` et `['sous_chapitres']` ; le Titre 2 lu comme sous-titre a lui
+  aussi un repère (élément du document).
+- **Marqueur** dans le document : paragraphe seul `[sous-chapitre] Titre` (aussi `[sous chapitre]`,
+  `[souschapitre]`).
+- **Rattachement** (`Chapter_Builder::numeroter()` et `terminer()`) : un sous-chapitre est une
+  partie du dernier chapitre de nature `chapitre` qui le précède (ou d'un autre sous-chapitre du même
+  parent) ; il en porte le numéro (`numero`), son rang (`sous_numero` : 1, 2…) et le titre
+  (`chapitre_parent`) ; libellé « Chapitre 2, partie 1 ». Le parent **sans texte** (rien, ou
+  seulement des illustrations) n'est pas un chapitre : il est retiré, son titre passe dans
+  `chapitre_parent` de ses parties et ses illustrations au début de la première ; son repère reste
+  coché dans le découpage. Le parent avec du texte avant sa première partie reste un chapitre
+  ordinaire (N), suivi de ses parties (N, 1…n). Sous-chapitre placé au début, après un prologue, un
+  interlude, un épilogue… : avertissement « Sous-chapitre « … » sans chapitre parent : traité comme
+  un chapitre » et nature `chapitre`. Les numéros manquants ne sont pas signalés pour un parent
+  retiré (sa première partie tient sa place).
+- **Publication** : chaque partie est un `yume_chapitre` (page, date de sortie, annonce, compte dans
+  `yume_nb_chapitres`) avec `yume_nature` = `sous-chapitre`, `yume_numero` = numéro du parent,
+  `yume_sous_numero`, `yume_sous_titre`, `yume_chapitre_parent` ; titre « Chapitre 2, partie 1 —
+  10 septembre, soir », adresse `…/chapitre-2-partie-1/` (jamais le numéro seul, réservé au
+  chapitre), `menu_order` séquentiel dans l'ordre du fichier.
+- **Façade** : sommaire du tome groupé (listes imbriquées : la ligne du chapitre parent, ou un simple
+  intitulé « Chapitre 2 — titre du parent » quand il n'a pas de page, puis « Partie 1 · sous-titre ·
+  durée ») ; en-tête de la partie : surtitre « Chapitre 2 — titre du parent », « Partie 1 » (h1) et
+  son sous-titre ; précédent / suivant dans l'ordre de lecture.
+
+Résultat sur le tome 2 de Miss Medic (55 432 mots, 18 Titre 1, 27 Titre 2), « Couper aux Titre 2 » :
+37 chapitres publiés — 9 chapitres « Année 1938, été … », 27 parties de 8 chapitres sans texte
+propre (« Bataille défensive de Mashdale », « Évacuation de Mashdale 1 »…) et la postface —, aucun
+avertissement.
+
 ## 3. Conversion EPUB → chapitres
 
 1. Lire `META-INF/container.xml` → OPF → `manifest` + `spine`.

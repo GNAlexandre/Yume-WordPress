@@ -122,6 +122,18 @@ function numero_ou_null( $valeur ): ?float {
 }
 
 /**
+ * Rang d'un sous-chapitre dans son chapitre (yume_sous_numero, 1, 2…) ; 0 pour un autre chapitre.
+ *
+ * @param int $chapitre_id Chapitre.
+ */
+function sous_numero( int $chapitre_id ): int {
+	if ( 'sous-chapitre' !== (string) get_post_meta( $chapitre_id, 'yume_nature', true ) ) {
+		return 0;
+	}
+	return max( 0, (int) get_post_meta( $chapitre_id, 'yume_sous_numero', true ) );
+}
+
+/**
  * Formate un numéro pour une URL (« 3 », « 12.5 »).
  *
  * @param float $numero Numéro.

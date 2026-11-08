@@ -303,6 +303,9 @@ if ( $yume_tome ) {
 									'numero'     => 'chapitre' === $yume_c['nature'] && null !== $yume_c['numero'] ? \Yume\Core\Import\Texte::numero_fr( (float) $yume_c['numero'] ) : (string) $yume_c['titre'],
 									'sous_titre' => (string) $yume_c['sous_titre'],
 									'mots'       => (int) $yume_c['nb_mots'],
+									'num'        => isset( $yume_c['numero'] ) && null !== $yume_c['numero'] ? (float) $yume_c['numero'] : null,
+									'partie'     => 'sous-chapitre' === $yume_c['nature'] ? max( 1, (int) ( $yume_c['sous_numero'] ?? 1 ) ) : 0,
+									'parent'     => (string) ( $yume_c['chapitre_parent'] ?? '' ),
 								);
 							}
 						} else {
@@ -314,18 +317,63 @@ if ( $yume_tome ) {
 									'numero'     => ( '' === $yume_nature || 'chapitre' === $yume_nature ) && is_numeric( $yume_numero ) ? \Yume\Core\Import\Texte::numero_fr( (float) $yume_numero ) : yume_libelle_chapitre( (int) $yume_c->ID ),
 									'sous_titre' => (string) get_post_meta( $yume_c->ID, 'yume_sous_titre', true ),
 									'mots'       => (int) get_post_meta( $yume_c->ID, 'yume_nb_mots', true ),
+									'num'        => is_numeric( $yume_numero ) ? (float) $yume_numero : null,
+									'partie'     => 'sous-chapitre' === $yume_nature ? max( 1, (int) get_post_meta( $yume_c->ID, 'yume_sous_numero', true ) ) : 0,
+									'parent'     => (string) get_post_meta( $yume_c->ID, 'yume_chapitre_parent', true ),
 								);
 							}
 						}
 						?>
 						<?php if ( $yume_lignes ) : ?>
-							<?php foreach ( array_slice( $yume_lignes, 0, 7 ) as $yume_l ) : ?>
-								<span><strong><?php echo esc_html( $yume_l['numero'] ); ?></strong><?php echo '' !== $yume_l['sous_titre'] ? ' · ' . esc_html( $yume_l['sous_titre'] ) : ''; ?> <span class="yn-muted"><?php echo esc_html( self::nombre( (int) $yume_l['mots'] ) . ' ' . __( 'mots', 'yume-core' ) ); ?></span></span>
-							<?php endforeach; ?>
+							<?php
+							// Sous-chapitres groupés (en retrait) sous leur chapitre : la ligne du chapitre
+							// juste avant, sinon « Chapitre 2 · titre du parent » (parent sans texte).
+							$yume_items = array();
+							foreach ( array_slice( $yume_lignes, 0, 7 ) as $yume_l ) {
+								$yume_partie  = $yume_l['partie'] > 0;
+								$yume_items[] = array(
+									'l'      => $yume_l,
+									'partie' => $yume_partie,
+									'html'   => '<span' . ( $yume_partie ? ' class="yn-publish__partie"' : '' ) . '><strong>' . esc_html(
+										$yume_partie
+											/* translators: %d : numéro de la partie */
+											? sprintf( __( 'Partie %d', 'yume-core' ), $yume_l['partie'] )
+											: $yume_l['numero']
+									) . '</strong>' . ( '' !== $yume_l['sous_titre'] ? ' · ' . esc_html( $yume_l['sous_titre'] ) : '' ) . ' <span class="yn-muted">' . esc_html( self::nombre( (int) $yume_l['mots'] ) . ' ' . __( 'mots', 'yume-core' ) ) . '</span></span>',
+								);
+							}
+							$yume_n = count( $yume_items );
+							for ( $yume_i = 0; $yume_i < $yume_n; ) {
+								$yume_it    = $yume_items[ $yume_i ];
+								$yume_suite = $yume_items[ $yume_i + 1 ] ?? null;
+								if ( ! $yume_it['partie'] && ! ( $yume_suite && $yume_suite['partie'] && 'chapitre' === $yume_it['l']['nature'] && $yume_it['l']['num'] === $yume_suite['l']['num'] ) ) {
+									echo $yume_it['html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML échappé ci-dessus.
+									++$yume_i;
+									continue;
+								}
+								echo '<span class="yn-publish__groupe">';
+								if ( $yume_it['partie'] ) {
+									echo '<span><strong>' . esc_html(
+										null !== $yume_it['l']['num']
+											/* translators: %s : numéro du chapitre */
+											? sprintf( __( 'Chapitre %s', 'yume-core' ), \Yume\Core\Import\Texte::numero_fr( $yume_it['l']['num'] ) )
+											: __( 'Chapitre', 'yume-core' )
+									) . '</strong>' . ( '' !== $yume_it['l']['parent'] ? ' · ' . esc_html( $yume_it['l']['parent'] ) : '' ) . '</span>';
+								} else {
+									echo $yume_it['html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML échappé ci-dessus.
+									++$yume_i;
+								}
+								while ( $yume_i < $yume_n && $yume_items[ $yume_i ]['partie'] ) {
+									echo $yume_items[ $yume_i ]['html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML échappé ci-dessus.
+									++$yume_i;
+								}
+								echo '</span>';
+							}
+							?>
 							<?php
 							if ( count( $yume_lignes ) > 7 ) {
 								$yume_reste    = array_slice( $yume_lignes, 7 );
-								$yume_speciaux = array_column( array_filter( $yume_reste, static fn( $l ) => 'chapitre' !== $l['nature'] ), 'numero' );
+								$yume_speciaux = array_column( array_filter( $yume_reste, static fn( $l ) => ! in_array( $l['nature'], array( 'chapitre', 'sous-chapitre' ), true ) ), 'numero' );
 								$yume_autres   = count( $yume_reste ) - count( $yume_speciaux );
 								$yume_texte    = $yume_autres > 0
 									/* translators: %d : nombre de chapitres restants */
@@ -368,7 +416,7 @@ if ( $yume_tome ) {
 						<?php endforeach; ?>
 					</ul>
 					<p class="yn-muted yn-publish__aide yn-publish__marqueurs" id="yn-publish-marqueurs">
-						<?php esc_html_e( 'Découpage à corriger ? Après l’analyse du fichier, « Délimiter les chapitres moi-même » permet de choisir chaque début de chapitre. Autre possibilité, sans rien installer : dans le document, ajoutez à chaque début de chapitre un paragraphe seul « [chapitre] Titre » (ou « [prologue] », « [interlude] Titre », « [bonus] Titre », « [épilogue] », « [postface] ») : il force ce début de chapitre et n’est pas publié.', 'yume-core' ); ?>
+						<?php esc_html_e( 'Découpage à corriger ? Après l’analyse du fichier, « Délimiter les chapitres moi-même » permet de choisir chaque début de chapitre. Autre possibilité, sans rien installer : dans le document, ajoutez à chaque début de chapitre un paragraphe seul « [chapitre] Titre » (ou « [prologue] », « [interlude] Titre », « [bonus] Titre », « [épilogue] », « [postface] » ; « [sous-chapitre] Titre » pour une partie du chapitre précédent) : il force ce début de chapitre et n’est pas publié.', 'yume-core' ); ?>
 					</p>
 				</div>
 
@@ -380,7 +428,7 @@ if ( $yume_tome ) {
 				<fieldset class="yn-card yn-publish__decoupage" data-yn-decoupage data-natures="<?php echo esc_attr( (string) wp_json_encode( \Yume\Core\Import\Texte::LIBELLES ) ); ?>" aria-describedby="yn-publish-decoupage-aide" hidden>
 					<legend class="yn-label"><?php esc_html_e( 'Délimiter les chapitres moi-même', 'yume-core' ); ?></legend>
 					<p id="yn-publish-decoupage-aide" class="yn-muted yn-publish__aide">
-						<?php esc_html_e( 'Cochez chaque début de chapitre parmi les endroits repérés dans le fichier (titres, illustrations, sauts de page, lignes courtes, centrées ou en gras), puis choisissez sa nature et son titre. Le découpage est envoyé avec le fichier à l’enregistrement. Le fichier n’est pas conservé sur le serveur : pour redécouper plus tard, choisissez à nouveau le fichier.', 'yume-core' ); ?>
+						<?php esc_html_e( 'Cochez chaque début de chapitre parmi les endroits repérés dans le fichier (titres, illustrations, sauts de page, lignes courtes, centrées ou en gras), puis choisissez sa nature et son titre. Un chapitre publié en plusieurs parties : nature « Sous-chapitre » pour chaque partie (elle se rattache au chapitre qui la précède), ou « Couper aux Titre 2 » quand les parties sont au style Titre 2. Le découpage est envoyé avec le fichier à l’enregistrement. Le fichier n’est pas conservé sur le serveur : pour redécouper plus tard, choisissez à nouveau le fichier.', 'yume-core' ); ?>
 					</p>
 					<p class="yn-publish__option">
 						<input id="yn-publish-plan-actif" type="checkbox" data-yn-plan-actif>
@@ -390,6 +438,7 @@ if ( $yume_tome ) {
 						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="ouvertures"><?php esc_html_e( 'Couper aux ouvertures illustrées (2 illustrations ou plus à la suite)', 'yume-core' ); ?></button>
 						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="images"><?php esc_html_e( 'Couper à chaque illustration', 'yume-core' ); ?></button>
 						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="sauts"><?php esc_html_e( 'Couper à chaque saut de page', 'yume-core' ); ?></button>
+						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="sous_chapitres" hidden><?php esc_html_e( 'Couper aux Titre 2 (sous-chapitres)', 'yume-core' ); ?></button>
 						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-action="auto"><?php esc_html_e( 'Revenir à la détection automatique', 'yume-core' ); ?></button>
 						<button type="button" class="yn-btn yn-btn--sm" data-yn-plan-verifier><?php esc_html_e( 'Vérifier ce découpage (rien n’est enregistré)', 'yume-core' ); ?></button>
 					</div>

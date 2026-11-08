@@ -1055,6 +1055,23 @@ function boite_chapitre( \WP_Post $post ): void {
 	);
 	echo '</div>';
 	champ( 'yume-sous-titre', 'yume[sous_titre]', __( 'Sous-titre', 'yume-core' ), get_post_meta( $id, 'yume_sous_titre', true ), 'text', array( 'placeholder' => __( 'La Crête Brumeuse', 'yume-core' ) ) );
+	// Sous-chapitre : numéro = celui du chapitre parent, rang de la partie et titre du parent.
+	echo '<div class="yume-colonnes">';
+	$partie = (int) get_post_meta( $id, 'yume_sous_numero', true );
+	champ(
+		'yume-sous-numero',
+		'yume[sous_numero]',
+		__( 'Partie n°', 'yume-core' ),
+		$partie > 0 ? (string) $partie : '',
+		'number',
+		array(
+			'step' => 1,
+			'min'  => 1,
+		),
+		__( 'Nature « Sous-chapitre » seulement : rang de la partie dans son chapitre (le numéro est celui du chapitre).', 'yume-core' )
+	);
+	champ( 'yume-chapitre-parent', 'yume[chapitre_parent]', __( 'Titre du chapitre parent', 'yume-core' ), get_post_meta( $id, 'yume_chapitre_parent', true ), 'text', array( 'placeholder' => __( 'Bataille défensive', 'yume-core' ) ) );
+	echo '</div>';
 	trio_textes( 'yume-credits-chapitre', 'yume[credits]', __( 'Crédits', 'yume-core' ), san_trio_textes( get_post_meta( $id, 'yume_credits', true ) ) );
 
 	// Alerte : deux chapitres du même tome à la même adresse.
@@ -1124,6 +1141,9 @@ function enregistrer_chapitre( $post_id ): void {
 	ecrire_meta( $post_id, 'yume_nature', san_enum( saisie( 'nature' ), array_keys( yume_natures_chapitre() ), 'chapitre' ) );
 	ecrire_meta( $post_id, 'yume_numero', san_nombre( saisie( 'numero' ) ) );
 	ecrire_meta( $post_id, 'yume_sous_titre', san_texte( saisie( 'sous_titre' ) ) );
+	$partie = 'sous-chapitre' === get_post_meta( $post_id, 'yume_nature', true );
+	ecrire_meta( $post_id, 'yume_sous_numero', $partie && san_entier( saisie( 'sous_numero' ) ) > 0 ? san_entier( saisie( 'sous_numero' ) ) : '' );
+	ecrire_meta( $post_id, 'yume_chapitre_parent', $partie ? san_texte( saisie( 'chapitre_parent' ) ) : '' );
 	$credits = san_trio_textes( saisie( 'credits' ) );
 	ecrire_meta( $post_id, 'yume_credits', array_filter( $credits ) ? $credits : '' );
 }
@@ -1174,6 +1194,14 @@ function titre_calcule( string $post_type, array $postarr ): string {
 		}
 		$natures = yume_natures_chapitre();
 		$titre   = $natures[ $nature ];
+		if ( 'sous-chapitre' === $nature ) {
+			$partie = max( 1, san_entier( $valeur( 'sous_numero' ) ) );
+			return null === $numero
+				/* translators: %s : numéro de la partie */
+				? sprintf( __( 'Chapitre, partie %s', 'yume-core' ), (string) $partie )
+				/* translators: 1 : numéro du chapitre, 2 : numéro de la partie */
+				: sprintf( __( 'Chapitre %1$s, partie %2$s', 'yume-core' ), numero_fr( $numero ), (string) $partie );
+		}
 		if ( null !== $numero && ( 'chapitre' === $nature || ( in_array( $nature, array( 'interlude', 'bonus' ), true ) && $numero > 0 ) ) ) {
 			$titre .= ' ' . numero_fr( $numero );
 		}

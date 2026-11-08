@@ -95,6 +95,13 @@ journal), `comptes-donnees` (requêtes groupées de la liste, indicateurs, fiche
 Ne déclenchez jamais `do_action( 'yume_core_install' )` dans un test : appelez directement
 `Yume\Core\Comptes\amorcer_activite()`.
 
+Sous-chapitres (2.8.0) : `import-sous-chapitres` (DOCX synthétique à la structure du tome 2 de
+Miss Medic fabriqué dans le test, « Couper aux Titre 2 », marqueur `[sous-chapitre]`) et
+`publication-sous-chapitres` (analyse et préparation REST, métas, adresses, comparaison) ; le
+parcours de bout en bout `tools/ci/sous-chapitres.sh [--port 8102] [--captures DOSSIER]` (Playwright :
+formulaire, « Couper aux Titre 2 », publication, sommaire groupé, page d'une partie) tourne sur une
+base locale distincte (`YUME_ENV=sous-chapitres` par défaut).
+
 `tests/runner.php` (exécuté par `wp eval-file`) charge `tests/test-*.php` ; chaque test est déclaré
 avec `yume_test( 'libellé', function () { … } )` et utilise les assertions de `tests/helpers.php`
 (`yume_assert_same`, `yume_assert_true`, `yume_assert_contains`…) et les fabriques

@@ -273,8 +273,12 @@ chapitre et sur `yume_tome_publie` ; lu par la bibliothèque via `Library\nb_cha
 sur le calcul quand la méta est absente, tome migré).
 
 **`yume_chapitre`** : `yume_tome_id` (integer) · `yume_oeuvre_id` (integer, dénormalisé) ·
-`yume_numero` (number ; 0 pour prologue) · `yume_sous_titre` (string) · `yume_nature` (string enum
-`chapitre`,`prologue`,`interlude`,`epilogue`,`postface`,`bonus`,`illustrations`) ·
+`yume_numero` (number ; 0 pour prologue ; sous-chapitre : numéro du chapitre parent) · `yume_sous_titre` (string) · `yume_nature` (string enum
+`chapitre`,`prologue`,`interlude`,`epilogue`,`postface`,`bonus`,`illustrations`,`sous-chapitre`) ·
+**sous-chapitre** (depuis 2.8.0, partie d'un chapitre publiée sur sa propre page) : `yume_sous_numero`
+(integer ≥ 1, rang de la partie dans son chapitre ; 0 / absente pour une autre nature ; publique en
+lecture) · `yume_chapitre_parent` (string, titre du chapitre parent, dénormalisé pour l'affichage ;
+vide si le parent n'a pas de titre) ·
 `yume_credits` (object{traduction,relecture,edition}) · `yume_nb_mots` (integer) ·
 `yume_temps_lecture` (integer, minutes, 230 mots/min) · `yume_source` (object{format:string,hash:string,importe_le:string}) — `format` ∈ `docx`, `epub`, `migration` ·
 **chapitre hébergé sur MangaDex** (module mangadex, depuis 2.3.0 ; aucun contenu importé, aucune image
@@ -283,6 +287,17 @@ chapitre importé) · `yume_mdx_pages` (integer) · `yume_mdx_version` (string, 
 change quand MangaDex met le chapitre à jour ; entre dans l'adresse des pages relayées) ·
 `yume_mdx_groupes` (array<string>, groupes crédités). Un volume MangaDex est un tome de l'œuvre
 (`yume_numero` = volume, nature `tome`) ; les chapitres sans volume vont dans un tome de nature `chapitres`.
+
+Sous-chapitres (lot B, 2.8.0 ; import et façade : `docs/04-import-docx-epub-lecteur.md` §2.4) : un
+sous-chapitre est un `yume_chapitre` à part entière (page, date de sortie, annonce, compté dans
+`yume_nb_chapitres`) ; il suit dans l'ordre de lecture un chapitre de nature `chapitre` (le parent)
+ou une autre partie du même parent. Le parent sans texte propre n'est pas publié (son titre est dans
+`yume_chapitre_parent` de ses parties). Créé par le découpage manuel (nature « Sous-chapitre »,
+bouton « Couper aux Titre 2 ») ou le marqueur `[sous-chapitre] Titre` ; jamais par la détection
+automatique. Adresse : slug `chapitre-{n}-partie-{k}` (`numero_segment()` ne vaut que pour la
+nature `chapitre` : jamais `/…/{n}/`). Clé de rapprochement (`Service::cle_chapitre()`) :
+`sous-chapitre:{n}-{k}#{rang}`. Titre enregistré : « Chapitre 2, partie 1 — 10 septembre, soir ».
+Les versions en attente d'un remplacement recopient `yume_sous_numero` et `yume_chapitre_parent`.
 
 Statut de chapitre interne `yume_remplacement` (module publication, `Remplacement::STATUT`, libellé
 « Version en attente ») : version en attente d'un remplacement de lecture en ligne (§8). Non public,
@@ -571,13 +586,15 @@ sur `admin_menu` priorité ≥ 20.
 ```php
 yume_setting( string $key, $default = null );
 yume_get_tomes( int $oeuvre_id, array $args = array() ): array;      // WP_Post[] ; args: status ('publish'|'any'), order ('ASC'|'DESC' sur yume_numero), nature
-yume_get_chapitres( int $tome_id, array $args = array() ): array;    // WP_Post[] triés par menu_order puis yume_numero ; args: status
+yume_get_chapitres( int $tome_id, array $args = array() ): array;    // WP_Post[] triés par menu_order, yume_numero, puis yume_sous_numero (parent avant ses parties) ; args: status
 yume_get_oeuvre_id( int $post_id ): int;                              // œuvre d'un tome ou chapitre (ou elle-même)
 yume_get_tome_id( int $chapitre_id ): int;
 yume_chapitre_voisin( int $chapitre_id, string $sens ): ?WP_Post;     // 'prev'|'next', traverse les tomes publiés de l'œuvre
 yume_get_cover_id( int $post_id ): int;                               // couverture du tome, sinon de l'œuvre, sinon 0
 yume_libelle_tome( int $tome_id, bool $court = false ): string;       // « Tome 9 », « Arc 7 », court : « T.9 »
-yume_libelle_chapitre( int $chapitre_id ): string;                    // « Chapitre 3 », « Postface »
+yume_libelle_chapitre( int $chapitre_id ): string;                    // « Chapitre 3 », « Postface », sous-chapitre « Chapitre 2, partie 1 » (filtre yume_libelle_chapitre)
+yume_libelle_partie( int $chapitre_id ): string;                      // sous-chapitre : « Partie 1 » (filtre yume_libelle_partie) ; '' pour un autre chapitre ou contenu
+yume_natures_chapitre(): array;                                       // slug => libellé : chapitre, prologue, interlude, epilogue, postface, bonus, illustrations, sous-chapitre (« Sous-chapitre »)
 yume_types(): array; yume_statuts(): array; yume_natures_tome(): array; yume_etapes(): array; // slug => libellé
 yume_liens_telechargement( int $tome_id ): array;                     // ['pdf'=>url|'' , 'epub'=>url|'']
 yume_user_can_edit_planning( int $tome_id, int $user_id = 0 ): bool;

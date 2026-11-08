@@ -2649,3 +2649,100 @@ yume_tl_test(
 		yume_assert_same( 0, $wpdb->num_queries - $avant );
 	}
 );
+
+/**
+ * Partie (sous-chapitre) d'un chapitre : numéro du chapitre, rang, sous-titre, titre du parent.
+ *
+ * @param int    $tome_id      Tome.
+ * @param int    $numero       Numéro du chapitre parent.
+ * @param int    $rang         Rang de la partie.
+ * @param string $titre_parent Titre du chapitre parent.
+ * @param int    $ordre        menu_order (ordre de lecture du fichier).
+ */
+function yume_tl_partie( int $tome_id, int $numero, int $rang, string $titre_parent, int $ordre ): int {
+	return yume_tl_chapitre(
+		$tome_id,
+		$numero,
+		array(
+			'post_title' => 'Chapitre ' . $numero . ', partie ' . $rang . ' — Jour ' . $rang,
+			'post_name'  => 'chapitre-' . $numero . '-partie-' . $rang,
+			'menu_order' => $ordre,
+			'meta_input' => array(
+				'yume_nature'          => 'sous-chapitre',
+				'yume_sous_numero'     => $rang,
+				'yume_sous_titre'      => 'Jour ' . $rang,
+				'yume_chapitre_parent' => $titre_parent,
+			),
+		)
+	);
+}
+
+yume_tl_test(
+	'sous-chapitres : sommaire groupé (listes imbriquées), en-tête d’une partie (surtitre), navigation et résumé du tome',
+	static function () {
+		$ln   = yume_tl_oeuvre( 'Journal de guerre', array( 'yume_type' => 'light-novel' ) );
+		$tome = yume_tl_tome( $ln, 2 );
+		$c1   = yume_tl_chapitre(
+			$tome,
+			1,
+			array(
+				'menu_order' => 1,
+				'meta_input' => array( 'yume_sous_titre' => 'Année 1, été 1' ),
+			)
+		);
+		// Chapitre 2 : parent sans texte (absent), deux parties.
+		$p21 = yume_tl_partie( $tome, 2, 1, 'Bataille défensive', 2 );
+		$p22 = yume_tl_partie( $tome, 2, 2, 'Bataille défensive', 3 );
+		// Chapitre 3 : parent avec texte, une partie.
+		$c3  = yume_tl_chapitre(
+			$tome,
+			3,
+			array(
+				'menu_order' => 4,
+				'meta_input' => array( 'yume_sous_titre' => 'Évacuation' ),
+			)
+		);
+		$p31 = yume_tl_partie( $tome, 3, 1, 'Évacuation', 5 );
+		$pf  = yume_tl_chapitre(
+			$tome,
+			null,
+			array(
+				'menu_order' => 6,
+				'meta_input' => array( 'yume_nature' => 'postface' ),
+			)
+		);
+
+		$html = yume_tl_rendu( 'tome-toc', array(), $tome );
+		// Parent absent : simple intitulé, parties imbriquées.
+		yume_assert_contains(
+			'<li class="yn-toc__item yn-toc__item--groupe"><span class="yn-toc__lien yn-toc__intitule"><span class="yn-toc__numero">Chapitre 2</span><span class="yn-toc__sous-titre">Bataille défensive</span><span class="yn-toc__duree"></span></span><ol class="yn-toc__parties"><li class="yn-toc__item yn-toc__item--partie"><a class="yn-toc__lien" href="' . esc_url( get_permalink( $p21 ) ) . '"><span class="yn-toc__numero">Partie 1</span><span class="yn-toc__sous-titre">Jour 1</span>',
+			$html
+		);
+		yume_assert_contains( '<span class="yn-toc__numero">Partie 2</span><span class="yn-toc__sous-titre">Jour 2</span>', $html );
+		// Parent présent : sa ligne (lien) puis ses parties dans le même élément.
+		yume_assert_contains( '<li class="yn-toc__item yn-toc__item--groupe"><a class="yn-toc__lien" href="' . esc_url( get_permalink( $c3 ) ) . '"><span class="yn-toc__numero">Chapitre 3</span><span class="yn-toc__sous-titre">Évacuation</span>', $html );
+		yume_assert_true( (bool) preg_match( '#Chapitre 3</span>.*?<ol class="yn-toc__parties"><li class="yn-toc__item yn-toc__item--partie"><a class="yn-toc__lien" href="' . preg_quote( esc_url( get_permalink( $p31 ) ), '#' ) . '"><span class="yn-toc__numero">Partie 1</span>.*?</ol></li><li class="yn-toc__item"><a class="yn-toc__lien" href="' . preg_quote( esc_url( get_permalink( $pf ) ), '#' ) . '"#s', $html ), 'partie du chapitre 3 imbriquée, postface ensuite' );
+		yume_assert_same( 2, yume_tl_compte( '<ol class="yn-toc__parties">', $html ) );
+		yume_assert_same( 1 + 2, yume_tl_compte( '<ol', $html ), 'listes imbriquées seulement pour les parties' );
+		yume_assert_contains( '3 chapitres (3 sous-chapitres) + postface', $html, 'résumé : un chapitre en parties compte une fois' );
+		// Partie courante marquée dans le sommaire.
+		yume_assert_contains( '<li class="yn-toc__item yn-toc__item--partie is-current"><a class="yn-toc__lien" href="' . esc_url( get_permalink( $p22 ) ) . '" aria-current="page">', yume_tl_rendu( 'tome-toc', array(), $p22 ) );
+
+		// En-tête d'une partie : surtitre « Chapitre 2 — Bataille défensive », « Partie 1 » en h1.
+		$entete = yume_tl_rendu( 'chapter-header', array(), $p21 );
+		yume_assert_contains( '<hgroup class="yn-chapter-header__titres"><p class="yn-label yn-chapter-header__surtitre">Chapitre 2 — Bataille défensive</p><h1 class="yn-chapter-header__titre">Partie 1</h1><p class="yn-subtitle">Jour 1</p></hgroup>', $entete );
+		yume_assert_contains( '<span>Chapitre 2, partie 1</span>', $entete, 'fil d’Ariane : libellé complet' );
+		update_post_meta( $p21, 'yume_chapitre_parent', '' );
+		yume_assert_contains( '<p class="yn-label yn-chapter-header__surtitre">Chapitre 2</p>', yume_tl_rendu( 'chapter-header', array(), $p21 ), 'parent sans titre' );
+		yume_assert_contains( '<h1 class="yn-chapter-header__titre">Chapitre 1</h1>', yume_tl_rendu( 'chapter-header', array(), $c1 ), 'chapitre ordinaire inchangé' );
+		yume_assert_not_contains( 'surtitre', yume_tl_rendu( 'chapter-header', array(), $c1 ) );
+
+		// Navigation : ordre naturel, libellés complets.
+		$nav = yume_tl_rendu( 'chapter-nav', array(), $p22 );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $p21 ) ) . '"', $nav );
+		yume_assert_contains( 'Chapitre 2, partie 1', $nav );
+		yume_assert_contains( 'href="' . esc_url( get_permalink( $c3 ) ) . '"', $nav );
+		yume_assert_contains( 'Chapitre 3 · Évacuation', $nav );
+		yume_assert_contains( 'Chapitre 2, partie 1 · Jour 1', yume_tl_rendu( 'chapter-nav', array(), $c1 ), 'suivant du chapitre 1 : la première partie' );
+	}
+);

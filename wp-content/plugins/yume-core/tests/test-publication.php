@@ -2183,7 +2183,7 @@ yume_test(
 			yume_assert_same( 200, $analyse->get_status() );
 			$data = $analyse->get_data();
 			yume_assert_true( count( $data['candidats'] ) > 20, 'débuts possibles' );
-			yume_assert_same( array( 'images', 'ouvertures', 'sauts' ), array_keys( $data['decoupages'] ) );
+			yume_assert_same( array( 'images', 'ouvertures', 'sauts', 'titres', 'sous_chapitres' ), array_keys( $data['decoupages'] ) );
 			yume_assert_same( 13, count( array_filter( $data['candidats'], static fn( $c ) => $c['auto'] ) ), 'un début automatique par chapitre' );
 			$plan = yume_tpub_plan(
 				$data['candidats'],

@@ -881,7 +881,7 @@ final class Epub_Converter {
 					return;
 				}
 				if ( 'h2' === $tag && $this->apres_titre && $this->chapitres->attend_sous_titre() ) {
-					$this->chapitres->sous_titre( $texte );
+					$this->chapitres->sous_titre( $texte, 2 );
 					return;
 				}
 				if ( ! $this->avec_h1 && ! $this->chapitres->en_chapitre() ) {

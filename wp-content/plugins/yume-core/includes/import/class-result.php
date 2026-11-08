@@ -3,7 +3,9 @@
  * Résultat d'une conversion DOCX ou EPUB (contrat §9).
  *
  * - chapters : liste de chapitres ['numero' => ?float, 'nature' => string, 'titre' => string,
- *   'sous_titre' => string, 'blocks' => string (blocs Gutenberg, images par jeton
+ *   'sous_titre' => string, 'sous_numero' => ?int (sous-chapitre : rang dans le chapitre parent,
+ *   dont il porte le numéro ; null sinon), 'chapitre_parent' => string (sous-chapitre : titre du
+ *   chapitre parent, '' sinon), 'blocks' => string (blocs Gutenberg, images par jeton
  *   {{yume-image:<clé>}}), 'nb_mots' => int, 'stats' => array, 'images' => string[]] ;
  * - front_images : clés des images placées avant le premier chapitre (galerie du tome) ;
  * - images : clé => ['nom', 'mime', 'chemin_zip', 'largeur', 'hauteur', 'octets', 'alt'] (plus
@@ -20,7 +22,9 @@
  * - decoupages : découpages rapides, ancres des débuts proposés ('images' : chaque illustration
  *   (la première d'une suite), 'ouvertures' : première illustration de chaque suite d'au moins
  *   deux (pages d'ouverture de chapitre), 'sauts' : chaque saut de page ; les ornements —
- *   petites images de Chapter_Builder::ORNEMENT_MAX pixels au plus — ne sont jamais proposés).
+ *   petites images de Chapter_Builder::ORNEMENT_MAX pixels au plus — ne sont jamais proposés ;
+ *   'titres' et 'sous_chapitres' : titres de niveau 1 et Titre 2, remplis seulement si le
+ *   document a des Titre 2 — « Couper aux Titre 2 (sous-chapitres) »).
  *
  * Aucune fonction WordPress.
  *
@@ -149,14 +153,16 @@ final class Result implements \JsonSerializable {
 		$chapitres = array();
 		foreach ( $this->chapters as $i => $c ) {
 			$chapitres[] = array(
-				'index'      => $i,
-				'numero'     => $c['numero'],
-				'nature'     => $c['nature'],
-				'titre'      => $c['titre'],
-				'sous_titre' => $c['sous_titre'],
-				'nb_mots'    => $c['nb_mots'],
-				'stats'      => $c['stats'] ?? array(),
-				'images'     => $c['images'] ?? array(),
+				'index'           => $i,
+				'numero'          => $c['numero'],
+				'nature'          => $c['nature'],
+				'titre'           => $c['titre'],
+				'sous_titre'      => $c['sous_titre'],
+				'sous_numero'     => $c['sous_numero'] ?? null,
+				'chapitre_parent' => $c['chapitre_parent'] ?? '',
+				'nb_mots'         => $c['nb_mots'],
+				'stats'           => $c['stats'] ?? array(),
+				'images'          => $c['images'] ?? array(),
 			);
 		}
 		$images = array();

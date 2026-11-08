@@ -27,10 +27,19 @@
  *   chapitre : les titres détectés deviennent des intertitres, un titre placé exactement sur un
  *   début manuel sert de titre par défaut ; aucune page liminaire n'est écartée ; le texte
  *   d'ouverture peut être conservé (garder_avant) ;
- * - sans découpage, un paragraphe marqueur « [chapitre] Titre », « [bonus] Titre », « [prologue] »…
- *   force un début de chapitre (il n'est pas publié). Les requêtes des convertisseurs
- *   (en_chapitre(), attend_sous_titre()…) répondent toujours comme la détection automatique :
- *   les éléments, donc les ancres, sont les mêmes avec ou sans découpage.
+ * - sans découpage, un paragraphe marqueur « [chapitre] Titre », « [bonus] Titre », « [prologue] »,
+ *   « [sous-chapitre] Titre »… force un début de chapitre (il n'est pas publié). Les requêtes des
+ *   convertisseurs (en_chapitre(), attend_sous_titre()…) répondent toujours comme la détection
+ *   automatique : les éléments, donc les ancres, sont les mêmes avec ou sans découpage.
+ *
+ * Sous-chapitres (nature « sous-chapitre », découpage manuel ou marqueur) : une partie du dernier
+ * chapitre ordinaire (nature « chapitre ») qui le précède. Elle porte le numéro de ce chapitre et
+ * son rang (sous_numero : 1, 2…), et le titre du parent (chapitre_parent). Un parent sans texte
+ * propre (titre seul, éventuellement des illustrations) n'est pas publié : ses illustrations
+ * rejoignent sa première partie. Sans parent (après un prologue, un interlude…), la partie est
+ * traitée comme un chapitre, avec un avertissement. La détection automatique n'en produit jamais
+ * (un Titre 2 reste un intertitre) ; les titres de niveau 1 et 2 sont relevés dans les découpages
+ * rapides « titres » et « sous_chapitres » (bouton « Couper aux Titre 2 »).
  *
  * Aucune fonction WordPress.
  *
@@ -229,6 +238,24 @@ final class Chapter_Builder {
 	private array $candidats = array();
 
 	/**
+	 * Ancres des titres par niveau (1 : titre de chapitre, 2 : Titre 2), découpage « Couper aux
+	 * Titre 2 ».
+	 *
+	 * @var array<int,string[]>
+	 */
+	private array $titres_niveau = array(
+		1 => array(),
+		2 => array(),
+	);
+
+	/**
+	 * Chapitres parents sans texte retirés au profit de leur première partie : ancre => chapitre.
+	 *
+	 * @var array<string,array<string,mixed>>
+	 */
+	private array $absorbes = array();
+
+	/**
 	 * Constructeur.
 	 *
 	 * @param Result                   $resultat   Résultat à remplir.
@@ -285,28 +312,56 @@ final class Chapter_Builder {
 	/**
 	 * Numéros et libellés des chapitres d'un découpage manuel, dans l'ordre : chapitres numérotés
 	 * à la suite (un numéro saisi fixe la suite), prologue 0, chapitres spéciaux de même nature
-	 * numérotés 1, 2… quand il y en a plusieurs (« Bonus 1 », « Bonus 2 »).
+	 * numérotés 1, 2… quand il y en a plusieurs (« Bonus 1 », « Bonus 2 ») ; un sous-chapitre
+	 * prend le numéro du chapitre qui le précède et son rang dans ce chapitre (« Chapitre 2,
+	 * partie 1 » ; numéro saisi ignoré) ; sans chapitre avant lui (début, prologue, interlude…),
+	 * il devient un chapitre (orphelin, numéro saisi gardé).
 	 *
 	 * @param array<int,array{nature:string,numero:?float}> $chapitres Nature et numéro saisi (ou null).
-	 * @return array<int,array{numero:?float,titre:string}>
+	 * @return array<int,array{numero:?float,titre:string,nature:string,sous_numero:?int,orphelin:bool}>
 	 */
 	public static function numeroter( array $chapitres ): array {
 		$par_nature = array_count_values( array_map( static fn( $c ) => (string) $c['nature'], $chapitres ) );
 		$rangs      = array();
 		$dernier    = 0.0;
+		$parent     = null;
+		$parties    = 0;
 		$resultat   = array();
 		foreach ( $chapitres as $i => $chapitre ) {
-			$nature = (string) $chapitre['nature'];
-			$numero = isset( $chapitre['numero'] ) ? (float) $chapitre['numero'] : null;
+			$nature   = (string) $chapitre['nature'];
+			$numero   = isset( $chapitre['numero'] ) ? (float) $chapitre['numero'] : null;
+			$orphelin = false;
+			if ( 'sous-chapitre' === $nature ) {
+				if ( null !== $parent ) {
+					++$parties;
+					$resultat[ $i ] = array(
+						'numero'      => $parent,
+						'titre'       => Texte::libelle_partie( $parent, $parties ),
+						'nature'      => 'sous-chapitre',
+						'sous_numero' => $parties,
+						'orphelin'    => false,
+					);
+					continue;
+				}
+				// Sans chapitre avant elle : un chapitre (numéro saisi gardé).
+				$nature   = 'chapitre';
+				$orphelin = true;
+			}
 			if ( 'chapitre' === $nature ) {
 				$numero         = null !== $numero ? $numero : floor( $dernier ) + 1;
 				$dernier        = $numero;
+				$parent         = $numero;
+				$parties        = 0;
 				$resultat[ $i ] = array(
-					'numero' => $numero,
-					'titre'  => 'Chapitre ' . Texte::numero_fr( $numero ),
+					'numero'      => $numero,
+					'titre'       => 'Chapitre ' . Texte::numero_fr( $numero ),
+					'nature'      => 'chapitre',
+					'sous_numero' => null,
+					'orphelin'    => $orphelin,
 				);
 				continue;
 			}
+			$parent           = null;
 			$rangs[ $nature ] = ( $rangs[ $nature ] ?? 0 ) + 1;
 			if ( null === $numero && 'prologue' === $nature ) {
 				$numero = (float) ( $rangs[ $nature ] - 1 );
@@ -318,8 +373,11 @@ final class Chapter_Builder {
 				$titre .= ' ' . Texte::numero_fr( $numero );
 			}
 			$resultat[ $i ] = array(
-				'numero' => $numero,
-				'titre'  => $titre,
+				'numero'      => $numero,
+				'titre'       => $titre,
+				'nature'      => $nature,
+				'sous_numero' => null,
+				'orphelin'    => false,
 			);
 		}
 		return $resultat;
@@ -366,6 +424,9 @@ final class Chapter_Builder {
 			'manuel'            => false,
 			'ancre'             => '',
 			'titre_plan'        => '',
+			// Sous-chapitre : rang dans le chapitre parent, titre du parent.
+			'sous_numero'       => null,
+			'chapitre_parent'   => '',
 		);
 	}
 
@@ -418,15 +479,26 @@ final class Chapter_Builder {
 	 * Définit le sous-titre du chapitre courant. Avec un découpage manuel : sous-titre du
 	 * chapitre ouvert sur ce titre (s'il n'en a pas déjà un), sinon intertitre.
 	 *
-	 * @param string $texte Texte brut.
+	 * Un sous-titre écrit au style Titre 2 (niveau 2) est aussi un élément du document : il a une
+	 * ancre et peut commencer un chapitre ou un sous-chapitre (découpage « Couper aux Titre 2 »).
+	 *
+	 * @param string $texte  Texte brut.
+	 * @param int    $niveau Niveau du titre qui porte le sous-titre (2 : Titre 2 ; 0 : ligne de
+	 *                       titre, pas un élément du document).
 	 */
-	public function sous_titre( string $texte ): void {
+	public function sous_titre( string $texte, int $niveau = 0 ): void {
 		if ( $this->ombre['chapitre'] ) {
 			$this->ombre['attend'] = false;
 		}
 		$texte = Texte::espaces( $texte );
+		$ancre = $niveau > 0 && '' !== $texte ? $this->element( 'intertitre', $texte, array( 'niveau' => $niveau ) ) : '';
 		if ( null !== $this->plan ) {
 			if ( '' === $texte ) {
+				return;
+			}
+			if ( '' !== $ancre && $this->au_plan( $ancre ) ) {
+				$this->couper( $ancre, $texte );
+				$this->dernier_titre = 'coupure';
 				return;
 			}
 			if ( 'coupure' === $this->dernier_titre && null !== $this->courant ) {
@@ -475,7 +547,8 @@ final class Chapter_Builder {
 	 *
 	 * @param string              $type  titre, intertitre, paragraphe, marqueur, image, liste ou citation.
 	 * @param string              $texte Texte brut (clé de l'image pour une illustration).
-	 * @param array<string,mixed> $infos analyse (titre), marqueur, role et centre (paragraphe).
+	 * @param array<string,mixed> $infos analyse (titre), marqueur, role et centre (paragraphe),
+	 *                                   niveau (titre : 1, 2, 3…).
 	 * @return string Ancre de l'élément.
 	 */
 	private function element( string $type, string $texte, array $infos = array() ): string {
@@ -550,6 +623,10 @@ final class Chapter_Builder {
 			$extrait = 'Illustration' . ( '' !== $legende ? ' : ' . $legende : '' );
 		} else {
 			$extrait = $texte;
+		}
+		$niveau = (int) ( $infos['niveau'] ?? 0 );
+		if ( in_array( $type, array( 'titre', 'intertitre' ), true ) && isset( $this->titres_niveau[ $niveau ] ) ) {
+			$this->titres_niveau[ $niveau ][] = $ancre;
 		}
 		$this->candidats[] = array(
 			'ancre'   => $ancre,
@@ -666,10 +743,19 @@ final class Chapter_Builder {
 	 * @param string              $brut       Texte brut du titre (pour les avertissements).
 	 * @param bool                $dans_texte Le titre figure dans le texte (faux : libellé de la
 	 *                                        table des matières d'un EPUB sans titres).
+	 * @param int                 $niveau     Niveau du titre (1 : Titre 1 ; 2 : Titre 2 reconnu
+	 *                                        comme titre de chapitre).
 	 */
-	public function ouvrir( array $analyse, string $brut, bool $dans_texte = true ): void {
+	public function ouvrir( array $analyse, string $brut, bool $dans_texte = true, int $niveau = 1 ): void {
 		$this->consommer( 1024 + strlen( $brut ) ); // Chapitre : tableau, statistiques, titre.
-		$ancre = $this->element( 'titre', $brut, array( 'analyse' => $analyse ) );
+		$ancre = $this->element(
+			'titre',
+			$brut,
+			array(
+				'analyse' => $analyse,
+				'niveau'  => $dans_texte ? $niveau : 0,
+			)
+		);
 		if ( null !== $this->plan ) {
 			$this->ombre_ouvrir( $analyse, $brut );
 			if ( $this->au_plan( $ancre ) ) {
@@ -1010,7 +1096,7 @@ final class Chapter_Builder {
 	 * @param int    $niveau Niveau (2 à 4).
 	 */
 	public function titre( string $html, int $niveau ): void {
-		$ancre = $this->element( 'intertitre', self::texte_sans_appels( $html ) );
+		$ancre = $this->element( 'intertitre', self::texte_sans_appels( $html ), array( 'niveau' => $niveau ) );
 		$this->ombre_contenu();
 		if ( $this->au_plan( $ancre ) ) {
 			$this->couper( $ancre, self::texte_sans_appels( $html ), $html );
@@ -1194,17 +1280,41 @@ final class Chapter_Builder {
 				)
 			);
 			foreach ( $this->termines as $i => $chapitre ) {
-				$this->termines[ $i ]['numero'] = $numeros[ $i ]['numero'];
-				$this->termines[ $i ]['titre']  = $numeros[ $i ]['titre'];
+				if ( $numeros[ $i ]['orphelin'] ) {
+					$this->avertir_orphelin( $chapitre );
+				}
+				$this->termines[ $i ]['numero']      = $numeros[ $i ]['numero'];
+				$this->termines[ $i ]['titre']       = $numeros[ $i ]['titre'];
+				$this->termines[ $i ]['nature']      = $numeros[ $i ]['nature'];
+				$this->termines[ $i ]['sous_numero'] = $numeros[ $i ]['sous_numero'];
+				$chapitre['nature']                  = $numeros[ $i ]['nature'];
 				if ( self::meme_texte( (string) $chapitre['sous_titre'], $numeros[ $i ]['titre'] ) || self::meme_texte( (string) $chapitre['sous_titre'], Texte::LIBELLES[ $chapitre['nature'] ] ?? '' ) ) {
 					$this->termines[ $i ]['sous_titre'] = ''; // « Prologue — Prologue », « Bonus 2 — Bonus ».
 				}
 			}
 		}
 
-		// Numéros déduits pour les titres sans numéro (et les marqueurs « [chapitre] »).
+		// Numéros déduits pour les titres sans numéro (et les marqueurs « [chapitre] »,
+		// « [sous-chapitre] » : partie du dernier chapitre ordinaire).
 		$dernier = 0.0;
+		$parent  = null;
+		$parties = 0;
 		foreach ( null === $this->plan ? $this->termines : array() as $i => $chapitre ) {
+			if ( 'sous-chapitre' === $chapitre['nature'] ) {
+				if ( null !== $parent ) {
+					++$parties;
+					$this->termines[ $i ]['numero']      = $parent;
+					$this->termines[ $i ]['sous_numero'] = $parties;
+					$this->termines[ $i ]['titre']       = Texte::libelle_partie( $parent, $parties );
+					continue;
+				}
+				$this->avertir_orphelin( $chapitre );
+				$chapitre['nature']             = 'chapitre';
+				$chapitre['numero']             = null;
+				$this->termines[ $i ]['nature'] = 'chapitre';
+			}
+			$parent  = null;
+			$parties = 0;
 			if ( $chapitre['manuel'] ) {
 				if ( 'chapitre' === $chapitre['nature'] && null === $chapitre['numero'] ) {
 					$this->termines[ $i ]['numero'] = floor( $dernier ) + 1;
@@ -1222,6 +1332,7 @@ final class Chapter_Builder {
 					)[0]['titre'];
 				if ( 'chapitre' === $chapitre['nature'] ) {
 					$dernier = max( $dernier, (float) $numero );
+					$parent  = (float) $numero;
 				}
 				continue;
 			}
@@ -1232,12 +1343,17 @@ final class Chapter_Builder {
 				$this->termines[ $i ]['sous_titre'] = '' !== (string) $chapitre['sous_titre'] ? (string) $chapitre['sous_titre'] : (string) $chapitre['titre_brut'];
 				$this->resultat->avertir( sprintf( 'Titre « %1$s » sans numéro de chapitre : numéroté %2$s d’après l’ordre du document.', $chapitre['titre_brut'], Texte::numero_fr( $numero ) ) );
 				$dernier = $numero;
+				$parent  = $numero;
 				continue;
 			}
 			if ( 'chapitre' === $chapitre['nature'] && null !== $chapitre['numero'] ) {
 				$dernier = max( $dernier, (float) $chapitre['numero'] );
+				$parent  = (float) $chapitre['numero'];
 			}
 		}
+
+		// Sous-chapitres : titre du parent, parent sans texte retiré.
+		$this->rattacher_sous_chapitres();
 
 		// Aucun chapitre : le document entier forme un chapitre unique.
 		if ( ! $this->termines ) {
@@ -1274,15 +1390,18 @@ final class Chapter_Builder {
 			if ( ! $this->a_contenu( $chapitre ) ) {
 				$this->resultat->avertir( sprintf( '%s : chapitre vide (aucun paragraphe).', $chapitre['titre'] ) );
 			}
+			$sous                       = 'sous-chapitre' === $chapitre['nature'];
 			$this->resultat->chapters[] = array(
-				'numero'     => $chapitre['numero'],
-				'nature'     => $chapitre['nature'],
-				'titre'      => $chapitre['titre'],
-				'sous_titre' => $chapitre['sous_titre'],
-				'blocks'     => $chapitre['blocks'],
-				'nb_mots'    => $chapitre['nb_mots'],
-				'stats'      => $chapitre['stats'],
-				'images'     => array_values( array_unique( $chapitre['images'] ) ),
+				'numero'          => $chapitre['numero'],
+				'nature'          => $chapitre['nature'],
+				'titre'           => $chapitre['titre'],
+				'sous_titre'      => $chapitre['sous_titre'],
+				'sous_numero'     => $sous ? (int) $chapitre['sous_numero'] : null,
+				'chapitre_parent' => $sous ? (string) $chapitre['chapitre_parent'] : '',
+				'blocks'          => $chapitre['blocks'],
+				'nb_mots'         => $chapitre['nb_mots'],
+				'stats'           => $chapitre['stats'],
+				'images'          => array_values( array_unique( $chapitre['images'] ) ),
 			);
 			foreach ( self::COMPTEURS as $compteur ) {
 				$stats[ $compteur ] += $chapitre['stats'][ $compteur ];
@@ -1310,11 +1429,19 @@ final class Chapter_Builder {
 				$debuts[ (string) $chapitre['ancre'] ] = $chapitre;
 			}
 		}
+		// Parents sans texte retirés au profit de leur première partie : début gardé (découpage).
+		foreach ( $this->absorbes as $ancre => $chapitre ) {
+			$debuts[ $ancre ] = $chapitre;
+		}
+		uksort( $debuts, static fn( $a, $b ) => (int) substr( (string) $a, 1 ) <=> (int) substr( (string) $b, 1 ) );
 		$premier    = $debuts ? (int) substr( (string) array_key_first( $debuts ), 1 ) : 0;
 		$decoupages = array(
-			'images'     => array(),
-			'ouvertures' => array(),
-			'sauts'      => array(),
+			'images'         => array(),
+			'ouvertures'     => array(),
+			'sauts'          => array(),
+			// Couper aux Titre 2 : titres de chapitre (niveau 1) et Titre 2 (sous-chapitres).
+			'titres'         => array(),
+			'sous_chapitres' => array(),
 		);
 		// Ouvertures illustrées : premières illustrations d'une suite d'au moins deux
 		// (pages d'ouverture de chapitre en double page, par exemple), hors début du document.
@@ -1353,6 +1480,10 @@ final class Chapter_Builder {
 			}
 			unset( $this->candidats[ $i ]['groupe'] );
 		}
+		if ( $this->titres_niveau[2] ) {
+			$decoupages['titres']         = $this->titres_niveau[1];
+			$decoupages['sous_chapitres'] = $this->titres_niveau[2];
+		}
 		$this->resultat->candidats                   = $this->candidats;
 		$this->resultat->decoupages                  = $decoupages;
 		$this->resultat->stats['elements']           = $this->rang;
@@ -1364,6 +1495,66 @@ final class Chapter_Builder {
 				$this->resultat->avertir( sprintf( 'Début de chapitre manuel introuvable : %s (le fichier a changé depuis l’analyse ? Relancez l’analyse et refaites le découpage).', $ancre ) );
 			}
 		}
+	}
+
+	/**
+	 * Avertissement : sous-chapitre sans chapitre parent, traité comme un chapitre.
+	 *
+	 * @param array<string,mixed> $chapitre Chapitre.
+	 */
+	private function avertir_orphelin( array $chapitre ): void {
+		$titre = Texte::espaces( (string) $chapitre['sous_titre'] );
+		$titre = '' !== $titre ? $titre : Texte::espaces( (string) $chapitre['titre_brut'] );
+		$this->resultat->avertir( sprintf( 'Sous-chapitre « %s » sans chapitre parent : traité comme un chapitre.', '' !== $titre ? $titre : 'sans titre' ) );
+	}
+
+	/**
+	 * Le chapitre n'a-t-il aucun texte propre (rien, ou seulement des illustrations) ?
+	 *
+	 * @param array<string,mixed> $chapitre Chapitre terminé.
+	 */
+	private static function sans_texte( array $chapitre ): bool {
+		return ! $chapitre['notes'] && ! array_diff( $chapitre['types'], array( 'image', 'separateur' ) );
+	}
+
+	/**
+	 * Sous-chapitres (numérotés) : chacun reçoit le titre de son chapitre parent ; un parent sans
+	 * texte propre est retiré, ses illustrations passent au début de sa première partie.
+	 */
+	private function rattacher_sous_chapitres(): void {
+		$liste  = array();
+		$parent = null;
+		foreach ( $this->termines as $chapitre ) {
+			if ( 'sous-chapitre' !== $chapitre['nature'] ) {
+				$liste[] = $chapitre;
+				$parent  = 'chapitre' === $chapitre['nature'] ? array_key_last( $liste ) : null;
+				continue;
+			}
+			if ( null === $parent ) {
+				// Déjà signalé à la numérotation : ne devrait pas arriver.
+				$chapitre['nature']      = 'chapitre';
+				$chapitre['sous_numero'] = null;
+				$liste[]                 = $chapitre;
+				continue;
+			}
+			$pere                        = $liste[ $parent ];
+			$chapitre['chapitre_parent'] = Texte::espaces( (string) $pere['sous_titre'] );
+			if ( empty( $pere['absorbe'] ) && self::sans_texte( $pere ) ) {
+				// Parent sans texte : il n'est pas publié, sa première partie reprend ses illustrations.
+				$chapitre['blocks'] = Blocks::assembler( array( (string) $pere['blocks'], (string) $chapitre['blocks'] ) );
+				$chapitre['types']  = array_merge( $pere['types'], $chapitre['types'] );
+				$chapitre['images'] = array_merge( $pere['images'], $chapitre['images'] );
+				foreach ( self::COMPTEURS as $compteur ) {
+					$chapitre['stats'][ $compteur ] += $pere['stats'][ $compteur ];
+				}
+				$liste[ $parent ]['absorbe'] = true;
+				if ( '' !== (string) $pere['ancre'] ) {
+					$this->absorbes[ (string) $pere['ancre'] ] = $pere;
+				}
+			}
+			$liste[] = $chapitre;
+		}
+		$this->termines = array_values( array_filter( $liste, static fn( $c ) => empty( $c['absorbe'] ) ) );
 	}
 
 	/**
@@ -1388,16 +1579,18 @@ final class Chapter_Builder {
 			if ( null === $chapitre['numero'] ) {
 				continue;
 			}
-			$cle = $chapitre['nature'] . ':' . Texte::numero_url( (float) $chapitre['numero'] );
+			$cle = $chapitre['nature'] . ':' . Texte::numero_url( (float) $chapitre['numero'] ) . ( null !== ( $chapitre['sous_numero'] ?? null ) ? '-' . $chapitre['sous_numero'] : '' );
 			if ( isset( $vus[ $cle ] ) ) {
 				$this->resultat->avertir( sprintf( '%s : numéro en double (déjà utilisé plus haut dans le document).', $chapitre['titre'] ) );
 			}
 			$vus[ $cle ] = true;
-			if ( 'chapitre' !== $chapitre['nature'] ) {
+			if ( ! in_array( $chapitre['nature'], array( 'chapitre', 'sous-chapitre' ), true ) ) {
 				continue;
 			}
 			$n = (float) $chapitre['numero'];
-			if ( null !== $precedent ) {
+			// Les parties d'un chapitre portent son numéro (parent sans texte retiré : la première
+			// partie tient sa place dans la suite des numéros).
+			if ( null !== $precedent && ! ( 'sous-chapitre' === $chapitre['nature'] && $n === $precedent ) ) {
 				if ( $n < $precedent ) {
 					$this->resultat->avertir( sprintf( '%1$s placé après le chapitre %2$s : vérifiez l’ordre des chapitres.', $chapitre['titre'], Texte::numero_fr( $precedent ) ) );
 				} elseif ( floor( $n ) > floor( $precedent ) + 1 ) {

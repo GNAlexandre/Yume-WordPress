@@ -364,7 +364,16 @@ function resume_chapitres( array $stats ): string {
 		$texte = sprintf( $nombre > 1 ? __( '%s chapitres', 'yume-core' ) : __( '%s chapitre', 'yume-core' ), nombre_fr( $nombre ) );
 	}
 	$natures = function_exists( 'yume_natures_chapitre' ) ? yume_natures_chapitre() : array();
+	$parties = (int) ( $stats['speciaux']['sous-chapitre'] ?? 0 );
+	if ( $parties > 0 && '' !== $texte ) {
+		// Chapitres publiés en parties : « 17 chapitres (27 sous-chapitres) ».
+		/* translators: %s : nombre de sous-chapitres. */
+		$texte .= ' (' . sprintf( $parties > 1 ? __( '%s sous-chapitres', 'yume-core' ) : __( '%s sous-chapitre', 'yume-core' ), nombre_fr( $parties ) ) . ')';
+	}
 	foreach ( (array) ( $stats['speciaux'] ?? array() ) as $nature => $combien ) {
+		if ( 'sous-chapitre' === $nature && '' !== $texte ) {
+			continue;
+		}
 		$nom = mb_strtolower( (string) ( $natures[ $nature ] ?? $nature ) );
 		if ( (int) $combien > 1 ) {
 			$nom = nombre_fr( (int) $combien ) . ' ' . $nom . ( str_ends_with( $nom, 's' ) ? '' : 's' );

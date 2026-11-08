@@ -430,6 +430,7 @@ Quand le découpage automatique se trompe (roman sans styles de titre, histoire 
 | `[chapitre]` ou `[chapitre] Titre` | Un chapitre numéroté, avec ce titre |
 | `[prologue]`, `[épilogue]`, `[postface]` | Un chapitre spécial |
 | `[interlude] Titre`, `[bonus] Titre` | Un interlude ou un bonus, avec ce titre |
+| `[sous-chapitre] Titre` | Une partie du chapitre qui la précède (« Chapitre 2, partie 1 ») |
 
 Le marqueur n'est jamais publié. Majuscules et accents sont indifférents.
 
@@ -570,14 +571,32 @@ Quand le découpage automatique se trompe : chapitres séparés par une illustra
 1. Déposez le fichier. Sous le tableau des chapitres, ouvrez **Délimiter les chapitres moi-même**.
 2. Le tableau **Débuts de chapitre possibles** liste les endroits repérés : titres, illustrations, sauts de page, lignes courtes, centrées ou en gras.
 3. Cochez **Début de chapitre** sur chaque ligne où un chapitre commence.
-4. Pour chaque début coché, choisissez la nature (chapitre, prologue, bonus…) et, si besoin, le **Titre**.
+4. Pour chaque début coché, choisissez la nature (chapitre, prologue, bonus, sous-chapitre…) et, si besoin, le **Titre**.
 5. Si besoin, changez le **Premier numéro de chapitre**.
-6. Raccourcis utiles : **Couper à chaque illustration**, **Couper à chaque saut de page**, **Revenir à la détection automatique**.
+6. Raccourcis utiles : **Couper à chaque illustration**, **Couper à chaque saut de page**, **Couper aux Titre 2 (sous-chapitres)**, **Revenir à la détection automatique**.
 7. Cochez **Conserver le texte d'ouverture** pour garder le texte placé avant le premier début coché (il rejoint le premier chapitre).
 8. Cliquez sur **Vérifier ce découpage (rien n'est enregistré)** pour voir la liste des chapitres obtenus.
 9. Vérifiez que **Utiliser ce découpage** est cochée, puis publiez comme d'habitude.
 
 > **Attention** : le découpage part avec le fichier et n'est pas gardé. Pour redécouper plus tard, déposez de nouveau le fichier et refaites le découpage. Pour un découpage définitif, utilisez plutôt les marqueurs `[chapitre]` dans Word.
+
+## Publier un chapitre en plusieurs parties (sous-chapitres)
+
+Certains romans ont de longs chapitres faits de parties : les entrées datées d'un journal, par exemple. Dans Word, le chapitre est au style **Titre 1** et chaque partie au style **Titre 2**. Sans rien faire, une partie reste un intertitre dans son chapitre. Pour publier chaque partie sur sa propre page :
+
+1. Déposez le fichier, puis ouvrez **Délimiter les chapitres moi-même**.
+2. Cliquez sur **Couper aux Titre 2 (sous-chapitres)**. Chaque Titre 1 devient un chapitre, chaque Titre 2 une partie de ce chapitre (nature **Sous-chapitre**). Laissez le **Titre** vide : celui du fichier est repris.
+3. Si besoin, changez le **Premier numéro de chapitre**. Les parties sont numérotées 1, 2, 3… dans chaque chapitre.
+4. Cliquez sur **Vérifier ce découpage (rien n'est enregistré)**. La liste des chapitres affiche les parties en retrait sous leur chapitre.
+5. Vérifiez que **Utiliser ce découpage** est cochée, puis publiez comme d'habitude.
+
+Une partie a sa page, sa date de sortie et son annonce, comme un chapitre. Elle s'appelle « Chapitre 2, partie 1 » ; l'annonce dit « Chapitre 2, partie 1 — 10 septembre, soir ». Sur la page du tome, les parties sont groupées sous la ligne « Chapitre 2 — Bataille défensive » ; en haut de la page d'une partie, « Chapitre 2 — Bataille défensive » s'affiche au-dessus de « Partie 1 ».
+
+> **À savoir** : un chapitre sans texte à lui (seulement son titre, parfois une illustration) n'a pas de page : son titre est repris au-dessus de ses parties et son illustration passe au début de la partie 1. Un chapitre qui a du texte avant sa première partie garde sa page, suivie de ses parties.
+
+> **Attention** : une partie se rattache toujours au chapitre qui la précède. Placée juste après un prologue, un interlude ou au début du fichier, elle devient un chapitre ordinaire et le rapport le signale (« Sous-chapitre … sans chapitre parent : traité comme un chapitre »).
+
+> **Astuce** : sans passer par le découpage, écrivez dans Word un paragraphe seul `[sous-chapitre] Titre` au début de chaque partie (voir « Forcer un début de chapitre avec un marqueur »).
 
 ## Ajouter la lecture en ligne d'un tome déjà paru
 

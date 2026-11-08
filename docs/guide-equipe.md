@@ -658,11 +658,15 @@ fichier est analysé :
    séparateur, début du fichier. Les débuts retenus par la détection automatique sont déjà cochés ;
    les lignes **surlignées** sont placées avant le premier début coché ;
 2. cochez **« Début de chapitre »** sur chaque ligne où un chapitre commence, choisissez sa
-   **nature** (chapitre, prologue, interlude, épilogue, postface, bonus, illustrations) et, si
+   **nature** (chapitre, prologue, interlude, épilogue, postface, bonus, illustrations,
+   sous-chapitre : une partie du chapitre qui la précède, « Chapitre 2, partie 1 ») et, si
    besoin, son **titre** (sinon, le titre trouvé à cet endroit). Les chapitres sont numérotés à la
    suite à partir du **premier numéro** indiqué ; plusieurs bonus deviennent « Bonus 1 », « Bonus 2 » ;
 3. raccourcis : **« Couper à chaque illustration »** (romans dont chaque chapitre commence par une
-   illustration), **« Couper à chaque saut de page »**, **« Revenir à la détection automatique »** ;
+   illustration), **« Couper à chaque saut de page »**, **« Couper aux Titre 2 (sous-chapitres) »**
+   (chaque Titre 1 devient un chapitre, chaque Titre 2 une partie de ce chapitre ; un chapitre sans
+   texte à lui n'a pas de page, son titre est repris au-dessus de ses parties),
+   **« Revenir à la détection automatique »** ;
 4. **« Conserver le texte d'ouverture »** : le texte placé avant le premier début coché (préface,
    histoire bonus…) rejoint le premier chapitre ; sinon il n'est pas publié, comme aujourd'hui.
    Pour en faire un chapitre à part, cochez simplement sa première ligne ;
@@ -679,7 +683,8 @@ chapitre manuel introuvable ».
 **Sans JavaScript** (ou pour un découpage écrit une fois pour toutes dans le document) : ajoutez à
 chaque début de chapitre un paragraphe seul `[chapitre]` ou `[chapitre] Titre`, `[prologue]`,
 `[interlude] Titre`, `[bonus] Titre`, `[épilogue]` ou `[postface]` (majuscules et accents
-indifférents). Il force le début d'un chapitre de cette nature, avec ce titre, et n'est jamais
+indifférents) ; `[sous-chapitre] Titre` pour une partie du chapitre qui précède (« Chapitre 2,
+partie 1 »). Il force le début d'un chapitre de cette nature, avec ce titre, et n'est jamais
 publié. Une histoire bonus précédée de `[bonus]` n'est plus ignorée, même avant le premier
 chapitre.
 
