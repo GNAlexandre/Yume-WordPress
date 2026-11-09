@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe mobile — mettre en page un chapitre</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&family=Literata:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 14px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.ico{width:40px;height:40px;border-radius:50%;border:0;background:transparent;color:#ebe3f2;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;flex-shrink:0}
+.muted{color:#b7a9cc}
+/* Colonne de lecture en aperçu Papier (reader.css, html[data-yn-theme="papier"]) */
+.yn-reader{background:#fdf8fa;color:#2a1240;font-family:Literata,Georgia,serif;font-size:17px;line-height:1.6;text-align:justify;hyphens:auto;font-variant-numeric:oldstyle-nums}
+.yn-reader p{margin:0}
+.yn-dialogue{padding-left:2.2em}
+.yn-tiret{display:inline-block;width:1.3em;margin-left:-1.3em;white-space:nowrap}
+.yn-thought{padding-left:2.2em;font-style:italic}
+.u{position:relative;margin:0 0 .7em;padding:2px 8px 2px 8px;border-radius:4px}
+.tag{position:absolute;left:-26px;top:5px;width:18px;height:18px;border-radius:4px;border:1px solid #8a6f9e;display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:500;line-height:1;color:#5e4a73;font-style:normal;box-sizing:border-box;background:#fdf8fa}
+.u.edit{background:#ffffff;outline:2px solid #c2437e;outline-offset:0;box-shadow:0 0 0 5px rgba(194,67,126,.14)}
+.u.edit .tag{background:#c2437e;border-color:#c2437e;color:#ffffff}
+.caret{display:inline-block;width:2px;height:1.15em;background:#c2437e;vertical-align:-.2em;margin:0 -1px}
+.mini{position:absolute;left:8px;top:-50px;display:flex;gap:4px;padding:4px;background:#2d1f4f;border:1px solid #7f6aa8;border-radius:8px;box-shadow:0 8px 20px rgba(42,18,64,.3);font-family:"Nunito Sans",sans-serif;z-index:2}
+.mini button{height:36px;min-width:36px;padding:0 8px;border:1px solid transparent;border-radius:4px;background:transparent;color:#fff8fb;font-family:inherit;font-size:14px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:4px;cursor:pointer}
+.mini button.ok{background:#f3a6c8;color:#2a1240}
+.mini i.sep{width:1px;background:#4a3b6e;margin:4px 2px}
+.pal{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:54px;border:1px solid #7f6aa8;border-radius:6px;background:transparent;color:#ebe3f2;font-family:inherit;cursor:pointer;padding:0;box-sizing:border-box;min-width:0}
+.pal b{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:500;color:#fff8fb;line-height:1}
+.pal span{font-size:10.5px;font-weight:600;line-height:1.1;white-space:nowrap}
+.pal[aria-pressed="true"]{border:2px solid #f3a6c8;background:#3a2a63;color:#fff8fb}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #1b1231; position: relative; overflow: hidden">
+  <header style="height: 56px; display: flex; align-items: center; gap: 6px; padding: 0 10px 0 4px; background: #241740; border-bottom: 1px solid #4a3b6e; flex-shrink: 0">
+    <a href="TomeSousChapitres.dc.html" class="ico" aria-label="Retour à la fiche du tome">‹</a>
+    <div style="display: flex; flex-direction: column; line-height: 1.15; min-width: 0; flex-grow: 1"><span class="lbl">Mettre en page</span><span style="color: #fff8fb; font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Ch. 2, partie 1 — 10 sept., soir</span></div>
+    <button type="button" class="btn pri" style="height: 40px; padding: 0 12px; font-size: 13px" aria-label="Enregistrer, 12 paragraphes modifiés">Enregistrer <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 10px; background: #2a1240; color: #f3a6c8; font-size: 11px">12</span></button>
+  </header>
+  <div style="height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #1b1231; border-bottom: 1px solid #4a3b6e; flex-shrink: 0; font-size: 12px">
+    <span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #7f6aa8; border-radius: 14px; color: #fff8fb; font-weight: 600; white-space: nowrap; flex-shrink: 0"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; background: #fdf8fa; border: 1px solid #8a6f9e"></span>Aperçu : Papier ▾</span>
+    <span class="muted" style="white-space: nowrap"><span style="color: #f4c069">✎</span> 12 modifiés · ✓ 18 h 02</span>
+    <button type="button" class="ico" aria-label="Actions" style="margin-left: auto; width: 32px; height: 32px; font-size: 18px; border: 1px solid #7f6aa8; border-radius: 4px">⋯</button>
+  </div>
+
+  <div class="yn-reader" style="flex-grow: 1; padding: 22px 16px 0 38px; overflow: hidden; position: relative">
+    <div class="u"><span class="tag" aria-label="Paragraphe 7, Dialogue">D</span><p class="yn-dialogue"><span class="yn-tiret">—</span>Vous dites cela tous les soirs, et tous les soirs il reste un dernier pansement.</p></div>
+    <div class="u"><span class="tag" aria-label="Paragraphe 8, Récit">R</span><p>Elle n'avait pas tort. Je l'ai regardée s'éloigner entre les lits, sa lampe à la main.</p></div>
+    <div class="u"><span class="tag" aria-label="Paragraphe 9, Pensée">P</span><p class="yn-thought">Encore une heure, et je m'accorde le droit de fermer les yeux.</p></div>
+    <div class="u edit" style="margin-top: 62px">
+      <div class="mini" role="toolbar" aria-label="Mise en forme du paragraphe en cours">
+        <button type="button" aria-label="Italique (Ctrl+I)" aria-pressed="false" style="font-family: Literata, serif; font-style: italic; font-size: 16px">I</button>
+        <button type="button" aria-label="Gras (Ctrl+B)" aria-pressed="false" style="font-family: Literata, serif; font-weight: 700; font-size: 16px">G</button>
+        <i class="sep" aria-hidden="true"></i>
+        <button type="button">↶ Annuler</button>
+        <button type="button" class="ok">✓ Valider</button>
+      </div>
+      <span class="tag" aria-label="Paragraphe 10, Récit, en cours de saisie">R</span>
+      <p contenteditable="true" aria-label="Texte du paragraphe 10" style="outline: none">Le soldat du lit quatre m'a demandé d'écrire une lettre pour sa mère. Il voulait qu'elle sache qu'il mange à sa faim<span class="caret" aria-hidden="true"></span> et que le temps est doux.</p>
+    </div>
+    <p style="margin: -2px 0 12px 8px; font-family: 'Nunito Sans', sans-serif; font-size: 12px; color: #5e4a73; text-align: left">Entrée : scinder · Retour arrière en début : fusionner</p>
+    <div class="u"><span class="tag" aria-label="Paragraphe 11, Dialogue">D</span><p class="yn-dialogue"><span class="yn-tiret">—</span>Vous ne lui parlerez pas de la jambe, n'est-ce pas ?</p></div>
+    <div class="u"><span class="tag" aria-label="Paragraphe 12, Dialogue">D</span><p class="yn-dialogue"><span class="yn-tiret">—</span>Ce n'est pas à moi de le lui apprendre.</p></div>
+    <div class="u"><span class="tag" aria-label="Paragraphe 14, Récit">R</span><p>Plus tard, le vent est tombé. On n'entend plus que la respiration des dormeurs.</p></div>
+  </div>
+
+  <nav aria-label="Palette de mise en page" style="flex-shrink: 0; background: #241740; border-top: 1px solid #4a3b6e; padding: 10px 12px 18px; display: flex; flex-direction: column; gap: 8px">
+    <div style="display: flex; justify-content: space-between; font-size: 12px"><span class="lbl">Style · § 10 en saisie</span><span class="muted">Appui long : sélection multiple</span></div>
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px">
+      <button type="button" class="pal" aria-pressed="true"><b>R</b><span>✓ Récit</span></button>
+      <button type="button" class="pal" aria-pressed="false"><b>D</b><span>Dialogue</span></button>
+      <button type="button" class="pal" aria-pressed="false"><b style="font-style: italic">P</b><span>Pensée</span></button>
+      <button type="button" class="pal" aria-pressed="false"><b>C</b><span>Centré</span></button>
+      <button type="button" class="pal" aria-pressed="false"><b style="color: #f3a6c8">✿</b><span>Scène</span></button>
+      <button type="button" class="pal" aria-pressed="false"><b>T</b><span>Intertitre</span></button>
+    </div>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

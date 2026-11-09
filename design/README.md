@@ -18,7 +18,10 @@ avec panneau de paramètres), planning public, tableau de bord équipe, formulai
 compte lecteur. Sources dans `design/maquettes/`. Rangée 2.8.0 (cahier des charges
 [docs/09](../docs/09-manga-zoom-sous-chapitres-programmation.md)) : lecteur manga avec doubles pages élargies et zoom
 (bureau + mobile), découpage en sous-chapitres, panneau « Programmer les sorties » (répartition en N publications) et
-sommaire du tome groupé par chapitre, sur les données réelles du tome 2 de *Miss Medic's Diary at War*.
+sommaire du tome groupé par chapitre, sur les données réelles du tome 2 de *Miss Medic's Diary at War*. Rangée 2.9.0
+(cahier des charges [docs/10](../docs/10-mise-en-page-chapitre.md)) : vue « Mettre en page un chapitre » (bureau avec
+palette, étiquettes de style dans la marge et menu Actions ; mobile en aperçu Papier avec un paragraphe en cours de
+saisie) et encart « paragraphes à vérifier » du formulaire de publication.
 
 ## Tokens (theme.json → `settings.color.palette`, `settings.typography.fontFamilies`)
 

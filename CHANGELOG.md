@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.9.0-dev.2 — 2026-11-09
+
+- Maquettes 2.9.0 : vue « Mettre en page un chapitre » (bureau, mobile) et encart « paragraphes à vérifier » du formulaire de publication (design/maquettes, canvas.json)
+
 ## 2.9.0-dev.1 — 2026-11-09
 
 - Cahier des charges 2.9.0 : vue d’équipe « Mettre en page un chapitre » (styles Récit / Dialogue / Pensée / Centré / Séparateur / Intertitre d’un clic, correction du texte en place, enregistrement sans annonce avec révision), styles Word nommés et rapport des paragraphes douteux à l’import, maquettes
