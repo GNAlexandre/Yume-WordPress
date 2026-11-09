@@ -1,0 +1,380 @@
+/*
+ * Vue « Mettre en page un chapitre » (?vue=chapitre&id=ID, module mise-en-page).
+ * La colonne de lecture reprend .yn-reader et reader.css du thème (mêmes variables) ; ce fichier
+ * n'ajoute que la barre d'outils, la palette, les étiquettes de style et la sélection.
+ * Couleurs : variables du thème uniquement. Sélecteurs préfixés par .yn-team--mep.
+ */
+
+.yn-team--mep .yn-mep__fil ol {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 8px;
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+	color: var(--wp--preset--color--texte-faible);
+	font-size: var(--wp--preset--font-size--petit, 14px);
+}
+
+.yn-team--mep .yn-mep__fil li + li::before {
+	content: "›";
+	margin-right: 8px;
+}
+
+.yn-team--mep .yn-mep {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.yn-team--mep .yn-mep__barre {
+	position: sticky;
+	top: calc(var(--wp-admin--admin-bar--height, 0px) + 8px);
+	z-index: 5;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px 16px;
+	padding: 10px 14px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--carte);
+}
+
+.yn-team--mep .yn-mep__barre[hidden],
+.yn-team--mep .yn-mep__palette[hidden],
+.yn-team--mep .yn-mep__actions[hidden],
+.yn-team--mep .yn-mep__aide[hidden],
+.yn-team--mep .yn-mep__presence[hidden],
+.yn-team--mep .yn-mep__alerte[hidden],
+.yn-team--mep .yn-mep__sansjs[hidden] {
+	display: none;
+}
+
+.yn-team--mep .yn-mep__groupe {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+}
+
+.yn-team--mep .yn-mep__compteur {
+	font-weight: 600;
+}
+
+.yn-team--mep .yn-mep__compteur.is-modifie {
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-team--mep .yn-mep__etat {
+	font-size: var(--wp--preset--font-size--petit, 14px);
+}
+
+.yn-team--mep .yn-btn[aria-pressed="true"] {
+	border-color: var(--wp--preset--color--accent);
+	background: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent-texte);
+}
+
+.yn-team--mep .yn-mep__menu {
+	position: relative;
+}
+
+.yn-team--mep .yn-mep__actions {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	z-index: 6;
+	min-width: 20rem;
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.yn-team--mep .yn-mep__action {
+	display: block;
+	width: 100%;
+	padding: 8px 10px;
+	border: 0;
+	border-radius: 6px;
+	background: none;
+	color: var(--wp--preset--color--texte);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.yn-team--mep .yn-mep__action:hover,
+.yn-team--mep .yn-mep__action:focus-visible {
+	background: var(--wp--preset--color--bande);
+}
+
+.yn-team--mep .yn-mep__action:focus-visible,
+.yn-team--mep .yn-mep__unite:focus-visible,
+.yn-team--mep .yn-mep__texte[contenteditable]:focus-visible {
+	outline: 2px solid var(--wp--preset--color--accent);
+	outline-offset: 2px;
+}
+
+.yn-team--mep .yn-mep__aide dl {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+	gap: 6px 20px;
+	margin: 0 0 8px;
+}
+
+.yn-team--mep .yn-mep__aide dl > div {
+	display: flex;
+	gap: 10px;
+}
+
+.yn-team--mep .yn-mep__aide dt {
+	flex: 0 0 auto;
+	min-width: 9rem;
+}
+
+.yn-team--mep .yn-mep__aide dd {
+	margin: 0;
+}
+
+.yn-team--mep kbd,
+.yn-team--mep .yn-mep__touche {
+	padding: 0 5px;
+	border: 1px solid var(--wp--preset--color--bordure);
+	border-radius: 4px;
+	font-family: var(--wp--preset--font-family--mono);
+	font-size: 0.85em;
+}
+
+.yn-team--mep .yn-mep__presence {
+	margin: 0;
+	padding: 10px 14px;
+	border-left: 4px solid var(--wp--preset--color--avertissement);
+}
+
+.yn-team--mep .yn-mep__alerte {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 16px;
+	padding: 10px 14px;
+	border: 1px solid var(--wp--preset--color--erreur);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--carte);
+}
+
+.yn-team--mep .yn-mep__alerte p {
+	margin: 0;
+}
+
+/* Colonne et palette. */
+.yn-team--mep .yn-mep__corps {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 13rem;
+	align-items: start;
+	gap: 20px;
+}
+
+.yn-team--mep .yn-mep__colonne {
+	min-width: 0;
+	padding-left: 4.5rem;
+}
+
+.yn-team--mep .yn-mep__lecture {
+	margin-inline: 0 auto;
+}
+
+.yn-team--mep.yn-team .yn-mep--mobile .yn-mep__lecture {
+	max-width: calc(390px - 32px);
+	padding-inline: 16px;
+	font-size: var(--yn-size, 17px);
+}
+
+.yn-team--mep .yn-mep--mobile .yn-mep__lecture .yn-dialogue {
+	padding-left: 1.4em;
+}
+
+.yn-team--mep .yn-mep--mobile .yn-mep__lecture .yn-thought {
+	padding-left: 1.4em;
+}
+
+.yn-team--mep .yn-mep__unite {
+	position: relative;
+	margin: 0 -8px;
+	padding: 0 8px;
+	border-radius: 4px;
+	cursor: default;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+.yn-team--mep .yn-mep__unite.is-edition,
+.yn-team--mep .yn-mep__unite .yn-mep__texte[contenteditable] {
+	-webkit-user-select: text;
+	user-select: text;
+	cursor: text;
+}
+
+.yn-team--mep .yn-mep__unite:hover {
+	background: color-mix(in srgb, var(--wp--preset--color--selection) 30%, transparent);
+}
+
+.yn-team--mep .yn-mep__unite.is-selected {
+	background: color-mix(in srgb, var(--wp--preset--color--accent) 16%, transparent);
+	box-shadow: inset 3px 0 0 var(--wp--preset--color--accent);
+}
+
+.yn-team--mep .yn-mep__unite.is-edition {
+	background: var(--wp--preset--color--carte);
+	box-shadow: 0 0 0 2px var(--wp--preset--color--accent);
+}
+
+.yn-team--mep .yn-mep__texte[contenteditable] {
+	outline: none;
+}
+
+.yn-team--mep .yn-mep__etiquette {
+	position: absolute;
+	top: 0.25em;
+	right: calc(100% + 0.6rem);
+	display: flex;
+	gap: 4px;
+	align-items: baseline;
+	color: var(--wp--preset--color--texte-faible);
+	font-family: var(--wp--preset--font-family--corps);
+	font-size: 12px;
+	font-style: normal;
+	line-height: 1.4;
+	text-indent: 0;
+	white-space: nowrap;
+}
+
+.yn-team--mep .yn-mep__lettre {
+	display: inline-block;
+	min-width: 1.6em;
+	padding: 0 3px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: 4px;
+	font-weight: 700;
+	text-align: center;
+}
+
+.yn-team--mep .yn-mep__unite.is-modifie .yn-mep__lettre {
+	border-color: var(--wp--preset--color--accent);
+	color: var(--wp--preset--color--accent);
+}
+
+.yn-team--mep .yn-mep__unite--autre {
+	opacity: 0.85;
+}
+
+.yn-team--mep .yn-mep__autre img {
+	max-width: 100%;
+	height: auto;
+}
+
+.yn-team--mep .yn-mep__palette {
+	position: sticky;
+	top: calc(var(--wp-admin--admin-bar--height, 0px) + 80px);
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px;
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: var(--yn-radius-card, 10px);
+	background: var(--wp--preset--color--carte);
+}
+
+.yn-team--mep .yn-mep__palette h3 {
+	margin: 0;
+}
+
+.yn-team--mep .yn-mep__styles {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.yn-team--mep .yn-mep__style {
+	justify-content: flex-start;
+	width: 100%;
+	text-align: left;
+}
+
+.yn-team--mep .yn-mep__selection {
+	margin: 0;
+	font-size: var(--wp--preset--font-size--petit, 14px);
+}
+
+.yn-team--mep .yn-mep__voisins {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+/* Mobile : palette en bas de l'écran. */
+@media (max-width: 781.98px) {
+	.yn-team--mep .yn-mep__corps {
+		grid-template-columns: minmax(0, 1fr);
+		padding-bottom: 4rem;
+	}
+
+	.yn-team--mep .yn-mep__colonne {
+		padding-left: 2.6rem;
+	}
+
+	.yn-team--mep .yn-mep__etiquette .yn-mep__num {
+		display: none;
+	}
+
+	.yn-team--mep .yn-mep__palette {
+		position: fixed;
+		top: auto;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		z-index: 20;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		gap: 6px;
+		padding: 8px 16px;
+		overflow-x: auto;
+		border-radius: 0;
+		box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+	}
+
+	.yn-team--mep .yn-mep__palette h3,
+	.yn-team--mep .yn-mep__selection {
+		display: none;
+	}
+
+	.yn-team--mep .yn-mep__styles {
+		flex: 0 0 auto;
+		flex-direction: row;
+		flex-wrap: nowrap;
+	}
+
+	.yn-team--mep .yn-mep__style {
+		flex: 0 0 auto;
+		width: auto;
+		white-space: nowrap;
+	}
+
+	.yn-team--mep .yn-mep__actions {
+		min-width: min(20rem, calc(100vw - 32px));
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.yn-team--mep .yn-mep__unite {
+		transition: background-color 0.12s ease;
+	}
+}
+
+/* Paragraphe vide (nouveau, en saisie) : une ligne de haut pour voir le curseur. */
+.yn-team--mep .yn-mep__texte:empty::before {
+	content: "\200B";
+}

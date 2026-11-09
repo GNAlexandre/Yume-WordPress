@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — paragraphes à vérifier après l'analyse</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&family=Literata:ital,wght@0,400;1,400&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap;box-sizing:border-box}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.rose{color:#f3a6c8;border-color:#f3a6c8}
+.muted{color:#b7a9cc}
+.side a{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-radius:4px;color:#ebe3f2;font-weight:500}
+.side a.on{background:#3a2a63;color:#fff8fb;border-left:3px solid #f3a6c8}
+.etape{display:flex;align-items:center;gap:14px;padding:14px 20px}
+.etape b.n{width:28px;height:28px;border-radius:50%;border:1px solid #8fd6a3;color:#8fd6a3;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.etape h2{font-size:17px;font-weight:700}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.motif{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #4a3b6e;border-radius:6px;background:#241740;font-size:14px}
+.motif .ic{width:26px;height:26px;border-radius:4px;border:1px solid #7f6aa8;display:inline-flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-size:12px;color:#fff8fb;flex-shrink:0}
+.motif .nb{margin-left:auto;font-family:"Outfit",sans-serif;font-weight:700;font-size:18px;color:#fff8fb}
+.grp{border:1px solid #4a3b6e;border-radius:6px;overflow:hidden}
+.grp-h{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#241740;border-bottom:1px solid #4a3b6e;font-size:14px}
+.ligne{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:9px 14px;font-size:14px;border-top:1px solid #4a3b6e}
+.ligne:first-of-type{border-top:0}
+.ligne .ref{font-family:"IBM Plex Mono",monospace;font-size:11px;color:#b7a9cc;white-space:nowrap}
+.ligne .txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ligne .ext{font-family:Literata,Georgia,serif;color:#ebe3f2}
+.m-t{color:#f4c069;border-color:#f4c069}.m-l{color:#b7a9cc;border-color:#7f6aa8}.m-i{color:#f3a6c8;border-color:#f3a6c8}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1690px; box-sizing: border-box; display: flex; background: #1b1231">
+<aside class="side" style="width: 240px; background: #241740; border-right: 1px solid #4a3b6e; padding: 20px 12px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-sizing: border-box">
+  <a href="Main.dc.html" style="height: 48px; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px; margin-bottom: 12px"><span style="width: 24px; height: 24px; border-radius: 50%; background: #f3a6c8; display: inline-block"></span>Yume · Équipe</a>
+  <a href="TeamDashboard.dc.html">Tableau de bord</a>
+  <a href="TeamDashboard.dc.html">Mes tâches</a>
+  <a href="TeamPublier.dc.html" class="on">Publier un tome</a>
+  <a href="Planning.dc.html">Planning complet</a>
+  <a href="TeamDashboard.dc.html">Journal</a>
+  <a href="TeamDashboard.dc.html">Membres et rôles</a>
+  <a href="TeamDashboard.dc.html">Réglages (rappels, Discord)</a>
+</aside>
+<main style="flex-grow: 1; padding: 32px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px 28px; align-content: start; min-width: 0">
+  <div style="grid-column: span 2; display: flex; justify-content: space-between; align-items: flex-end">
+    <div><span class="lbl">Catalogue · ajouter des chapitres</span><h1 style="font-size: 32px">Ajouter des chapitres à un tome</h1><p class="muted" style="margin: 4px 0 0">Le fichier est analysé : vérifiez le résumé, puis publiez. Rien n'est encore en ligne.</p></div>
+    <span class="chip info">Brouillon enregistré automatiquement</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+    <section class="card etape" aria-label="Étape 1, terminée"><b class="n" aria-hidden="true">✓</b><div style="flex-grow: 1"><h2>1 · Le tome</h2><span class="muted" style="font-size: 14px">Miss Medic's Diary at War — Tome 2 · numéro 2 · LN</span></div><a href="TeamPublier.dc.html" style="font-size: 14px">Modifier</a><span aria-hidden="true" class="muted">▾</span></section>
+    <section class="card etape" aria-label="Étape 2, terminée"><b class="n" aria-hidden="true">✓</b><div style="flex-grow: 1"><h2>2 · Le fichier</h2><span class="muted" style="font-size: 14px">MissMedic_T2.docx · 45 unités · 55 263 mots · 2 853 paragraphes</span></div><span class="chip warn"><span aria-hidden="true">⚠</span> 12 paragraphes à vérifier</span><a href="TeamPublier.dc.html" style="font-size: 14px">Remplacer</a><span aria-hidden="true" class="muted">▾</span></section>
+    <section class="card etape" aria-label="Étape 3, terminée"><b class="n" aria-hidden="true">✓</b><div style="flex-grow: 1"><h2>3 · La sortie des nouveaux chapitres</h2><span class="muted" style="font-size: 14px">Calendrier sur mesure · 10 publications, du 15 nov. 2026 au 17 janv. 2027</span></div><a href="TeamProgrammer.dc.html" style="font-size: 14px">Modifier</a><span aria-hidden="true" class="muted">▾</span></section>
+
+    <details open class="card" style="border-color: #f4c069; padding: 0">
+      <summary style="display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: 1px solid #4a3b6e">
+        <span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 50%; border: 1px solid #f4c069; color: #f4c069; display: inline-flex; align-items: center; justify-content: center; font-weight: 700">!</span>
+        <div style="flex-grow: 1"><h2 style="font-size: 20px">12 paragraphes à vérifier</h2><span class="muted" style="font-size: 14px">Classés par déduction, sans style Word explicite. Rien de bloquant : la publication reste possible.</span></div>
+        <span class="btn sm" aria-hidden="true">Replier ▴</span>
+      </summary>
+      <div style="padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 16px">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <div class="motif"><span class="ic" aria-hidden="true">—</span><span>Tiret tapé converti en dialogue</span><span class="nb">×7</span></div>
+          <div class="motif"><span class="ic" aria-hidden="true">¶</span><span>Paragraphe de liste sans puce gardé en récit</span><span class="nb">×3</span></div>
+          <div class="motif"><span class="ic" aria-hidden="true" style="font-family: Literata, serif; font-style: italic">P</span><span>Italique entier sans style Pensée</span><span class="nb">×2</span></div>
+        </div>
+        <p class="muted" style="margin: 0; font-size: 14px">Pour corriger : publiez, puis ouvrez <b style="color: #fff8fb">Mettre en page</b> sur le chapitre (un clic par paragraphe, sans nouvelle annonce). Ou appliquez le bon style dans le Word (Récit, Dialogue, Pensée, Centré) et redéposez-le.</p>
+
+        <div class="grp">
+          <div class="grp-h"><b style="color: #fff8fb">Chapitre 1, partie 2</b><span class="chip ok"><span aria-hidden="true">●</span> En ligne</span><span class="muted">2 paragraphes</span><a href="TeamMiseEnPage.dc.html" style="margin-left: auto; font-weight: 600">Mettre en page →</a></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 1, partie 2 · § 18 ·</span> <span class="ext">“— Encore un convoi avant la nuit, a soupiré Martha.”</span></span><span class="chip m-t"><span aria-hidden="true">—</span> Tiret tapé</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 1, partie 2 · § 57 ·</span> <span class="ext">“Reçu ce matin : bandes, iode, deux couvertures.”</span></span><span class="chip m-l"><span aria-hidden="true">¶</span> Liste sans puce</span></div>
+        </div>
+
+        <div class="grp">
+          <div class="grp-h"><b style="color: #fff8fb">Chapitre 2, partie 1</b><span class="chip ok"><span aria-hidden="true">●</span> En ligne</span><span class="muted">1 paragraphe</span><a href="TeamMiseEnPage.dc.html" style="margin-left: auto; font-weight: 600">Mettre en page →</a></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 2, partie 1 · § 9 ·</span> <span class="ext" style="font-style: italic">“Encore une heure, et je m'accorde le droit de fermer les yeux.”</span></span><span class="chip m-i"><span aria-hidden="true" style="font-style: italic">P</span> Italique entier</span></div>
+        </div>
+
+        <div class="grp">
+          <div class="grp-h"><b style="color: #fff8fb">Chapitre 2, partie 3</b><span class="chip info"><span aria-hidden="true">✚</span> Nouveau</span><span class="muted">3 paragraphes</span><span class="muted" style="margin-left: auto; font-size: 13px" aria-disabled="true">Mettre en page · après la publication</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 2, partie 3 · § 41 ·</span> <span class="ext">“— Buvons et chantons…”</span></span><span class="chip m-t"><span aria-hidden="true">—</span> Tiret tapé</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 2, partie 3 · § 44 ·</span> <span class="ext">“— Pas si fort, il y a des malades qui dorment.”</span></span><span class="chip m-t"><span aria-hidden="true">—</span> Tiret tapé</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 2, partie 3 · § 46 ·</span> <span class="ext">“— Un seul couplet, alors, et à voix basse.”</span></span><span class="chip m-t"><span aria-hidden="true">—</span> Tiret tapé</span></div>
+        </div>
+
+        <div class="grp">
+          <div class="grp-h"><b style="color: #fff8fb">Chapitre 3, partie 1</b><span class="chip info"><span aria-hidden="true">✚</span> Nouveau</span><span class="muted">2 paragraphes</span><span class="muted" style="margin-left: auto; font-size: 13px" aria-disabled="true">Mettre en page · après la publication</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 3, partie 1 · § 12 ·</span> <span class="ext">“Trois lits libres, deux brancards, une lampe qui fume.”</span></span><span class="chip m-l"><span aria-hidden="true">¶</span> Liste sans puce</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 3, partie 1 · § 30 ·</span> <span class="ext">“— Où est passé le registre des entrées ?”</span></span><span class="chip m-t"><span aria-hidden="true">—</span> Tiret tapé</span></div>
+        </div>
+
+        <div class="grp">
+          <div class="grp-h"><b style="color: #fff8fb">Chapitre 3, partie 2</b><span class="chip info"><span aria-hidden="true">✚</span> Nouveau</span><span class="muted">3 paragraphes</span><span class="muted" style="margin-left: auto; font-size: 13px" aria-disabled="true">Mettre en page · après la publication</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 3, partie 2 · § 7 ·</span> <span class="ext" style="font-style: italic">“Ne pas oublier : le lit six ne supporte pas la morphine.”</span></span><span class="chip m-i"><span aria-hidden="true" style="font-style: italic">P</span> Italique entier</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 3, partie 2 · § 22 ·</span> <span class="ext">“— Demain, peut-être, si la route est rouverte.”</span></span><span class="chip m-t"><span aria-hidden="true">—</span> Tiret tapé</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 3, partie 2 · § 63 ·</span> <span class="ext">“— Vous avez de la fièvre, asseyez-vous un instant.”</span></span><span class="chip m-t"><span aria-hidden="true">—</span> Tiret tapé</span></div>
+        </div>
+
+        <div class="grp">
+          <div class="grp-h"><b style="color: #fff8fb">Chapitre 4, partie 1</b><span class="chip info"><span aria-hidden="true">✚</span> Nouveau</span><span class="muted">1 paragraphe</span><span class="muted" style="margin-left: auto; font-size: 13px" aria-disabled="true">Mettre en page · après la publication</span></div>
+          <div class="ligne"><span class="txt"><span class="ref">Chapitre 4, partie 1 · § 5 ·</span> <span class="ext">“Arrivée du train sanitaire à six heures, départ à huit.”</span></span><span class="chip m-l"><span aria-hidden="true">¶</span> Liste sans puce</span></div>
+        </div>
+      </div>
+    </details>
+
+    <div style="display: flex; align-items: center; gap: 16px; padding-top: 4px">
+      <button type="button" class="btn pri" style="height: 44px; padding: 0 22px; font-size: 15px">Publier selon le calendrier</button>
+      <span class="muted" style="font-size: 14px">Les 12 paragraphes à vérifier restent listés dans le résumé de la publication, avec les liens « Mettre en page ».</span>
+    </div>
+  </div>
+
+  <aside style="display: flex; flex-direction: column; gap: 16px; align-self: start">
+    <section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px">
+      <span class="lbl">Ce qui va se passer</span>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">37 pages de lecture</b> en <b style="color: #fff8fb">10 publications</b></span></div>
+        <div style="display: flex; gap: 10px"><span class="chip ok">✓</span><span><b style="color: #fff8fb">10 annonces</b>, une par publication</span></div>
+        <div style="display: flex; gap: 10px"><span class="chip warn">!</span><span><b style="color: #fff8fb">12 paragraphes à vérifier</b>, à corriger avant ou après la mise en ligne</span></div>
+      </div>
+    </section>
+    <section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px">
+      <span class="lbl">Ce que l'analyse a reconnu</span>
+      <dl style="margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 14px">
+        <dt>Récit</dt><dd style="margin: 0; color: #fff8fb; font-weight: 700; text-align: right">1 207</dd>
+        <dt>Dialogue (puce ou style)</dt><dd style="margin: 0; color: #fff8fb; font-weight: 700; text-align: right">1 586</dd>
+        <dt>Pensée (style Pensée)</dt><dd style="margin: 0; color: #fff8fb; font-weight: 700; text-align: right">22</dd>
+        <dt>Centré</dt><dd style="margin: 0; color: #fff8fb; font-weight: 700; text-align: right">26</dd>
+        <dt>Par déduction, à vérifier</dt><dd style="margin: 0; color: #f4c069; font-weight: 700; text-align: right">⚠ 12</dd>
+      </dl>
+    </section>
+    <section class="card" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 10px">
+      <span class="lbl" style="color: #b7a9cc">Variante · encart replié</span>
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #f4c069; border-radius: 6px; background: #241740; font-size: 14px"><span aria-hidden="true" style="color: #f4c069; font-weight: 700">!</span><b style="color: #fff8fb">12 paragraphes à vérifier</b><span style="margin-left: auto; color: #f3a6c8">Afficher ▾</span></div>
+      <p class="muted" style="margin: 0; font-size: 13px">État par défaut : replié, le compte reste visible à l'étape 2. Au-delà de 200 paragraphes, la liste s'arrête et le dit.</p>
+    </section>
+  </aside>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1690}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

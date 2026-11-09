@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace équipe — mettre en page un chapitre</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&family=Literata:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+body{margin:0;background:#1b1231;color:#ebe3f2;font-family:"Nunito Sans","Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+a{color:#f3a6c8;text-decoration:none}a:hover{color:#f8c4da}
+h1,h2,h3{font-family:"Outfit",sans-serif;color:#fff8fb;margin:0;line-height:1.1}
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#f3a6c8;font-weight:500}
+.card{background:#2d1f4f;border:1px solid #4a3b6e;border-radius:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:4px;border:1px solid #7f6aa8;color:#fff8fb;font-weight:600;font-size:14px;background:transparent;font-family:inherit;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn.pri{background:#f3a6c8;color:#2a1240;border-color:#f3a6c8}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid;white-space:nowrap;box-sizing:border-box}
+.ok{color:#8fd6a3;border-color:#8fd6a3}.warn{color:#f4c069;border-color:#f4c069}.info{color:#b7a9cc;border-color:#7f6aa8}.rose{color:#f3a6c8;border-color:#f3a6c8}
+.muted{color:#b7a9cc}
+.side a{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-radius:4px;color:#ebe3f2;font-weight:500}
+.side a.on{background:#3a2a63;color:#fff8fb;border-left:3px solid #f3a6c8}
+.seg{display:inline-flex;border:1px solid #7f6aa8;border-radius:4px;overflow:hidden}
+.seg button{height:34px;padding:0 12px;border:0;border-right:1px solid #4a3b6e;background:transparent;color:#ebe3f2;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:#3a2a63;color:#fff8fb;box-shadow:inset 0 -3px 0 #f3a6c8}
+kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:500;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;border:1px solid #7f6aa8;border-bottom-width:2px;border-radius:4px;color:#fff8fb;background:#241740;white-space:nowrap}
+/* Colonne de lecture : reprise de reader.css (.yn-reader, thème Nuit, 18 px, interligne 1,6, 68ch) */
+.yn-reader{box-sizing:content-box;width:68ch;margin:0;padding:36px 32px 28px;background:#1b1231;border:1px solid #4a3b6e;border-radius:10px;color:#ebe3f2;font-family:Literata,Georgia,serif;font-size:18px;line-height:1.6;text-align:justify;hyphens:auto;text-wrap:pretty;font-variant-numeric:oldstyle-nums}
+.yn-reader h1{margin:0;color:#fff8fb;font-family:"Outfit",sans-serif;font-size:2.2em;font-weight:800;line-height:1.1;text-align:center}
+.yn-reader .yn-subtitle{margin:.4em 0 1.6em;padding-bottom:.4em;border-bottom:1px solid #4a3b6e;color:#fff8fb;font-family:"Outfit",sans-serif;font-size:1.25em;font-weight:700;line-height:1.25;text-align:center}
+.yn-reader p{margin:0}
+.yn-dialogue{padding-left:2.2em}
+.yn-tiret{display:inline-block;width:1.3em;margin-left:-1.3em;white-space:nowrap}
+.yn-thought{padding-left:2.2em;font-style:italic}
+.yn-center{text-align:center;hyphens:manual}
+.yn-scene-break{margin:.9em auto;border:0;color:#f3a6c8;text-align:center;height:auto;overflow:visible}
+.yn-scene-break::before{content:"✿ ✿ ✿";display:block;font-size:.9em;letter-spacing:.6em;line-height:1}
+/* Unités de l'éditeur : étiquette de style dans la marge, sélection, modifié */
+.u{position:relative;margin:0 -14px .8em;padding:3px 14px;border-radius:4px}
+.u.sel{background:#3a2a63;box-shadow:inset 3px 0 0 #f3a6c8}
+.tag{position:absolute;left:-92px;top:6px;width:66px;display:flex;justify-content:flex-end;align-items:center;gap:5px;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:500;line-height:1;color:#b7a9cc;font-style:normal}
+.tag b{width:20px;height:20px;border-radius:4px;border:1px solid #7f6aa8;display:inline-flex;align-items:center;justify-content:center;color:#ebe3f2;font-weight:500}
+.u.sel .tag b{background:#f3a6c8;border-color:#f3a6c8;color:#2a1240}
+.mod{position:absolute;right:-30px;top:5px;width:20px;text-align:center;color:#f4c069;font-size:14px;line-height:1.2;font-family:"Nunito Sans",sans-serif;font-style:normal}
+.tag .s{color:#f3a6c8;font-size:13px}
+.pal{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:10px;width:100%;height:44px;padding:0 12px;border:1px solid #7f6aa8;border-radius:6px;background:transparent;color:#ebe3f2;font-family:inherit;font-size:14px;font-weight:600;text-align:left;cursor:pointer;box-sizing:border-box}
+.pal small{font-weight:400;font-size:12px;color:#b7a9cc}
+.pal[aria-pressed="true"]{border:2px solid #f3a6c8;background:#3a2a63;color:#fff8fb;box-shadow:inset 0 2px 3px rgba(0,0,0,.45)}
+.pal .ic{font-family:Literata,Georgia,serif;font-size:16px;color:#f3a6c8;text-align:center}
+.menu{list-style:none;margin:0;padding:6px;background:#2d1f4f;border:1px solid #7f6aa8;border-radius:8px;box-shadow:0 12px 32px rgba(10,4,24,.55);font-size:14px}
+.menu li{display:flex;align-items:center;gap:10px;min-height:36px;padding:4px 10px;border-radius:4px;color:#ebe3f2}
+.menu li.f{background:#3a2a63;color:#fff8fb;outline:2px solid #f3a6c8;outline-offset:-2px}
+.menu li kbd{margin-left:auto}
+.menu li.sep{min-height:0;height:1px;padding:0;margin:6px 4px;background:#4a3b6e}
+.menu .ic{width:16px;text-align:center;color:#f3a6c8;flex-shrink:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1640px; box-sizing: border-box; display: flex; background: #1b1231; position: relative; overflow: hidden">
+<aside class="side" style="width: 240px; background: #241740; border-right: 1px solid #4a3b6e; padding: 20px 12px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-sizing: border-box">
+  <a href="Main.dc.html" style="height: 48px; color: #fff8fb; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px; margin-bottom: 12px"><span style="width: 24px; height: 24px; border-radius: 50%; background: #f3a6c8; display: inline-block"></span>Yume · Équipe</a>
+  <a href="TeamDashboard.dc.html">Tableau de bord</a>
+  <a href="TeamDashboard.dc.html">Mes tâches</a>
+  <a href="TeamPublier.dc.html">Publier un tome</a>
+  <a href="Planning.dc.html">Planning complet</a>
+  <a href="TeamDashboard.dc.html">Journal</a>
+  <a href="TeamDashboard.dc.html">Membres et rôles</a>
+  <a href="TeamDashboard.dc.html">Réglages (rappels, Discord)</a>
+  <p class="muted" style="margin: 16px 6px 0; font-size: 12px; line-height: 1.45; border-top: 1px solid #4a3b6e; padding-top: 14px">Vue hors menu : on l'ouvre par « Mettre en page » sur la fiche du tome ou dans Corrections.</p>
+</aside>
+
+<main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+  <header style="padding: 24px 40px 18px; border-bottom: 1px solid #4a3b6e; display: flex; flex-direction: column; gap: 10px">
+    <nav aria-label="Fil d'Ariane" style="font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap"><a href="Oeuvre.dc.html">Miss Medic's Diary at War</a><span class="muted" aria-hidden="true">›</span><a href="TomeSousChapitres.dc.html">Tome 2</a><span class="muted" aria-hidden="true">›</span><span aria-current="page" style="color: #fff8fb">Chapitre 2, partie 1</span></nav>
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px">
+      <div style="min-width: 0"><span class="lbl">Mettre en page</span><h1 style="font-size: 30px">Chapitre 2, partie 1 — 10 septembre, soir</h1>
+        <p class="muted" style="margin: 8px 0 0; font-size: 13px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap"><span class="chip ok"><span aria-hidden="true">●</span> En ligne</span><span>1 312 mots · 58 unités</span><span aria-hidden="true">·</span><a href="TeamMiseEnPage.dc.html">← Chapitre 1, partie 3</a><a href="TeamMiseEnPage.dc.html">Chapitre 2, partie 2 →</a></p>
+      </div>
+      <div style="display: flex; gap: 14px; align-items: flex-end; flex-shrink: 0">
+        <div style="display: flex; flex-direction: column; gap: 4px"><span class="lbl" style="color: #b7a9cc">Aperçu du thème</span><div class="seg" role="group" aria-label="Aperçu du thème"><button type="button" aria-pressed="true">✓ Nuit</button><button type="button" aria-pressed="false">Papier</button><button type="button" aria-pressed="false">Sépia</button></div></div>
+        <div style="display: flex; flex-direction: column; gap: 4px"><span class="lbl" style="color: #b7a9cc">Largeur</span><div class="seg" role="group" aria-label="Largeur de la colonne"><button type="button" aria-pressed="true">✓ Bureau · 68ch</button><button type="button" aria-pressed="false">Mobile · 390 px</button></div></div>
+        <button type="button" class="btn sm" aria-label="Raccourcis clavier" style="width: 34px; padding: 0">?</button>
+      </div>
+    </div>
+  </header>
+
+  <div role="status" aria-live="polite" style="margin: 16px 40px 0; padding: 10px 16px; border: 1px solid #8fd6a3; border-radius: 6px; background: #241740; display: flex; align-items: center; gap: 12px; font-size: 14px">
+    <span aria-hidden="true" style="color: #8fd6a3; font-weight: 700">✓</span><b style="color: #fff8fb">3 paragraphes passés en Dialogue</b><span class="muted">§ 5 à 7 · tiret cadratin et espace insécable posés</span>
+    <span style="margin-left: auto; display: flex; gap: 16px; align-items: center"><a href="TeamMiseEnPage.dc.html" style="display: inline-flex; gap: 6px; align-items: center">Annuler <kbd>Ctrl Z</kbd></a><span class="chip info"><span aria-hidden="true">ⓘ</span> Camille a aussi ouvert ce chapitre il y a 4 min</span></span>
+  </div>
+
+  <div style="flex-grow: 1; display: grid; grid-template-columns: minmax(0, 1fr) 258px; gap: 22px; padding: 20px 32px 24px; align-items: start">
+    <div style="padding-left: 66px; display: flex; flex-direction: column; gap: 12px; min-width: 0">
+      <p class="muted" style="margin: 0 0 0 -66px; font-size: 12px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center"><span class="lbl" style="color: #b7a9cc">Marge</span><span><kbd>R</kbd> Récit</span><span><kbd>D</kbd> Dialogue</span><span><kbd>P</kbd> Pensée</span><span><kbd>C</kbd> Centré</span><span><kbd>—</kbd> Séparateur</span><span><kbd>T</kbd> Intertitre</span><span><span style="color: #f3a6c8">✓</span> sélectionné</span><span><span style="color: #f4c069">✎</span> à droite : modifié, non enregistré</span></p>
+      <article class="yn-reader" aria-label="Aperçu du chapitre, tel qu'il s'affiche sur le site">
+        <h1>Chapitre 2</h1>
+        <h2 class="yn-subtitle">10 septembre, soir</h2>
+
+        <div class="u"><span class="tag">1 <b>C</b></span><p class="yn-center"><em>Hôpital de campagne de la ferme Weiler, 10 septembre, soir</em></p></div>
+        <div class="u"><span class="tag">2 <b>R</b></span><p>La pluie a repris peu après le dîner. Elle tambourine sur la toile de la grande tente comme si elle voulait entrer, et les lanternes tremblent à chaque rafale.</p></div>
+        <div class="u"><span class="tag">3 <b>R</b></span><span class="mod" title="Modifié, non enregistré" aria-label="modifié">✎</span><p>Nous avons reçu onze blessés depuis midi. Aucun n'est en danger cette nuit, mais deux d'entre eux réclament de l'eau toutes les dix minutes, et je n'ose pas leur dire que la citerne est presque vide.</p></div>
+        <div class="u"><span class="tag">4 <b>R</b></span><p>Martha repliait les draps propres au fond de la tente quand je suis revenue de la tournée.</p></div>
+        <div class="u sel" aria-selected="true"><span class="tag"><span class="s" aria-label="sélectionné">✓</span>5 <b>D</b></span><span class="mod" title="Modifié, non enregistré" aria-label="modifié">✎</span><p class="yn-dialogue"><span class="yn-tiret">—</span>Vous devriez dormir un peu, m'a-t-elle dit sans lever les yeux.</p></div>
+        <div class="u sel" aria-selected="true"><span class="tag"><span class="s" aria-label="sélectionné">✓</span>6 <b>D</b></span><span class="mod" title="Modifié, non enregistré" aria-label="modifié">✎</span><p class="yn-dialogue"><span class="yn-tiret">—</span>Quand le dernier pansement sera changé.</p></div>
+        <div class="u sel" aria-selected="true"><span class="tag"><span class="s" aria-label="sélectionné">✓</span>7 <b>D</b></span><span class="mod" title="Modifié, non enregistré" aria-label="modifié">✎</span><p class="yn-dialogue"><span class="yn-tiret">—</span>Vous dites cela tous les soirs, et tous les soirs il reste un dernier pansement.</p></div>
+        <div class="u"><span class="tag">8 <b>R</b></span><p>Elle n'avait pas tort. Je l'ai regardée s'éloigner entre les lits, sa lampe à la main, et je me suis dit que nous étions devenues deux silhouettes qui se croisent sans jamais s'asseoir.</p></div>
+        <div class="u"><span class="tag">9 <b>P</b></span><span class="mod" title="Modifié, non enregistré" aria-label="modifié">✎</span><p class="yn-thought">Encore une heure, et je m'accorde le droit de fermer les yeux.</p></div>
+        <div class="u"><span class="tag">10 <b>R</b></span><p>Le soldat du lit quatre m'a demandé d'écrire une lettre pour sa mère. Il voulait qu'elle sache qu'il mange à sa faim et que le temps est doux. J'ai noté chaque mot qu'il m'a dicté, sans rien corriger.</p></div>
+        <div class="u"><span class="tag">11 <b>D</b></span><p class="yn-dialogue"><span class="yn-tiret">—</span>Vous ne lui parlerez pas de la jambe, n'est-ce pas ?</p></div>
+        <div class="u"><span class="tag">12 <b>D</b></span><p class="yn-dialogue"><span class="yn-tiret">—</span>Ce n'est pas à moi de le lui apprendre. Ce sera à vous, quand vous rentrerez.</p></div>
+        <div class="u"><span class="tag">13 <b>—</b></span><span class="mod" title="Modifié, non enregistré" aria-label="modifié">✎</span><hr class="yn-scene-break" aria-label="Séparateur de scène"></div>
+        <div class="u"><span class="tag">14 <b>R</b></span><p>Plus tard, le vent est tombé. On n'entend plus que la respiration des dormeurs et, très loin vers l'est, un roulement sourd qui pourrait être l'orage, ou autre chose.</p></div>
+        <div class="u"><span class="tag">15 <b>R</b></span><p>J'écris ces lignes à la lueur d'une bougie que j'ai promis de rendre demain matin. Si cette page est tachée, c'est la cire, et rien d'autre.</p></div>
+        <p class="muted" style="margin: 8px 0 0; text-align: center; font-family: 'Nunito Sans', sans-serif; font-size: 13px">… 43 unités plus bas, jusqu'à la fin de la partie 1</p>
+      </article>
+    </div>
+
+    <aside style="display: flex; flex-direction: column; gap: 16px" aria-label="Palette de mise en page">
+      <section class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline"><span class="lbl">Style de la sélection</span><span class="muted" style="font-size: 12px">3 § · 5 à 7</span></div>
+        <button type="button" class="pal" aria-pressed="false"><span class="ic" aria-hidden="true">¶</span><span>Récit</span><kbd>R</kbd></button>
+        <button type="button" class="pal" aria-pressed="true"><span class="ic" aria-hidden="true">—</span><span>✓ Dialogue <small>tiret posé</small></span><kbd>D</kbd></button>
+        <button type="button" class="pal" aria-pressed="false"><span class="ic" aria-hidden="true" style="font-style: italic">P</span><span>Pensée <small>italique</small></span><kbd>P</kbd></button>
+        <button type="button" class="pal" aria-pressed="false"><span class="ic" aria-hidden="true">≡</span><span>Centré</span><kbd>C</kbd></button>
+        <div style="height: 1px; background: #4a3b6e; margin: 4px 0"></div>
+        <button type="button" class="pal" aria-pressed="false"><span class="ic" aria-hidden="true" style="font-size: 12px">✿</span><span>Séparateur <small>avant</small></span><kbd>S</kbd></button>
+        <button type="button" class="pal" aria-pressed="false"><span class="ic" aria-hidden="true" style="font-family: 'Outfit', sans-serif; font-weight: 800">T</span><span>Intertitre <small>§ ⇄ h3</small></span><kbd>T</kbd></button>
+        <p class="muted" style="margin: 4px 0 0; font-size: 12px; line-height: 1.5">Clic : sélectionner · Maj + clic : plage · Ctrl + clic : ajouter · ↑ ↓ : déplacer · Échap : vider · double clic ou Entrée : corriger le texte</p>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 6px">
+        <button type="button" class="btn" aria-haspopup="menu" aria-expanded="true" style="justify-content: space-between; border-color: #f3a6c8; background: #3a2a63">Actions <span aria-hidden="true">▴</span></button>
+        <ul class="menu" role="menu" aria-label="Actions">
+          <li role="menuitem" class="f"><span class="ic" aria-hidden="true">—</span>Lignes commençant par un tiret → Dialogue</li>
+          <li role="menuitem"><span class="ic" aria-hidden="true">¶</span>Toute la sélection → Récit</li>
+          <li role="menuitem"><span class="ic" aria-hidden="true" style="font-style: italic; font-family: Literata, serif">P</span>Paragraphes entièrement en italique → Pensée</li>
+          <li role="menuitem"><span class="ic" aria-hidden="true">⌫</span>Supprimer les paragraphes vides</li>
+          <li class="sep" role="separator"></li>
+          <li role="menuitem"><span class="ic" aria-hidden="true">↶</span>Annuler<kbd>Ctrl Z</kbd></li>
+          <li role="menuitem"><span class="ic" aria-hidden="true">↷</span>Rétablir<kbd>Ctrl Maj Z</kbd></li>
+        </ul>
+      </section>
+
+      <section class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; border-color: #ff8f7e">
+        <span class="lbl" style="color: #b7a9cc">Variante · conflit à l'enregistrement</span>
+        <p role="alert" style="margin: 0; font-size: 14px; display: flex; gap: 10px"><span aria-hidden="true" style="color: #ff8f7e; font-weight: 700">⚠</span><span><b style="color: #fff8fb">Quelqu'un a enregistré ce chapitre entre-temps</b> (Camille, 18 h 01) : recharger pour voir sa version.</span></p>
+        <div style="display: flex; gap: 8px"><button type="button" class="btn sm">↻ Recharger</button></div>
+      </section>
+    </aside>
+  </div>
+
+  <footer style="margin-top: auto; border-top: 1px solid #4a3b6e; background: #241740; padding: 14px 40px; display: flex; align-items: center; gap: 16px">
+    <button type="button" class="btn pri">Enregistrer <span style="font-weight: 400">(Ctrl+S)</span></button>
+    <span class="chip warn"><span aria-hidden="true">✎</span> 12 paragraphes modifiés</span>
+    <span class="muted" style="font-size: 13px; white-space: nowrap" title="Sans annonce ; une révision est créée">✓ Enregistré à 18 h 02</span>
+    <nav aria-label="Liens du chapitre" style="margin-left: auto; display: flex; gap: 20px; font-size: 14px; align-items: center; white-space: nowrap">
+      <a href="Lecteur.dc.html">Voir le chapitre ↗</a>
+      <a href="TeamMiseEnPage.dc.html">Historique des révisions</a>
+      <a href="TeamMiseEnPage.dc.html">Édition avancée (administration WordPress) ↗</a>
+    </nav>
+  </footer>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

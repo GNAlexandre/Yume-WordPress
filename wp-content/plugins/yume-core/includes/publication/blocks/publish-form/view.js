@@ -138,6 +138,7 @@
 		var retirer = racine.querySelector( '[data-yn-retirer]' );
 		var liste = racine.querySelector( '[data-yn-liste]' );
 		var avertissements = racine.querySelector( '[data-yn-avertissements]' );
+		var douteux = racine.querySelector( '[data-yn-douteux]' );
 		var progression = racine.querySelector( '[data-yn-progression]' );
 		var resultat = racine.querySelector( '[data-yn-resultat]' );
 		var etat = racine.querySelector( '[data-yn-etat]' );
@@ -347,6 +348,62 @@
 				avertissements.appendChild( li );
 			} );
 			avertissements.hidden = ! ( liste && liste.length );
+		}
+
+		/**
+		 * Paragraphes douteux de l'analyse (rapport.douteux) : encart replié « N paragraphes à
+		 * vérifier », groupés par chapitre (motif et extrait), avec le lien « Mettre en page » du
+		 * chapitre quand il est déjà en ligne (ligne de comparaison de même index).
+		 */
+		function afficherDouteux( rapport ) {
+			if ( ! douteux ) {
+				return;
+			}
+			var titre = douteux.querySelector( '[data-yn-douteux-titre]' );
+			var zone = douteux.querySelector( '[data-yn-douteux-liste]' );
+			var entrees = rapport && rapport.douteux ? rapport.douteux : [];
+			var total = rapport && rapport.stats && rapport.stats.douteux ? rapport.stats.douteux : entrees.length;
+			zone.textContent = '';
+			douteux.open = false;
+			douteux.hidden = ! total;
+			if ( ! total ) {
+				return;
+			}
+			titre.textContent = pluriel( total, 'paragraphe à vérifier', 'paragraphes à vérifier' )
+				+ ( total > entrees.length ? ' (' + entrees.length + ' premiers listés)' : '' );
+			var lignes = rapport.comparaison && rapport.comparaison.lignes ? rapport.comparaison.lignes : [];
+			var groupes = [];
+			entrees.forEach( function ( d ) {
+				var dernier = groupes[ groupes.length - 1 ];
+				if ( ! dernier || dernier.index !== d.index ) {
+					dernier = { index: d.index, entrees: [] };
+					groupes.push( dernier );
+				}
+				dernier.entrees.push( d );
+			} );
+			groupes.forEach( function ( g ) {
+				var chapitre = ( rapport.chapitres || [] )[ g.index ] || {};
+				var ligne = lignes.filter( function ( l ) {
+					return l.index === g.index;
+				} )[ 0 ];
+				var section = el( 'section', 'yn-publish__douteux-chapitre' );
+				var entete = el( 'h4', '', ( chapitre.libelle || chapitre.titre || '' ) + ' · ' + pluriel( g.entrees.length, 'paragraphe', 'paragraphes' ) );
+				if ( ligne && ligne.mise_en_page ) {
+					entete.appendChild( document.createTextNode( ' ' ) );
+					entete.appendChild( lien( ligne.mise_en_page, 'Mettre en page' ) );
+				}
+				section.appendChild( entete );
+				var ul = el( 'ul' );
+				g.entrees.forEach( function ( d ) {
+					var li = el( 'li' );
+					li.appendChild( el( 'span', 'yn-muted', d.motif_libelle || d.motif ) );
+					li.appendChild( document.createTextNode( ' — ' ) );
+					li.appendChild( el( 'q', '', d.extrait ) );
+					ul.appendChild( li );
+				} );
+				section.appendChild( ul );
+				zone.appendChild( section );
+			} );
 		}
 
 		function pluriel( n, un, plusieurs ) {
@@ -1316,6 +1373,7 @@
 				afficherAvertissements( rapport.avertissements || [] );
 				infosAnalyse = rapport.tome || null;
 				afficherComparaison( rapport.comparaison || null );
+				afficherDouteux( rapport );
 				majFicheTome();
 				programmerDefinir();
 				if ( essai ) {
@@ -1875,6 +1933,7 @@
 				effacerPlan();
 				fiche.hidden = true;
 				afficherAvertissements( [] );
+				afficherDouteux( null );
 				liste.textContent = '';
 				liste.appendChild( el( 'span', 'yn-muted yn-publish__vide', 'Déposez le fichier du tome : ses chapitres apparaîtront ici avant tout enregistrement.' ) );
 				messages.textContent = '';

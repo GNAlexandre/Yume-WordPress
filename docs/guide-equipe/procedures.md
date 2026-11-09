@@ -41,7 +41,7 @@ Chaque membre a un rôle. Un rôle se demande à un gérant.
 | Rôle | Peut |
 | --- | --- |
 | **Traducteur**, **Relecteur**, **Graphiste** | Voir l'espace équipe et tout le planning. Mettre à jour l'avancement des tomes dont il est responsable. Envoyer des images. Consulter les statistiques d'audience (chiffres seulement) et exporter le classement des œuvres. |
-| **Éditeur Yume** | Tout ce qui précède, plus : créer et modifier les œuvres et les tomes, ajouter des chapitres, mettre à jour le planning de tous les tomes, publier les glossaires, écrire des actualités, modérer les commentaires, traiter les coquilles signalées. |
+| **Éditeur Yume** | Tout ce qui précède, plus : créer et modifier les œuvres et les tomes, ajouter des chapitres, corriger la mise en page d'un chapitre sur le site, mettre à jour le planning de tous les tomes, publier les glossaires, écrire des actualités, modérer les commentaires, traiter les coquilles signalées. |
 | **Gérant** | Tout ce qui précède, plus : gérer les membres et leurs rôles, voir les indicateurs et la santé du site, modifier les réglages, voir et exporter la liste des lecteurs qui suivent une œuvre, consulter les comptes inscrits et les ajouter à l'équipe. |
 
 > **À savoir** : chacun ne voit que les menus dont son rôle a besoin. Une entrée absente n'est pas une panne.
@@ -395,15 +395,24 @@ Le fichier Word (DOCX) du tome est la source de la lecture en ligne. Le site le 
 | Style **Titre 1** : « Chapitre 1 », « Chapitre 2 »… | Un nouveau chapitre (une page de lecture) |
 | Style **Titre 2** juste après le Titre 1 | Le sous-titre du chapitre |
 | Style **Titre 2** seul : « Prologue », « Postface »… | Un chapitre spécial, sans numéro |
-| Paragraphe qui commence par « — », ou liste à puce « — » | Un dialogue (tiret long, en retrait) |
+| Style **Récit** (ou **Narration**), ou **Corps de texte** | Du récit, sans tiret |
+| Style **Dialogue**, ou liste à puce « — » (style « - Paragraphe ») | Un dialogue (tiret long, en retrait) |
 | Style **Pensée** | Une pensée (italique, en retrait) |
-| Paragraphe centré | Un paragraphe centré |
-| `***`, `* * *` ou `◇` seul sur une ligne | Un changement de scène |
+| Style **Centré** | Un paragraphe centré (date, titre de lettre, mention) |
+| Style **Séparateur**, ou `***`, `* * *` ou `◇` seul sur une ligne | Un changement de scène |
 | Image JPG, PNG ou WebP dans le texte | Une illustration pleine largeur |
 | Images placées avant le premier Titre 1 | La galerie d'illustrations du tome |
 | Notes de bas de page | Des notes en fin de chapitre |
 
 Les en-têtes et pieds de page de Word sont ignorés. Les sauts de page ne changent rien au texte.
+
+Les styles **Récit**, **Dialogue**, **Pensée**, **Centré** et **Séparateur** n'existent pas dans un Word neuf : créez-les une fois (**Accueil**, volet **Styles**, **Nouveau style**), avec exactement ce nom. Un style nommé gagne toujours :
+
+- un paragraphe au style **Récit** reste du récit, même s'il porte une puce « — », commence par un tiret ou est tout en italique ;
+- un paragraphe au style **Dialogue** devient un dialogue, même sans puce ;
+- le style « - Paragraphe » de la galerie de Word (le paragraphe de liste à puce « — ») donne un dialogue. Un style nommé seulement « Paragraphe » reste du récit.
+
+> **Attention** : sans style nommé, le site devine. Un tiret tapé au début d'un paragraphe en Corps de texte devient un dialogue ; un paragraphe tout en italique reste du récit ; un paragraphe centré à la main est centré. Ces paragraphes sont signalés à l'envoi : « 12 paragraphes à vérifier ».
 
 ## Écrire les dialogues et les pensées
 
@@ -443,6 +452,7 @@ Le marqueur n'est jamais publié. Majuscules et accents sont indifférents.
 3. Les pensées utilisent le style **Pensée**.
 4. Chaque illustration a son texte de remplacement.
 5. Le fichier ne contient que les chapitres à publier, ou le tome avec ses chapitres déjà en ligne (ils seront reconnus et laissés tels quels).
+6. Après l'envoi, si le résumé de l'analyse indique « N paragraphes à vérifier », ouvrez l'encart **N paragraphes à vérifier** sous la liste des chapitres. Pour chaque chapitre, il donne la raison (tiret tapé, liste sans tiret, italique sans style Pensée, centré à la main) et le début du paragraphe. Corrigez le style dans Word et redéposez le fichier, ou, pour un chapitre déjà en ligne, cliquez sur **Mettre en page** pour le corriger sur le site.
 
 # Ajouter des chapitres à un tome
 
@@ -590,7 +600,33 @@ Pour des coquilles ou des corrections de relecture, sans prévenir les lecteurs.
 
 Le chapitre est remplacé à la même adresse. Ses commentaires et sa date sont gardés. Aucune annonce n'est envoyée.
 
-> **Astuce** : pour une seule coquille, un éditeur peut aussi corriger le texte directement dans l'administration WordPress (fiche du tome, lien **Édition avancée (administration WordPress)**), ou depuis **Corrections** avec **Corriger dans l'éditeur** (voir « Les coquilles signalées par les lecteurs »). Traducteurs, relecteurs et graphistes : signalez la coquille à un éditeur sur le Discord de l'équipe.
+> **Astuce** : pour une coquille ou un paragraphe mal stylé, un éditeur n'a pas besoin de reprendre le Word : sur la fiche du tome (section « Chapitres ») ou depuis **Corrections**, le bouton **Mettre en page** ouvre le chapitre sur le site, où l'on corrige le texte et le style de chaque paragraphe (voir « Corriger la mise en page d'un chapitre sur le site »). Traducteurs, relecteurs et graphistes : signalez la coquille à un éditeur sur le Discord de l'équipe.
+
+## Corriger la mise en page d'un chapitre sur le site
+
+Pour un chapitre déjà déposé (en ligne, programmé ou en brouillon) dont des paragraphes sont mal présentés : un récit affiché comme un dialogue (paragraphe de liste dans Word), une pensée restée en texte normal, un titre de lettre qui devrait être centré, un séparateur de scène oublié, ou une coquille. Réservé aux éditeurs et aux gérants.
+
+1. Ouvrez la fiche du tome (**Tous les tomes**, puis **Modifier**). Dans la section « Chapitres », cliquez sur **Mettre en page** à la ligne du chapitre. Depuis **Corrections**, le même bouton se trouve à côté de **Corriger dans l'éditeur**.
+2. Le chapitre s'affiche comme sur le site. Dans la marge, chaque paragraphe porte son style et son numéro : R (récit), D (dialogue), P (pensée), C (centré), — (séparateur de scène), T (intertitre).
+3. Sélectionnez les paragraphes à changer : un clic pour un paragraphe ; **Maj** + clic ou un glisser de la souris pour une suite de paragraphes ; **Ctrl** + clic (**Cmd** sur Mac) pour en ajouter un. Les flèches ↑ ↓ déplacent la sélection, **Échap** la vide.
+4. Cliquez sur un style de la palette, à droite (en bas sur téléphone) : **Récit**, **Dialogue**, **Pensée** ou **Centré**. Les touches R, D, P et C font la même chose. Le tiret du dialogue est ajouté ou retiré tout seul : ne le tapez jamais.
+5. Pour ajouter une coupure de scène, sélectionnez le premier paragraphe de la nouvelle scène et cliquez sur **Séparateur de scène** (touche S). **Intertitre** (touche T) transforme un paragraphe en petit titre, et inversement.
+6. Pour corriger le texte, double-cliquez sur le paragraphe (ou appuyez sur Entrée). **Ctrl + I** met en italique, **Ctrl + B** en gras, **Maj + Entrée** va à la ligne dans le même paragraphe. Entrée au milieu du texte coupe le paragraphe en deux ; Retour arrière au tout début le rattache au précédent. **Échap** annule la saisie ; un clic ailleurs la valide.
+7. Pour écrire un nouveau paragraphe, appuyez sur Entrée à la fin d'un paragraphe en saisie : un paragraphe vide du même style s'ouvre (Récit après un intertitre), tapez directement. À la souris ou sur téléphone, sélectionnez un paragraphe et cliquez sur **Ajouter un paragraphe après** (touche N). Un paragraphe laissé vide disparaît dès que vous en sortez.
+8. Vous pouvez coller du texte venu d'ailleurs : seuls l'italique et le gras sont gardés, et chaque ligne collée devient un paragraphe, du style du paragraphe en cours.
+9. Pour retirer des paragraphes ou un séparateur, sélectionnez-les et cliquez sur **Supprimer le paragraphe** (touche Suppr). Rien n'est demandé : en cas d'erreur, **Annuler** les fait revenir.
+10. Le menu **Actions** traite plusieurs paragraphes d'un coup : **Lignes commençant par un tiret → Dialogue**, **Toute la sélection → Récit**, **Paragraphes entièrement en italique → Pensée**, **Supprimer les paragraphes vides**. Sans sélection, elles portent sur tout le chapitre.
+11. Vérifiez le compteur, par exemple « 12 paragraphes modifiés », puis cliquez sur **Enregistrer** (ou **Ctrl + S**). Le message « Enregistré à 18 h 02 » confirme.
+
+Rien n'est annoncé aux lecteurs : ni Discord, ni e-mail. Le chapitre garde son adresse, sa date, son état et ses commentaires. Une ligne « mise en page corrigée » s'ajoute au journal de l'équipe.
+
+> **Astuce** : **Annuler** et **Rétablir** (**Ctrl + Z**, **Ctrl + Maj + Z**) reprennent vos dernières actions tant que vous n'avez pas quitté la page. Le bouton **?** liste tous les raccourcis. **Bureau** / **Mobile** et **Nuit** / **Papier** / **Sépia** changent seulement l'aperçu, pas vos réglages de lecture.
+
+> **À savoir** : chaque enregistrement garde l'ancienne version. Le lien **Historique des révisions** permet de comparer ou de revenir en arrière. Les images, la galerie et les notes ne se modifient pas ici : utilisez **Édition avancée (administration WordPress)**.
+
+> **Attention** : si quelqu'un a enregistré le même chapitre entre-temps, le site l'indique (« Quelqu'un a enregistré ce chapitre entre-temps… ») et n'écrase rien. Cliquez sur **Recharger** pour voir sa version, puis refaites vos changements. Un bandeau prévient aussi quand un autre membre a ouvert le chapitre depuis moins de 10 minutes.
+
+> **Attention** : les corrections faites ici ne sont pas dans le fichier Word. Si vous déposez de nouveau ce Word, le chapitre apparaît **En ligne, modifié** : choisissez **Garder la version en ligne** pour conserver vos corrections, ou corrigez d'abord le Word.
 
 ## Découper soi-même les chapitres
 

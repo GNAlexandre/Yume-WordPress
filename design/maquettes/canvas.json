@@ -92,6 +92,27 @@
       "w": 1440,
       "h": 2290,
       "title": "Tome · sommaire groupé et page de partie"
+    },
+    "TeamMiseEnPage.dc.html": {
+      "x": 0,
+      "y": 10020,
+      "w": 1440,
+      "h": 1640,
+      "title": "Équipe · mettre en page un chapitre"
+    },
+    "TeamMiseEnPageMobile.dc.html": {
+      "x": 1520,
+      "y": 10020,
+      "w": 390,
+      "h": 844,
+      "title": "Mettre en page mobile · saisie en place (Papier)"
+    },
+    "TeamMiseEnPageDouteux.dc.html": {
+      "x": 1990,
+      "y": 10020,
+      "w": 1440,
+      "h": 1690,
+      "title": "Publication · paragraphes à vérifier"
     }
   },
   "createdOnFiles": {
@@ -170,6 +191,21 @@
       "w": 360,
       "fill": "pink",
       "text": "Données réelles du tome 2 de Miss Medic (45 unités, 55 263 mots). Répartition en 10 publications (partition contiguë qui minimise la plus grosse ; un Titre 1 à 0 mot part avec l’unité suivante) : 6 425 · 4 985 · 5 098 · 5 135 · 6 207 · 8 453 · 4 363 · 5 200 · 5 145 · 4 252 mots. La publication 6 est l’unité « 17 septembre » seule (8 453 mots) : une unité n’est jamais coupée."
+    },
+    "r6": {
+      "x": 0,
+      "y": 9760,
+      "text": "2.9.0 — Mettre en page un chapitre",
+      "kind": "title1",
+      "maxW": 3430,
+      "w": 240
+    },
+    "s5": {
+      "x": 3510,
+      "y": 10020,
+      "w": 360,
+      "fill": "pink",
+      "text": "Texte neutre inventé (pas la traduction). Colonne de lecture identique au site (reader.css : Literata 18 px, 68ch, tiret suspendu, pensée en retrait italique, séparateur ✿ ✿ ✿). Marge : numéro + étiquette R / D / P / C / — / T, ✓ pour la sélection ; ✎ à droite pour « modifié, non enregistré ». Enregistrer = mise à jour sans annonce, avec révision ; 409 si quelqu'un a enregistré entre-temps."
     }
   },
   "order": [
@@ -185,7 +221,10 @@
     "LecteurMangaMobile.dc.html",
     "TeamDecoupage.dc.html",
     "TeamProgrammer.dc.html",
-    "TomeSousChapitres.dc.html"
+    "TomeSousChapitres.dc.html",
+    "TeamMiseEnPage.dc.html",
+    "TeamMiseEnPageMobile.dc.html",
+    "TeamMiseEnPageDouteux.dc.html"
   ],
   "pages": [],
   "title": "Yume Novel v2"

@@ -416,6 +416,41 @@ if ( $yume_tome ) {
 							<li><span class="yn-chip yn-chip--warn"><?php echo self::icone( 'alerte', 14 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statique. ?><?php echo esc_html( (string) $yume_a ); ?></span></li>
 						<?php endforeach; ?>
 					</ul>
+					<?php
+					// Paragraphes douteux (classés par déduction, pas par un style nommé) : encart replié,
+					// motifs et extraits par chapitre ; le script le remplit après l'analyse, avec le lien
+					// « Mettre en page » des chapitres déjà en ligne.
+					$yume_douteux = $yume_import ? (array) ( $yume_import['douteux'] ?? array() ) : array();
+					$yume_nb_dt   = $yume_import ? (int) ( $yume_import['stats']['douteux'] ?? count( $yume_douteux ) ) : 0;
+					?>
+					<details class="yn-publish__douteux" data-yn-douteux <?php echo $yume_nb_dt ? '' : 'hidden'; ?>>
+						<summary data-yn-douteux-titre>
+							<?php
+							/* translators: %d : nombre de paragraphes douteux */
+							echo esc_html( sprintf( _n( '%d paragraphe à vérifier', '%d paragraphes à vérifier', $yume_nb_dt, 'yume-core' ), $yume_nb_dt ) );
+							?>
+						</summary>
+						<p class="yn-muted yn-publish__aide"><?php esc_html_e( 'Ces paragraphes ont été classés par déduction, sans style Word nommé (Récit, Dialogue, Pensée, Centré). Vérifiez-les sur le site ; pour les prochains fichiers, appliquez le bon style dans Word.', 'yume-core' ); ?></p>
+						<div data-yn-douteux-liste>
+							<?php
+							$yume_dt_ch = array();
+							foreach ( $yume_douteux as $yume_d ) {
+								$yume_dt_ch[ (int) ( $yume_d['index'] ?? 0 ) ][] = $yume_d;
+							}
+							foreach ( $yume_dt_ch as $yume_index => $yume_ds ) :
+								$yume_ch = $yume_import['chapitres'][ $yume_index ] ?? array();
+								?>
+								<section class="yn-publish__douteux-chapitre">
+									<h4><?php echo esc_html( (string) ( $yume_ch['libelle'] ?? $yume_ch['titre'] ?? '' ) ); ?></h4>
+									<ul>
+										<?php foreach ( $yume_ds as $yume_d ) : ?>
+											<li><span class="yn-muted"><?php echo esc_html( (string) $yume_d['motif_libelle'] ); ?></span> — <q><?php echo esc_html( (string) $yume_d['extrait'] ); ?></q></li>
+										<?php endforeach; ?>
+									</ul>
+								</section>
+							<?php endforeach; ?>
+						</div>
+					</details>
 					<p class="yn-muted yn-publish__aide yn-publish__marqueurs" id="yn-publish-marqueurs">
 						<?php esc_html_e( 'Découpage à corriger ? Après l’analyse du fichier, « Délimiter les chapitres moi-même » permet de choisir chaque début de chapitre. Autre possibilité, sans rien installer : dans le document, ajoutez à chaque début de chapitre un paragraphe seul « [chapitre] Titre » (ou « [prologue] », « [interlude] Titre », « [bonus] Titre », « [épilogue] », « [postface] » ; « [sous-chapitre] Titre » pour une partie du chapitre précédent) : il force ce début de chapitre et n’est pas publié.', 'yume-core' ); ?>
 					</p>

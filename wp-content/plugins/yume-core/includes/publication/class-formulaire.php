@@ -406,6 +406,9 @@ final class Formulaire {
 							'resume'    => $rapport['import']['resume'],
 							'chapitres' => $rapport['import']['chapitres'],
 							'fichier'   => $rapport['import']['fichier'],
+							// Paragraphes douteux : encart « N paragraphes à vérifier » du formulaire.
+							'douteux'   => $rapport['import']['douteux'] ?? array(),
+							'stats'     => array( 'douteux' => (int) ( $rapport['import']['stats']['douteux'] ?? 0 ) ),
 						) : null,
 					),
 				)

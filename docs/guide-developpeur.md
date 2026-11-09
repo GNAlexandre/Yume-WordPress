@@ -13,8 +13,8 @@ wp-content/plugins/yume-core/     plugin métier
   yume-core.php                   en-tête, version, chargement des modules (socle)
   includes/<module>/module.php    un dossier par module : core, import, publication, planning,
                                   reader, social, library, statistiques, comptes, corrections,
-                                  discord, recommandations, rattrapage, glossaire, mangadex,
-                                  wordend, migration, updater
+                                  discord, recommandations, rattrapage, mise-en-page, glossaire,
+                                  mangadex, wordend, migration, updater
   includes/blocks-support.php     enregistrement des blocs dynamiques (socle)
   lib/plugin-update-checker/      bibliothèque de mises à jour vendorisée (MIT, voir lib/README.md)
   tests/                          mini-framework de test + tests/test-<module>.php (non livrés)
@@ -102,6 +102,12 @@ parcours de bout en bout `tools/ci/sous-chapitres.sh [--port 8102] [--captures D
 formulaire, « Couper aux Titre 2 », publication, sommaire groupé, page d'une partie) tourne sur une
 base locale distincte (`YUME_ENV=sous-chapitres` par défaut).
 
+Styles nommés et paragraphes douteux (2.9.0) : `import-styles` (DOCX synthétique aux styles Récit,
+Narration, Dialogue, Centré, « - Paragraphe », Corps de texte et paragraphe de liste basé sur lui,
+paragraphes douteux, plafond) et `publication-douteux` (rapport d'analyse, lien « Mettre en page »
+d'un chapitre en ligne, REST, encart du formulaire sans JavaScript). Le Word réel d'un tome sert
+d'essai local par `Docx_Converter::convert_file()` dans `wp eval-file`, jamais versionné.
+
 Programmation des sorties (2.8.0) : `publication-calendrier` (répartition en N publications,
 calendrier sur mesure, une annonce par publication, repli `repartition`, route
 `POST /publications/{id}/calendrier`, vue `?vue=programmer`). La répartition existe en PHP
@@ -112,6 +118,17 @@ l'équipe » de la CI). Parcours de bout en bout (Playwright, Chromium préinsta
 démo `tools/playground/demo.php`) : `YUME_ENV=e2e tools/localenv/serve.sh 8103` puis
 `YUME_ENV=e2e node tools/ci/programmer.js --base http://127.0.0.1:8103` (DOCX synthétique de 45
 unités construit par `tools/ci/programmer-donnees.php`, données supprimées à la fin).
+
+Mise en page d'un chapitre (2.9.0) : `mise-en-page` (unités dérivées des blocs et reconstruction à
+l'identique, styles et tiret de dialogue, typographie, nettoyage du HTML, blocs « autre »
+intouchables, scinder / fusionner / séparateur, conflit 409, révision, statut et métas inchangés,
+aucune annonce — compteurs d'événements, `pre_wp_mail`, `pre_http_request` —, journal privé, droits,
+verrou souple, vue). Les rappels sont appelés directement (`enregistrer()`, `etat()`, `permission()`).
+Parcours de bout en bout : `tools/ci/mise-en-page.sh [--port 8111] [--captures DOSSIER]` (Playwright,
+base `YUME_ENV=mise-en-page`, démo `tools/playground/demo.php` ; texte du chapitre 1 remis à son état
+de référence par `tools/ci/mise-en-page.php` à chaque passage) : sélection Maj + clic, touche D,
+double clic et correction, Entrée pour scinder, annuler / rétablir, Ctrl+S, rendu côté lecteur,
+conflit entre deux onglets, palette en bas sur mobile.
 
 `tests/runner.php` (exécuté par `wp eval-file`) charge `tests/test-*.php` ; chaque test est déclaré
 avec `yume_test( 'libellé', function () { … } )` et utilise les assertions de `tests/helpers.php`

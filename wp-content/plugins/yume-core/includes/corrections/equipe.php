@@ -315,6 +315,11 @@ function carte_chapitre( int $chapitre_id, array $lignes ): string {
 	if ( $editer ) {
 		$html .= lien_onglet( (string) $editer, __( 'Corriger dans l’éditeur', 'yume-core' ) );
 	}
+	// Vue « Mettre en page » du module mise-en-page (styles et texte en place, sans annonce).
+	$mise_en_page = $peut && function_exists( 'yume_mise_en_page_url' ) && function_exists( 'yume_mise_en_page_peut' ) && yume_mise_en_page_peut( $chapitre_id ) ? yume_mise_en_page_url( $chapitre_id ) : '';
+	if ( '' !== $mise_en_page ) {
+		$html .= lien_onglet( $mise_en_page, __( 'Mettre en page', 'yume-core' ), libelle_chapitre( $chapitre_id ) );
+	}
 	if ( $peut && $nouveaux > 0 ) {
 		$html .= '<form class="yn-corrections__form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		$html .= '<input type="hidden" name="action" value="yume_correction_chapitre"><input type="hidden" name="chapitre" value="' . $chapitre_id . '">';

@@ -2,6 +2,26 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.9.0 — 2026-11-09
+
+- Yume Novel 2.9.0 : mettre en page un chapitre sur le site (vue d’équipe « Mettre en page » : styles Récit / Dialogue / Pensée / Centré / Séparateur / Intertitre d’un clic, texte corrigé en place, enregistrement sans annonce avec révision), styles Word nommés et rapport des paragraphes à vérifier à l’import, maquettes
+
+## 2.9.0-dev.4 — 2026-11-09
+
+- Mise en page d’un chapitre sur le site : vue d’équipe « Mettre en page » (?vue=chapitre&id=ID, éditeurs et gérants), accessible depuis la fiche du tome et la vue Corrections ; styles Récit / Dialogue / Pensée / Centré / Séparateur / Intertitre d’un clic ou au clavier, texte corrigé en place (scinder, fusionner, nouveaux paragraphes, collage), actions groupées, annuler / rétablir, enregistrement sans annonce avec révision et protection contre les conflits (routes GET/PUT /yume/v1/chapitres/{id}/mise-en-page, POST …/presence)
+
+## 2.9.0-dev.3 — 2026-11-09
+
+- Import : styles Word nommés reconnus (Récit, Narration, Narratif → récit forcé ; Dialogue et « - Paragraphe » → dialogue même sans puce ; Centré) et rapport des « paragraphes à vérifier » (tiret tapé, liste sans tiret, italique sans style Pensée, centrage à la main) dans l’analyse du formulaire de publication, avec le lien « Mettre en page » des chapitres en ligne ; documents sans style nommé convertis à l’identique
+
+## 2.9.0-dev.2 — 2026-11-09
+
+- Maquettes 2.9.0 : vue « Mettre en page un chapitre » (bureau, mobile) et encart « paragraphes à vérifier » du formulaire de publication (design/maquettes, canvas.json)
+
+## 2.9.0-dev.1 — 2026-11-09
+
+- Cahier des charges 2.9.0 : vue d’équipe « Mettre en page un chapitre » (styles Récit / Dialogue / Pensée / Centré / Séparateur / Intertitre d’un clic, correction du texte en place, enregistrement sans annonce avec révision), styles Word nommés et rapport des paragraphes douteux à l’import, maquettes
+
 ## 2.8.0 — 2026-11-08
 
 - Yume Novel 2.8.0 : lecteur manga (doubles pages plus larges que la colonne, zoom − / + / Auto, double clic), sous-chapitres (nature « Sous-chapitre », « Couper aux Titre 2 », libellés « Chapitre 2, partie 1 », sommaire groupé), programmation des sorties (calendrier sur mesure, répartition en N publications par nombre de mots, vue « Programmer les sorties », route /publications/{id}/calendrier), maquettes 2.8.0

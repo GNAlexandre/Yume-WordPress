@@ -14,7 +14,10 @@
  *   au milieu d'un chapitre deviennent un séparateur de scène ;
  * - séparateurs dédoublonnés, jamais en tête ni en fin de chapitre ;
  * - éléments de liste consécutifs regroupés ; notes numérotées par chapitre ;
- * - nombre de mots, statistiques et avertissements (numéro en double, manquant, chapitre vide).
+ * - nombre de mots, statistiques et avertissements (numéro en double, manquant, chapitre vide) ;
+ * - paragraphes douteux (classés par déduction et non par un style nommé : tiret tapé, paragraphe
+ *   de liste sans puce tiret, italique entier, centrage à la main) relevés par chapitre dans
+ *   Result::$douteux (au plus Result::DOUTEUX_MAX), comptés dans stats['douteux'].
  *
  * Découpage manuel (docs/06 §9) :
  * - chaque élément de contenu reçoit une ancre stable « e{rang}-{empreinte} » (rang dans le
@@ -88,7 +91,14 @@ final class Chapter_Builder {
 	private int $elements = 0;
 
 	/** Compteurs statistiques d'un chapitre. */
-	public const COMPTEURS = array( 'paragraphes', 'dialogues', 'pensees', 'centres', 'separateurs', 'images', 'notes', 'listes', 'titres' );
+	public const COMPTEURS = array( 'paragraphes', 'dialogues', 'pensees', 'centres', 'separateurs', 'images', 'notes', 'listes', 'titres', 'douteux' );
+
+	/**
+	 * Paragraphes douteux relevés (au plus Result::DOUTEUX_MAX).
+	 *
+	 * @var int
+	 */
+	private int $nb_douteux = 0;
 
 	/** Côté maximal (pixels) d'un ornement : une image plus petite n'est pas une illustration. */
 	public const ORNEMENT_MAX = 200;
@@ -418,6 +428,7 @@ final class Chapter_Builder {
 			'notes'             => array(),
 			'images'            => array(),
 			'stats'             => array_fill_keys( self::COMPTEURS, 0 ),
+			'douteux'           => array(),
 			'attend_sous_titre' => '' === $sous_titre,
 			// Début manuel (découpage ou marqueur) : ancre de l'élément qui ouvre le chapitre,
 			// titre saisi.
@@ -944,11 +955,12 @@ final class Chapter_Builder {
 	/**
 	 * Paragraphe.
 	 *
-	 * @param string $html   HTML en ligne assaini (non vide).
-	 * @param string $role   '' (narration), 'dialogue' ou 'pensee'.
-	 * @param bool   $centre Paragraphe centré.
+	 * @param string $html    HTML en ligne assaini (non vide).
+	 * @param string $role    '' (narration), 'dialogue' ou 'pensee'.
+	 * @param bool   $centre  Paragraphe centré.
+	 * @param string $douteux Classé par déduction : motif (Result::MOTIFS_DOUTEUX), '' sinon.
 	 */
-	public function paragraphe( string $html, string $role = '', bool $centre = false ): void {
+	public function paragraphe( string $html, string $role = '', bool $centre = false, string $douteux = '' ): void {
 		$texte    = self::texte_sans_appels( $html );
 		$marqueur = Texte::marqueur( $texte );
 		$ancre    = $this->element(
@@ -1002,7 +1014,31 @@ final class Chapter_Builder {
 			$this->compter( 'centres' );
 		}
 		$this->compter( 'paragraphes' );
+		if ( isset( Result::MOTIFS_DOUTEUX[ $douteux ] ) ) {
+			$this->douteux( $douteux, $texte );
+		}
 		$this->ajouter( Blocks::paragraphe( $html, $classes, $centre ), 'paragraphe' );
+	}
+
+	/**
+	 * Relève un paragraphe douteux du chapitre courant (rang de l'élément qui vient d'être
+	 * enregistré). Au-delà de Result::DOUTEUX_MAX dans le document, il est seulement compté.
+	 *
+	 * @param string $motif Motif (Result::MOTIFS_DOUTEUX).
+	 * @param string $texte Texte brut du paragraphe.
+	 */
+	private function douteux( string $motif, string $texte ): void {
+		$this->compter( 'douteux' );
+		if ( $this->nb_douteux >= Result::DOUTEUX_MAX ) {
+			return;
+		}
+		++$this->nb_douteux;
+		$cible                       = null !== $this->courant ? 'courant' : 'avant';
+		$this->{$cible}['douteux'][] = array(
+			'rang'    => $this->rang,
+			'motif'   => $motif,
+			'extrait' => Result::extrait( $texte ),
+		);
 	}
 
 	/**
@@ -1403,6 +1439,10 @@ final class Chapter_Builder {
 				'stats'           => $chapitre['stats'],
 				'images'          => array_values( array_unique( $chapitre['images'] ) ),
 			);
+			$index                      = count( $this->resultat->chapters ) - 1;
+			foreach ( $chapitre['douteux'] as $douteux ) {
+				$this->resultat->douteux[] = array( 'chapitre' => $index ) + $douteux;
+			}
 			foreach ( self::COMPTEURS as $compteur ) {
 				$stats[ $compteur ] += $chapitre['stats'][ $compteur ];
 			}
@@ -1413,6 +1453,7 @@ final class Chapter_Builder {
 		$this->resultat->stats['mots']                 = $mots;
 		$this->resultat->stats['paragraphes_ignores']  = $ignores;
 		$this->resultat->stats['images_avant_premier'] = count( $this->resultat->front_images );
+		$this->resultat->stats['douteux_tronques']     = $stats['douteux'] > count( $this->resultat->douteux );
 		$this->controler_numeros();
 		$this->conclure_decoupage();
 	}
@@ -1541,9 +1582,10 @@ final class Chapter_Builder {
 			$chapitre['chapitre_parent'] = Texte::espaces( (string) $pere['sous_titre'] );
 			if ( empty( $pere['absorbe'] ) && self::sans_texte( $pere ) ) {
 				// Parent sans texte : il n'est pas publié, sa première partie reprend ses illustrations.
-				$chapitre['blocks'] = Blocks::assembler( array( (string) $pere['blocks'], (string) $chapitre['blocks'] ) );
-				$chapitre['types']  = array_merge( $pere['types'], $chapitre['types'] );
-				$chapitre['images'] = array_merge( $pere['images'], $chapitre['images'] );
+				$chapitre['blocks']  = Blocks::assembler( array( (string) $pere['blocks'], (string) $chapitre['blocks'] ) );
+				$chapitre['types']   = array_merge( $pere['types'], $chapitre['types'] );
+				$chapitre['images']  = array_merge( $pere['images'], $chapitre['images'] );
+				$chapitre['douteux'] = array_merge( $pere['douteux'], $chapitre['douteux'] );
 				foreach ( self::COMPTEURS as $compteur ) {
 					$chapitre['stats'][ $compteur ] += $pere['stats'][ $compteur ];
 				}

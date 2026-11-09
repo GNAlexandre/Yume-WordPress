@@ -1150,7 +1150,7 @@ yume_test(
 				),
 				array_intersect_key( $data['fichier'], array_flip( array( 'nom', 'format' ) ) )
 			);
-			yume_assert_same( '9 chapitres + prologue, interlude, épilogue, postface · 5 illustrations · 2 ornements EMF ignorés', $data['resume'] );
+			yume_assert_same( '9 chapitres + prologue, interlude, épilogue, postface · 5 illustrations · 2 ornements EMF ignorés · 3 paragraphes à vérifier', $data['resume'] );
 			yume_assert_true( count( $data['avertissements'] ) > 5 );
 			yume_assert_same( array( 'couverture', 'couleur' ), $data['front_images'] );
 			yume_assert_false( isset( $data['stats']['hash'] ) );

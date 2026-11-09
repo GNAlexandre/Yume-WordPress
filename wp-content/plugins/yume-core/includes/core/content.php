@@ -249,7 +249,8 @@ function enregistrer_types(): void {
 				'menu_icon'           => 'dashicons-media-text',
 				'capability_type'     => array( 'yume_chapitre', 'yume_chapitres' ),
 				'rest_base'           => 'chapitres',
-				'supports'            => array( 'title', 'editor', 'comments', 'custom-fields', 'page-attributes' ),
+				// Révisions : historique des corrections (vue « Mettre en page », module mise-en-page).
+				'supports'            => array( 'title', 'editor', 'comments', 'custom-fields', 'page-attributes', 'revisions' ),
 				'has_archive'         => false,
 				// Les chapitres ne noient pas les résultats de la recherche du site.
 				'exclude_from_search' => true,

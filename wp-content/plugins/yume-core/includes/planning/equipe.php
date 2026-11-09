@@ -728,11 +728,12 @@ function url_vue_equipe( string $vue = '', array $args = array() ): string {
 /**
  * Vues ajoutées à l'espace équipe par les autres fichiers (filtre yume_vues_equipe), limitées à
  * celles que le compte courant peut voir : clé => array{libelle: string, capacite: string,
- * groupe: string, rendu: callable(): string}. Chaque vue a son entrée dans le menu « groupe »
- * de la navigation (groupes_navigation_equipe() ; « site » par défaut, avant « Réglages ») et
- * s'affiche par ?vue=<clé>.
+ * groupe: string, menu: bool, rendu: callable(): string}. Chaque vue a son entrée dans le menu
+ * « groupe » de la navigation (groupes_navigation_equipe() ; « site » par défaut, avant
+ * « Réglages »), sauf si elle est déclarée 'menu' => false (vue ouverte depuis un contenu, ex.
+ * « Mettre en page » d'un chapitre), et s'affiche par ?vue=<clé>.
  *
- * @return array<string,array{libelle:string,capacite:string,groupe:string,rendu:callable}>
+ * @return array<string,array{libelle:string,capacite:string,groupe:string,menu:bool,rendu:callable}>
  */
 function vues_equipe_ajoutees(): array {
 	/**
@@ -757,6 +758,7 @@ function vues_equipe_ajoutees(): array {
 				'libelle'  => (string) $vue['libelle'],
 				'capacite' => $capacite,
 				'groupe'   => isset( groupes_navigation_equipe()[ $groupe ] ) ? $groupe : 'site',
+				'menu'     => ! isset( $vue['menu'] ) || false !== $vue['menu'],
 				'rendu'    => $vue['rendu'],
 			);
 		}
@@ -825,7 +827,9 @@ function entrees_navigation_equipe(): array {
 		$ajouter( 'equipe', 'membres', __( 'Membres et rôles', 'yume-core' ), $membres );
 	}
 	foreach ( vues_equipe_ajoutees() as $cle => $ajoutee ) {
-		$ajouter( $ajoutee['groupe'], $cle, $ajoutee['libelle'], url_vue_equipe( $cle ) );
+		if ( $ajoutee['menu'] ) {
+			$ajouter( $ajoutee['groupe'], $cle, $ajoutee['libelle'], url_vue_equipe( $cle ) );
+		}
 	}
 	if ( current_user_can( 'yume_reglages' ) ) {
 		$ajouter( 'site', 'reglages', __( 'Réglages', 'yume-core' ), url_vue_equipe( 'reglages' ) );
