@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.9.0 — 2026-11-09
+
+- Yume Novel 2.9.0 : mettre en page un chapitre sur le site (vue d’équipe « Mettre en page » : styles Récit / Dialogue / Pensée / Centré / Séparateur / Intertitre d’un clic, texte corrigé en place, enregistrement sans annonce avec révision), styles Word nommés et rapport des paragraphes à vérifier à l’import, maquettes
+
 ## 2.9.0-dev.4 — 2026-11-09
 
 - Mise en page d’un chapitre sur le site : vue d’équipe « Mettre en page » (?vue=chapitre&id=ID, éditeurs et gérants), accessible depuis la fiche du tome et la vue Corrections ; styles Récit / Dialogue / Pensée / Centré / Séparateur / Intertitre d’un clic ou au clavier, texte corrigé en place (scinder, fusionner, nouveaux paragraphes, collage), actions groupées, annuler / rétablir, enregistrement sans annonce avec révision et protection contre les conflits (routes GET/PUT /yume/v1/chapitres/{id}/mise-en-page, POST …/presence)
