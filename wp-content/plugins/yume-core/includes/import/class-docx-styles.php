@@ -57,6 +57,14 @@ final class Docx_Styles {
 		'dialog'                   => 'dialogue',
 		'replique'                 => 'dialogue',
 		'repliques'                => 'dialogue',
+		'recit'                    => 'recit',
+		'narration'                => 'recit',
+		'narratif'                 => 'recit',
+		'corpsdetexte'             => 'recit',
+		'bodytext'                 => 'recit',
+		'centre'                   => 'centre',
+		'centered'                 => 'centre',
+		'centrer'                  => 'centre',
 		'separateur'               => 'separateur',
 		'separateurdescene'        => 'separateur',
 		'scenebreak'               => 'separateur',
@@ -70,6 +78,22 @@ final class Docx_Styles {
 		'tocheading'               => 'sommaire',
 		'entetedetabledesmatieres' => 'sommaire',
 	);
+
+	/**
+	 * Styles du texte courant (« Corps de texte », « Body Text ») : rôle `recit` reconnu, mais
+	 * non explicite. Les déductions s'y appliquent comme avant (puce tiret posée sur le
+	 * paragraphe, tiret tapé → dialogue) et sont signalées comme paragraphes douteux. Un style
+	 * nommé « Récit », « Narration » ou « Narratif » est explicite : il force le récit.
+	 *
+	 * @var string[]
+	 */
+	private const RECIT_COURANT = array( 'corpsdetexte', 'bodytext' );
+
+	/**
+	 * Tiret en tête du nom d'un style, suivi d'un mot : style de dialogue (« - Paragraphe »,
+	 * « – Paragraphe », « -Paragraphe », « —Réplique »). « Paragraphe » seul n'en est pas un.
+	 */
+	private const MOTIF_TIRET = '/^\s*[\-\x{2010}\x{2011}\x{2012}\x{2013}\x{2014}\x{2212}]\s*\p{L}/u';
 
 	/**
 	 * Styles : id => description.
@@ -355,18 +379,37 @@ final class Docx_Styles {
 	}
 
 	/**
-	 * Rôle propre d'un style d'après son nom, puis son identifiant.
+	 * Rôle propre d'un style d'après son nom, puis son identifiant : un nom qui commence par un
+	 * tiret suivi d'un mot (« - Paragraphe ») est un dialogue ; sinon la table ROLES.
+	 *
+	 * @param array<string,mixed> $style Style.
+	 * @return array{0:?string,1:bool} Rôle, et rôle explicite (faux pour « Corps de texte »).
+	 */
+	private static function role_propre( array $style ): array {
+		foreach ( array( $style['nom'], $style['id'] ) as $candidat ) {
+			if ( preg_match( self::MOTIF_TIRET, (string) $candidat ) ) {
+				return array( 'dialogue', true );
+			}
+			$cle = Texte::nom_style( (string) $candidat );
+			if ( isset( self::ROLES[ $cle ] ) ) {
+				return array( self::ROLES[ $cle ], ! in_array( $cle, self::RECIT_COURANT, true ) );
+			}
+		}
+		return array( null, false );
+	}
+
+	/**
+	 * Le style est-il un paragraphe de liste (« List Paragraph », « Paragraphe de liste ») ?
 	 *
 	 * @param array<string,mixed> $style Style.
 	 */
-	private static function role_propre( array $style ): ?string {
+	private static function est_style_liste( array $style ): bool {
 		foreach ( array( $style['nom'], $style['id'] ) as $candidat ) {
-			$cle = Texte::nom_style( (string) $candidat );
-			if ( isset( self::ROLES[ $cle ] ) ) {
-				return self::ROLES[ $cle ];
+			if ( in_array( Texte::nom_style( (string) $candidat ), array( 'listparagraph', 'paragraphedeliste' ), true ) ) {
+				return true;
 			}
 		}
-		return null;
+		return false;
 	}
 
 	/**
@@ -389,8 +432,15 @@ final class Docx_Styles {
 	/**
 	 * Propriétés effectives d'un style de paragraphe.
 	 *
+	 * - role : rôle du premier style de la chaîne d'héritage qui en a un ; un rôle `recit` ou
+	 *   `centre` hérité n'est pas repris au-delà d'un style qui porte sa propre numérotation (un
+	 *   « Paragraphe de liste » à puce tiret basé sur « Corps de texte » reste un dialogue) ;
+	 * - explicite : le rôle vient d'un style nommé (« Récit », « Dialogue », « Pensée »,
+	 *   « Centré »…), pas du texte courant (« Corps de texte ») ;
+	 * - liste : la chaîne compte un paragraphe de liste ou une numérotation de style.
+	 *
 	 * @param string $id Identifiant du style (chaîne vide : style par défaut).
-	 * @return array{role:?string,num_id:?string,ilvl:?int,jc:?string,outline:?int,rpr:array<string,mixed>}
+	 * @return array{role:?string,explicite:bool,liste:bool,num_id:?string,ilvl:?int,jc:?string,outline:?int,rpr:array<string,mixed>}
 	 */
 	public function paragraphe( string $id ): array {
 		if ( '' === $id ) {
@@ -401,18 +451,27 @@ final class Docx_Styles {
 		}
 		$chaine     = $this->chaine( $id );
 		$props      = array(
-			'role'    => null,
-			'num_id'  => null,
-			'ilvl'    => null,
-			'jc'      => null,
-			'outline' => null,
-			'rpr'     => $this->rpr_defaut,
+			'role'      => null,
+			'explicite' => false,
+			'liste'     => false,
+			'num_id'    => null,
+			'ilvl'      => null,
+			'jc'        => null,
+			'outline'   => null,
+			'rpr'       => $this->rpr_defaut,
 		);
 		$num_trouve = false;
+		$role_vu    = false;
 		foreach ( $chaine as $style ) {
-			if ( null === $props['role'] ) {
-				$props['role'] = self::role_propre( $style );
+			if ( ! $role_vu ) {
+				list( $role, $explicite ) = self::role_propre( $style );
+				if ( null !== $role && ! ( $num_trouve && in_array( $role, array( 'recit', 'centre' ), true ) ) ) {
+					$props['role']      = $role;
+					$props['explicite'] = $explicite;
+				}
+				$role_vu = null !== $role;
 			}
+			$props['liste'] = $props['liste'] || $style['a_num'] || self::est_style_liste( $style );
 			if ( ! $num_trouve && $style['a_num'] ) {
 				$num_trouve      = true;
 				$props['num_id'] = (string) $style['num_id'];
@@ -428,8 +487,9 @@ final class Docx_Styles {
 		foreach ( array_reverse( $chaine ) as $style ) {
 			$props['rpr'] = self::fusionner( $props['rpr'], $style['rpr'] );
 		}
-		if ( null === $props['role'] && null !== $props['outline'] && $props['outline'] < 9 ) {
-			$props['role'] = self::role_niveau( $props['outline'] );
+		if ( ( null === $props['role'] || ( 'recit' === $props['role'] && ! $props['explicite'] ) ) && null !== $props['outline'] && $props['outline'] < 9 ) {
+			$props['role']      = self::role_niveau( $props['outline'] );
+			$props['explicite'] = false;
 		}
 		$this->cache_p[ $id ] = $props;
 		return $props;

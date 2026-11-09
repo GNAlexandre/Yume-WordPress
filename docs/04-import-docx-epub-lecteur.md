@@ -24,9 +24,16 @@ Implémentation PHP native (`ZipArchive` + `DOMDocument`/`XMLReader`), sans PHPW
 | `w:pStyle="Titre1"` (« Chapitre N ») | **Frontière de chapitre** : ouvre un nouveau `yume_chapitre` | numéro extrait par regex `Chapitre\s*(\d+)` |
 | `w:pStyle="Titre2"` immédiatement après un Titre1 | Sous-titre du chapitre (méta `sous_titre`) + `<h2 class="yn-subtitle">` | filet inférieur en CSS |
 | `w:pStyle="Titre2"` isolé (« PostFace ») | Chapitre spécial sans numéro (`nature = postface`) | |
-| `w:pStyle="Paragraphedeliste"` avec `numId` → puce « — » | `<p class="yn-dialogue">— …</p>` | tiret cadratin + espace insécable, retrait suspendu |
+| `w:pStyle="Paragraphedeliste"` avec `numId` → puce « — » | `<p class="yn-dialogue">— …</p>` | tiret cadratin + espace insécable, retrait suspendu ; dans la galerie de styles de Word, ce « Paragraphe de liste » (List Paragraph) à puce tiret peut apparaître comme « - Paragraphe » (aperçu de la puce, nom tronqué) : c'est lui, reconnu comme dialogue |
+| Style nommé **Dialogue** (Dialog, Réplique) ou dont le nom commence par un tiret suivi d'un mot (« - Paragraphe », « – Paragraphe », « -Paragraphe ») (2.9.0) | `<p class="yn-dialogue">— …</p>` | dialogue **même sans puce**, et même avec une numérotation ; « Paragraphe » seul n'est pas un dialogue |
 | `w:pStyle="Pense"` (Pensée) | `<p class="yn-thought">…</p>` | italique, retrait gauche |
-| `w:jc="center"` | `class="yn-center"` | |
+| Style nommé **Récit**, Narration ou Narratif (2.9.0) | `<p>…</p>` (récit) | récit **forcé** : une puce tiret, un tiret tapé ou un italique entier ne le changent pas ; rien n'est signalé |
+| Style **Corps de texte** (Body Text) | `<p>…</p>` (récit) | récit reconnu mais non explicite : les déductions ci-dessous s'appliquent comme avant et sont signalées ; un « Paragraphe de liste » à puce tiret basé sur Corps de texte reste un dialogue |
+| Style nommé **Centré** (Centered, Centrer) (2.9.0) | `class="yn-center"` | titres de lettres, dates, mentions ; ni puce ni tiret ne s'appliquent |
+| `w:jc="center"` sans style Centré | `class="yn-center"` | **paragraphe douteux** (centré à la main) |
+| Tiret tapé en début de paragraphe (« — », « – », « - ») hors style nommé | `<p class="yn-dialogue">` | **paragraphe douteux** |
+| Paragraphe de liste sans puce tiret (numérotation retirée) | récit | **paragraphe douteux** |
+| Paragraphe entièrement en italique sans style Pensée | récit (italique gardé) | **paragraphe douteux** |
 | Paragraphe vide | ignoré (max 1 conservé entre deux blocs) | |
 | Run `<w:i/>` / `<w:b/>` / `<w:u/>` | `<em>` / `<strong>` / `<u>` | fusion des runs contigus |
 | `<w:br/>` | `<br>` | |
@@ -37,6 +44,21 @@ Implémentation PHP native (`ZipArchive` + `DOMDocument`/`XMLReader`), sans PHPW
 | `wp:docPr descr` / `title` (texte de remplacement Word) ou `alt` (EPUB) | Texte alternatif de l'image (`alt`) ; **vide** si c'est une description générée par Word (« Une image contenant… », « Le contenu généré par l'IA peut être incorrect », « Description générée automatiquement », équivalents anglais : `Texte::alt_automatique()`, motifs dans `Texte::ALT_AUTOMATIQUES`), cas comptés (`stats.alt_automatiques`) et signalés une fois dans le rapport | à la publication, le **titre** du média est toujours « Œuvre, Tome N, Chapitre N — illustration » ; son `alt` est celui du document s'il en a un, sinon ce libellé |
 | Images avant le premier `Titre1` | Galerie du tome (`illustrations`), pas un chapitre | couverture, pages couleur |
 | En-têtes / pieds de page / sections | ignorés | |
+
+Styles reconnus par leur **nom ou identifiant** normalisé (minuscules, sans accents ni espaces :
+`Docx_Styles::ROLES`), en suivant l'héritage (`basedOn`) ; un rôle Récit ou Centré hérité ne passe
+pas un style qui porte sa propre numérotation. Un document sans style nommé est converti exactement
+comme avant la 2.9.0 (vérifié sur le Word du tome 2 de Miss Medic : mêmes blocs).
+
+**Paragraphes douteux** (2.9.0) : les paragraphes classés par déduction et non par un style nommé
+(tiret tapé converti en dialogue, paragraphe de liste sans puce tiret gardé en récit, paragraphe
+entièrement en italique sans style Pensée, centrage à la main) sont relevés dans `Result::$douteux`
+(`chapitre` : index, `rang` : rang de l'élément, celui des ancres, `motif` : `tiret`, `liste`,
+`italique` ou `centre`, `extrait` : 60 caractères au plus), au plus 200 (`Result::DOUTEUX_MAX`), tous
+comptés dans `stats['douteux']` (et par chapitre). Le rapport d'analyse du formulaire de publication
+les reprend avec la clé du chapitre (`chapitre:2#1`) et l'explication du motif ; le résumé compte
+« 12 paragraphes à vérifier » ; le formulaire les liste dans un encart replié, par chapitre, avec un
+lien « Mettre en page » (`/equipe/?vue=chapitre&id=ID`) pour un chapitre déjà en ligne.
 
 Autres règles : espaces insécables français conservés (`&nbsp;` avant `: ; ? ! »`), guillemets
 typographiques inchangés, entités HTML échappées, aucun style inline conservé (tout passe par les

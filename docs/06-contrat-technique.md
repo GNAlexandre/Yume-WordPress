@@ -1903,7 +1903,23 @@ le contenu. Résultat d'import (`Result`) : `chapters` (liste de
 de blocs, images référencées par un jeton {{yume-image:<cle>}}),'nb_mots'=>int]`), `front_images`
 (images avant le premier chapitre), `images` (`cle => ['nom'=>…,'mime'=>…,'chemin_zip'=>…]`),
 `warnings` (string[]), `stats` (array), `candidats` et `decoupages` (découpage manuel, ci-dessous ;
-dans `rapport()`, pas dans `to_array()`).
+dans `rapport()`, pas dans `to_array()`), `douteux` (2.9.0, dans `rapport()` aussi).
+
+**Styles nommés et paragraphes douteux** (2.9.0, `Docx_Styles::ROLES`, `docs/04` §2.1) : un style
+nommé Récit / Narration / Narratif force le récit (même avec une puce tiret, un tiret tapé, un
+italique entier), Dialogue (ou un nom « - Paragraphe » : tiret suivi d'un mot) force le dialogue
+(même sans puce), Centré / Centered / Centrer donne `yn-center` ; Corps de texte (Body Text) est un
+récit non explicite (déductions inchangées) ; un rôle Récit ou Centré hérité ne passe pas un style
+qui porte sa propre numérotation ; sans style nommé, conversion identique à la 2.8.0.
+`Result::$douteux` : `['chapitre' => index dans chapters, 'rang' => rang de l'élément (celui des
+ancres), 'motif' => tiret|liste|italique|centre (Result::MOTIFS_DOUTEUX), 'extrait' => 60 car. au
+plus]`, au plus `Result::DOUTEUX_MAX` (200), total dans `stats['douteux']` (et `stats` de chaque
+chapitre), `stats['douteux_tronques']`. Le rapport d'analyse de la publication
+(`Service::rapport_analyse()`) remplace `chapitre` par la clé du chapitre (`chapitre:2#1`, celle de
+`comparer()`), garde `index` et ajoute `motif_libelle`, plus `motifs_douteux` ; le résumé ajoute
+« N paragraphes à vérifier » ; `Service::analyser()` ajoute à une ligne de comparaison dont le
+chapitre est en ligne (`publish`, `private`) `mise_en_page` = `Service::url_mise_en_page( $id )`
+(`yume_mise_en_page_url()` si elle existe, sinon `/equipe/?vue=chapitre&id=ID`).
 
 **Découpage manuel** (`Chapter_Builder`, commun au DOCX et à l'EPUB) :
 

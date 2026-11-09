@@ -503,14 +503,17 @@ final class Docx_Converter {
 			$role = Docx_Styles::role_niveau( (int) $outline ) ?? ( in_array( $role, array( 'titre1', 'titre2', 'titre3' ), true ) ? null : $role );
 		}
 
-		$etat         = array(
-			'items'      => array(),
-			'car_total'  => 0,
-			'car_pensee' => 0,
-			'car_italic' => 0,
-			'car_gras'   => 0,
-			'ignorees'   => 0,
-			'saut'       => '', // Saut de page : « avant » ou « apres » le texte du paragraphe.
+		$etat = array(
+			'items'       => array(),
+			'car_total'   => 0,
+			'car_pensee'  => 0,
+			'car_italic'  => 0,
+			'car_gras'    => 0,
+			'ignorees'    => 0,
+			'saut'        => '', // Saut de page : « avant » ou « apres » le texte du paragraphe.
+			// Rôle donné par un style nommé (Récit, Dialogue, Pensée, Centré…) et style de liste.
+			'explicite'   => $role === $props['role'] && $props['explicite'],
+			'style_liste' => $props['liste'],
 		);
 		$this->champs = array();
 		$this->contenu( $p, $props['rpr'], $etat, '' );
@@ -625,7 +628,7 @@ final class Docx_Converter {
 	 * @param array<string,mixed>      $etat   Compteurs de caractères.
 	 */
 	private function est_etiquette( string $texte, array $images, ?string $role, ?array $niveau, ?string $jc, array $etat ): bool {
-		if ( '' === $texte || $images || null !== $niveau || null !== $role || mb_strlen( $texte ) > 40 ) {
+		if ( '' === $texte || $images || null !== $niveau || ! in_array( $role, array( null, 'recit', 'centre' ), true ) || mb_strlen( $texte ) > 40 ) {
 			return false;
 		}
 		$gras = (int) $etat['car_total'] > 0 && (int) $etat['car_gras'] >= (int) $etat['car_total'];
@@ -687,6 +690,9 @@ final class Docx_Converter {
 		if ( (int) $etat['car_gras'] >= (int) $etat['car_total'] && (int) $etat['car_total'] > 0 ) {
 			$this->chapitres->indice( 'gras' );
 		}
+		// Style nommé Récit, Dialogue ou Centré : il l'emporte sur la puce de liste.
+		$force   = ! empty( $etat['explicite'] ) && in_array( $role, array( 'recit', 'dialogue', 'centre' ), true );
+		$niveau  = $force ? null : $niveau;
 		$pensee  = 'pensee' === $role || ( null === $niveau && (int) $etat['car_pensee'] * 2 >= $total && (int) $etat['car_pensee'] > 0 );
 		$inverse = $pensee && (int) $etat['car_italic'] * 2 >= $total;
 		$html    = Inline::html( $items, $inverse );
@@ -696,8 +702,22 @@ final class Docx_Converter {
 		if ( $this->options['typographie'] ) {
 			$html = Texte::typographie( $html );
 		}
+		$centre = 'center' === $jc;
 		if ( $pensee ) {
-			$this->chapitres->paragraphe( $html, 'pensee', 'center' === $jc );
+			$this->chapitres->paragraphe( $html, 'pensee', $centre );
+			return;
+		}
+		if ( 'dialogue' === $role ) {
+			$this->chapitres->paragraphe( Texte::normaliser_dialogue( $html, true ), 'dialogue' );
+			return;
+		}
+		if ( 'centre' === $role ) {
+			$this->chapitres->paragraphe( $html, '', true );
+			return;
+		}
+		if ( $force ) {
+			// Récit nommé : ni puce, ni tiret tapé, ni italique ne changent sa nature.
+			$this->chapitres->paragraphe( $html, '', $centre, $centre ? 'centre' : '' );
 			return;
 		}
 		if ( null !== $niveau && $niveau['tiret'] ) {
@@ -708,15 +728,19 @@ final class Docx_Converter {
 			$this->chapitres->element_liste( $html, (bool) $niveau['ordonnee'] );
 			return;
 		}
-		if ( 'dialogue' === $role ) {
-			$this->chapitres->paragraphe( Texte::normaliser_dialogue( $html, true ), 'dialogue' );
-			return;
-		}
 		if ( Texte::commence_par_tiret( $texte ) ) {
-			$this->chapitres->paragraphe( Texte::normaliser_dialogue( $html, false ), 'dialogue' );
+			$this->chapitres->paragraphe( Texte::normaliser_dialogue( $html, false ), 'dialogue', false, 'tiret' );
 			return;
 		}
-		$this->chapitres->paragraphe( $html, '', 'center' === $jc );
+		$motif = '';
+		if ( ! empty( $etat['style_liste'] ) ) {
+			$motif = 'liste';
+		} elseif ( (int) $etat['car_total'] > 0 && (int) $etat['car_italic'] >= (int) $etat['car_total'] ) {
+			$motif = 'italique';
+		} elseif ( $centre ) {
+			$motif = 'centre';
+		}
+		$this->chapitres->paragraphe( $html, '', $centre, $motif );
 	}
 
 	/**

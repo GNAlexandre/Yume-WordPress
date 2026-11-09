@@ -102,6 +102,12 @@ parcours de bout en bout `tools/ci/sous-chapitres.sh [--port 8102] [--captures D
 formulaire, « Couper aux Titre 2 », publication, sommaire groupé, page d'une partie) tourne sur une
 base locale distincte (`YUME_ENV=sous-chapitres` par défaut).
 
+Styles nommés et paragraphes douteux (2.9.0) : `import-styles` (DOCX synthétique aux styles Récit,
+Narration, Dialogue, Centré, « - Paragraphe », Corps de texte et paragraphe de liste basé sur lui,
+paragraphes douteux, plafond) et `publication-douteux` (rapport d'analyse, lien « Mettre en page »
+d'un chapitre en ligne, REST, encart du formulaire sans JavaScript). Le Word réel d'un tome sert
+d'essai local par `Docx_Converter::convert_file()` dans `wp eval-file`, jamais versionné.
+
 Programmation des sorties (2.8.0) : `publication-calendrier` (répartition en N publications,
 calendrier sur mesure, une annonce par publication, repli `repartition`, route
 `POST /publications/{id}/calendrier`, vue `?vue=programmer`). La répartition existe en PHP

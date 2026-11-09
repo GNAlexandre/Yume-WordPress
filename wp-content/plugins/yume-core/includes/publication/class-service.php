@@ -337,11 +337,20 @@ final class Service {
 			/* translators: %d : nombre d'ornements EMF */
 			$parts[] = sprintf( _n( '%d ornement EMF ignoré', '%d ornements EMF ignorés', $emf, 'yume-core' ), $emf );
 		}
+		$douteux = (int) ( $resultat->stats['douteux'] ?? 0 );
+		if ( $douteux ) {
+			/* translators: %d : nombre de paragraphes douteux */
+			$parts[] = sprintf( _n( '%d paragraphe à vérifier', '%d paragraphes à vérifier', $douteux, 'yume-core' ), $douteux );
+		}
 		return implode( ' · ', $parts );
 	}
 
 	/**
 	 * Rapport d'analyse (rien n'est créé).
+	 *
+	 * Paragraphes douteux (Result::$douteux) : 'chapitre' devient la clé du chapitre (celle de
+	 * comparer()), 'index' garde son rang dans chapitres, 'motif_libelle' explique le motif ;
+	 * motifs_douteux : clé => explication.
 	 *
 	 * @param Result              $resultat Résultat.
 	 * @param array<string,mixed> $source   Fichier source.
@@ -360,6 +369,24 @@ final class Service {
 		);
 		$rapport['resume']  = self::resume( $resultat );
 		unset( $rapport['stats']['hash'] );
+		$cles  = array();
+		$rangs = array();
+		foreach ( $resultat->chapters as $i => $chapitre ) {
+			$cles[ $i ] = self::cle_chapitre( (string) $chapitre['nature'], null === $chapitre['numero'] ? null : (float) $chapitre['numero'], $rangs, (int) ( $chapitre['sous_numero'] ?? 0 ) );
+		}
+		$rapport['douteux'] = array();
+		foreach ( $resultat->douteux as $douteux ) {
+			$index                = (int) $douteux['chapitre'];
+			$rapport['douteux'][] = array(
+				'chapitre'      => (string) ( $cles[ $index ] ?? '' ),
+				'index'         => $index,
+				'rang'          => (int) $douteux['rang'],
+				'motif'         => (string) $douteux['motif'],
+				'motif_libelle' => (string) ( Result::MOTIFS_DOUTEUX[ $douteux['motif'] ] ?? '' ),
+				'extrait'       => (string) $douteux['extrait'],
+			);
+		}
+		$rapport['motifs_douteux'] = Result::MOTIFS_DOUTEUX;
 		return $rapport;
 	}
 
@@ -370,7 +397,9 @@ final class Service {
 	 * Comparaison avec le tome (mode « Ajouter des chapitres ») : comparaison (comparer() :
 	 * état de chaque chapitre du fichier par rapport au tome), tome (infos_tome() : parution,
 	 * chapitres en ligne, rythme, prochaines dates de sortie au rythme pour les chapitres à
-	 * sortir).
+	 * sortir). Un chapitre déjà en ligne reçoit dans sa ligne de comparaison l'adresse de la vue
+	 * « Mettre en page » (mise_en_page, url_mise_en_page()), pour corriger ses paragraphes
+	 * douteux sans redéposer le fichier.
 	 *
 	 * @param array<string,mixed> $fichier Entrée de $_FILES.
 	 * @param array<string,mixed> $champs  tome_id (tome choisi), sinon oeuvre_id, nature, numero
@@ -409,8 +438,14 @@ final class Service {
 				$rapport['tome_existant'] = self::resume_contenu( $tome );
 			}
 			$rapport['comparaison'] = self::comparer( $tome ? (int) $tome->ID : 0, $resultat, $choix );
-			$a_sortir               = (int) $rapport['comparaison']['nouveaux'] + (int) $rapport['comparaison']['brouillons'];
-			$rapport['tome']        = $tome ? self::infos_tome( (int) $tome->ID, $a_sortir ) : null;
+			foreach ( $rapport['comparaison']['lignes'] as $i => $ligne ) {
+				$existant = $ligne['existant'] ?? null;
+				if ( is_array( $existant ) && in_array( $existant['statut'], array( 'publish', 'private' ), true ) ) {
+					$rapport['comparaison']['lignes'][ $i ]['mise_en_page'] = self::url_mise_en_page( (int) $existant['id'] );
+				}
+			}
+			$a_sortir        = (int) $rapport['comparaison']['nouveaux'] + (int) $rapport['comparaison']['brouillons'];
+			$rapport['tome'] = $tome ? self::infos_tome( (int) $tome->ID, $a_sortir ) : null;
 			return $rapport;
 		} finally {
 			Fichiers::supprimer( $fichier );
@@ -430,6 +465,21 @@ final class Service {
 			return null;
 		}
 		return round( (float) $valeur, 3 );
+	}
+
+	/**
+	 * Adresse de la vue d'équipe « Mettre en page » d'un chapitre (/equipe/?vue=chapitre&id=ID).
+	 *
+	 * @param int $chapitre_id Chapitre.
+	 */
+	public static function url_mise_en_page( int $chapitre_id ): string {
+		if ( function_exists( 'yume_mise_en_page_url' ) ) {
+			return (string) yume_mise_en_page_url( $chapitre_id );
+		}
+		if ( function_exists( '\Yume\Core\Planning\url_vue_equipe' ) ) {
+			return \Yume\Core\Planning\url_vue_equipe( 'chapitre', array( 'id' => $chapitre_id ) );
+		}
+		return '';
 	}
 
 	/**

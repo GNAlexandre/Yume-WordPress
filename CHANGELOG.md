@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.9.0-dev.3 — 2026-11-09
+
+- Import : styles Word nommés reconnus (Récit, Narration, Narratif → récit forcé ; Dialogue et « - Paragraphe » → dialogue même sans puce ; Centré) et rapport des « paragraphes à vérifier » (tiret tapé, liste sans tiret, italique sans style Pensée, centrage à la main) dans l’analyse du formulaire de publication, avec le lien « Mettre en page » des chapitres en ligne ; documents sans style nommé convertis à l’identique
+
 ## 2.9.0-dev.2 — 2026-11-09
 
 - Maquettes 2.9.0 : vue « Mettre en page un chapitre » (bureau, mobile) et encart « paragraphes à vérifier » du formulaire de publication (design/maquettes, canvas.json)

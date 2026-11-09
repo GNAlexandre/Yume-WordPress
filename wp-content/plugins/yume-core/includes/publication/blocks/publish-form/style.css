@@ -557,6 +557,38 @@
 	color: currentColor;
 }
 
+/* Paragraphes douteux : encart replié après l'analyse. */
+.yn-publish__douteux {
+	border: 1px solid var(--wp--preset--color--filet);
+	border-radius: 8px;
+	padding: 8px 12px;
+}
+
+.yn-publish__douteux[hidden] {
+	display: none;
+}
+
+.yn-publish__douteux summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.yn-publish__douteux-chapitre h4 {
+	margin: 12px 0 4px;
+	font-size: 0.95em;
+}
+
+.yn-publish__douteux-chapitre h4 a {
+	margin-left: 6px;
+	font-weight: 400;
+}
+
+.yn-publish__douteux-chapitre ul {
+	margin: 0;
+	padding-left: 18px;
+	overflow-wrap: anywhere;
+}
+
 .yn-publish__apercu {
 	display: flex;
 	flex-wrap: wrap;

@@ -395,15 +395,24 @@ Le fichier Word (DOCX) du tome est la source de la lecture en ligne. Le site le 
 | Style **Titre 1** : « Chapitre 1 », « Chapitre 2 »… | Un nouveau chapitre (une page de lecture) |
 | Style **Titre 2** juste après le Titre 1 | Le sous-titre du chapitre |
 | Style **Titre 2** seul : « Prologue », « Postface »… | Un chapitre spécial, sans numéro |
-| Paragraphe qui commence par « — », ou liste à puce « — » | Un dialogue (tiret long, en retrait) |
+| Style **Récit** (ou **Narration**), ou **Corps de texte** | Du récit, sans tiret |
+| Style **Dialogue**, ou liste à puce « — » (style « - Paragraphe ») | Un dialogue (tiret long, en retrait) |
 | Style **Pensée** | Une pensée (italique, en retrait) |
-| Paragraphe centré | Un paragraphe centré |
-| `***`, `* * *` ou `◇` seul sur une ligne | Un changement de scène |
+| Style **Centré** | Un paragraphe centré (date, titre de lettre, mention) |
+| Style **Séparateur**, ou `***`, `* * *` ou `◇` seul sur une ligne | Un changement de scène |
 | Image JPG, PNG ou WebP dans le texte | Une illustration pleine largeur |
 | Images placées avant le premier Titre 1 | La galerie d'illustrations du tome |
 | Notes de bas de page | Des notes en fin de chapitre |
 
 Les en-têtes et pieds de page de Word sont ignorés. Les sauts de page ne changent rien au texte.
+
+Les styles **Récit**, **Dialogue**, **Pensée**, **Centré** et **Séparateur** n'existent pas dans un Word neuf : créez-les une fois (**Accueil**, volet **Styles**, **Nouveau style**), avec exactement ce nom. Un style nommé gagne toujours :
+
+- un paragraphe au style **Récit** reste du récit, même s'il porte une puce « — », commence par un tiret ou est tout en italique ;
+- un paragraphe au style **Dialogue** devient un dialogue, même sans puce ;
+- le style « - Paragraphe » de la galerie de Word (le paragraphe de liste à puce « — ») donne un dialogue. Un style nommé seulement « Paragraphe » reste du récit.
+
+> **Attention** : sans style nommé, le site devine. Un tiret tapé au début d'un paragraphe en Corps de texte devient un dialogue ; un paragraphe tout en italique reste du récit ; un paragraphe centré à la main est centré. Ces paragraphes sont signalés à l'envoi : « 12 paragraphes à vérifier ».
 
 ## Écrire les dialogues et les pensées
 
@@ -443,6 +452,7 @@ Le marqueur n'est jamais publié. Majuscules et accents sont indifférents.
 3. Les pensées utilisent le style **Pensée**.
 4. Chaque illustration a son texte de remplacement.
 5. Le fichier ne contient que les chapitres à publier, ou le tome avec ses chapitres déjà en ligne (ils seront reconnus et laissés tels quels).
+6. Après l'envoi, si le résumé de l'analyse indique « N paragraphes à vérifier », ouvrez l'encart **N paragraphes à vérifier** sous la liste des chapitres. Pour chaque chapitre, il donne la raison (tiret tapé, liste sans tiret, italique sans style Pensée, centré à la main) et le début du paragraphe. Corrigez le style dans Word et redéposez le fichier, ou, pour un chapitre déjà en ligne, cliquez sur **Mettre en page** pour le corriger sur le site.
 
 # Ajouter des chapitres à un tome
 

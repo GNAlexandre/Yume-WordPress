@@ -24,7 +24,11 @@
  *   deux (pages d'ouverture de chapitre), 'sauts' : chaque saut de page ; les ornements —
  *   petites images de Chapter_Builder::ORNEMENT_MAX pixels au plus — ne sont jamais proposés ;
  *   'titres' et 'sous_chapitres' : titres de niveau 1 et Titre 2, remplis seulement si le
- *   document a des Titre 2 — « Couper aux Titre 2 (sous-chapitres) »).
+ *   document a des Titre 2 — « Couper aux Titre 2 (sous-chapitres) ») ;
+ * - douteux : paragraphes classés par déduction et non par un style nommé, à vérifier (au plus
+ *   DOUTEUX_MAX, total dans stats['douteux'], stats['douteux_tronques'] au-delà) :
+ *   ['chapitre' => index du chapitre dans chapters, 'rang' => rang de l'élément (celui des ancres),
+ *   'motif' => clé de MOTIFS_DOUTEUX, 'extrait' => EXTRAIT_DOUTEUX caractères au plus].
  *
  * Aucune fonction WordPress.
  *
@@ -40,6 +44,24 @@ final class Result implements \JsonSerializable {
 
 	/** Nombre maximal de débuts de chapitre possibles relevés. */
 	public const CANDIDATS_MAX = 3000;
+
+	/** Nombre maximal de paragraphes douteux relevés. */
+	public const DOUTEUX_MAX = 200;
+
+	/** Longueur maximale de l'extrait d'un paragraphe douteux (caractères). */
+	public const EXTRAIT_DOUTEUX = 60;
+
+	/**
+	 * Motifs des paragraphes douteux : clé => explication lisible.
+	 *
+	 * @var array<string,string>
+	 */
+	public const MOTIFS_DOUTEUX = array(
+		'tiret'    => 'Tiret tapé dans le texte : converti en dialogue',
+		'liste'    => 'Paragraphe de liste sans puce tiret : gardé en récit',
+		'italique' => 'Entièrement en italique, sans style Pensée : gardé en récit',
+		'centre'   => 'Centré à la main, sans style Centré',
+	);
 
 	/**
 	 * Chapitres dans l'ordre du document.
@@ -84,6 +106,13 @@ final class Result implements \JsonSerializable {
 	public array $candidats = array();
 
 	/**
+	 * Paragraphes douteux, dans l'ordre du document.
+	 *
+	 * @var array<int,array{chapitre:int,rang:int,motif:string,extrait:string}>
+	 */
+	public array $douteux = array();
+
+	/**
 	 * Découpages rapides : 'images', 'ouvertures' et 'sauts' => ancres.
 	 *
 	 * @var array<string,string[]>
@@ -106,6 +135,20 @@ final class Result implements \JsonSerializable {
 		if ( ! in_array( $message, $this->warnings, true ) ) {
 			$this->warnings[] = $message;
 		}
+	}
+
+	/**
+	 * Extrait d'un paragraphe douteux : EXTRAIT_DOUTEUX caractères au plus, points de suspension
+	 * compris.
+	 *
+	 * @param string $texte Texte brut.
+	 */
+	public static function extrait( string $texte ): string {
+		$texte = Texte::espaces( $texte );
+		if ( mb_strlen( $texte, 'UTF-8' ) <= self::EXTRAIT_DOUTEUX ) {
+			return $texte;
+		}
+		return rtrim( mb_substr( $texte, 0, self::EXTRAIT_DOUTEUX - 1, 'UTF-8' ) ) . '…';
 	}
 
 	/**
@@ -177,6 +220,7 @@ final class Result implements \JsonSerializable {
 			'stats'          => $this->stats,
 			'candidats'      => $this->candidats,
 			'decoupages'     => $this->decoupages,
+			'douteux'        => $this->douteux,
 		);
 	}
 
