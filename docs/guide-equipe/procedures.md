@@ -41,7 +41,7 @@ Chaque membre a un rôle. Un rôle se demande à un gérant.
 | Rôle | Peut |
 | --- | --- |
 | **Traducteur**, **Relecteur**, **Graphiste** | Voir l'espace équipe et tout le planning. Mettre à jour l'avancement des tomes dont il est responsable. Envoyer des images. Consulter les statistiques d'audience (chiffres seulement) et exporter le classement des œuvres. |
-| **Éditeur Yume** | Tout ce qui précède, plus : créer et modifier les œuvres et les tomes, ajouter des chapitres, mettre à jour le planning de tous les tomes, publier les glossaires, écrire des actualités, modérer les commentaires, traiter les coquilles signalées. |
+| **Éditeur Yume** | Tout ce qui précède, plus : créer et modifier les œuvres et les tomes, ajouter des chapitres, corriger la mise en page d'un chapitre sur le site, mettre à jour le planning de tous les tomes, publier les glossaires, écrire des actualités, modérer les commentaires, traiter les coquilles signalées. |
 | **Gérant** | Tout ce qui précède, plus : gérer les membres et leurs rôles, voir les indicateurs et la santé du site, modifier les réglages, voir et exporter la liste des lecteurs qui suivent une œuvre, consulter les comptes inscrits et les ajouter à l'équipe. |
 
 > **À savoir** : chacun ne voit que les menus dont son rôle a besoin. Une entrée absente n'est pas une panne.
@@ -600,7 +600,33 @@ Pour des coquilles ou des corrections de relecture, sans prévenir les lecteurs.
 
 Le chapitre est remplacé à la même adresse. Ses commentaires et sa date sont gardés. Aucune annonce n'est envoyée.
 
-> **Astuce** : pour une seule coquille, un éditeur peut aussi corriger le texte directement dans l'administration WordPress (fiche du tome, lien **Édition avancée (administration WordPress)**), ou depuis **Corrections** avec **Corriger dans l'éditeur** (voir « Les coquilles signalées par les lecteurs »). Traducteurs, relecteurs et graphistes : signalez la coquille à un éditeur sur le Discord de l'équipe.
+> **Astuce** : pour une coquille ou un paragraphe mal stylé, un éditeur n'a pas besoin de reprendre le Word : sur la fiche du tome (section « Chapitres ») ou depuis **Corrections**, le bouton **Mettre en page** ouvre le chapitre sur le site, où l'on corrige le texte et le style de chaque paragraphe (voir « Corriger la mise en page d'un chapitre sur le site »). Traducteurs, relecteurs et graphistes : signalez la coquille à un éditeur sur le Discord de l'équipe.
+
+## Corriger la mise en page d'un chapitre sur le site
+
+Pour un chapitre déjà déposé (en ligne, programmé ou en brouillon) dont des paragraphes sont mal présentés : un récit affiché comme un dialogue (paragraphe de liste dans Word), une pensée restée en texte normal, un titre de lettre qui devrait être centré, un séparateur de scène oublié, ou une coquille. Réservé aux éditeurs et aux gérants.
+
+1. Ouvrez la fiche du tome (**Tous les tomes**, puis **Modifier**). Dans la section « Chapitres », cliquez sur **Mettre en page** à la ligne du chapitre. Depuis **Corrections**, le même bouton se trouve à côté de **Corriger dans l'éditeur**.
+2. Le chapitre s'affiche comme sur le site. Dans la marge, chaque paragraphe porte son style et son numéro : R (récit), D (dialogue), P (pensée), C (centré), — (séparateur de scène), T (intertitre).
+3. Sélectionnez les paragraphes à changer : un clic pour un paragraphe ; **Maj** + clic ou un glisser de la souris pour une suite de paragraphes ; **Ctrl** + clic (**Cmd** sur Mac) pour en ajouter un. Les flèches ↑ ↓ déplacent la sélection, **Échap** la vide.
+4. Cliquez sur un style de la palette, à droite (en bas sur téléphone) : **Récit**, **Dialogue**, **Pensée** ou **Centré**. Les touches R, D, P et C font la même chose. Le tiret du dialogue est ajouté ou retiré tout seul : ne le tapez jamais.
+5. Pour ajouter une coupure de scène, sélectionnez le premier paragraphe de la nouvelle scène et cliquez sur **Séparateur de scène** (touche S). **Intertitre** (touche T) transforme un paragraphe en petit titre, et inversement.
+6. Pour corriger le texte, double-cliquez sur le paragraphe (ou appuyez sur Entrée). **Ctrl + I** met en italique, **Ctrl + B** en gras, **Maj + Entrée** va à la ligne dans le même paragraphe. Entrée au milieu du texte coupe le paragraphe en deux ; Retour arrière au tout début le rattache au précédent. **Échap** annule la saisie ; un clic ailleurs la valide.
+7. Pour écrire un nouveau paragraphe, appuyez sur Entrée à la fin d'un paragraphe en saisie : un paragraphe vide du même style s'ouvre (Récit après un intertitre), tapez directement. À la souris ou sur téléphone, sélectionnez un paragraphe et cliquez sur **Ajouter un paragraphe après** (touche N). Un paragraphe laissé vide disparaît dès que vous en sortez.
+8. Vous pouvez coller du texte venu d'ailleurs : seuls l'italique et le gras sont gardés, et chaque ligne collée devient un paragraphe, du style du paragraphe en cours.
+9. Pour retirer des paragraphes ou un séparateur, sélectionnez-les et cliquez sur **Supprimer le paragraphe** (touche Suppr). Rien n'est demandé : en cas d'erreur, **Annuler** les fait revenir.
+10. Le menu **Actions** traite plusieurs paragraphes d'un coup : **Lignes commençant par un tiret → Dialogue**, **Toute la sélection → Récit**, **Paragraphes entièrement en italique → Pensée**, **Supprimer les paragraphes vides**. Sans sélection, elles portent sur tout le chapitre.
+11. Vérifiez le compteur, par exemple « 12 paragraphes modifiés », puis cliquez sur **Enregistrer** (ou **Ctrl + S**). Le message « Enregistré à 18 h 02 » confirme.
+
+Rien n'est annoncé aux lecteurs : ni Discord, ni e-mail. Le chapitre garde son adresse, sa date, son état et ses commentaires. Une ligne « mise en page corrigée » s'ajoute au journal de l'équipe.
+
+> **Astuce** : **Annuler** et **Rétablir** (**Ctrl + Z**, **Ctrl + Maj + Z**) reprennent vos dernières actions tant que vous n'avez pas quitté la page. Le bouton **?** liste tous les raccourcis. **Bureau** / **Mobile** et **Nuit** / **Papier** / **Sépia** changent seulement l'aperçu, pas vos réglages de lecture.
+
+> **À savoir** : chaque enregistrement garde l'ancienne version. Le lien **Historique des révisions** permet de comparer ou de revenir en arrière. Les images, la galerie et les notes ne se modifient pas ici : utilisez **Édition avancée (administration WordPress)**.
+
+> **Attention** : si quelqu'un a enregistré le même chapitre entre-temps, le site l'indique (« Quelqu'un a enregistré ce chapitre entre-temps… ») et n'écrase rien. Cliquez sur **Recharger** pour voir sa version, puis refaites vos changements. Un bandeau prévient aussi quand un autre membre a ouvert le chapitre depuis moins de 10 minutes.
+
+> **Attention** : les corrections faites ici ne sont pas dans le fichier Word. Si vous déposez de nouveau ce Word, le chapitre apparaît **En ligne, modifié** : choisissez **Garder la version en ligne** pour conserver vos corrections, ou corrigez d'abord le Word.
 
 ## Découper soi-même les chapitres
 

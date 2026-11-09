@@ -2,6 +2,10 @@
 
 Une entrée par version ; une version par commit (tools/build/version.php, docs/guide-developpeur.md).
 
+## 2.9.0-dev.4 — 2026-11-09
+
+- Mise en page d’un chapitre sur le site : vue d’équipe « Mettre en page » (?vue=chapitre&id=ID, éditeurs et gérants), accessible depuis la fiche du tome et la vue Corrections ; styles Récit / Dialogue / Pensée / Centré / Séparateur / Intertitre d’un clic ou au clavier, texte corrigé en place (scinder, fusionner, nouveaux paragraphes, collage), actions groupées, annuler / rétablir, enregistrement sans annonce avec révision et protection contre les conflits (routes GET/PUT /yume/v1/chapitres/{id}/mise-en-page, POST …/presence)
+
 ## 2.9.0-dev.3 — 2026-11-09
 
 - Import : styles Word nommés reconnus (Récit, Narration, Narratif → récit forcé ; Dialogue et « - Paragraphe » → dialogue même sans puce ; Centré) et rapport des « paragraphes à vérifier » (tiret tapé, liste sans tiret, italique sans style Pensée, centrage à la main) dans l’analyse du formulaire de publication, avec le lien « Mettre en page » des chapitres en ligne ; documents sans style nommé convertis à l’identique

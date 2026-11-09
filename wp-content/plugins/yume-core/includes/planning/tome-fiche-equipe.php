@@ -1677,6 +1677,11 @@ function ligne_chapitre_tome( \WP_Post $chap, bool $tome_publie, string $propose
 	} else {
 		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( (string) get_preview_post_link( $chap ) ) . '">' . esc_html__( 'Aperçu', 'yume-core' ) . $nom . '</a>';
 	}
+	// Vue « Mettre en page » (module mise-en-page) : styles et texte corrigés sur le site.
+	$mise_en_page = function_exists( 'yume_mise_en_page_url' ) && function_exists( 'yume_mise_en_page_peut' ) && yume_mise_en_page_peut( $id ) && '' === (string) get_post_meta( $id, 'yume_mdx_chapitre', true ) ? yume_mise_en_page_url( $id ) : '';
+	if ( '' !== $mise_en_page ) {
+		$html .= '<a class="yn-btn yn-btn--sm" href="' . esc_url( $mise_en_page ) . '">' . esc_html__( 'Mettre en page', 'yume-core' ) . $nom . '</a>';
+	}
 	if ( $peut && ! $publie && $tome_publie ) {
 		$html  .= '<form class="yn-chapitres__form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">' . champs_action_chapitre( $id, 'publier' );
 		$html  .= '<button type="submit" class="yn-btn yn-btn--sm">' . esc_html__( 'Publier maintenant', 'yume-core' ) . $nom . '</button></form>';

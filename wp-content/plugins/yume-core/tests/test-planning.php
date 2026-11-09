@@ -2220,7 +2220,7 @@ yume_tp_test(
 		yume_assert_true( ! empty( $m[0] ), 'navigation présente' );
 		preg_match_all( '#<li><a href="([^"]*)"([^>]*)>([^<]*)#', $m[0], $liens, PREG_SET_ORDER );
 		$libelles = array_map( static fn( $l ) => html_entity_decode( trim( $l[3] ), ENT_QUOTES, 'UTF-8' ), $liens );
-		$du_menu  = static fn( string $groupe ): array => array_column( array_filter( $ajoutees, static fn( $v ) => $groupe === $v['groupe'] ), 'libelle' );
+		$du_menu  = static fn( string $groupe ): array => array_column( array_filter( $ajoutees, static fn( $v ) => $groupe === $v['groupe'] && $v['menu'] ), 'libelle' );
 		yume_assert_same( array_merge( array( 'Tableau de bord', 'Mes tâches', 'Œuvres', 'Tous les tomes', 'Ajouter des chapitres', 'Lecture à compléter' ), $du_menu( 'catalogue' ), array( 'Planning complet', 'Journal', 'Membres et rôles' ), $du_menu( 'equipe' ), $du_menu( 'site' ), array( 'Réglages' ) ), $libelles );
 		$equipe   = esc_url( yume_url_page( 'equipe' ) );
 		yume_assert_same( $equipe, $liens[0][1] );

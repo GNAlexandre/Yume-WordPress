@@ -155,6 +155,12 @@ avertissement.
 
 ## 4. Rendu du lecteur
 
+> Corriger la présentation d'un chapitre déjà déposé (paragraphe de liste lu comme dialogue, pensée
+> non reconnue, centrage, séparateur oublié, coquille) sans reprendre le Word : vue d'équipe « Mettre
+> en page » (`?vue=chapitre&id=ID`, module mise-en-page, 2.9.0). Elle affiche le chapitre avec les
+> mêmes classes et le même `reader.css` que ci-dessous et réécrit les blocs avec `Import\Blocks`
+> (`docs/10-mise-en-page-chapitre.md`, lot E ; contrat §7, §10, §12).
+
 ### 4.1 Gabarit `/lire/{oeuvre}/{tome}/{n}/`
 
 ```

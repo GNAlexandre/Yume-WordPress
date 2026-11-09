@@ -10,7 +10,8 @@
  * déjà paru ajoutée sans annonce : équipe seulement), pause (tome mis en pause ou repris :
  * équipe seulement), parution (état du tome choisi dans « Modifier le tome », ou changé par
  * une publication : équipe seulement) et serie_a_venir (titre d'une œuvre caché au public ou
- * révélé, tome_id 0 : équipe seulement).
+ * révélé, tome_id 0 : équipe seulement), mise_en_page (chapitre corrigé dans la vue « Mettre en
+ * page » : équipe seulement).
  *
  * @package Yume\Core
  */
@@ -25,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string[]
  */
 function champs_evenements(): array {
-	return array( 'creation', 'publie', 'depublie', 'chapitre_publie', 'retire', 'etape_forcee', 'rappel', 'signalement', 'digest', 'lecture_ajoutee', 'calendrier' );
+	return array( 'creation', 'publie', 'depublie', 'chapitre_publie', 'retire', 'etape_forcee', 'rappel', 'signalement', 'digest', 'lecture_ajoutee', 'calendrier', 'mise_en_page' );
 }
 
 /**
@@ -34,7 +35,7 @@ function champs_evenements(): array {
  * @return string[]
  */
 function champs_prives(): array {
-	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution', 'chapitres_prevus', 'serie_a_venir', 'calendrier' );
+	return array( 'note_equipe', 'etape_forcee', 'signalement', 'digest', 'lecture_ajoutee', 'pause', 'etat_oeuvre', 'parution', 'chapitres_prevus', 'serie_a_venir', 'calendrier', 'mise_en_page' );
 }
 
 /**
@@ -479,6 +480,22 @@ function texte_changement( $ligne, bool $equipe ): string {
 				? sprintf( __( 'chapitres prévus : %d', 'yume-core' ), $a )
 				/* translators: 1: avant, 2: après */
 				: sprintf( __( 'chapitres prévus : %1$d → %2$d', 'yume-core' ), $de, $a );
+
+		case 'mise_en_page':
+			// Chapitre mis en page dans la vue d'équipe (module mise-en-page) : équipe seulement.
+			if ( ! $equipe ) {
+				return '';
+			}
+			$infos = is_array( $nouveau ) ? $nouveau : array();
+			$nb    = (int) ( $infos['modifies'] ?? 0 );
+			$lib   = (string) ( $infos['libelle'] ?? '' );
+			$texte = sprintf(
+				/* translators: %d : nombre de paragraphes */
+				_n( 'mise en page corrigée : %d paragraphe modifié', 'mise en page corrigée : %d paragraphes modifiés', $nb, 'yume-core' ),
+				$nb
+			);
+			/* translators: 1: chapitre, 2: « mise en page corrigée : 12 paragraphes modifiés » */
+			return '' !== $lib ? sprintf( __( '%1$s, %2$s', 'yume-core' ), $lib, $texte ) : $texte;
 
 		case 'calendrier':
 			// Calendrier sur mesure enregistré (vue « Programmer les sorties ») : équipe seulement.

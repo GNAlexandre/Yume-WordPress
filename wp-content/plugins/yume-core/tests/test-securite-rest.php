@@ -138,6 +138,11 @@ if ( ! function_exists( 'yume_tsrest_attentes' ) ) {
 			// L1 — corrections (includes/corrections/rest.php) : signaler une coquille, comptes
 			// connectés (le mode anonyme, réglage coquilles_anonymes, est désactivé par défaut).
 			'POST /yume/v1/chapitres/(?P<chapitre>\d+)/coquilles' => 'connectes',
+			// 2.9.0 — mise en page d'un chapitre (includes/mise-en-page/rest.php) : yume_publier et
+			// edit_post sur le contenu (filtre yume_mise_en_page_peut) ; type contrôlé dans le rappel.
+			'GET /yume/v1/chapitres/(?P<id>\d+)/mise-en-page' => $equipe_planning,
+			'PUT /yume/v1/chapitres/(?P<id>\d+)/mise-en-page' => $equipe_planning,
+			'POST /yume/v1/chapitres/(?P<id>\d+)/mise-en-page/presence' => $equipe_planning,
 			// L3 — recommandations (includes/recommandations/rest.php) : suggestions publiques d'une
 			// œuvre (agrégats ≥ 3 lecteurs, jamais personnalisées), rubrique « Pour vous » du membre.
 			// Antislash doublé (même motif) : écrite \d, la clé aurait juste la longueur qui réaligne
